@@ -1,0 +1,24 @@
+{
+  "manifest_version": 3,
+  "name": "Golden Nugget Finder",
+  "version": "1.0.0",
+  "description": "Extract high-value insights from web content using AI",
+  "permissions": [
+    "activeTab",
+    "storage",
+    "contextMenus"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [{
+    "matches": ["<all_urls>"],
+    "js": ["content.js"],
+    "css": ["content.css"],
+    "run_at": "document_idle"
+  }],
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "options_page": "options.html"
+}

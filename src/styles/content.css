@@ -1,0 +1,216 @@
+/* Golden Nugget Finder Content Styles */
+
+.nugget-highlight {
+  background-color: rgba(255, 215, 0, 0.3) !important;
+  padding: 1px 0;
+  border-radius: 2px;
+  transition: background-color 0.2s ease;
+}
+
+.nugget-highlight:hover {
+  background-color: rgba(255, 215, 0, 0.5) !important;
+}
+
+.nugget-indicator {
+  cursor: pointer;
+  margin-left: 4px;
+  font-size: 12px;
+  opacity: 0.7;
+  user-select: none;
+  transition: opacity 0.2s ease;
+}
+
+.nugget-indicator:hover {
+  opacity: 1;
+}
+
+.nugget-synthesis-popup {
+  position: absolute;
+  background: white;
+  border: 1px solid #ccc;
+  padding: 12px;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  max-width: 300px;
+  z-index: 10000;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 14px;
+  line-height: 1.4;
+  color: #333;
+}
+
+.nugget-sidebar {
+  position: fixed;
+  right: 0;
+  top: 0;
+  width: 320px;
+  height: 100vh;
+  background: white;
+  border-left: 1px solid #ddd;
+  overflow-y: auto;
+  z-index: 10000;
+  box-shadow: -2px 0 8px rgba(0,0,0,0.1);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.nugget-sidebar::-webkit-scrollbar {
+  width: 8px;
+}
+
+.nugget-sidebar::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+.nugget-sidebar::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+}
+
+.nugget-sidebar::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+.nugget-notification-banner {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 12px 24px;
+  border-radius: 4px;
+  z-index: 10001;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  max-width: 400px;
+  text-align: center;
+  animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+  from {
+    transform: translateX(-50%) translateY(-20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+  }
+}
+
+.nugget-banner-progress {
+  background: #4CAF50;
+  color: white;
+}
+
+.nugget-banner-error {
+  background: #f44336;
+  color: white;
+}
+
+.nugget-banner-info {
+  background: #2196F3;
+  color: white;
+}
+
+.nugget-item {
+  margin-bottom: 20px;
+  padding: 16px;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  background: #f8f9fa;
+  transition: all 0.2s ease;
+}
+
+.nugget-item:hover {
+  border-color: #007bff;
+  box-shadow: 0 2px 8px rgba(0,123,255,0.1);
+}
+
+.nugget-type-badge {
+  display: inline-block;
+  background: #007bff;
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+.nugget-content {
+  margin-bottom: 12px;
+  font-size: 14px;
+  line-height: 1.4;
+  color: #495057;
+}
+
+.nugget-synthesis {
+  font-size: 13px;
+  line-height: 1.4;
+  color: #6c757d;
+  font-style: italic;
+  border-left: 3px solid #007bff;
+  padding-left: 12px;
+  margin-top: 8px;
+}
+
+/* Hide scrollbar for sidebar content when not needed */
+.nugget-sidebar {
+  scrollbar-width: thin;
+  scrollbar-color: #c1c1c1 #f1f1f1;
+}
+
+/* Ensure content doesn't get hidden behind sidebar */
+body.nugget-sidebar-open {
+  margin-right: 320px;
+  transition: margin-right 0.3s ease;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .nugget-sidebar {
+    width: 100%;
+    left: 0;
+    right: 0;
+  }
+  
+  body.nugget-sidebar-open {
+    margin-right: 0;
+  }
+  
+  .nugget-notification-banner {
+    left: 10px;
+    right: 10px;
+    transform: none;
+    max-width: none;
+  }
+}
+
+/* Prevent conflicts with site styles */
+.nugget-highlight,
+.nugget-indicator,
+.nugget-synthesis-popup,
+.nugget-sidebar,
+.nugget-notification-banner {
+  all: initial;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+}
+
+/* Reapply our styles after reset */
+.nugget-highlight {
+  background-color: rgba(255, 215, 0, 0.3) !important;
+  padding: 1px 0 !important;
+  border-radius: 2px !important;
+  display: inline !important;
+}
+
+.nugget-indicator {
+  cursor: pointer !important;
+  margin-left: 4px !important;
+  font-size: 12px !important;
+  opacity: 0.7 !important;
+  user-select: none !important;
+  display: inline !important;
+}

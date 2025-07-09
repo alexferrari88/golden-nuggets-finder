@@ -1,0 +1,24 @@
+{
+  "name": "golden-nugget-finder",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "dev": "plasmo dev",
+    "build": "plasmo build",
+    "package": "plasmo package",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "devDependencies": {
+    "@types/chrome": "^0.0.332",
+    "@types/node": "^24.0.12",
+    "plasmo": "^0.90.5",
+    "typescript": "^5.8.3"
+  },
+  "dependencies": {
+    "@google/genai": "^1.8.0"
+  }
+}
