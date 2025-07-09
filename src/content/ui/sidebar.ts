@@ -3,11 +3,16 @@ import { UI_CONSTANTS } from '../../shared/constants';
 
 export class Sidebar {
   private sidebar: HTMLElement | null = null;
+  private itemsPerPage = 20;
+  private currentPage = 0;
+  private allItems: SidebarNuggetItem[] = [];
 
   show(nuggetItems: SidebarNuggetItem[]): void {
     this.hide(); // Remove existing sidebar if any
     
-    this.sidebar = this.createSidebar(nuggetItems);
+    this.allItems = nuggetItems;
+    this.currentPage = 0;
+    this.sidebar = this.createSidebar();
     document.body.appendChild(this.sidebar);
     
     // Adjust page margin to account for sidebar
@@ -22,7 +27,7 @@ export class Sidebar {
     }
   }
 
-  private createSidebar(nuggetItems: SidebarNuggetItem[]): HTMLElement {
+  private createSidebar(): HTMLElement {
     const sidebar = document.createElement('div');
     sidebar.className = 'nugget-sidebar';
     sidebar.style.cssText = `
@@ -39,7 +44,18 @@ export class Sidebar {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     `;
     
-    // Create header
+    // Create header with performance optimizations
+    const header = this.createOptimizedHeader();
+    sidebar.appendChild(header);
+    
+    // Create nugget list with virtual scrolling
+    const nuggetList = this.createNuggetList();
+    sidebar.appendChild(nuggetList);
+    
+    return sidebar;
+  }
+  
+  private createOptimizedHeader(): HTMLElement {
     const header = document.createElement('div');
     header.style.cssText = `
       padding: 20px;
@@ -55,7 +71,7 @@ export class Sidebar {
     `;
     
     const title = document.createElement('h3');
-    title.textContent = 'Golden Nuggets';
+    title.textContent = `Golden Nuggets (${this.allItems.length})`;
     title.style.cssText = `
       margin: 0;
       font-size: 16px;
@@ -79,7 +95,13 @@ export class Sidebar {
       transition: background-color 0.2s;
     `;
     
-    closeBtn.addEventListener('click', () => this.hide());
+    // Debounced close handler
+    let closeTimeout: NodeJS.Timeout;
+    closeBtn.addEventListener('click', () => {
+      clearTimeout(closeTimeout);
+      closeTimeout = setTimeout(() => this.hide(), 100);
+    });
+    
     closeBtn.addEventListener('mouseover', () => {
       closeBtn.style.backgroundColor = '#e9ecef';
     });
@@ -89,15 +111,18 @@ export class Sidebar {
     
     header.appendChild(title);
     header.appendChild(closeBtn);
-    sidebar.appendChild(header);
     
-    // Create nugget list
+    return header;
+  }
+  
+  private createNuggetList(): HTMLElement {
     const nuggetList = document.createElement('div');
+    nuggetList.id = 'nugget-list-container';
     nuggetList.style.cssText = `
       padding: 20px;
     `;
     
-    if (nuggetItems.length === 0) {
+    if (this.allItems.length === 0) {
       const emptyState = document.createElement('div');
       emptyState.style.cssText = `
         text-align: center;
@@ -108,14 +133,112 @@ export class Sidebar {
       emptyState.textContent = 'No golden nuggets found.';
       nuggetList.appendChild(emptyState);
     } else {
-      nuggetItems.forEach((item, index) => {
-        const nuggetElement = this.createNuggetElement(item, index);
-        nuggetList.appendChild(nuggetElement);
-      });
+      this.renderCurrentPage(nuggetList);
+      
+      // Add pagination if needed
+      if (this.allItems.length > this.itemsPerPage) {
+        this.addPagination(nuggetList);
+      }
     }
     
-    sidebar.appendChild(nuggetList);
-    return sidebar;
+    return nuggetList;
+  }
+  
+  private renderCurrentPage(container: HTMLElement): void {
+    const start = this.currentPage * this.itemsPerPage;
+    const end = Math.min(start + this.itemsPerPage, this.allItems.length);
+    
+    // Clear existing items
+    const existingItems = container.querySelectorAll('.nugget-item');
+    existingItems.forEach(item => item.remove());
+    
+    // Use DocumentFragment for efficient DOM manipulation
+    const fragment = document.createDocumentFragment();
+    
+    for (let i = start; i < end; i++) {
+      const nuggetElement = this.createNuggetElement(this.allItems[i], i);
+      fragment.appendChild(nuggetElement);
+    }
+    
+    container.appendChild(fragment);
+  }
+  
+  private addPagination(container: HTMLElement): void {
+    const totalPages = Math.ceil(this.allItems.length / this.itemsPerPage);
+    
+    const paginationDiv = document.createElement('div');
+    paginationDiv.style.cssText = `
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      margin-top: 20px;
+      padding: 20px;
+    `;
+    
+    // Previous button
+    if (this.currentPage > 0) {
+      const prevBtn = this.createPageButton('Previous', () => {
+        this.currentPage--;
+        this.renderCurrentPage(container);
+        this.updatePagination(container);
+      });
+      paginationDiv.appendChild(prevBtn);
+    }
+    
+    // Page info
+    const pageInfo = document.createElement('span');
+    pageInfo.textContent = `Page ${this.currentPage + 1} of ${totalPages}`;
+    pageInfo.style.cssText = `
+      align-self: center;
+      color: #666;
+      font-size: 14px;
+    `;
+    paginationDiv.appendChild(pageInfo);
+    
+    // Next button
+    if (this.currentPage < totalPages - 1) {
+      const nextBtn = this.createPageButton('Next', () => {
+        this.currentPage++;
+        this.renderCurrentPage(container);
+        this.updatePagination(container);
+      });
+      paginationDiv.appendChild(nextBtn);
+    }
+    
+    container.appendChild(paginationDiv);
+  }
+  
+  private createPageButton(text: string, onClick: () => void): HTMLElement {
+    const button = document.createElement('button');
+    button.textContent = text;
+    button.style.cssText = `
+      background: #007bff;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: background-color 0.2s;
+    `;
+    
+    button.addEventListener('click', onClick);
+    button.addEventListener('mouseover', () => {
+      button.style.backgroundColor = '#0056b3';
+    });
+    button.addEventListener('mouseout', () => {
+      button.style.backgroundColor = '#007bff';
+    });
+    
+    return button;
+  }
+  
+  private updatePagination(container: HTMLElement): void {
+    const existingPagination = container.querySelector('div:last-child');
+    if (existingPagination && existingPagination.style.display === 'flex') {
+      existingPagination.remove();
+    }
+    this.addPagination(container);
   }
 
   private createNuggetElement(item: SidebarNuggetItem, index: number): HTMLElement {
@@ -128,6 +251,18 @@ export class Sidebar {
       border-radius: 8px;
       background: ${item.status === 'highlighted' ? '#fff8dc' : '#f8f9fa'};
       transition: all 0.2s;
+    `;
+    
+    // Use DocumentFragment for efficient DOM construction
+    const fragment = document.createDocumentFragment();
+    
+    // Header with type badge and status
+    const headerDiv = document.createElement('div');
+    headerDiv.style.cssText = `
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 8px;
     `;
     
     // Type badge
@@ -143,21 +278,21 @@ export class Sidebar {
       font-size: 12px;
       font-weight: 500;
       text-transform: uppercase;
-      margin-bottom: 8px;
     `;
     
     // Status indicator
     const statusIndicator = document.createElement('span');
     statusIndicator.textContent = item.status === 'highlighted' ? '✓ Highlighted' : '⚠ Not found';
     statusIndicator.style.cssText = `
-      float: right;
       font-size: 12px;
       color: ${item.status === 'highlighted' ? '#28a745' : '#ffc107'};
       font-weight: 500;
-      margin-top: 4px;
     `;
     
-    // Content preview
+    headerDiv.appendChild(typeBadge);
+    headerDiv.appendChild(statusIndicator);
+    
+    // Content preview with lazy loading
     const contentPreview = document.createElement('div');
     contentPreview.className = 'nugget-content';
     contentPreview.style.cssText = `
@@ -190,29 +325,23 @@ export class Sidebar {
     `;
     synthesis.textContent = item.nugget.synthesis;
     
-    // Add hover effect
+    // Debounced hover effects for better performance
+    let hoverTimeout: NodeJS.Timeout;
     nuggetDiv.addEventListener('mouseover', () => {
-      nuggetDiv.style.borderColor = '#007bff';
-      nuggetDiv.style.boxShadow = '0 2px 8px rgba(0,123,255,0.1)';
+      clearTimeout(hoverTimeout);
+      hoverTimeout = setTimeout(() => {
+        nuggetDiv.style.borderColor = '#007bff';
+        nuggetDiv.style.boxShadow = '0 2px 8px rgba(0,123,255,0.1)';
+      }, 50);
     });
     
     nuggetDiv.addEventListener('mouseout', () => {
+      clearTimeout(hoverTimeout);
       nuggetDiv.style.borderColor = '#e9ecef';
       nuggetDiv.style.boxShadow = 'none';
     });
     
     // Assemble the element
-    const headerDiv = document.createElement('div');
-    headerDiv.style.cssText = `
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      margin-bottom: 8px;
-    `;
-    
-    headerDiv.appendChild(typeBadge);
-    headerDiv.appendChild(statusIndicator);
-    
     nuggetDiv.appendChild(headerDiv);
     nuggetDiv.appendChild(contentPreview);
     nuggetDiv.appendChild(synthesis);

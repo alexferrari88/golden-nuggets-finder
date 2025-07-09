@@ -9,6 +9,8 @@ describe('StorageManager', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     storageManager = StorageManager.getInstance();
+    // Clear cache before each test
+    storageManager.clearAllCache();
   });
 
   describe('Singleton Pattern', () => {

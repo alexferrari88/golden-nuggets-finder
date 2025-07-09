@@ -7,25 +7,31 @@ export class RedditExtractor extends ContentExtractor {
     
     // Extract main post content
     const postElements = document.querySelectorAll(SITE_SELECTORS.REDDIT.POST);
-    postElements.forEach(element => {
+    for (const element of postElements) {
       if (this.isElementVisible(element)) {
         const text = this.extractTextFromElement(element);
         if (text) {
           content.push(`[POST] ${text}`);
         }
       }
-    });
+    }
     
-    // Extract comments
+    // Extract comments with performance optimization
     const commentElements = document.querySelectorAll(SITE_SELECTORS.REDDIT.COMMENTS);
-    commentElements.forEach((element, index) => {
+    const maxComments = 50; // Limit to prevent performance issues on large threads
+    let commentCount = 0;
+    
+    for (const element of commentElements) {
+      if (commentCount >= maxComments) break;
+      
       if (this.isElementVisible(element)) {
         const text = this.extractTextFromElement(element);
         if (text && text.length > 10) { // Filter out very short comments
-          content.push(`[COMMENT ${index + 1}] ${text}`);
+          content.push(`[COMMENT ${commentCount + 1}] ${text}`);
+          commentCount++;
         }
       }
-    });
+    }
     
     return content.join('\n\n');
   }

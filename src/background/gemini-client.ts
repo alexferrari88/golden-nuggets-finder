@@ -2,12 +2,16 @@ import { GEMINI_CONFIG } from '../shared/constants';
 import { GOLDEN_NUGGET_SCHEMA } from '../shared/schemas';
 import { GeminiResponse } from '../shared/types';
 import { storage } from '../shared/storage';
+import { performanceMonitor, measureAPICall } from '../shared/performance';
 
 export class GeminiClient {
   private apiKey: string | null = null;
   private readonly MAX_RETRIES = 3;
   private readonly RETRY_DELAY = 1000; // 1 second
   private readonly API_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/models';
+  private readonly MAX_CONTENT_LENGTH = 30000; // Limit content size to optimize API calls
+  private responseCache = new Map<string, { response: GeminiResponse; timestamp: number }>();
+  private readonly CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
   private async initializeClient(): Promise<void> {
     if (this.apiKey) return;
@@ -25,53 +29,72 @@ export class GeminiClient {
       throw new Error('Gemini client not initialized');
     }
 
+    // Optimize content size to improve API performance
+    const optimizedContent = this.optimizeContentForAPI(content);
+    
+    // Check cache first
+    const cacheKey = this.getCacheKey(optimizedContent, userPrompt);
+    const cachedResponse = this.getCachedResponse(cacheKey);
+    if (cachedResponse) {
+      return cachedResponse;
+    }
+
     // Construct prompt with user query at the end for optimal performance
-    const fullPrompt = `${content}\n\n${userPrompt}`;
+    const fullPrompt = `${optimizedContent}\n\n${userPrompt}`;
 
     return this.retryRequest(async () => {
-      const requestBody = {
-        contents: [{
-          parts: [{ text: fullPrompt }]
-        }],
-        generationConfig: {
-          responseMimeType: "application/json",
-          responseSchema: GOLDEN_NUGGET_SCHEMA,
-          thinkingConfig: {
-            thinkingBudget: GEMINI_CONFIG.THINKING_BUDGET
+      return measureAPICall('gemini_generate_content', async () => {
+        const requestBody = {
+          contents: [{
+            parts: [{ text: fullPrompt }]
+          }],
+          generationConfig: {
+            responseMimeType: "application/json",
+            responseSchema: GOLDEN_NUGGET_SCHEMA,
+            thinkingConfig: {
+              thinkingBudget: GEMINI_CONFIG.THINKING_BUDGET
+            }
           }
+        };
+
+        performanceMonitor.startTimer('gemini_request');
+        const response = await fetch(`${this.API_BASE_URL}/${GEMINI_CONFIG.MODEL}:generateContent`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-goog-api-key': this.apiKey
+          },
+          body: JSON.stringify(requestBody)
+        });
+        performanceMonitor.logTimer('gemini_request', 'HTTP request to Gemini API');
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`Gemini API error: ${response.status} ${response.statusText} - ${errorText}`);
         }
-      };
 
-      const response = await fetch(`${this.API_BASE_URL}/${GEMINI_CONFIG.MODEL}:generateContent`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-goog-api-key': this.apiKey
-        },
-        body: JSON.stringify(requestBody)
+        performanceMonitor.startTimer('gemini_response_parse');
+        const responseData = await response.json();
+        
+        // Extract the text from the response
+        const responseText = responseData.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (!responseText) {
+          throw new Error('No response text received from Gemini API');
+        }
+
+        const result = JSON.parse(responseText) as GeminiResponse;
+        performanceMonitor.logTimer('gemini_response_parse', 'Parse Gemini response');
+        
+        // Validate the response structure
+        if (!result.golden_nuggets || !Array.isArray(result.golden_nuggets)) {
+          throw new Error('Invalid response format from Gemini API');
+        }
+
+        // Cache the response
+        this.setCachedResponse(cacheKey, result);
+
+        return result;
       });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Gemini API error: ${response.status} ${response.statusText} - ${errorText}`);
-      }
-
-      const responseData = await response.json();
-      
-      // Extract the text from the response
-      const responseText = responseData.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (!responseText) {
-        throw new Error('No response text received from Gemini API');
-      }
-
-      const result = JSON.parse(responseText) as GeminiResponse;
-      
-      // Validate the response structure
-      if (!result.golden_nuggets || !Array.isArray(result.golden_nuggets)) {
-        throw new Error('Invalid response format from Gemini API');
-      }
-
-      return result;
     });
   }
 
@@ -94,9 +117,14 @@ export class GeminiClient {
         throw this.enhanceError(error);
       }
 
-      // Wait before retrying (exponential backoff)
-      const delay = this.RETRY_DELAY * Math.pow(2, currentAttempt - 1);
-      await new Promise(resolve => setTimeout(resolve, delay));
+      // Smart backoff: longer delays for rate limiting, shorter for transient errors
+      const isRateLimit = errorMessage.toLowerCase().includes('rate limit');
+      const baseDelay = isRateLimit ? this.RETRY_DELAY * 2 : this.RETRY_DELAY;
+      const delay = baseDelay * Math.pow(2, currentAttempt - 1);
+      
+      // Add jitter to prevent thundering herd
+      const jitter = Math.random() * 0.1 * delay;
+      await new Promise(resolve => setTimeout(resolve, delay + jitter));
 
       console.warn(`Retrying Gemini API request (attempt ${currentAttempt + 1}/${this.MAX_RETRIES})`);
       return this.retryRequest(operation, currentAttempt + 1);
@@ -135,6 +163,59 @@ export class GeminiClient {
     
     console.error('Gemini API error:', error);
     return new Error('Analysis failed. Please try again.');
+  }
+  
+  private optimizeContentForAPI(content: string): string {
+    // Truncate content if too long
+    if (content.length > this.MAX_CONTENT_LENGTH) {
+      // Try to truncate at sentence boundaries
+      const sentences = content.split(/[.!?]+/);
+      let truncated = '';
+      
+      for (const sentence of sentences) {
+        if (truncated.length + sentence.length > this.MAX_CONTENT_LENGTH) {
+          break;
+        }
+        truncated += sentence + '. ';
+      }
+      
+      return truncated || content.substring(0, this.MAX_CONTENT_LENGTH);
+    }
+    
+    return content;
+  }
+  
+  private getCacheKey(content: string, prompt: string): string {
+    // Create a hash-like key for caching
+    return `${content.length}_${prompt.length}_${content.substring(0, 50)}_${prompt.substring(0, 50)}`;
+  }
+  
+  private getCachedResponse(cacheKey: string): GeminiResponse | null {
+    const cached = this.responseCache.get(cacheKey);
+    if (cached && Date.now() - cached.timestamp < this.CACHE_DURATION) {
+      return cached.response;
+    }
+    
+    // Remove expired cache entry
+    if (cached) {
+      this.responseCache.delete(cacheKey);
+    }
+    
+    return null;
+  }
+  
+  private setCachedResponse(cacheKey: string, response: GeminiResponse): void {
+    // Limit cache size to prevent memory issues
+    if (this.responseCache.size > 10) {
+      // Remove oldest entries
+      const oldestKey = this.responseCache.keys().next().value;
+      this.responseCache.delete(oldestKey);
+    }
+    
+    this.responseCache.set(cacheKey, {
+      response,
+      timestamp: Date.now()
+    });
   }
 
   async validateApiKey(apiKey: string): Promise<boolean> {

@@ -7,25 +7,31 @@ export class HackerNewsExtractor extends ContentExtractor {
     
     // Extract main post content (if exists)
     const postElements = document.querySelectorAll(SITE_SELECTORS.HACKER_NEWS.POST);
-    postElements.forEach(element => {
+    for (const element of postElements) {
       if (this.isElementVisible(element)) {
         const text = this.extractTextFromElement(element);
         if (text) {
           content.push(`[POST] ${text}`);
         }
       }
-    });
+    }
     
-    // Extract comments
+    // Extract comments with performance optimization
     const commentElements = document.querySelectorAll(SITE_SELECTORS.HACKER_NEWS.COMMENTS);
-    commentElements.forEach((element, index) => {
+    const maxComments = 50; // Limit to prevent performance issues on large threads
+    let commentCount = 0;
+    
+    for (const element of commentElements) {
+      if (commentCount >= maxComments) break;
+      
       if (this.isElementVisible(element)) {
         const text = this.extractTextFromElement(element);
         if (text && text.length > 20) { // Filter out very short comments
-          content.push(`[COMMENT ${index + 1}] ${text}`);
+          content.push(`[COMMENT ${commentCount + 1}] ${text}`);
+          commentCount++;
         }
       }
-    });
+    }
     
     // If no post content found, try to get title and URL
     if (content.length === 0 || !content[0].startsWith('[POST]')) {

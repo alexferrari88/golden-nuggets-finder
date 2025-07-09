@@ -6,8 +6,8 @@ export class GenericExtractor extends ContentExtractor {
     const content: string[] = [];
     
     try {
-      // Clone the document to avoid modifying the original
-      const documentClone = document.cloneNode(true) as Document;
+      // More efficient approach: try Readability on a lighter document clone
+      const documentClone = this.createOptimizedDocumentClone();
       
       // Use Readability.js to extract the main content
       const reader = new Readability(documentClone);
@@ -43,10 +43,27 @@ export class GenericExtractor extends ContentExtractor {
     return content.join('\n\n');
   }
   
+  private createOptimizedDocumentClone(): Document {
+    // Create a lighter document clone by removing heavy elements first
+    const clone = document.cloneNode(true) as Document;
+    
+    // Remove elements that slow down processing
+    const heavySelectors = [
+      'script', 'style', 'noscript', 'svg', 'canvas', 'video', 'audio',
+      'iframe', 'embed', 'object', '.advertisement', '.ad', '.ads'
+    ];
+    
+    heavySelectors.forEach(selector => {
+      clone.querySelectorAll(selector).forEach(el => el.remove());
+    });
+    
+    return clone;
+  }
+  
   private fallbackExtraction(): string {
     const content: string[] = [];
     
-    // Try to find the main content area
+    // Optimized main content detection using priority order
     const mainSelectors = [
       'main',
       'article',
@@ -62,10 +79,13 @@ export class GenericExtractor extends ContentExtractor {
     
     let mainElement: Element | null = null;
     
-    for (const selector of mainSelectors) {
-      const element = document.querySelector(selector);
-      if (element && this.isElementVisible(element)) {
-        mainElement = element;
+    // Use querySelectorAll with combined selector for better performance
+    const combinedSelector = mainSelectors.join(', ');
+    const candidates = document.querySelectorAll(combinedSelector);
+    
+    for (const candidate of candidates) {
+      if (this.isElementVisible(candidate)) {
+        mainElement = candidate;
         break;
       }
     }
@@ -76,7 +96,7 @@ export class GenericExtractor extends ContentExtractor {
     }
     
     if (mainElement) {
-      // Clone the element to avoid modifying the original
+      // Clone and clean the element for content extraction
       const clone = mainElement.cloneNode(true) as Element;
       
       // Remove unwanted elements

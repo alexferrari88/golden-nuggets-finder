@@ -4,6 +4,7 @@ import { RedditExtractor } from './content/extractors/reddit';
 import { HackerNewsExtractor } from './content/extractors/hackernews';
 import { GenericExtractor } from './content/extractors/generic';
 import { UIManager } from './content/ui/ui-manager';
+import { performanceMonitor, measureContentExtraction, measureDOMOperation } from './shared/performance';
 
 class ContentScript {
   private extractor: ContentExtractor;
@@ -64,11 +65,13 @@ class ContentScript {
 
   private async analyzeContent(promptId: string): Promise<void> {
     try {
+      performanceMonitor.startTimer('total_analysis');
+      
       // Show progress indicator
       this.uiManager.showProgressBanner();
 
       // Extract content from the page
-      const content = await this.extractor.extractContent();
+      const content = await measureContentExtraction('page_content', () => this.extractor.extractContent());
       
       if (!content || content.trim().length === 0) {
         this.uiManager.showErrorBanner('No content found on this page.');
@@ -82,10 +85,12 @@ class ContentScript {
         url: window.location.href
       };
 
+      performanceMonitor.startTimer('api_request');
       const response = await this.sendMessageToBackground(MESSAGE_TYPES.ANALYZE_CONTENT, analysisRequest);
+      performanceMonitor.logTimer('api_request', 'Background API call');
       
       if (response.success && response.data) {
-        await this.handleAnalysisResults(response.data);
+        await measureDOMOperation('display_results', () => this.handleAnalysisResults(response.data));
       } else {
         this.uiManager.showErrorBanner(response.error || 'Analysis failed. Please try again.');
       }
@@ -94,6 +99,8 @@ class ContentScript {
       this.uiManager.showErrorBanner('Analysis failed. Please try again.');
     } finally {
       this.uiManager.hideProgressBanner();
+      performanceMonitor.logTimer('total_analysis', 'Complete analysis workflow');
+      performanceMonitor.measureMemory();
     }
   }
 

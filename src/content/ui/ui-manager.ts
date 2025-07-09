@@ -3,6 +3,7 @@ import { UI_CONSTANTS } from '../../shared/constants';
 import { Highlighter } from './highlighter';
 import { Sidebar } from './sidebar';
 import { NotificationManager } from './notifications';
+import { performanceMonitor, measureHighlighting, measureDOMOperation } from '../../shared/performance';
 
 export class UIManager {
   private highlighter: Highlighter;
@@ -32,22 +33,28 @@ export class UIManager {
   }
 
   async displayResults(nuggets: GoldenNugget[]): Promise<void> {
+    performanceMonitor.startTimer('display_results');
+    
     // Clear any existing highlights and sidebar
-    this.clearResults();
+    measureDOMOperation('clear_results', () => this.clearResults());
 
     // Highlight nuggets on the page
     const sidebarItems: SidebarNuggetItem[] = [];
     
+    performanceMonitor.startTimer('highlight_nuggets');
     for (const nugget of nuggets) {
-      const highlighted = await this.highlighter.highlightNugget(nugget);
+      const highlighted = await measureHighlighting('nugget_highlight', () => this.highlighter.highlightNugget(nugget));
       sidebarItems.push({
         nugget,
         status: highlighted ? 'highlighted' : 'not-found'
       });
     }
+    performanceMonitor.logTimer('highlight_nuggets', `Highlighted ${nuggets.length} nuggets`);
 
     // Show sidebar with all nuggets
-    this.sidebar.show(sidebarItems);
+    measureDOMOperation('show_sidebar', () => this.sidebar.show(sidebarItems));
+    
+    performanceMonitor.logTimer('display_results', 'Complete results display');
   }
 
   clearResults(): void {

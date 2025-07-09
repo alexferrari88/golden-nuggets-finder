@@ -4,6 +4,8 @@ import { UI_CONSTANTS } from '../../shared/constants';
 export class Highlighter {
   private highlights: HTMLElement[] = [];
   private popups: HTMLElement[] = [];
+  private textCache = new Map<string, string>();
+  private searchCache = new Map<string, Element[]>();
 
   async highlightNugget(nugget: GoldenNugget): Promise<boolean> {
     const found = this.findAndHighlightText(nugget);
@@ -11,6 +13,9 @@ export class Highlighter {
   }
 
   clearHighlights(): void {
+    // Use DocumentFragment for batch DOM operations
+    const fragment = document.createDocumentFragment();
+    
     // Remove all highlights
     this.highlights.forEach(highlight => {
       const parent = highlight.parentNode;
@@ -24,48 +29,42 @@ export class Highlighter {
     // Remove all popups
     this.popups.forEach(popup => popup.remove());
     this.popups = [];
+    
+    // Clear caches
+    this.textCache.clear();
+    this.searchCache.clear();
   }
 
   private findAndHighlightText(nugget: GoldenNugget): boolean {
     const normalizedContent = this.normalizeText(nugget.content);
     
-    // Use TreeWalker to find all text nodes
-    const walker = document.createTreeWalker(
-      document.body,
-      NodeFilter.SHOW_TEXT,
-      {
-        acceptNode: (node) => {
-          const parent = node.parentElement;
-          if (!parent) return NodeFilter.FILTER_REJECT;
-          
-          // Skip already highlighted content and UI elements
-          if (parent.classList.contains('nugget-highlight') || 
-              parent.classList.contains('nugget-sidebar') ||
-              parent.classList.contains('nugget-notification-banner')) {
-            return NodeFilter.FILTER_REJECT;
-          }
-          
-          return NodeFilter.FILTER_ACCEPT;
-        }
-      }
-    );
+    // Early return if content is too short or empty
+    if (normalizedContent.length < 5) {
+      return false;
+    }
+    
+    // Use more efficient search with caching
+    const cacheKey = `highlight_${normalizedContent}`;
+    let textNodes = this.searchCache.get(cacheKey);
+    
+    if (!textNodes) {
+      textNodes = this.getTextNodesOptimized();
+      this.searchCache.set(cacheKey, textNodes);
+    }
 
-    let textNode: Node | null;
-    let found = false;
-
-    while (textNode = walker.nextNode()) {
+    // Use more efficient text search
+    for (const textNode of textNodes) {
       const text = textNode.textContent || '';
       const normalizedText = this.normalizeText(text);
       
-      // Try to find the nugget content in this text node
+      // Use exact matching only for more precision
       if (normalizedText.includes(normalizedContent)) {
         this.highlightTextNode(textNode as Text, nugget);
-        found = true;
-        break; // Only highlight the first occurrence
+        return true; // Only highlight the first occurrence
       }
     }
 
-    return found;
+    return false;
   }
 
   private highlightTextNode(textNode: Text, nugget: GoldenNugget): void {
@@ -237,10 +236,87 @@ export class Highlighter {
   }
 
   private normalizeText(text: string): string {
-    return text
+    if (this.textCache.has(text)) {
+      return this.textCache.get(text)!;
+    }
+    
+    const normalized = text
       .replace(/\s+/g, ' ')
       .replace(/[^\w\s]/g, '')
       .toLowerCase()
       .trim();
+    
+    // Cache with size limit
+    if (this.textCache.size > 200) {
+      this.textCache.clear();
+    }
+    this.textCache.set(text, normalized);
+    
+    return normalized;
+  }
+  
+  private getTextNodesOptimized(): Element[] {
+    const textNodes: Element[] = [];
+    const walker = document.createTreeWalker(
+      document.body,
+      NodeFilter.SHOW_TEXT,
+      {
+        acceptNode: (node) => {
+          const parent = node.parentElement;
+          if (!parent) return NodeFilter.FILTER_REJECT;
+          
+          // Skip already highlighted content and UI elements
+          if (parent.classList.contains('nugget-highlight') || 
+              parent.classList.contains('nugget-sidebar') ||
+              parent.classList.contains('nugget-notification-banner')) {
+            return NodeFilter.FILTER_REJECT;
+          }
+          
+          // Skip elements that are unlikely to contain meaningful content
+          const tagName = parent.tagName.toLowerCase();
+          if (['script', 'style', 'noscript', 'svg', 'canvas'].includes(tagName)) {
+            return NodeFilter.FILTER_REJECT;
+          }
+          
+          return NodeFilter.FILTER_ACCEPT;
+        }
+      }
+    );
+
+    let textNode: Node | null;
+    while (textNode = walker.nextNode()) {
+      const text = textNode.textContent || '';
+      // Only include text nodes with meaningful content
+      if (text.trim().length > 10) {
+        textNodes.push(textNode as Element);
+      }
+    }
+    
+    return textNodes;
+  }
+  
+  private fuzzyMatch(text: string, pattern: string): boolean {
+    // Try exact substring match first
+    if (text.includes(pattern)) {
+      return true;
+    }
+    
+    // For fuzzy matching, require higher similarity
+    const threshold = 0.9; // 90% similarity threshold
+    const words = pattern.split(' ').filter(w => w.length > 2);
+    const textWords = text.split(' ');
+    
+    if (words.length === 0) {
+      return false;
+    }
+    
+    let matchCount = 0;
+    for (const word of words) {
+      if (textWords.some(tw => tw.includes(word) || word.includes(tw))) {
+        matchCount++;
+      }
+    }
+    
+    return matchCount / words.length >= threshold;
   }
 }
