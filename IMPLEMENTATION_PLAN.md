@@ -62,8 +62,8 @@ golden-nugget-finder/
 │       └── options.css        # Options page styles
 │
 ├── public/
-│   ├── icons/                 # Extension icons
-│   └── manifest.json          # Extension manifest
+│   ├── icons/                 # Extension icons (16, 32, 48, 128px)
+│   └── manifest.json          # Extension manifest v3
 │
 ├── tests/
 │   ├── unit/
@@ -90,6 +90,8 @@ graph TD
 ### 3.3 Core Interfaces
 
 ```typescript
+import { GoogleGenAI, Type } from "@google/genai";
+
 // Golden Nugget structure matching the required schema
 interface GoldenNugget {
   type: 'tool' | 'media' | 'explanation' | 'analogy' | 'model';
@@ -111,6 +113,13 @@ interface SavedPrompt {
 interface ExtensionConfig {
   geminiApiKey: string;
   userPrompts: SavedPrompt[];
+}
+
+// UI State for nugget display
+interface NuggetDisplayState {
+  nugget: GoldenNugget;
+  highlighted: boolean;
+  elementRef?: HTMLElement;
 }
 ```
 
@@ -138,18 +147,19 @@ interface ExtensionConfig {
 - [ ] Test with sample prompts
 
 ### Phase 4: UI Components (Week 3)
-- [ ] Build notification banner system
-- [ ] Implement text highlighting with golden background
-- [ ] Create clickable tags/icons for synthesis display
-- [ ] Build results sidebar with complete nugget list
-- [ ] Style all UI components
+- [ ] Build notification banner system ("Finding golden nuggets..." and "No results" states)
+- [ ] Implement text highlighting with golden background (rgba(255, 215, 0, 0.3))
+- [ ] Create clickable tags/icons with popup for synthesis display
+- [ ] Build results sidebar showing all nuggets with highlight status
+- [ ] Implement context menu with sub-menu structure
+- [ ] Style all UI components with consistent design
 
 ### Phase 5: Prompt Management (Week 3-4)
-- [ ] Create options page UI
-- [ ] Implement prompt CRUD operations
-- [ ] Add default prompt selection
-- [ ] Build extension popup with prompt selection
-- [ ] Implement context menu integration
+- [ ] Create options page UI with prompt list
+- [ ] Implement prompt CRUD operations (Add, Edit, Delete buttons)
+- [ ] Add star icon (★) for default prompt selection
+- [ ] Build extension popup showing all prompts (default first)
+- [ ] Implement context menu with "Find Golden Nuggets" sub-menu
 
 ### Phase 6: Polish & Testing (Week 4)
 - [ ] Add loading states and error handling
@@ -163,6 +173,10 @@ interface ExtensionConfig {
 ### 5.1 Gemini API Configuration
 
 ```typescript
+import { GoogleGenAI, Type } from "@google/genai";
+
+const genAI = new GoogleGenAI({ apiKey: userApiKey });
+
 const geminiConfig = {
   model: "gemini-2.5-flash",
   config: {
@@ -172,6 +186,7 @@ const geminiConfig = {
       properties: {
         golden_nuggets: {
           type: Type.ARRAY,
+          minItems: 0,
           items: {
             type: Type.OBJECT,
             properties: {
@@ -181,9 +196,11 @@ const geminiConfig = {
               },
               content: {
                 type: Type.STRING,
+                description: "The original comment(s) verbatim"
               },
               synthesis: {
                 type: Type.STRING,
+                description: "Why this is relevant to the persona"
               }
             },
             required: ["type", "content", "synthesis"]
@@ -197,6 +214,16 @@ const geminiConfig = {
     }
   }
 };
+
+// IMPORTANT: Construct prompts with user query at the END
+async function analyzeContent(extractedContent: string, userPrompt: string) {
+  const fullPrompt = `${extractedContent}\n\n${userPrompt}`;
+  const result = await genAI.models.generateContent({
+    ...geminiConfig,
+    contents: fullPrompt
+  });
+  return JSON.parse(result.text) as GeminiResponse;
+}
 ```
 
 ### 5.2 Content Extraction Strategy
@@ -208,66 +235,276 @@ const geminiConfig = {
    - Others: Use Readability.js
 3. **Text Compilation**: Concatenate all extracted text with proper formatting
 
-### 5.3 Highlighting Implementation
+### 5.3 Manifest Configuration
 
-```typescript
-// Fuzzy text matching for locating nuggets in DOM
-function findAndHighlight(nuggetContent: string, rootElement: Element) {
-  // 1. Normalize text (remove extra whitespace, punctuation)
-  // 2. Use TreeWalker to find text nodes
-  // 3. Apply highlight with data attributes
-  // 4. Inject clickable icon/tag
+```json
+{
+  "manifest_version": 3,
+  "name": "Golden Nugget Finder",
+  "version": "1.0.0",
+  "description": "Extract high-value insights from web content using AI",
+  "permissions": [
+    "activeTab",
+    "storage",
+    "contextMenus"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [{
+    "matches": ["<all_urls>"],
+    "js": ["content.js"],
+    "css": ["content.css"],
+    "run_at": "document_idle"
+  }],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "options_page": "options.html",
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
 }
 ```
 
-### 5.4 Storage Schema
+### 5.4 Highlighting Implementation
+
+```typescript
+// Text matching and highlighting with status tracking
+function findAndHighlight(nugget: GoldenNugget, rootElement: Element): boolean {
+  // 1. Normalize text (remove extra whitespace)
+  const normalizedContent = nugget.content.trim().replace(/\s+/g, ' ');
+  
+  // 2. Use TreeWalker to find text nodes
+  const walker = document.createTreeWalker(
+    rootElement,
+    NodeFilter.SHOW_TEXT,
+    null,
+    false
+  );
+  
+  // 3. Apply highlight if found
+  let found = false;
+  // ... search logic ...
+  
+  if (found) {
+    // Apply golden highlight
+    const span = document.createElement('span');
+    span.style.backgroundColor = 'rgba(255, 215, 0, 0.3)';
+    span.dataset.nuggetType = nugget.type;
+    
+    // Add clickable indicator based on page type
+    if (isDiscussionThread()) {
+      // Inject [type] tag in comment metadata
+      const tag = createClickableTag(nugget);
+      // ... insert logic ...
+    } else {
+      // Add ✨ icon at end of highlighted text
+      const icon = createClickableIcon(nugget);
+      span.appendChild(icon);
+    }
+  }
+  
+  return found;
+}
+
+// Synthesis popup display
+function showSynthesisPopup(nugget: GoldenNugget, targetElement: HTMLElement) {
+  const popup = document.createElement('div');
+  popup.className = 'nugget-synthesis-popup';
+  popup.textContent = nugget.synthesis;
+  popup.style.cssText = `
+    position: absolute;
+    background: white;
+    border: 1px solid #ccc;
+    padding: 12px;
+    border-radius: 4px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    max-width: 300px;
+    z-index: 10000;
+  `;
+  // Position near targetElement
+  positionPopup(popup, targetElement);
+  document.body.appendChild(popup);
+  
+  // Close on click outside
+  setTimeout(() => {
+    document.addEventListener('click', () => popup.remove(), { once: true });
+  }, 0);
+}
+```
+
+### 5.5 Storage Schema
 
 ```typescript
 const STORAGE_KEYS = {
   API_KEY: 'geminiApiKey',
-  PROMPTS: 'userPrompts',
-  LAST_ANALYSIS: 'lastAnalysisResults'
+  PROMPTS: 'userPrompts'
 } as const;
+
+// Storage helper with size awareness (chrome.storage.sync limit: 100KB)
+async function savePrompts(prompts: SavedPrompt[]) {
+  const data = { [STORAGE_KEYS.PROMPTS]: prompts };
+  const size = new Blob([JSON.stringify(data)]).size;
+  
+  if (size > 8192) { // 8KB per item limit
+    throw new Error('Prompt data too large. Please reduce prompt count or length.');
+  }
+  
+  await chrome.storage.sync.set(data);
+}
 ```
 
-## 6. Security Considerations
+## 6. Security & Error Handling
 
-1. **API Key Storage**: Encrypt API key before storing
-2. **Content Security Policy**: Configure CSP for injected content
-3. **Input Sanitization**: Sanitize all user inputs and LLM responses
-4. **Permission Scope**: Request minimal permissions in manifest
+### 6.1 Security (v1 - Basic)
+1. **API Key Storage**: Store in chrome.storage.sync (protected by Chrome)
+2. **Content Sanitization**: Escape HTML in LLM responses before display
+3. **Permission Scope**: Request minimal permissions (activeTab, storage, contextMenus)
 
-## 7. Performance Optimizations
+### 6.2 Error Handling
+```typescript
+// API Error handling
+async function callGeminiAPI(content: string, prompt: string) {
+  try {
+    const response = await analyzeContent(content, prompt);
+    return response;
+  } catch (error) {
+    if (error.message.includes('API key')) {
+      showNotification('Invalid API key. Please check your settings.');
+    } else if (error.message.includes('rate limit')) {
+      showNotification('Rate limit reached. Please try again later.');
+    } else if (error.message.includes('timeout')) {
+      showNotification('Request timed out. Please try again.');
+    } else {
+      showNotification('Analysis failed. Please try again.');
+      console.error('Gemini API error:', error);
+    }
+    throw error;
+  }
+}
+```
 
-1. **Lazy Loading**: Load UI components only when needed
-2. **Debouncing**: Debounce API calls during rapid activations
-3. **Caching**: Cache analysis results for recently visited pages
-4. **Chunking**: Process large pages in chunks to avoid blocking
+## 7. UI Component Specifications
 
-## 8. Testing Strategy
+### 7.1 Progress Banner
+```typescript
+function showProgressBanner() {
+  const banner = document.createElement('div');
+  banner.id = 'nugget-progress-banner';
+  banner.textContent = 'Finding golden nuggets...';
+  banner.style.cssText = `
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #4CAF50;
+    color: white;
+    padding: 12px 24px;
+    border-radius: 4px;
+    z-index: 10001;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  `;
+  document.body.appendChild(banner);
+  return banner;
+}
+```
 
-### Unit Tests
-- Content extractors for each site type
-- Gemini API client with mocked responses
-- Storage operations
-- Text highlighting logic
+### 7.2 Results Sidebar
+```typescript
+interface SidebarNuggetItem {
+  nugget: GoldenNugget;
+  status: 'highlighted' | 'not-found';
+}
 
-### Integration Tests
-- Message passing between scripts
-- Full analysis workflow
-- UI component interactions
+function createResultsSidebar(nuggets: SidebarNuggetItem[]) {
+  const sidebar = document.createElement('div');
+  sidebar.id = 'nugget-results-sidebar';
+  sidebar.style.cssText = `
+    position: fixed;
+    right: 0;
+    top: 0;
+    width: 320px;
+    height: 100vh;
+    background: white;
+    border-left: 1px solid #ddd;
+    overflow-y: auto;
+    z-index: 10000;
+    padding: 20px;
+    box-shadow: -2px 0 8px rgba(0,0,0,0.1);
+  `;
+  
+  // Add close button
+  const closeBtn = document.createElement('button');
+  closeBtn.textContent = '×';
+  closeBtn.onclick = () => sidebar.remove();
+  
+  // Render nugget list
+  nuggets.forEach(item => {
+    const nuggetEl = createNuggetElement(item);
+    sidebar.appendChild(nuggetEl);
+  });
+  
+  return sidebar;
+}
+```
 
-### E2E Tests
-- Complete user journey from activation to results
-- Multi-prompt switching
-- Options page configuration
+### 7.3 Context Menu Structure
+```typescript
+// Create context menu with sub-menu for prompts
+function setupContextMenu(prompts: SavedPrompt[]) {
+  // Parent menu item
+  chrome.contextMenus.create({
+    id: 'golden-nugget-finder',
+    title: 'Find Golden Nuggets',
+    contexts: ['page', 'selection']
+  });
+  
+  // Sub-menu items for each prompt
+  prompts.forEach(prompt => {
+    chrome.contextMenus.create({
+      id: `prompt-${prompt.id}`,
+      parentId: 'golden-nugget-finder',
+      title: prompt.isDefault ? `★ ${prompt.name}` : prompt.name,
+      contexts: ['page', 'selection']
+    });
+  });
+}
+```
 
-## 9. Development Workflow
+## 8. Development Workflow
 
 1. **Local Development**: Use Plasmo dev server with hot reload
 2. **API Testing**: Create test harness with sample content
-3. **UI Development**: Use Storybook for isolated component development
+3. **Manual Testing**: Test on Reddit, Hacker News, and generic sites
 4. **Version Control**: Semantic versioning with conventional commits
+
+## 9. Testing Strategy (v1 - Basic)
+
+### Manual Testing Checklist
+- [ ] Install extension in Chrome
+- [ ] Verify API key storage and validation
+- [ ] Test on Reddit threads
+- [ ] Test on Hacker News discussions
+- [ ] Test on regular blog posts/articles
+- [ ] Verify highlighting works correctly
+- [ ] Check synthesis popup display
+- [ ] Test "no results" scenario
+- [ ] Verify sidebar shows all nuggets with status
+
+### Automated Testing (Future)
+- Unit tests for extractors
+- Integration tests for API calls
+- E2E tests with Playwright
 
 ## 10. Deployment Checklist
 
@@ -278,28 +515,57 @@ const STORAGE_KEYS = {
 - [ ] Write comprehensive user documentation
 - [ ] Set up error monitoring (Sentry)
 
-## 11. Future Enhancements
+## 11. Version 1 Limitations & Future Enhancements
 
-1. **Batch Processing**: Analyze multiple tabs simultaneously
-2. **Export Features**: Save nuggets to Notion, Obsidian, etc.
-3. **Custom Extractors**: User-defined selectors for new sites
-4. **Offline Mode**: Cache prompts and recent analyses
-5. **Cross-Browser**: Port to Firefox and Edge
+### v1 Scope (Keep it Simple)
+- Basic API key storage (no encryption)
+- Simple fuzzy text matching (may miss some nuggets)
+- No state persistence between sessions
+- No analytics or telemetry
+- English-only support
+- No prompt templates or examples
+
+### Future Enhancements (v2+)
+1. **Advanced Security**: API key encryption, secure storage
+2. **Smart Highlighting**: ML-based text matching for better accuracy
+3. **State Management**: Redux/Zustand for complex state
+4. **Analytics**: Usage tracking, success metrics
+5. **Internationalization**: Multi-language support
+6. **Export Features**: Save to Notion, Obsidian, etc.
+7. **Prompt Library**: Pre-built prompts for common use cases
+8. **Performance**: Caching, lazy loading, virtualization
+9. **Cross-Browser**: Firefox and Edge support
+10. **Enterprise Features**: SSO, centralized config, audit logs
 
 ## 12. Risk Mitigation
 
-| Risk | Mitigation Strategy |
+| Risk | Mitigation Strategy (v1) |
 |------|-------------------|
-| Site structure changes | Implement fallback extractors and monitoring |
-| API rate limits | Add queuing and user notifications |
-| Large content overwhelming LLM | Implement content chunking and summarization |
-| Poor nugget quality | Allow user feedback and prompt refinement |
+| Site structure changes | Use generic extractor as fallback |
+| API rate limits | Show clear error message to user |
+| API key issues | Validate key on save, clear error messages |
+| Poor nugget quality | Allow users to edit/create custom prompts |
+| Highlighting failures | Always show complete list in sidebar |
 
 ## 13. Success Metrics
 
-- Analysis completion time < 3 seconds
-- Successful highlight rate > 80%
+- Analysis completion time < 5 seconds (realistic with network latency)
+- Successful highlight rate > 70% (fuzzy matching limitations)
 - Zero API key exposure incidents
-- User satisfaction score > 4.5/5
+- Extension loads without errors on top 100 websites
 
-This implementation plan provides a roadmap for building the Golden Nugget Finder extension with a focus on reliability, performance, and user experience.
+## 14. Implementation Notes
+
+### Critical Requirements
+1. **Prompt Construction**: Always append user prompt AFTER content for optimal LLM performance
+2. **Token Limits**: With 1M token context window, content size is rarely an issue
+3. **Highlight Status**: Track and display which nuggets were successfully highlighted
+4. **User Feedback**: Clear progress indicators and error messages
+
+### Pragmatic Decisions for v1
+- Use chrome.storage.sync as-is (no custom encryption)
+- Simple DOM-based text search (no advanced NLP)
+- Basic error messages (no detailed diagnostics)
+- Standard Chrome extension patterns (no custom frameworks)
+
+This implementation plan provides a pragmatic roadmap for building a functional v1 of the Golden Nugget Finder extension, with clear paths for future enhancement.
