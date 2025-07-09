@@ -6,12 +6,12 @@ A Chrome extension that leverages Google Gemini AI to extract high-value insight
 
 ## 2. Technology Stack
 
-- **Framework**: Plasmo or WXT (Chrome Extension framework)
+- **Framework**: Plasmo (Chrome Extension framework)
 - **Language**: TypeScript
 - **LLM**: Google Gemini API (gemini-2.5-flash model)
 - **Content Extraction**: Readability.js for generic pages
 - **Storage**: chrome.storage.sync
-- **Build Tools**: Vite (included with Plasmo/WXT)
+- **Build Tools**: Vite (included with Plasmo)
 - **Testing**: Vitest
 
 ## 3. Architecture Design
@@ -117,7 +117,7 @@ interface ExtensionConfig {
 ## 4. Implementation Phases
 
 ### Phase 1: Foundation (Week 1)
-- [ ] Set up Plasmo/WXT project structure
+- [ ] Set up Plasmo project structure
 - [ ] Configure TypeScript and build pipeline
 - [ ] Implement basic manifest.json
 - [ ] Create storage abstraction layer
@@ -264,7 +264,7 @@ const STORAGE_KEYS = {
 
 ## 9. Development Workflow
 
-1. **Local Development**: Use Plasmo/WXT dev server with hot reload
+1. **Local Development**: Use Plasmo dev server with hot reload
 2. **API Testing**: Create test harness with sample content
 3. **UI Development**: Use Storybook for isolated component development
 4. **Version Control**: Semantic versioning with conventional commits
