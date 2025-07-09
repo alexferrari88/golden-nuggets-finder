@@ -30,7 +30,7 @@ Golden Nugget Finder is designed for the "Pragmatic Synthesizer" persona - someo
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/golden-nugget-finder.git
+git clone https://github.com/alexferrari88/golden-nugget-finder.git
 cd golden-nugget-finder
 ```
 
@@ -91,7 +91,7 @@ After analysis, you'll see:
 
 ### Tech Stack
 
-- **Framework**: Plasmo/WXT
+- **Framework**: Plasmo
 - **Language**: TypeScript
 - **AI Integration**: Google Gemini API (`gemini-2.5-flash`)
 - **Content Extraction**: Readability.js for generic pages
@@ -210,8 +210,8 @@ MIT License - see [LICENSE](LICENSE) file for details.
 
 ## Support
 
-- **Issues**: [GitHub Issues](https://github.com/yourusername/golden-nugget-finder/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/yourusername/golden-nugget-finder/discussions)
+- **Issues**: [GitHub Issues](https://github.com/alexferrari88/golden-nugget-finder/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/alexferrari88/golden-nugget-finder/discussions)
 - **API Costs**: Users are responsible for Google Gemini API usage costs
 
 ---

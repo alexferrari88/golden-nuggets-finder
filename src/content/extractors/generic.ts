@@ -1,15 +1,32 @@
 import { ContentExtractor } from './base';
-import { Readability } from '@mozilla/readability';
+
+// Declare the global Readability class
+declare global {
+  var Readability: any;
+}
 
 export class GenericExtractor extends ContentExtractor {
+  private async loadReadabilityScript(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = chrome.runtime.getURL('Readability.js');
+      script.onload = () => resolve();
+      script.onerror = () => reject(new Error('Failed to load Readability.js'));
+      document.head.appendChild(script);
+    });
+  }
+
   async extractContent(): Promise<string> {
     const content: string[] = [];
     
     try {
-      // More efficient approach: try Readability on a lighter document clone
-      const documentClone = this.createOptimizedDocumentClone();
+      // Load Readability.js script if not already loaded
+      if (!window.Readability) {
+        await this.loadReadabilityScript();
+      }
       
       // Use Readability.js to extract the main content
+      const documentClone = this.createOptimizedDocumentClone();
       const reader = new Readability(documentClone);
       const article = reader.parse();
       
