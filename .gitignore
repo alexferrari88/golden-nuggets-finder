@@ -13,6 +13,22 @@ dist/
 .plasmo/
 *.zip
 
+# Plasmo generated files (root level only)
+/*.html
+/*.js
+/*.css
+/manifest.json
+/static/
+/build/
+*.plasmo.*.png
+*.plasmo.*.jpg
+*.plasmo.*.svg
+
+# Temporary test files
+test-*.js
+test-*.html
+test-*.md
+
 # Environment variables
 .env
 .env.local
