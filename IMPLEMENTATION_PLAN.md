@@ -90,8 +90,6 @@ graph TD
 ### 3.3 Core Interfaces
 
 ```typescript
-import { GoogleGenAI, Type } from "@google/genai";
-
 // Golden Nugget structure matching the required schema
 interface GoldenNugget {
   type: 'tool' | 'media' | 'explanation' | 'analogy' | 'model';
@@ -198,57 +196,76 @@ interface NuggetDisplayState {
 
 ### 5.1 Gemini API Configuration
 
+**IMPORTANT NOTE:** The `@google/genai` SDK cannot be used in browser environments due to Plasmo/Parcel bundler limitations. Instead, we use direct REST API calls to the Gemini API.
+
 ```typescript
-import { GoogleGenAI, Type } from "@google/genai";
+// Direct REST API configuration for browser compatibility
+const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
 
-const genAI = new GoogleGenAI({ apiKey: userApiKey });
-
-const geminiConfig = {
-  model: "gemini-2.5-flash",
-  config: {
-    responseMimeType: "application/json",
-    responseSchema: {
-      type: Type.OBJECT,
-      properties: {
-        golden_nuggets: {
-          type: Type.ARRAY,
-          minItems: 0,
-          items: {
-            type: Type.OBJECT,
-            properties: {
-              type: {
-                type: Type.STRING,
-                enum: ["tool", "media", "explanation", "analogy", "model"]
-              },
-              content: {
-                type: Type.STRING,
-                description: "The original comment(s) verbatim"
-              },
-              synthesis: {
-                type: Type.STRING,
-                description: "Why this is relevant to the persona"
-              }
-            },
-            required: ["type", "content", "synthesis"]
+const GOLDEN_NUGGET_SCHEMA = {
+  type: "object",
+  properties: {
+    golden_nuggets: {
+      type: "array",
+      description: "An array of extracted golden nuggets.",
+      minItems: 0,
+      items: {
+        type: "object",
+        properties: {
+          type: {
+            type: "string",
+            description: "The category of the extracted golden nugget.",
+            enum: ["tool", "media", "explanation", "analogy", "model"]
+          },
+          content: {
+            type: "string",
+            description: "The original comment(s) verbatim, without any changes to wording or symbols."
+          },
+          synthesis: {
+            type: "string",
+            description: "A concise explanation of why this is relevant to the persona, connecting it to their core interests or cognitive profile."
           }
-        }
-      },
-      required: ["golden_nuggets"]
-    },
-    thinkingConfig: {
-      thinkingBudget: -1
+        },
+        required: ["type", "content", "synthesis"],
+        propertyOrdering: ["type", "content", "synthesis"]
+      }
     }
-  }
-};
+  },
+  required: ["golden_nuggets"],
+  propertyOrdering: ["golden_nuggets"]
+} as const;
 
 // IMPORTANT: Construct prompts with user query at the END
-async function analyzeContent(extractedContent: string, userPrompt: string) {
+async function analyzeContent(extractedContent: string, userPrompt: string, apiKey: string) {
   const fullPrompt = `${extractedContent}\n\n${userPrompt}`;
-  const result = await genAI.models.generateContent({
-    ...geminiConfig,
-    contents: fullPrompt
+  
+  const requestBody = {
+    contents: [{
+      parts: [{ text: fullPrompt }]
+    }],
+    generationConfig: {
+      responseMimeType: "application/json",
+      responseSchema: GOLDEN_NUGGET_SCHEMA,
+      thinkingConfig: {
+        thinkingBudget: -1
+      }
+    }
+  };
+  
+  const response = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(requestBody)
   });
-  return JSON.parse(result.text) as GeminiResponse;
+  
+  if (!response.ok) {
+    throw new Error(`HTTP error! status: ${response.status}`);
+  }
+  
+  const data = await response.json();
+  return JSON.parse(data.candidates[0].content.parts[0].text) as GeminiResponse;
 }
 ```
 
