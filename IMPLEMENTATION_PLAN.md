@@ -140,12 +140,21 @@ interface NuggetDisplayState {
 - Message passing system established between content and background scripts
 - Build system functional (note: Gemini API integration placeholder implemented)
 
-### Phase 2: Content Extraction (Week 1-2)
-- [ ] Implement base extractor interface
-- [ ] Create Reddit-specific extractor using provided selectors
-- [ ] Create Hacker News extractor using provided selectors
-- [ ] Integrate Readability.js for generic pages
-- [ ] Test extraction on various websites
+### Phase 2: Content Extraction (Week 1-2) ✅ COMPLETED
+- [x] Implement base extractor interface
+- [x] Create Reddit-specific extractor using provided selectors
+- [x] Create Hacker News extractor using provided selectors
+- [x] Integrate Readability.js for generic pages
+- [x] Test extraction on various websites
+
+**Completion Notes:**
+- Base ContentExtractor abstract class implemented with text cleaning utilities
+- Reddit extractor uses correct selectors (`[slot="text-body"]`, `[slot="comment"]`)
+- Hacker News extractor uses correct selectors (`.toptext`, `.comment`) with fallback for missing post content
+- Generic extractor integrated with @mozilla/readability library including robust fallback mechanism
+- URL-based extractor factory implemented for automatic site detection
+- All extractors tested and build successfully
+- Proper error handling and visibility checks implemented
 
 ### Phase 3: Gemini Integration (Week 2)
 - [ ] Implement Gemini API client with structured output

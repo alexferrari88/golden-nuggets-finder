@@ -1,9 +1,49 @@
 import { ContentExtractor } from './base';
+import { Readability } from '@mozilla/readability';
 
 export class GenericExtractor extends ContentExtractor {
   async extractContent(): Promise<string> {
-    // For now, implement a simple version that gets the main content
-    // In a full implementation, this would use Readability.js
+    const content: string[] = [];
+    
+    try {
+      // Clone the document to avoid modifying the original
+      const documentClone = document.cloneNode(true) as Document;
+      
+      // Use Readability.js to extract the main content
+      const reader = new Readability(documentClone);
+      const article = reader.parse();
+      
+      if (article) {
+        // Add title if available
+        if (article.title) {
+          content.push(`[TITLE] ${article.title}`);
+        }
+        
+        // Add the main content
+        if (article.textContent) {
+          content.push(`[CONTENT] ${this.cleanText(article.textContent)}`);
+        }
+        
+        // Add byline if available
+        if (article.byline) {
+          content.push(`[BYLINE] ${article.byline}`);
+        }
+      }
+    } catch (error) {
+      console.warn('Readability.js failed, falling back to simple extraction:', error);
+      // Fallback to simple extraction if Readability.js fails
+      return this.fallbackExtraction();
+    }
+    
+    // If Readability.js didn't find content, try fallback
+    if (content.length === 0) {
+      return this.fallbackExtraction();
+    }
+    
+    return content.join('\n\n');
+  }
+  
+  private fallbackExtraction(): string {
     const content: string[] = [];
     
     // Try to find the main content area

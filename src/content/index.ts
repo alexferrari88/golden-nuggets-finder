@@ -35,8 +35,9 @@ class ContentScript {
     });
 
     // Listen for analysis requests from popup
-    document.addEventListener('nugget-analyze', (event: CustomEvent) => {
-      this.analyzeContent(event.detail.promptId);
+    document.addEventListener('nugget-analyze', (event: Event) => {
+      const customEvent = event as CustomEvent;
+      this.analyzeContent(customEvent.detail.promptId);
     });
   }
 

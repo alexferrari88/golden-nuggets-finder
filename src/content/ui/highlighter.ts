@@ -47,8 +47,7 @@ export class Highlighter {
           
           return NodeFilter.FILTER_ACCEPT;
         }
-      },
-      false
+      }
     );
 
     let textNode: Node | null;

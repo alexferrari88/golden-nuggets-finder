@@ -15,10 +15,12 @@
   "devDependencies": {
     "@types/chrome": "^0.0.332",
     "@types/node": "^24.0.12",
+    "jsdom": "^26.1.0",
     "plasmo": "^0.90.5",
     "typescript": "^5.8.3"
   },
   "dependencies": {
-    "@google/genai": "^1.8.0"
+    "@google/genai": "^1.8.0",
+    "@mozilla/readability": "^0.6.0"
   }
 }
