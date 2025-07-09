@@ -7,7 +7,8 @@ import { UIManager } from '../content/ui/ui-manager';
 import { performanceMonitor, measureContentExtraction, measureDOMOperation } from '../shared/performance';
 
 export default defineContentScript({
-  matches: ['<all_urls>'],
+  matches: ['https://example.com/*'], // Changed from <all_urls> to prevent auto-injection
+  runAt: 'document_idle',
   main() {
     let extractor: ContentExtractor;
     const uiManager = new UIManager();

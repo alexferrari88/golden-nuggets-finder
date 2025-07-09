@@ -15,7 +15,8 @@ export default defineConfig({
     permissions: [
       'activeTab',
       'storage',
-      'contextMenus'
+      'contextMenus',
+      'scripting'
     ],
     web_accessible_resources: [
       {

@@ -66,6 +66,9 @@ export default defineBackground(() => {
     if (!tab?.id) return;
 
     try {
+      // Inject content script dynamically
+      await injectContentScript(tab.id);
+      
       // Send message to content script to start analysis
       await chrome.tabs.sendMessage(tab.id, {
         type: MESSAGE_TYPES.ANALYZE_CONTENT,
@@ -73,6 +76,26 @@ export default defineBackground(() => {
       });
     } catch (error) {
       console.error('Failed to send message to content script:', error);
+    }
+  }
+
+  async function injectContentScript(tabId: number): Promise<void> {
+    try {
+      // Check if content script is already injected by trying to send a test message
+      const testResponse = await chrome.tabs.sendMessage(tabId, { type: 'PING' }).catch(() => null);
+      
+      if (testResponse) {
+        // Content script already exists
+        return;
+      }
+
+      // Inject the content script
+      await chrome.scripting.executeScript({
+        target: { tabId },
+        files: ['content-injector.js']
+      });
+    } catch (error) {
+      console.error('Failed to inject content script:', error);
     }
   }
 });

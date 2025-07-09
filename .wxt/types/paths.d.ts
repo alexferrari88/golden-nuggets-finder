@@ -7,9 +7,11 @@ declare module "wxt/browser" {
     | "/"
     | "/Readability.js"
     | "/background.js"
+    | "/content-injector.js"
     | "/content-scripts/content.js"
-    | "/manifest.json"
+    | "/options.html"
     | "/options.js"
+    | "/popup.html"
     | "/popup.js"
   type HtmlPublicPath = Extract<PublicPath, `${string}.html`>
   export interface WxtRuntime {
