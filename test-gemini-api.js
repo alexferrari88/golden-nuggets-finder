@@ -116,10 +116,11 @@ async function testApiKeyValidation(apiKey) {
       }
     };
 
-    const response = await fetch(`${API_BASE_URL}/${GEMINI_CONFIG.MODEL}:generateContent?key=${apiKey}`, {
+    const response = await fetch(`${API_BASE_URL}/${GEMINI_CONFIG.MODEL}:generateContent`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'x-goog-api-key': apiKey
       },
       body: JSON.stringify(testRequestBody)
     });
@@ -151,10 +152,11 @@ async function testContentAnalysis(apiKey, content, userPrompt) {
     };
 
     console.log('   Sending request to Gemini API...');
-    const response = await fetch(`${API_BASE_URL}/${GEMINI_CONFIG.MODEL}:generateContent?key=${apiKey}`, {
+    const response = await fetch(`${API_BASE_URL}/${GEMINI_CONFIG.MODEL}:generateContent`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'x-goog-api-key': apiKey
       },
       body: JSON.stringify(requestBody)
     });
@@ -215,10 +217,11 @@ async function testErrorHandling(apiKey) {
       }
     };
 
-    const response = await fetch(`${API_BASE_URL}/${GEMINI_CONFIG.MODEL}:generateContent?key=invalid-key`, {
+    const response = await fetch(`${API_BASE_URL}/${GEMINI_CONFIG.MODEL}:generateContent`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'x-goog-api-key': 'invalid-key'
       },
       body: JSON.stringify(requestBody)
     });
