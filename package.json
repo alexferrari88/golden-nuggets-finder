@@ -2,10 +2,12 @@
   "name": "golden-nugget-finder",
   "version": "1.0.0",
   "main": "index.js",
+  "displayName": "Golden Nugget Finder",
+  "description": "Extract high-value insights from web content using AI",
   "scripts": {
     "dev": "plasmo dev --build-path=./dist",
     "build": "node scripts/build-clean.js",
-    "package": "plasmo package --build-path=./dist",
+    "package": "pnpm run build && zip -r chrome-extension.zip *.js *.html *.png manifest.json Readability.js static/",
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:run": "vitest run",
@@ -20,7 +22,6 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "description": "",
   "manifest": {
     "web_accessible_resources": [
       {

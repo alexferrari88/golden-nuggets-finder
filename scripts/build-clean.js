@@ -4,49 +4,46 @@ const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
 
-// Clean up previous build files from root
-const filesToMove = [
-  'content.*.js',
-  'popup.*.js', 
-  'options.*.js',
-  'popup.html',
-  'options.html',
-  'manifest.json',
-  'icon*.plasmo.*.png'
-];
-
 console.log('🔄 Building extension...');
 execSync('plasmo build', { stdio: 'inherit' });
 
-console.log('🧹 Cleaning up build files from root directory...');
+console.log('🔧 Preparing files for packaging...');
 
-// Find and move files to dist directory
 const rootDir = process.cwd();
-const distDir = path.join(rootDir, 'dist');
 
-// Ensure dist directory exists
-if (!fs.existsSync(distDir)) {
-  fs.mkdirSync(distDir, { recursive: true });
+// Copy Readability.js to root for web_accessible_resources
+const readabilitySrc = path.join(rootDir, 'public', 'Readability.js');
+const readabilityDest = path.join(rootDir, 'Readability.js');
+if (fs.existsSync(readabilitySrc)) {
+  fs.copyFileSync(readabilitySrc, readabilityDest);
+  console.log('  - Copied Readability.js to root');
+} else {
+  console.log('  - Warning: Readability.js not found in public/');
 }
 
-// Get all files in root directory
-const allFiles = fs.readdirSync(rootDir);
+// Ensure manifest.json has all required fields
+const manifestPath = path.join(rootDir, 'manifest.json');
+if (fs.existsSync(manifestPath)) {
+  const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+  
+  // Ensure name and description are properly set
+  if (!manifest.name || manifest.name === '') {
+    manifest.name = 'Golden Nugget Finder';
+  }
+  if (!manifest.description || manifest.description === '') {
+    manifest.description = 'Extract high-value insights from web content using AI';
+  }
+  
+  // Ensure permissions are present
+  if (!manifest.permissions) {
+    manifest.permissions = ['activeTab', 'storage', 'contextMenus'];
+  }
+  
+  // Write the updated manifest
+  fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
+  console.log('  - Updated manifest.json with required fields');
+} else {
+  console.log('  - Warning: manifest.json not found');
+}
 
-// Files to move based on pattern
-const buildFiles = allFiles.filter(file => {
-  return file.match(/^(content|popup|options)\.\w+\.js$/) || 
-         file.match(/^icon\d+\.plasmo\.\w+\.png$/) ||
-         file === 'manifest.json' ||
-         file === 'popup.html' ||
-         file === 'options.html';
-});
-
-console.log(`Found ${buildFiles.length} build files to move:`);
-buildFiles.forEach(file => {
-  console.log(`  - ${file}`);
-  const srcPath = path.join(rootDir, file);
-  const destPath = path.join(distDir, file);
-  fs.renameSync(srcPath, destPath);
-});
-
-console.log('✅ Build complete! Files moved to dist/ directory.');
+console.log('✅ Build complete! Files ready for packaging.');
