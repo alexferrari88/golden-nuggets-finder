@@ -6,7 +6,11 @@
     "dev": "plasmo dev",
     "build": "plasmo build",
     "package": "plasmo package",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "vitest",
+    "test:ui": "vitest --ui",
+    "test:run": "vitest run",
+    "test:watch": "vitest watch",
+    "test:coverage": "vitest run --coverage"
   },
   "keywords": [],
   "author": "",
@@ -14,12 +18,16 @@
   "description": "",
   "devDependencies": {
     "@types/chrome": "^0.0.332",
+    "@types/jsdom": "^21.1.7",
     "@types/node": "^24.0.12",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
+    "@vitest/ui": "^3.2.4",
+    "happy-dom": "^18.0.1",
     "jsdom": "^26.1.0",
     "plasmo": "^0.90.5",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.4"
   },
   "dependencies": {
     "@mozilla/readability": "^0.6.0",
