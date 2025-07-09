@@ -1,6 +1,3 @@
-// import { Type } from '@google/genai';
-// For now, we'll define a simple schema structure
-
 export const GOLDEN_NUGGET_SCHEMA = {
   type: "object",
   properties: {
