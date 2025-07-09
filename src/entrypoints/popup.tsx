@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { storage } from "./shared/storage";
-import { SavedPrompt, MESSAGE_TYPES } from "./shared/types";
+import { storage } from "../shared/storage";
+import { SavedPrompt, MESSAGE_TYPES } from "../shared/types";
 
 function IndexPopup() {
   const [prompts, setPrompts] = useState<SavedPrompt[]>([]);

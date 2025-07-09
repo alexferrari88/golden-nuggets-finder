@@ -34,7 +34,7 @@ The project is to create a Chrome extension that acts as an intelligent informat
 #### **3. Technical Architecture Decisions**
 
 *   **Platform:** Google Chrome Extension.
-*   **Framework**: Plasmo/WXT
+*   **Framework**: WXT
 *   **Language**: Typescript
 *   **LLM Integration**: Direct REST API calls to Google Gemini API (browser compatibility requires REST instead of `@google/genai` SDK)
 *   **LLM Model**: `gemini-2.5-flash` with thinking enabled and `thinkingBudget=-1`
@@ -115,7 +115,7 @@ The project is to create a Chrome extension that acts as an intelligent informat
 
 #### **7. Constraints and Limitations**
 
-*   **Browser Compatibility:** The `@google/genai` SDK cannot be used in Chrome extensions due to Plasmo/Parcel bundler limitations with external modules in browser environments. The implementation uses direct REST API calls instead.
+*   **Browser Compatibility:** The `@google/genai` SDK cannot be used in Chrome extensions due to WXT/Vite bundler limitations with external modules in browser environments. The implementation uses direct REST API calls instead.
 *   **Scraping Scope:** The extension only analyzes content visible in the DOM upon activation. The user must manually expand threads or load more content to include it in the analysis.
 *   **API Dependency & Cost:** Functionality is dependent on the Google Gemini API. The user is responsible for all associated costs and adherence to terms of service.
 *   **Website Structure Dependency:** The specialized scrapers for Hacker News and Reddit are brittle and may require maintenance if those sites change their HTML structure.

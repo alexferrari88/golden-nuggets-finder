@@ -172,10 +172,19 @@ export function measureHighlighting<T>(name: string, fn: () => T): T {
 
 // Development mode detection
 export function isDevMode(): boolean {
-  return !('update_url' in chrome.runtime.getManifest());
+  try {
+    return !('update_url' in chrome.runtime.getManifest());
+  } catch {
+    // During build time or if chrome API is not available, assume development
+    return true;
+  }
 }
 
-// Auto-enable performance monitoring in development
-if (isDevMode()) {
-  performanceMonitor.enable();
+// Auto-enable performance monitoring in development (only if chrome APIs are available)
+try {
+  if (typeof chrome !== 'undefined' && chrome.runtime && isDevMode()) {
+    performanceMonitor.enable();
+  }
+} catch {
+  // Ignore errors during build time
 }

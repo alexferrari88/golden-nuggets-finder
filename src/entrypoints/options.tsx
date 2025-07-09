@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { SavedPrompt } from './shared/types';
-import { storage } from './shared/storage';
-import { GeminiClient } from './background/gemini-client';
+import { SavedPrompt } from '../shared/types';
+import { storage } from '../shared/storage';
+import { GeminiClient } from '../background/gemini-client';
 
 function OptionsPage() {
   const [apiKey, setApiKey] = useState('');
