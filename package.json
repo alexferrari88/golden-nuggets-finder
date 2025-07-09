@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "plasmo dev --build-path=./dist",
     "build": "node scripts/build-clean.js",
-    "package": "pnpm run build && zip -r chrome-extension.zip *.js *.html *.png manifest.json Readability.js static/",
+    "package": "pnpm run build && cd dist && zip -r ../chrome-extension.zip .",
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:run": "vitest run",
