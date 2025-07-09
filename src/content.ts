@@ -1,9 +1,9 @@
-import { MESSAGE_TYPES, AnalysisRequest, AnalysisResponse } from '../shared/types';
-import { ContentExtractor } from './extractors/base';
-import { RedditExtractor } from './extractors/reddit';
-import { HackerNewsExtractor } from './extractors/hackernews';
-import { GenericExtractor } from './extractors/generic';
-import { UIManager } from './ui/ui-manager';
+import { MESSAGE_TYPES, AnalysisRequest, AnalysisResponse } from './shared/types';
+import { ContentExtractor } from './content/extractors/base';
+import { RedditExtractor } from './content/extractors/reddit';
+import { HackerNewsExtractor } from './content/extractors/hackernews';
+import { GenericExtractor } from './content/extractors/generic';
+import { UIManager } from './content/ui/ui-manager';
 
 class ContentScript {
   private extractor: ContentExtractor;

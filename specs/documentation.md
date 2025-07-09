@@ -29,46 +29,36 @@ Configuring a schema on the model is the **recommended** way to generate JSON, b
 To constrain the model to generate JSON, configure a `responseSchema`. The model will then respond to any prompt with JSON-formatted output.
 
 
-### JavaScript
+### REST
 
 ```
-import { GoogleGenAI, Type } from "@google/genai";
-
-const ai = new GoogleGenAI({});
-
-async function main() {
-  const response = await ai.models.generateContent({
-    model: "gemini-2.5-flash",
-    contents:
-      "List a few popular cookie recipes, and include the amounts of ingredients.",
-    config: {
-      responseMimeType: "application/json",
-      responseSchema: {
-        type: Type.ARRAY,
-        items: {
-          type: Type.OBJECT,
-          properties: {
-            recipeName: {
-              type: Type.STRING,
+curl "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent" \
+-H "x-goog-api-key: $GEMINI_API_KEY" \
+-H 'Content-Type: application/json' \
+-d '{
+      "contents": [{
+        "parts":[
+          { "text": "List a few popular cookie recipes, and include the amounts of ingredients." }
+        ]
+      }],
+      "generationConfig": {
+        "responseMimeType": "application/json",
+        "responseSchema": {
+          "type": "ARRAY",
+          "items": {
+            "type": "OBJECT",
+            "properties": {
+              "recipeName": { "type": "STRING" },
+              "ingredients": {
+                "type": "ARRAY",
+                "items": { "type": "STRING" }
+              }
             },
-            ingredients: {
-              type: Type.ARRAY,
-              items: {
-                type: Type.STRING,
-              },
-            },
-          },
-          propertyOrdering: ["recipeName", "ingredients"],
-        },
-      },
-    },
-  });
-
-  console.log(response.text);
-}
-
-main();
-
+            "propertyOrdering": ["recipeName", "ingredients"]
+          }
+        }
+      }
+}' 2> /dev/null | head
 ```
 
 ### Providing a schema in a text prompt
@@ -99,26 +89,26 @@ For example, assume that you're developing an application to classify musical in
 
 In the following example, you pass an enum as the `responseSchema`, constraining the model to choose the most appropriate option.
 
-### JavaScript
+### REST
 
 ```
-import { GoogleGenAI, Type } from "@google/genai";
-
-const ai = new GoogleGenAI({});
-
-const response = await ai.models.generateContent({
-    model: "gemini-2.5-flash",
-    contents: "What type of instrument is an oboe?",
-    config: {
-      responseMimeType: "text/x.enum",
-      responseSchema: {
-        type: Type.STRING,
-        enum: ["Percussion", "String", "Woodwind", "Brass", "Keyboard"],
-      },
-    },
-  });
-
-console.log(response.text);
+curl "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent" \
+-H "x-goog-api-key: $GEMINI_API_KEY" \
+    -H 'Content-Type: application/json' \
+    -d '{
+          "contents": [{
+            "parts":[
+              { "text": "What type of instrument is an oboe?" }
+            ]
+          }],
+          "generationConfig": {
+            "responseMimeType": "text/x.enum",
+            "responseSchema": {
+              "type": "STRING",
+              "enum": ["Percussion", "String", "Woodwind", "Brass", "Keyboard"]
+            }
+          }
+    }'
 
 ```
 
@@ -294,26 +284,30 @@ Keep the following considerations and best practices in mind when you're using a
 *   If you aren't seeing the results you expect, add more context to your input prompts or revise your response schema. For example, review the model's response without structured output to see how the model responds. You can then update your response schema so that it better fits the model's output.
 </doc>
 <doc>
-import { GoogleGenAI } from "@google/genai";
-
-const ai = new GoogleGenAI({});
-
-async function main() {
-  const response = await ai.models.generateContent({
-    model: "gemini-2.5-flash",
-    contents: "Provide a list of 3 famous physicists and their key contributions",
-    config: {
-      thinkingConfig: {
-        // Turn on dynamic thinking:
-        // thinkingBudget: -1
-      },
-    },
-  });
-
-  console.log(response.text);
-}
-
-main();
+curl "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent" \
+-H "x-goog-api-key: $GEMINI_API_KEY" \
+-H 'Content-Type: application/json' \
+-X POST \
+-d '{
+  "contents": [
+    {
+      "parts": [
+        {
+          "text": "Provide a list of 3 famous physicists and their key contributions"
+        }
+      ]
+    }
+  ],
+  "generationConfig": {
+    "thinkingConfig": {
+          "thinkingBudget": 1024
+          # Thinking off:
+          # "thinkingBudget": 0
+          # Turn on dynamic thinking:
+          # "thinkingBudget": -1
+    }
+  }
+}'
 </doc>
 <doc>
 ### Where is the best place to put my query in the context window?
