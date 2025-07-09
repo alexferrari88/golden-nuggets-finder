@@ -3,9 +3,9 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "dev": "plasmo dev",
-    "build": "plasmo build",
-    "package": "plasmo package",
+    "dev": "plasmo dev --build-path=./dist",
+    "build": "node scripts/build-clean.js",
+    "package": "plasmo package --build-path=./dist",
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:run": "vitest run",
@@ -24,8 +24,12 @@
   "manifest": {
     "web_accessible_resources": [
       {
-        "resources": ["Readability.js"],
-        "matches": ["<all_urls>"]
+        "resources": [
+          "Readability.js"
+        ],
+        "matches": [
+          "<all_urls>"
+        ]
       }
     ]
   },
@@ -37,6 +41,7 @@
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
     "@vitest/ui": "^3.2.4",
+    "cross-env": "^7.0.3",
     "happy-dom": "^18.0.1",
     "jsdom": "^26.1.0",
     "plasmo": "^0.90.5",
