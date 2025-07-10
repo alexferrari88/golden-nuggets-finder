@@ -59,10 +59,8 @@ export class GeminiClient {
 
         // Log request payload in development mode
         if (isDevMode()) {
-          console.group('[LLM Request] Gemini API');
-          console.log('Endpoint:', `${this.API_BASE_URL}/${GEMINI_CONFIG.MODEL}:generateContent`);
-          console.log('Request Body:', JSON.stringify(requestBody, null, 2));
-          console.groupEnd();
+          console.log('[LLM Request] Gemini API - Endpoint:', `${this.API_BASE_URL}/${GEMINI_CONFIG.MODEL}:generateContent`);
+          console.log('[LLM Request] Request Body:', JSON.stringify(requestBody, null, 2));
         }
 
         performanceMonitor.startTimer('gemini_request');
@@ -86,8 +84,7 @@ export class GeminiClient {
         
         // Log response payload in development mode
         if (isDevMode()) {
-          console.group('[LLM Response] Gemini API');
-          console.log('Raw Response:', JSON.stringify(responseData, null, 2));
+          console.log('[LLM Response] Raw Response:', JSON.stringify(responseData, null, 2));
         }
         
         // Extract the text from the response
@@ -100,8 +97,7 @@ export class GeminiClient {
         
         // Log parsed response in development mode
         if (isDevMode()) {
-          console.log('Parsed Response:', JSON.stringify(result, null, 2));
-          console.groupEnd();
+          console.log('[LLM Response] Parsed Response:', JSON.stringify(result, null, 2));
         }
         
         performanceMonitor.logTimer('gemini_response_parse', 'Parse Gemini response');
@@ -271,10 +267,8 @@ export class GeminiClient {
 
       // Log API key validation request in development mode
       if (isDevMode()) {
-        console.group('[LLM Request] API Key Validation');
-        console.log('Endpoint:', `${this.API_BASE_URL}/${GEMINI_CONFIG.MODEL}:generateContent`);
-        console.log('Test Request Body:', JSON.stringify(testRequestBody, null, 2));
-        console.groupEnd();
+        console.log('[LLM Request] API Key Validation - Endpoint:', `${this.API_BASE_URL}/${GEMINI_CONFIG.MODEL}:generateContent`);
+        console.log('[LLM Request] Test Request Body:', JSON.stringify(testRequestBody, null, 2));
       }
 
       const response = await fetch(`${this.API_BASE_URL}/${GEMINI_CONFIG.MODEL}:generateContent`, {
@@ -288,10 +282,8 @@ export class GeminiClient {
 
       // Log API key validation response in development mode
       if (isDevMode()) {
-        console.group('[LLM Response] API Key Validation');
-        console.log('Response Status:', response.status, response.statusText);
-        console.log('API Key Valid:', response.ok);
-        console.groupEnd();
+        console.log('[LLM Response] API Key Validation - Status:', response.status, response.statusText);
+        console.log('[LLM Response] API Key Valid:', response.ok);
       }
 
       // If we get a 200 response, the API key is valid

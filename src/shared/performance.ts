@@ -99,14 +99,12 @@ export class PerformanceMonitor {
   logAllMetrics(): void {
     if (!this.enabled) return;
     
-    console.group('Performance Metrics Summary');
+    console.log('[Performance] Metrics Summary:');
     const allMetrics = this.getAllMetrics();
     
     for (const [name, metrics] of Object.entries(allMetrics)) {
-      console.log(`${name}: avg=${metrics.avg.toFixed(2)}ms, min=${metrics.min.toFixed(2)}ms, max=${metrics.max.toFixed(2)}ms, count=${metrics.count}`);
+      console.log(`[Performance] ${name}: avg=${metrics.avg.toFixed(2)}ms, min=${metrics.min.toFixed(2)}ms, max=${metrics.max.toFixed(2)}ms, count=${metrics.count}`);
     }
-    
-    console.groupEnd();
   }
 
   measureMemory(): void {
