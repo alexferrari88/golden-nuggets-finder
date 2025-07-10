@@ -3,7 +3,7 @@ import { SavedPrompt } from '../shared/types';
 import { storage } from '../shared/storage';
 import { GeminiClient } from '../background/gemini-client';
 
-function OptionsPage() {
+function IndexOptions() {
   const [apiKey, setApiKey] = useState('');
   const [apiKeyStatus, setApiKeyStatus] = useState<string>('');
   const [prompts, setPrompts] = useState<SavedPrompt[]>([]);
@@ -348,4 +348,4 @@ function OptionsPage() {
   );
 }
 
-export default OptionsPage;
+export default IndexOptions;
