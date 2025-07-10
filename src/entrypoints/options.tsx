@@ -94,30 +94,30 @@ const Alert: React.FC<AlertProps> = ({ type, title, message, onClose }) => {
       case 'success':
         return {
           ...baseStyles,
-          backgroundColor: colors.accent.greenLight,
-          borderColor: colors.accent.green + '33',
-          color: colors.accent.green
+          backgroundColor: colors.background.secondary,
+          borderColor: colors.success + '33',
+          color: colors.success
         };
       case 'error':
         return {
           ...baseStyles,
-          backgroundColor: colors.accent.redLight,
-          borderColor: colors.accent.red + '33',
-          color: colors.accent.red
+          backgroundColor: colors.background.secondary,
+          borderColor: colors.error + '33',
+          color: colors.error
         };
       case 'warning':
         return {
           ...baseStyles,
-          backgroundColor: colors.accent.amberLight,
-          borderColor: colors.accent.amber + '33',
-          color: colors.accent.amber
+          backgroundColor: colors.background.secondary,
+          borderColor: colors.grayMedium + '33',
+          color: colors.grayMedium
         };
       case 'info':
         return {
           ...baseStyles,
-          backgroundColor: colors.accent.blueLight,
-          borderColor: colors.accent.blue + '33',
-          color: colors.accent.blue
+          backgroundColor: colors.background.secondary,
+          borderColor: colors.blueSubtle + '33',
+          color: colors.blueSubtle
         };
       default:
         return baseStyles;
@@ -209,7 +209,7 @@ const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
       boxSizing: 'border-box'
     }}>
       <div style={{
-        backgroundColor: 'white',
+        backgroundColor: colors.white,
         padding: '32px',
         borderRadius: '16px',
         width: '100%',
@@ -220,14 +220,14 @@ const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
           margin: '0 0 16px 0',
           fontSize: '20px',
           fontWeight: '600',
-          color: '#1f2937'
+          color: colors.text.primary
         }}>
           {title}
         </h3>
         <p style={{
           margin: '0 0 32px 0',
           fontSize: '16px',
-          color: '#6b7280',
+          color: colors.text.secondary,
           lineHeight: '1.5'
         }}>
           {message}
@@ -241,8 +241,8 @@ const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
             onClick={onCancel}
             style={{
               padding: '12px 24px',
-              backgroundColor: '#f9fafb',
-              color: '#374151',
+              backgroundColor: colors.background.secondary,
+              color: colors.text.primary,
               border: '1px solid #e5e7eb',
               borderRadius: '8px',
               cursor: 'pointer',
@@ -251,12 +251,12 @@ const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
               transition: 'all 0.2s'
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = '#f3f4f6';
-              e.currentTarget.style.borderColor = '#d1d5db';
+              e.currentTarget.style.backgroundColor = colors.background.secondary;
+              e.currentTarget.style.borderColor = colors.border.default;
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = '#f9fafb';
-              e.currentTarget.style.borderColor = '#e5e7eb';
+              e.currentTarget.style.backgroundColor = colors.background.secondary;
+              e.currentTarget.style.borderColor = colors.border.light;
             }}
           >
             {cancelText}
@@ -265,8 +265,8 @@ const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
             onClick={onConfirm}
             style={{
               padding: '12px 24px',
-              backgroundColor: type === 'danger' ? '#ef4444' : '#3b82f6',
-              color: 'white',
+              backgroundColor: type === 'danger' ? colors.error : colors.blueSubtle,
+              color: colors.white,
               border: 'none',
               borderRadius: '8px',
               cursor: 'pointer',
@@ -275,10 +275,10 @@ const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
               transition: 'all 0.2s'
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = type === 'danger' ? '#dc2626' : '#2563eb';
+              e.currentTarget.style.backgroundColor = type === 'danger' ? colors.error : colors.blueSubtle;
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = type === 'danger' ? '#ef4444' : '#3b82f6';
+              e.currentTarget.style.backgroundColor = type === 'danger' ? colors.error : colors.blueSubtle;
             }}
           >
             {confirmText}
@@ -484,7 +484,7 @@ function OptionsPage() {
             width: '24px',
             height: '24px',
             border: `2px solid ${colors.border.default}`,
-            borderTop: `2px solid ${colors.accent.blue}`,
+            borderTop: `2px solid ${colors.blueSubtle}`,
             borderRadius: '50%',
             animation: 'spin 1s linear infinite'
           }} />
@@ -548,8 +548,8 @@ function OptionsPage() {
               fontSize: typography.fontSize.sm,
               fontWeight: typography.fontWeight.medium
             }}
-            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = colors.accent.blue}
-            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = colors.accent.blue}
+            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = colors.blueSubtle}
+            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = colors.blueSubtle}
           >
             Try Again
           </button>
@@ -590,7 +590,7 @@ function OptionsPage() {
             gap: spacing.md,
             marginBottom: spacing.lg
           }}>
-            <div style={{ color: colors.accent.amber }}>
+            <div style={{ color: colors.grayMedium }}>
               <IconSparkles />
             </div>
             <h1 style={{
@@ -638,7 +638,7 @@ function OptionsPage() {
             gap: spacing.md,
             marginBottom: spacing['2xl']
           }}>
-            <div style={{ color: colors.accent.blue }}>
+            <div style={{ color: colors.blueSubtle }}>
               <IconKey />
             </div>
             <h2 style={{
@@ -716,7 +716,7 @@ function OptionsPage() {
                 color: colors.text.primary,
                 fontFamily: typography.fontFamily.sans
               }}
-              onFocus={(e) => e.target.style.borderColor = colors.accent.blue}
+              onFocus={(e) => e.target.style.borderColor = colors.blueSubtle}
               onBlur={(e) => e.target.style.borderColor = colors.border.default}
             />
             <button
@@ -724,7 +724,7 @@ function OptionsPage() {
               disabled={isValidating}
               style={{
                 ...components.button.primary,
-                backgroundColor: isValidating ? colors.text.tertiary : colors.accent.blue,
+                backgroundColor: isValidating ? colors.grayMedium : colors.blueSubtle,
                 cursor: isValidating ? 'not-allowed' : 'pointer',
                 fontSize: typography.fontSize.base,
                 fontWeight: typography.fontWeight.semibold,
@@ -735,10 +735,10 @@ function OptionsPage() {
                 gap: spacing.sm
               }}
               onMouseEnter={(e) => {
-                if (!isValidating) e.currentTarget.style.backgroundColor = colors.accent.blue;
+                if (!isValidating) e.currentTarget.style.backgroundColor = colors.blueSubtle;
               }}
               onMouseLeave={(e) => {
-                if (!isValidating) e.currentTarget.style.backgroundColor = colors.accent.blue;
+                if (!isValidating) e.currentTarget.style.backgroundColor = colors.blueSubtle;
               }}
             >
               {isValidating ? (
@@ -762,7 +762,7 @@ function OptionsPage() {
 
         {/* Prompts Section */}
         <div style={{
-          backgroundColor: 'white',
+          backgroundColor: colors.white,
           padding: '32px',
           borderRadius: '16px',
           boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
@@ -779,14 +779,14 @@ function OptionsPage() {
               alignItems: 'center',
               gap: '12px'
             }}>
-              <div style={{ color: '#3b82f6' }}>
+              <div style={{ color: colors.blueSubtle }}>
                 <IconDocument />
               </div>
               <h2 style={{
                 margin: 0,
                 fontSize: '20px',
                 fontWeight: '600',
-                color: '#1f2937'
+                color: colors.text.primary
               }}>
                 Analysis Prompts
               </h2>
@@ -795,8 +795,8 @@ function OptionsPage() {
               onClick={() => openPromptEditor()}
               style={{
                 padding: '12px 20px',
-                backgroundColor: '#3b82f6',
-                color: 'white',
+                backgroundColor: colors.blueSubtle,
+                color: colors.white,
                 border: 'none',
                 borderRadius: '8px',
                 cursor: 'pointer',
@@ -807,8 +807,8 @@ function OptionsPage() {
                 alignItems: 'center',
                 gap: '8px'
               }}
-              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#2563eb'}
-              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#3b82f6'}
+              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = colors.blueSubtle}
+              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = colors.blueSubtle}
             >
               <IconPlus />
               Add New Prompt
@@ -818,14 +818,14 @@ function OptionsPage() {
           <div style={{
             marginBottom: '24px',
             padding: '16px',
-            backgroundColor: '#f8fafc',
+            backgroundColor: colors.background.secondary,
             borderRadius: '12px',
             border: '1px solid #e2e8f0'
           }}>
             <p style={{
               margin: 0,
               fontSize: '14px',
-              color: '#64748b',
+              color: colors.grayMedium,
               lineHeight: '1.5'
             }}>
               Prompts define what the AI looks for when analyzing web content. Create custom prompts for different use cases, or use the default prompt to get started.
@@ -836,12 +836,12 @@ function OptionsPage() {
             <div style={{
               textAlign: 'center',
               padding: '48px 24px',
-              backgroundColor: '#f8fafc',
+              backgroundColor: colors.background.secondary,
               borderRadius: '12px',
               border: '2px dashed #cbd5e1'
             }}>
               <div style={{
-                color: '#94a3b8',
+                color: colors.grayMedium,
                 marginBottom: '16px',
                 fontSize: '48px'
               }}>
@@ -851,13 +851,13 @@ function OptionsPage() {
                 margin: '0 0 8px 0',
                 fontSize: '18px',
                 fontWeight: '600',
-                color: '#475569'
+                color: colors.text.primary
               }}>
                 No prompts yet
               </h3>
               <p style={{
                 margin: '0 0 24px 0',
-                color: '#64748b',
+                color: colors.grayMedium,
                 fontSize: '16px'
               }}>
                 Create your first prompt to start analyzing web content
@@ -866,8 +866,8 @@ function OptionsPage() {
                 onClick={() => openPromptEditor()}
                 style={{
                   padding: '12px 24px',
-                  backgroundColor: '#3b82f6',
-                  color: 'white',
+                  backgroundColor: colors.blueSubtle,
+                  color: colors.white,
                   border: 'none',
                   borderRadius: '8px',
                   cursor: 'pointer',
@@ -878,8 +878,8 @@ function OptionsPage() {
                   alignItems: 'center',
                   gap: '8px'
                 }}
-                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#2563eb'}
-                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#3b82f6'}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = colors.blueSubtle}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = colors.blueSubtle}
               >
                 <IconPlus />
                 Create First Prompt
@@ -895,18 +895,18 @@ function OptionsPage() {
                   key={prompt.id}
                   style={{
                     padding: '24px',
-                    backgroundColor: '#f8fafc',
+                    backgroundColor: colors.background.secondary,
                     borderRadius: '12px',
                     border: '1px solid #e2e8f0',
                     transition: 'all 0.2s'
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = '#f1f5f9';
-                    e.currentTarget.style.borderColor = '#cbd5e1';
+                    e.currentTarget.style.backgroundColor = colors.background.secondary;
+                    e.currentTarget.style.borderColor = colors.border.default;
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = '#f8fafc';
-                    e.currentTarget.style.borderColor = '#e2e8f0';
+                    e.currentTarget.style.backgroundColor = colors.background.secondary;
+                    e.currentTarget.style.borderColor = colors.border.light;
                   }}
                 >
                   <div style={{
@@ -926,7 +926,7 @@ function OptionsPage() {
                           margin: 0,
                           fontSize: '18px',
                           fontWeight: '600',
-                          color: '#1f2937'
+                          color: colors.text.primary
                         }}>
                           {prompt.name}
                         </h3>
@@ -936,8 +936,8 @@ function OptionsPage() {
                             alignItems: 'center',
                             gap: '4px',
                             padding: '4px 8px',
-                            backgroundColor: '#fef3c7',
-                            color: '#92400e',
+                            backgroundColor: colors.background.secondary,
+                            color: colors.grayMedium,
                             borderRadius: '6px',
                             fontSize: '12px',
                             fontWeight: '500'
@@ -949,7 +949,7 @@ function OptionsPage() {
                       </div>
                       <p style={{
                         margin: 0,
-                        color: '#6b7280',
+                        color: colors.text.secondary,
                         fontSize: '14px',
                         lineHeight: '1.5',
                         display: '-webkit-box',
@@ -973,7 +973,7 @@ function OptionsPage() {
                         style={{
                           padding: '8px',
                           backgroundColor: 'transparent',
-                          color: prompt.isDefault ? '#f59e0b' : '#9ca3af',
+                          color: prompt.isDefault ? colors.grayMedium : colors.grayMedium,
                           border: 'none',
                           borderRadius: '6px',
                           cursor: prompt.isDefault ? 'default' : 'pointer',
@@ -984,14 +984,14 @@ function OptionsPage() {
                         }}
                         onMouseEnter={(e) => {
                           if (!prompt.isDefault) {
-                            e.currentTarget.style.backgroundColor = '#f3f4f6';
-                            e.currentTarget.style.color = '#f59e0b';
+                            e.currentTarget.style.backgroundColor = colors.background.secondary;
+                            e.currentTarget.style.color = colors.grayMedium;
                           }
                         }}
                         onMouseLeave={(e) => {
                           if (!prompt.isDefault) {
                             e.currentTarget.style.backgroundColor = 'transparent';
-                            e.currentTarget.style.color = '#9ca3af';
+                            e.currentTarget.style.color = colors.grayMedium;
                           }
                         }}
                       >
@@ -1003,7 +1003,7 @@ function OptionsPage() {
                         style={{
                           padding: '8px',
                           backgroundColor: 'transparent',
-                          color: '#9ca3af',
+                          color: colors.grayMedium,
                           border: 'none',
                           borderRadius: '6px',
                           cursor: 'pointer',
@@ -1013,12 +1013,12 @@ function OptionsPage() {
                           justifyContent: 'center'
                         }}
                         onMouseEnter={(e) => {
-                          e.currentTarget.style.backgroundColor = '#f3f4f6';
-                          e.currentTarget.style.color = '#374151';
+                          e.currentTarget.style.backgroundColor = colors.background.secondary;
+                          e.currentTarget.style.color = colors.text.primary;
                         }}
                         onMouseLeave={(e) => {
                           e.currentTarget.style.backgroundColor = 'transparent';
-                          e.currentTarget.style.color = '#9ca3af';
+                          e.currentTarget.style.color = colors.grayMedium;
                         }}
                       >
                         <IconEdit />
@@ -1029,7 +1029,7 @@ function OptionsPage() {
                         style={{
                           padding: '8px',
                           backgroundColor: 'transparent',
-                          color: '#9ca3af',
+                          color: colors.grayMedium,
                           border: 'none',
                           borderRadius: '6px',
                           cursor: 'pointer',
@@ -1039,12 +1039,12 @@ function OptionsPage() {
                           justifyContent: 'center'
                         }}
                         onMouseEnter={(e) => {
-                          e.currentTarget.style.backgroundColor = '#fef2f2';
-                          e.currentTarget.style.color = '#ef4444';
+                          e.currentTarget.style.backgroundColor = colors.background.secondary;
+                          e.currentTarget.style.color = colors.error;
                         }}
                         onMouseLeave={(e) => {
                           e.currentTarget.style.backgroundColor = 'transparent';
-                          e.currentTarget.style.color = '#9ca3af';
+                          e.currentTarget.style.color = colors.grayMedium;
                         }}
                       >
                         <IconTrash />
@@ -1062,7 +1062,7 @@ function OptionsPage() {
           marginTop: '48px',
           padding: '24px',
           textAlign: 'center',
-          color: '#9ca3af',
+          color: colors.grayMedium,
           fontSize: '14px',
           borderTop: '1px solid #e5e7eb'
         }}>
@@ -1089,7 +1089,7 @@ function OptionsPage() {
           boxSizing: 'border-box'
         }}>
           <div style={{
-            backgroundColor: 'white',
+            backgroundColor: colors.white,
             padding: '32px',
             borderRadius: '16px',
             width: '100%',
@@ -1102,7 +1102,7 @@ function OptionsPage() {
               margin: '0 0 24px 0',
               fontSize: '24px',
               fontWeight: '700',
-              color: '#1f2937'
+              color: colors.text.primary
             }}>
               {editingPrompt ? 'Edit Prompt' : 'Create New Prompt'}
             </h3>
@@ -1111,7 +1111,7 @@ function OptionsPage() {
               <label style={{
                 display: 'block',
                 marginBottom: '8px',
-                color: '#374151',
+                color: colors.text.primary,
                 fontSize: '14px',
                 fontWeight: '600'
               }}>
@@ -1125,30 +1125,30 @@ function OptionsPage() {
                 style={{
                   width: '100%',
                   padding: '16px',
-                  border: `2px solid ${validationErrors.name ? '#ef4444' : '#e5e7eb'}`,
+                  border: `2px solid ${validationErrors.name ? colors.error : colors.border.light}`,
                   borderRadius: '8px',
                   boxSizing: 'border-box',
                   fontSize: '16px',
-                  color: '#1f2937',
+                  color: colors.text.primary,
                   fontFamily: 'inherit',
                   transition: 'border-color 0.2s',
                   outline: 'none'
                 }}
                 onFocus={(e) => {
                   if (!validationErrors.name) {
-                    e.target.style.borderColor = '#3b82f6';
+                    e.target.style.borderColor = colors.blueSubtle;
                   }
                 }}
                 onBlur={(e) => {
                   if (!validationErrors.name) {
-                    e.target.style.borderColor = '#e5e7eb';
+                    e.target.style.borderColor = colors.border.light;
                   }
                 }}
               />
               {validationErrors.name && (
                 <p style={{
                   margin: '8px 0 0 0',
-                  color: '#ef4444',
+                  color: colors.error,
                   fontSize: '14px'
                 }}>
                   {validationErrors.name}
@@ -1160,7 +1160,7 @@ function OptionsPage() {
               <label style={{
                 display: 'block',
                 marginBottom: '8px',
-                color: '#374151',
+                color: colors.text.primary,
                 fontSize: '14px',
                 fontWeight: '600'
               }}>
@@ -1174,12 +1174,12 @@ function OptionsPage() {
                 style={{
                   width: '100%',
                   padding: '16px',
-                  border: `2px solid ${validationErrors.prompt ? '#ef4444' : '#e5e7eb'}`,
+                  border: `2px solid ${validationErrors.prompt ? colors.error : colors.border.light}`,
                   borderRadius: '8px',
                   boxSizing: 'border-box',
                   resize: 'vertical',
                   fontSize: '16px',
-                  color: '#1f2937',
+                  color: colors.text.primary,
                   fontFamily: 'inherit',
                   lineHeight: '1.5',
                   transition: 'border-color 0.2s',
@@ -1187,19 +1187,19 @@ function OptionsPage() {
                 }}
                 onFocus={(e) => {
                   if (!validationErrors.prompt) {
-                    e.target.style.borderColor = '#3b82f6';
+                    e.target.style.borderColor = colors.blueSubtle;
                   }
                 }}
                 onBlur={(e) => {
                   if (!validationErrors.prompt) {
-                    e.target.style.borderColor = '#e5e7eb';
+                    e.target.style.borderColor = colors.border.light;
                   }
                 }}
               />
               {validationErrors.prompt && (
                 <p style={{
                   margin: '8px 0 0 0',
-                  color: '#ef4444',
+                  color: colors.error,
                   fontSize: '14px'
                 }}>
                   {validationErrors.prompt}
@@ -1216,8 +1216,8 @@ function OptionsPage() {
                 onClick={() => setIsEditing(false)}
                 style={{
                   padding: '12px 24px',
-                  backgroundColor: '#f9fafb',
-                  color: '#374151',
+                  backgroundColor: colors.background.secondary,
+                  color: colors.text.primary,
                   border: '1px solid #e5e7eb',
                   borderRadius: '8px',
                   cursor: 'pointer',
@@ -1226,12 +1226,12 @@ function OptionsPage() {
                   transition: 'all 0.2s'
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = '#f3f4f6';
-                  e.currentTarget.style.borderColor = '#d1d5db';
+                  e.currentTarget.style.backgroundColor = colors.background.secondary;
+                  e.currentTarget.style.borderColor = colors.border.default;
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = '#f9fafb';
-                  e.currentTarget.style.borderColor = '#e5e7eb';
+                  e.currentTarget.style.backgroundColor = colors.background.secondary;
+                  e.currentTarget.style.borderColor = colors.border.light;
                 }}
               >
                 Cancel
@@ -1240,8 +1240,8 @@ function OptionsPage() {
                 onClick={savePrompt}
                 style={{
                   padding: '12px 24px',
-                  backgroundColor: '#3b82f6',
-                  color: 'white',
+                  backgroundColor: colors.blueSubtle,
+                  color: colors.white,
                   border: 'none',
                   borderRadius: '8px',
                   cursor: 'pointer',
@@ -1249,8 +1249,8 @@ function OptionsPage() {
                   fontWeight: '500',
                   transition: 'background-color 0.2s'
                 }}
-                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#2563eb'}
-                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#3b82f6'}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = colors.blueSubtle}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = colors.blueSubtle}
               >
                 {editingPrompt ? 'Save Changes' : 'Create Prompt'}
               </button>
