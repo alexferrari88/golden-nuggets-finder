@@ -10,7 +10,7 @@ export const SITE_SELECTORS = {
   },
   HACKER_NEWS: {
     POST: '.toptext',
-    COMMENTS: '.comment'
+    COMMENTS: '.commtext'
   }
 } as const;
 
