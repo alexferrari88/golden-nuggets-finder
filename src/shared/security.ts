@@ -68,13 +68,14 @@ export class SecurityManager {
    * Generate a device-specific salt using various browser fingerprints
    */
   private async generateDeviceSalt(): Promise<Uint8Array> {
+    // Use context-independent fingerprinting to ensure consistency across extension contexts
     const fingerprint = [
       navigator.userAgent,
       navigator.language,
       navigator.platform,
-      typeof screen !== 'undefined' ? screen.width.toString() : 'unknown',
-      typeof screen !== 'undefined' ? screen.height.toString() : 'unknown',
-      new Date().getTimezoneOffset().toString()
+      new Date().getTimezoneOffset().toString(),
+      // Use a consistent extension-specific identifier instead of screen dimensions
+      'chrome-extension-context'
     ].join('|');
 
     const encoder = new TextEncoder();
@@ -245,24 +246,12 @@ export class SecurityManager {
         encryptedDataAge: Date.now() - encryptedData.timestamp
       });
       
-      if (isDevMode()) {
-        console.log('[Security] STEP 1: Starting enhanced error creation...');
-      }
-      
       // Create enhanced error - don't throw inside try block to avoid catching our own enhanced error
       let enhancedError;
       try {
         // Create a more descriptive error based on the type of failure
         let errorMessage = 'Failed to decrypt API key';
         let errorCode = 'DECRYPTION_FAILED';
-        
-        if (isDevMode()) {
-          console.log('[Security] STEP 2: Checking error type...', {
-            isDOMException: error instanceof DOMException,
-            errorName: error?.name,
-            errorConstructor: error?.constructor?.name
-          });
-        }
         
         if (error instanceof DOMException) {
           if (error.name === 'OperationError') {
@@ -277,10 +266,6 @@ export class SecurityManager {
           }
         }
         
-        if (isDevMode()) {
-          console.log(`[Security] STEP 3: Error classification complete - ${errorCode}, canRecover: ${errorCode === 'DEVICE_CHANGED'}`);
-        }
-        
         // Create enhanced error with original details
         enhancedError = new Error(errorMessage) as Error & { 
           code: string; 
@@ -291,26 +276,12 @@ export class SecurityManager {
         enhancedError.originalError = error as Error;
         enhancedError.canRecover = errorCode === 'DEVICE_CHANGED';
         
-        if (isDevMode()) {
-          console.log(`[Security] STEP 4: Enhanced error created successfully:`, JSON.stringify({
-            code: enhancedError.code,
-            canRecover: enhancedError.canRecover,
-            message: enhancedError.message,
-            originalErrorName: enhancedError.originalError?.name || 'Unknown'
-          }, null, 2));
-        }
-        
       } catch (enhancementError) {
         if (isDevMode()) {
           console.error('[Security] ERROR in enhanced error creation:', enhancementError);
-          console.log('[Security] FALLBACK: Using original error instead');
         }
         // Fallback to original error if enhancement fails
         enhancedError = error;
-      }
-      
-      if (isDevMode()) {
-        console.log('[Security] STEP 5: About to throw enhanced error...');
       }
       
       throw enhancedError;

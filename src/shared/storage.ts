@@ -122,6 +122,7 @@ export class StorageManager {
           if (isDevMode()) {
             console.log('[Storage] Returning empty string after recovery to trigger re-entry');
           }
+          
           return '';
         } catch (recoveryError) {
           if (isDevMode()) {

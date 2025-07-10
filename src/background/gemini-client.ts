@@ -19,10 +19,21 @@ export class GeminiClient {
 
     try {
       this.apiKey = await storage.getApiKey({ source: 'background', action: 'read', timestamp: Date.now() });
-    } catch (apiKeyError) {
+    } catch (apiKeyError: any) {
       if (isDevMode()) {
         console.error('[GeminiClient] API key retrieval failed:', apiKeyError);
       }
+      
+      // Check if this is a recoverable error that should trigger recovery flow
+      if (apiKeyError && apiKeyError.code === 'DEVICE_CHANGED' && apiKeyError.canRecover) {
+        if (isDevMode()) {
+          console.log('[GeminiClient] Detected recoverable API key error, preserving enhanced error for recovery');
+        }
+        // Re-throw the enhanced error to preserve recovery information
+        throw apiKeyError;
+      }
+      
+      // For non-recoverable errors, throw generic message
       throw new Error('Failed to retrieve API key. Please check your configuration in the options page.');
     }
     
