@@ -118,9 +118,11 @@ export class SecurityManager {
       ['encrypt', 'decrypt']
     );
 
-    // Generate key fingerprint for audit logging
-    const keyData = await crypto.subtle.exportKey('raw', this.derivedKey);
-    const fingerprint = await crypto.subtle.digest(SECURITY_CONFIG.HASH_ALGORITHM, keyData);
+    // Generate key fingerprint for audit logging using salt/device data
+    const fingerprintData = new Uint8Array(combinedSalt.length + 8);
+    fingerprintData.set(combinedSalt);
+    fingerprintData.set(new Uint8Array(new ArrayBuffer(8)), combinedSalt.length);
+    const fingerprint = await crypto.subtle.digest(SECURITY_CONFIG.HASH_ALGORITHM, fingerprintData);
     this.keyFingerprint = Array.from(new Uint8Array(fingerprint))
       .map(b => b.toString(16).padStart(2, '0'))
       .join('')
