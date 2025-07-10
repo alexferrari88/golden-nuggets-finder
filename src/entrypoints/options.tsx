@@ -269,46 +269,70 @@ function OptionsPage() {
                 </div>
               </div>
               
-              <div style={{ display: 'flex', gap: '8px' }}>
+              <div style={{ display: 'flex', gap: '4px' }}>
                 <button 
                   onClick={() => setDefaultPrompt(prompt.id)}
                   disabled={prompt.isDefault}
+                  title={prompt.isDefault ? 'This is the default prompt' : 'Set as default prompt'}
+                  aria-label={prompt.isDefault ? 'This is the default prompt' : 'Set as default prompt'}
                   style={{
-                    padding: '6px 12px',
+                    width: '32px',
+                    height: '32px',
                     backgroundColor: prompt.isDefault ? '#94a3b8' : '#d97706',
                     color: 'white',
                     border: 'none',
-                    borderRadius: '4px',
+                    borderRadius: '6px',
                     cursor: prompt.isDefault ? 'not-allowed' : 'pointer',
-                    fontSize: '12px',
-                    fontWeight: '500'
+                    fontSize: '14px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    transition: 'all 0.2s'
                   }}
                 >
-                  {prompt.isDefault ? 'Default' : 'Set Default'}
+                  ★
                 </button>
-                <button onClick={() => openPromptEditor(prompt)} style={{
-                  padding: '6px 12px',
-                  backgroundColor: '#0284c7',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '4px',
-                  cursor: 'pointer',
-                  fontSize: '12px',
-                  fontWeight: '500'
-                }}>
-                  Edit
+                <button 
+                  onClick={() => openPromptEditor(prompt)} 
+                  title="Edit prompt"
+                  aria-label="Edit prompt"
+                  style={{
+                    width: '32px',
+                    height: '32px',
+                    backgroundColor: '#0284c7',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    fontSize: '14px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  ✏️
                 </button>
-                <button onClick={() => deletePrompt(prompt.id)} style={{
-                  padding: '6px 12px',
-                  backgroundColor: '#dc2626',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '4px',
-                  cursor: 'pointer',
-                  fontSize: '12px',
-                  fontWeight: '500'
-                }}>
-                  Delete
+                <button 
+                  onClick={() => deletePrompt(prompt.id)} 
+                  title="Delete prompt"
+                  aria-label="Delete prompt"
+                  style={{
+                    width: '32px',
+                    height: '32px',
+                    backgroundColor: '#dc2626',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    fontSize: '14px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  ✕
                 </button>
               </div>
             </div>
