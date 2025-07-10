@@ -1,7 +1,7 @@
 import { STORAGE_KEYS, DEFAULT_PROMPTS } from './constants';
 import { ExtensionConfig, SavedPrompt } from './types';
 import { securityManager, AccessContext, EncryptedData } from './security';
-import { isDevMode } from './performance';
+import { isDevMode } from './debug';
 
 export class StorageManager {
   private static instance: StorageManager;

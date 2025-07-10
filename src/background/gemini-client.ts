@@ -2,8 +2,9 @@ import { GEMINI_CONFIG } from '../shared/constants';
 import { GOLDEN_NUGGET_SCHEMA } from '../shared/schemas';
 import { GeminiResponse } from '../shared/types';
 import { storage } from '../shared/storage';
-import { performanceMonitor, measureAPICall, isDevMode } from '../shared/performance';
+import { performanceMonitor, measureAPICall } from '../shared/performance';
 import { securityManager } from '../shared/security';
+import { debugLogger } from '../shared/debug';
 
 export class GeminiClient {
   private apiKey: string | null = null;
@@ -20,15 +21,11 @@ export class GeminiClient {
     try {
       this.apiKey = await storage.getApiKey({ source: 'background', action: 'read', timestamp: Date.now() });
     } catch (apiKeyError: any) {
-      if (isDevMode()) {
-        console.error('[GeminiClient] API key retrieval failed:', apiKeyError);
-      }
+      debugLogger.error('[GeminiClient] API key retrieval failed:', apiKeyError);
       
       // Check if this is a recoverable error that should trigger recovery flow
       if (apiKeyError && apiKeyError.code === 'DEVICE_CHANGED' && apiKeyError.canRecover) {
-        if (isDevMode()) {
-          console.log('[GeminiClient] Detected recoverable API key error, preserving enhanced error for recovery');
-        }
+        debugLogger.log('[GeminiClient] Detected recoverable API key error, preserving enhanced error for recovery');
         // Re-throw the enhanced error to preserve recovery information
         throw apiKeyError;
       }
@@ -78,10 +75,7 @@ export class GeminiClient {
         };
 
         // Log request payload in development mode
-        if (isDevMode()) {
-          console.log('[LLM Request] Gemini API - Endpoint:', `${this.API_BASE_URL}/${GEMINI_CONFIG.MODEL}:generateContent`);
-          console.log('[LLM Request] Request Body:', JSON.stringify(requestBody, null, 2));
-        }
+        debugLogger.logLLMRequest(`${this.API_BASE_URL}/${GEMINI_CONFIG.MODEL}:generateContent`, requestBody);
 
         performanceMonitor.startTimer('gemini_request');
         const response = await fetch(`${this.API_BASE_URL}/${GEMINI_CONFIG.MODEL}:generateContent`, {
@@ -99,11 +93,6 @@ export class GeminiClient {
         performanceMonitor.startTimer('gemini_response_parse');
         const responseData = await response.json();
         
-        // Log response payload in development mode
-        if (isDevMode()) {
-          console.log('[LLM Response] Raw Response:', JSON.stringify(responseData, null, 2));
-        }
-        
         // Extract the text from the response
         const responseText = responseData.candidates?.[0]?.content?.parts?.[0]?.text;
         if (!responseText) {
@@ -112,10 +101,8 @@ export class GeminiClient {
 
         const result = JSON.parse(responseText) as GeminiResponse;
         
-        // Log parsed response in development mode
-        if (isDevMode()) {
-          console.log('[LLM Response] Parsed Response:', JSON.stringify(result, null, 2));
-        }
+        // Log response payload in development mode
+        debugLogger.logLLMResponse(responseData, result);
         
         performanceMonitor.logTimer('gemini_response_parse', 'Parse Gemini response');
         
@@ -160,9 +147,7 @@ export class GeminiClient {
       const jitter = Math.random() * 0.1 * delay;
       await new Promise(resolve => setTimeout(resolve, delay + jitter));
 
-      if (isDevMode()) {
-        console.warn(`Retrying Gemini API request (attempt ${currentAttempt + 1}/${this.MAX_RETRIES})`);
-      }
+      debugLogger.warn(`Retrying Gemini API request (attempt ${currentAttempt + 1}/${this.MAX_RETRIES})`);
       return this.retryRequest(operation, currentAttempt + 1);
     }
   }
@@ -197,9 +182,7 @@ export class GeminiClient {
       }
     }
     
-    if (isDevMode()) {
-      console.error('Gemini API error:', error);
-    }
+    debugLogger.error('Gemini API error:', error);
     return new Error('Analysis failed. Please try again.');
   }
   
@@ -282,30 +265,25 @@ export class GeminiClient {
         }
       };
 
-      // Log API key validation request in development mode
-      if (isDevMode()) {
-        console.log('[LLM Request] API Key Validation - Endpoint:', `${this.API_BASE_URL}/${GEMINI_CONFIG.MODEL}:generateContent`);
-        console.log('[LLM Request] Test Request Body:', JSON.stringify(testRequestBody, null, 2));
-      }
-
       const response = await fetch(`${this.API_BASE_URL}/${GEMINI_CONFIG.MODEL}:generateContent`, {
         method: 'POST',
         headers: this.getSecureHeaders(apiKey),
         body: JSON.stringify(testRequestBody)
       });
 
-      // Log API key validation response in development mode
-      if (isDevMode()) {
-        console.log('[LLM Response] API Key Validation - Status:', response.status, response.statusText);
-        console.log('[LLM Response] API Key Valid:', response.ok);
-      }
+      // Log API key validation request/response in development mode
+      debugLogger.logLLMValidation(
+        `${this.API_BASE_URL}/${GEMINI_CONFIG.MODEL}:generateContent`,
+        testRequestBody,
+        response.status,
+        response.statusText,
+        response.ok
+      );
 
       // If we get a 200 response, the API key is valid
       return response.ok;
     } catch (error) {
-      if (isDevMode()) {
-        console.warn('API key validation failed:', error);
-      }
+      debugLogger.warn('API key validation failed:', error);
       return false;
     }
   }
@@ -327,8 +305,6 @@ export class GeminiClient {
   clearSensitiveData(): void {
     this.apiKey = null;
     this.responseCache.clear();
-    if (isDevMode()) {
-      console.log('[GeminiClient] Sensitive data cleared from memory');
-    }
+    debugLogger.log('[GeminiClient] Sensitive data cleared from memory');
   }
 }

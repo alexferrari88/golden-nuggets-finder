@@ -2,7 +2,8 @@
  * Security utilities for encryption, access control, and audit logging
  */
 
-import { performanceMonitor, isDevMode } from './performance';
+import { performanceMonitor } from './performance';
+import { isDevMode } from './debug';
 
 // Security configuration
 const SECURITY_CONFIG = {

@@ -1,6 +1,7 @@
 /**
  * Performance monitoring utilities for the Golden Nugget Finder extension
  */
+import { isDevMode } from './debug';
 
 export class PerformanceMonitor {
   private static instance: PerformanceMonitor;
@@ -64,6 +65,7 @@ export class PerformanceMonitor {
     }
     return duration;
   }
+
 
   getMetrics(name: string): { avg: number; min: number; max: number; count: number } | null {
     if (!this.enabled) return null;
@@ -166,16 +168,6 @@ export function measureContentExtraction<T>(name: string, fn: () => T | Promise<
 
 export function measureHighlighting<T>(name: string, fn: () => T): T {
   return withPerformanceMonitoring(`Highlight:${name}`, fn, 'Text highlighting');
-}
-
-// Development mode detection
-export function isDevMode(): boolean {
-  try {
-    return !('update_url' in chrome.runtime.getManifest());
-  } catch {
-    // During build time or if chrome API is not available, assume development
-    return true;
-  }
 }
 
 // Auto-enable performance monitoring in development (only if chrome APIs are available)
