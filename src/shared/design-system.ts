@@ -2,60 +2,44 @@
 // This file contains the core design tokens for the Golden Nugget Finder extension
 
 export const colors = {
-  // Primary grays - Notion-inspired neutral palette
-  gray: {
-    50: '#fafafa',    // Almost white background
-    100: '#f4f4f4',   // Light background
-    200: '#e4e4e4',   // Light border
-    300: '#d4d4d4',   // Border
-    400: '#a3a3a3',   // Muted text
-    500: '#737373',   // Secondary text
-    600: '#525252',   // Primary text
-    700: '#404040',   // Dark text
-    800: '#262626',   // Darker text
-    900: '#171717',   // Almost black
-  },
+  // Ultra-minimal palette inspired by Notion
+  // Only 5 core colors - everything else is derived
+  
+  // Core colors (Notion-inspired)
+  white: '#FFFFFF',           // Pure white
+  grayLight: '#F1F1EF',       // Notion's gray background
+  grayMedium: '#787774',      // Notion's gray text
+  grayDark: '#373530',        // Notion's default text
+  blueSubtle: '#487CA5',      // Notion's blue (only color accent)
 
-  // Minimal accent colors
-  accent: {
-    blue: '#2563eb',     // Subtle blue for primary actions
-    blueLight: '#dbeafe', // Light blue background
-    green: '#16a34a',    // Success/positive
-    greenLight: '#dcfce7', // Light green background
-    amber: '#d97706',    // Warning/highlight
-    amberLight: '#fef3c7', // Light amber background
-    red: '#dc2626',      // Error/danger
-    redLight: '#fee2e2', // Light red background
-  },
-
-  // Semantic colors
+  // Semantic colors (ultra-minimal)
   text: {
-    primary: '#171717',    // Main text
-    secondary: '#525252',  // Secondary text
-    tertiary: '#a3a3a3',   // Muted text
-    accent: '#2563eb',     // Link/accent text
+    primary: '#373530',       // Notion's default text
+    secondary: '#787774',     // Notion's gray text
+    accent: '#487CA5',        // Notion's blue for links/actions
   },
 
   background: {
-    primary: '#ffffff',    // Main background
-    secondary: '#fafafa',  // Card/section background
-    tertiary: '#f4f4f4',   // Input/tertiary background
-    overlay: 'rgba(0, 0, 0, 0.2)', // Modal overlay
+    primary: '#FFFFFF',       // Pure white
+    secondary: '#F1F1EF',     // Notion's gray background
+    overlay: 'rgba(55, 53, 48, 0.1)', // Ultra-subtle overlay
   },
 
   border: {
-    light: '#f4f4f4',     // Very light border
-    default: '#e4e4e4',   // Default border
-    medium: '#d4d4d4',    // Medium border
-    strong: '#a3a3a3',    // Strong border
+    light: '#F1F1EF',         // Notion's gray background as border
+    default: 'rgba(120, 119, 116, 0.2)', // Ultra-subtle border
   },
 
-  // Highlight colors - much more subtle than current bright yellow
+  // Highlight colors - extremely subtle
   highlight: {
-    background: 'rgba(250, 204, 21, 0.15)', // Very subtle yellow
-    border: 'rgba(250, 204, 21, 0.3)',      // Subtle yellow border
-    hover: 'rgba(250, 204, 21, 0.25)',      // Slightly more visible on hover
+    background: 'rgba(120, 119, 116, 0.08)', // Ultra-subtle highlight
+    border: 'rgba(120, 119, 116, 0.15)',     // Barely visible border
+    hover: 'rgba(120, 119, 116, 0.12)',      // Slightly more visible on hover
   },
+
+  // States (only when absolutely necessary)
+  success: '#548164',         // Notion's green (very muted)
+  error: '#C4554D',           // Notion's red (very muted)
 };
 
 export const typography = {
@@ -129,8 +113,8 @@ export const zIndex = {
 export const components = {
   button: {
     primary: {
-      backgroundColor: colors.accent.blue,
-      color: colors.background.primary,
+      backgroundColor: colors.blueSubtle,
+      color: colors.white,
       borderRadius: borderRadius.md,
       padding: `${spacing.md} ${spacing.xl}`,
       fontSize: typography.fontSize.sm,
@@ -141,7 +125,7 @@ export const components = {
       boxShadow: shadows.sm,
     },
     secondary: {
-      backgroundColor: colors.background.primary,
+      backgroundColor: colors.white,
       color: colors.text.primary,
       borderRadius: borderRadius.md,
       padding: `${spacing.md} ${spacing.xl}`,
@@ -167,7 +151,7 @@ export const components = {
 
   card: {
     default: {
-      backgroundColor: colors.background.primary,
+      backgroundColor: colors.white,
       borderRadius: borderRadius.lg,
       padding: spacing['2xl'],
       border: `1px solid ${colors.border.light}`,
@@ -175,13 +159,13 @@ export const components = {
     },
     hover: {
       boxShadow: shadows.md,
-      borderColor: colors.border.medium,
+      borderColor: colors.border.default,
     },
   },
 
   input: {
     default: {
-      backgroundColor: colors.background.primary,
+      backgroundColor: colors.white,
       borderRadius: borderRadius.md,
       padding: spacing.lg,
       fontSize: typography.fontSize.base,
@@ -191,15 +175,15 @@ export const components = {
       fontFamily: typography.fontFamily.sans,
     },
     focus: {
-      borderColor: colors.accent.blue,
+      borderColor: colors.blueSubtle,
       outline: 'none',
-      boxShadow: `0 0 0 3px ${colors.accent.blueLight}`,
+      boxShadow: `0 0 0 3px ${colors.background.secondary}`,
     },
   },
 
   badge: {
     default: {
-      backgroundColor: colors.background.tertiary,
+      backgroundColor: colors.background.secondary,
       color: colors.text.secondary,
       borderRadius: borderRadius.sm,
       padding: `${spacing.xs} ${spacing.sm}`,
@@ -209,8 +193,8 @@ export const components = {
       letterSpacing: '0.5px',
     },
     accent: {
-      backgroundColor: colors.accent.blueLight,
-      color: colors.accent.blue,
+      backgroundColor: colors.background.secondary,
+      color: colors.blueSubtle,
     },
   },
 };
