@@ -32,7 +32,7 @@ export const DEFAULT_PROMPTS = [
   {
     id: 'default-insights',
     name: 'Find Key Insights',
-    prompt: 'Extract golden nuggets that would be valuable for a pragmatic synthesizer with ADHD. Focus on actionable insights, elegant principles, tools, analogies, and explanations that connect to first principles thinking. Prioritize content that answers "how things work" or provides practical synthesis.',
+    prompt: 'Extract golden nuggets that would be valuable for a pragmatic synthesizer with ADHD. Focus on actionable insights, elegant principles, tools, analogies, and explanations that connect to first principles thinking. Prioritize content that answers "how things work" or provides practical synthesis. Do not force finding golden nuggets: if you cannot find any, return an empty `golden_nuggets` array.',
     isDefault: true
   }
 ] as const;

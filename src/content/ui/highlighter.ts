@@ -136,179 +136,9 @@ export class Highlighter {
     return this.tryMultipleMatchingStrategies(textNodes, nugget, normalizedContent);
   }
 
-  private highlightTextNode(textNode: Text, nugget: GoldenNugget): void {
-    const text = textNode.textContent || '';
-    const normalizedText = this.normalizeText(text);
-    const normalizedContent = this.normalizeText(nugget.content);
-    
-    let highlightStart = -1;
-    let highlightEnd = -1;
-    
-    // Try different matching strategies to find what to highlight
-    if (normalizedText.includes(normalizedContent)) {
-      // Direct match - find the best matching substring in original text
-      highlightStart = this.findSubstringInOriginal(text, nugget.content);
-      if (highlightStart !== -1) {
-        highlightEnd = highlightStart + nugget.content.length;
-      }
-    } else if (normalizedContent.includes(normalizedText)) {
-      // The text node is a subset of the nugget content - highlight entire text
-      highlightStart = 0;
-      highlightEnd = text.length;
-    } else {
-      // Try key phrases
-      const keyPhrases = this.extractKeyPhrases(nugget.content);
-      for (const phrase of keyPhrases) {
-        if (phrase.length > 8) {
-          const phraseStart = this.findSubstringInOriginal(text, phrase);
-          if (phraseStart !== -1) {
-            highlightStart = phraseStart;
-            highlightEnd = phraseStart + phrase.length;
-            break;
-          }
-        }
-      }
-      
-      // If still no match, try to find the best overlapping portion
-      if (highlightStart === -1) {
-        const overlap = this.findBestOverlapInOriginal(text, nugget.content);
-        if (overlap.score > 0.3) {
-          highlightStart = overlap.start;
-          highlightEnd = overlap.end;
-        }
-      }
-    }
-    
-    if (highlightStart === -1 || highlightEnd === -1) return; // No suitable highlight found
-    
-    // Ensure we don't go beyond text boundaries
-    highlightStart = Math.max(0, highlightStart);
-    highlightEnd = Math.min(text.length, highlightEnd);
-    
-    // Calculate the actual text portions
-    const beforeText = text.substring(0, highlightStart);
-    const highlightText = text.substring(highlightStart, highlightEnd);
-    const afterText = text.substring(highlightEnd);
-    
-    // Create the highlight element
-    const highlightSpan = document.createElement('span');
-    highlightSpan.className = 'nugget-highlight';
-    highlightSpan.style.cssText = UI_CONSTANTS.HIGHLIGHT_STYLE;
-    highlightSpan.dataset.nuggetType = nugget.type;
-    highlightSpan.textContent = highlightText;
-    
-    // Add clickable indicator
-    const indicator = this.createClickableIndicator(nugget);
-    highlightSpan.appendChild(indicator);
-    
-    // Replace the text node with the highlighted version
-    const parent = textNode.parentNode;
-    if (parent) {
-      if (beforeText) {
-        parent.insertBefore(document.createTextNode(beforeText), textNode);
-      }
-      parent.insertBefore(highlightSpan, textNode);
-      if (afterText) {
-        parent.insertBefore(document.createTextNode(afterText), textNode);
-      }
-      parent.removeChild(textNode);
-    }
-    
-    this.highlights.push(highlightSpan);
-  }
 
-  private findSubstringInOriginal(originalText: string, searchText: string): number {
-    // Try to find the search text in the original text, being case-insensitive
-    // and handling some whitespace and punctuation differences
-    const original = originalText.toLowerCase();
-    const search = searchText.toLowerCase();
-    
-    // Direct search first
-    let index = original.indexOf(search);
-    if (index !== -1) return index;
-    
-    // Try with normalized whitespace
-    const normalizedOriginal = original.replace(/\s+/g, ' ');
-    const normalizedSearch = search.replace(/\s+/g, ' ');
-    
-    index = normalizedOriginal.indexOf(normalizedSearch);
-    if (index !== -1) {
-      // Map back to original text position (approximate)
-      return this.mapNormalizedToOriginalPosition(originalText, index);
-    }
-    
-    // Try with punctuation normalization
-    const punctuationNormalizedOriginal = original.replace(/[^\w\s]/g, ' ').replace(/\s+/g, ' ');
-    const punctuationNormalizedSearch = search.replace(/[^\w\s]/g, ' ').replace(/\s+/g, ' ');
-    
-    index = punctuationNormalizedOriginal.indexOf(punctuationNormalizedSearch);
-    if (index !== -1) {
-      // For punctuation-normalized text, we need to find where this maps back to
-      // This is a simpler approach - find the first word of the search in the original
-      const firstWord = search.split(/\s+/)[0];
-      if (firstWord.length > 2) {
-        return original.indexOf(firstWord);
-      }
-    }
-    
-    return -1;
-  }
 
-  private mapNormalizedToOriginalPosition(originalText: string, normalizedPosition: number): number {
-    // This is an approximation - for exact mapping we'd need more complex logic
-    let originalPos = 0;
-    let normalizedPos = 0;
-    
-    while (originalPos < originalText.length && normalizedPos < normalizedPosition) {
-      if (originalText[originalPos].match(/\s/)) {
-        // Skip extra whitespace in original
-        while (originalPos < originalText.length && originalText[originalPos].match(/\s/)) {
-          originalPos++;
-        }
-        if (normalizedPos < normalizedPosition) {
-          normalizedPos++; // Count as one space in normalized
-        }
-      } else {
-        originalPos++;
-        normalizedPos++;
-      }
-    }
-    
-    return originalPos;
-  }
 
-  private findBestOverlapInOriginal(text: string, nuggetContent: string): { start: number; end: number; score: number } {
-    const textWords = text.toLowerCase().split(/\s+/).filter(w => w.length > 2);
-    const contentWords = nuggetContent.toLowerCase().split(/\s+/).filter(w => w.length > 2);
-    
-    let bestStart = 0;
-    let bestEnd = 0;
-    let bestScore = 0;
-    
-    // Try different phrase lengths to find best overlap
-    for (let length = Math.min(textWords.length, 8); length >= 3; length--) {
-      for (let start = 0; start <= textWords.length - length; start++) {
-        const phrase = textWords.slice(start, start + length).join(' ');
-        
-        // Check if this phrase appears in the nugget content
-        if (nuggetContent.toLowerCase().includes(phrase)) {
-          const score = length / textWords.length;
-          if (score > bestScore) {
-            bestScore = score;
-            
-            // Find the actual character positions in the original text
-            const phraseStart = text.toLowerCase().indexOf(phrase);
-            if (phraseStart !== -1) {
-              bestStart = phraseStart;
-              bestEnd = phraseStart + phrase.length;
-            }
-          }
-        }
-      }
-    }
-    
-    return { start: bestStart, end: bestEnd, score: bestScore };
-  }
 
   private createClickableIndicator(nugget: GoldenNugget): HTMLElement {
     const isDiscussionSite = window.location.href.includes('reddit.com') || 
@@ -501,21 +331,13 @@ export class Highlighter {
   private tryMultipleMatchingStrategies(textNodes: Element[], nugget: GoldenNugget, normalizedContent: string): boolean {
     const originalContent = nugget.content;
     
-    // First, try to find container elements that contain the full content
-    // This handles cases where HTML elements (like <i>, <p>) fragment the text
-    const matchingContainer = this.findMatchingContainer(nugget);
-    if (matchingContainer) {
-      return this.highlightWithinContainer(matchingContainer, nugget);
-    }
-    
-    // Fallback to original text node strategy
-    // Strategy 1: Exact substring match (most precise)
+    // Strategy 1: Exact substring match (most precise) - KEEP ORIGINAL SIMPLE LOGIC
     for (const textNode of textNodes) {
       const text = textNode.textContent || '';
       const normalizedText = this.normalizeText(text);
       
       if (normalizedText.includes(normalizedContent)) {
-        this.highlightTextNode(textNode as Text, nugget);
+        this.highlightTextNodeSimple(textNode as Text, nugget, normalizedContent);
         return true;
       }
     }
@@ -530,7 +352,7 @@ export class Highlighter {
           const normalizedText = this.normalizeText(text);
           
           if (normalizedText.includes(normalizedPhrase)) {
-            this.highlightTextNode(textNode as Text, nugget);
+            this.highlightTextNodeSimple(textNode as Text, nugget, normalizedPhrase);
             return true;
           }
         }
@@ -543,8 +365,87 @@ export class Highlighter {
       const normalizedText = this.normalizeText(text);
       
       if (this.fuzzyMatch(normalizedText, normalizedContent)) {
-        this.highlightTextNode(textNode as Text, nugget);
+        this.highlightTextNodeSimple(textNode as Text, nugget, normalizedContent);
         return true;
+      }
+    }
+    
+    // Strategy 4: Container-based search for HTML fragmentation (NEW - only as last resort)
+    return this.tryContainerBasedHighlighting(nugget);
+  }
+
+  private highlightTextNodeSimple(textNode: Text, nugget: GoldenNugget, searchTerm: string): void {
+    // Back to the original simple logic that worked
+    const text = textNode.textContent || '';
+    const normalizedText = this.normalizeText(text);
+    
+    const startIndex = normalizedText.indexOf(searchTerm);
+    if (startIndex === -1) return;
+    
+    // Calculate the actual positions in the original text (simplified)
+    const beforeText = text.substring(0, startIndex);
+    const highlightText = text.substring(startIndex, startIndex + searchTerm.length);
+    const afterText = text.substring(startIndex + searchTerm.length);
+    
+    // Create the highlight element
+    const highlightSpan = document.createElement('span');
+    highlightSpan.className = 'nugget-highlight';
+    highlightSpan.style.cssText = UI_CONSTANTS.HIGHLIGHT_STYLE;
+    highlightSpan.dataset.nuggetType = nugget.type;
+    highlightSpan.textContent = highlightText;
+    
+    // Add clickable indicator
+    const indicator = this.createClickableIndicator(nugget);
+    highlightSpan.appendChild(indicator);
+    
+    // Replace the text node with the highlighted version
+    const parent = textNode.parentNode;
+    if (parent) {
+      if (beforeText) {
+        parent.insertBefore(document.createTextNode(beforeText), textNode);
+      }
+      parent.insertBefore(highlightSpan, textNode);
+      if (afterText) {
+        parent.insertBefore(document.createTextNode(afterText), textNode);
+      }
+      parent.removeChild(textNode);
+    }
+    
+    this.highlights.push(highlightSpan);
+  }
+
+  private tryContainerBasedHighlighting(nugget: GoldenNugget): boolean {
+    // Only for HTML fragmentation cases - find containers with full content
+    const normalizedContent = this.normalizeText(nugget.content);
+    
+    // Look for specific comment containers that might have fragmented content
+    const containers = document.querySelectorAll(
+      '.commtext, .comment, .usertext-body, .md, [class*="comment"], [class*="text"]'
+    );
+    
+    for (const container of containers) {
+      // Skip our own UI elements
+      if (container.classList.contains('nugget-sidebar') ||
+          container.classList.contains('nugget-highlight')) {
+        continue;
+      }
+      
+      const containerText = container.textContent || '';
+      const normalizedContainer = this.normalizeText(containerText);
+      
+      // If container has the full content, find a good text node within it
+      if (normalizedContainer.includes(normalizedContent)) {
+        const textNodes = this.getTextNodesInElement(container);
+        
+        // Find the best text node to highlight within this container
+        for (const textNode of textNodes) {
+          const text = textNode.textContent || '';
+          if (text.trim().length > 10) {
+            // Highlight this representative text node
+            this.highlightTextNodeSimple(textNode as Text, nugget, this.normalizeText(text));
+            return true;
+          }
+        }
       }
     }
     
@@ -603,113 +504,7 @@ export class Highlighter {
     return matchCount / words.length >= threshold;
   }
 
-  private findMatchingContainer(nugget: GoldenNugget): Element | null {
-    const normalizedContent = this.normalizeText(nugget.content);
-    
-    // Get potential container elements that might hold the full content
-    const containers = document.querySelectorAll(
-      'div, p, span, article, section, blockquote, li, td, th, ' +
-      '.comment, .commtext, .post, .content, .text, .body, ' +
-      '[data-comment], [class*="comment"], [class*="text"], [class*="content"]'
-    );
-    
-    for (const container of containers) {
-      // Skip already highlighted content and UI elements
-      if (container.classList.contains('nugget-highlight') || 
-          container.classList.contains('nugget-sidebar') ||
-          container.classList.contains('nugget-notification-banner')) {
-        continue;
-      }
-      
-      const containerText = container.textContent || '';
-      const normalizedContainer = this.normalizeText(containerText);
-      
-      // Strategy 1: Exact match
-      if (normalizedContainer.includes(normalizedContent)) {
-        return container;
-      }
-      
-      // Strategy 2: Key phrase matching
-      const keyPhrases = this.extractKeyPhrases(nugget.content);
-      for (const phrase of keyPhrases) {
-        const normalizedPhrase = this.normalizeText(phrase);
-        if (normalizedPhrase.length > 8 && normalizedContainer.includes(normalizedPhrase)) {
-          return container;
-        }
-      }
-      
-      // Strategy 3: Fuzzy matching
-      if (this.fuzzyMatch(normalizedContainer, normalizedContent)) {
-        return container;
-      }
-    }
-    
-    return null;
-  }
 
-  private highlightWithinContainer(container: Element, nugget: GoldenNugget): boolean {
-    const normalizedContent = this.normalizeText(nugget.content);
-    
-    // Get all text nodes within the container
-    const textNodes = this.getTextNodesInElement(container);
-    
-    // Try to find the best text node(s) to highlight within the container
-    // Strategy 1: Find a single text node that contains a good portion of the content
-    for (const textNode of textNodes) {
-      const text = textNode.textContent || '';
-      const normalizedText = this.normalizeText(text);
-      
-      // If this text node contains a significant portion of the content, highlight it
-      if (normalizedText.length > 10 && 
-          (normalizedText.includes(normalizedContent) || 
-           normalizedContent.includes(normalizedText) ||
-           this.getOverlapScore(normalizedText, normalizedContent) > 0.5)) {
-        this.highlightTextNode(textNode as Text, nugget);
-        return true;
-      }
-    }
-    
-    // Strategy 2: Find text node with key phrases
-    const keyPhrases = this.extractKeyPhrases(nugget.content);
-    for (const phrase of keyPhrases) {
-      const normalizedPhrase = this.normalizeText(phrase);
-      if (normalizedPhrase.length > 8) {
-        for (const textNode of textNodes) {
-          const text = textNode.textContent || '';
-          const normalizedText = this.normalizeText(text);
-          
-          if (normalizedText.includes(normalizedPhrase)) {
-            this.highlightTextNode(textNode as Text, nugget);
-            return true;
-          }
-        }
-      }
-    }
-    
-    // Strategy 3: Highlight the longest/most relevant text node
-    let bestTextNode: Text | null = null;
-    let bestScore = 0;
-    
-    for (const textNode of textNodes) {
-      const text = textNode.textContent || '';
-      const normalizedText = this.normalizeText(text);
-      
-      if (normalizedText.length > 10) {
-        const score = this.getOverlapScore(normalizedText, normalizedContent);
-        if (score > bestScore) {
-          bestScore = score;
-          bestTextNode = textNode as Text;
-        }
-      }
-    }
-    
-    if (bestTextNode && bestScore > 0.3) {
-      this.highlightTextNode(bestTextNode, nugget);
-      return true;
-    }
-    
-    return false;
-  }
 
   private getTextNodesInElement(element: Element): Node[] {
     const textNodes: Node[] = [];
