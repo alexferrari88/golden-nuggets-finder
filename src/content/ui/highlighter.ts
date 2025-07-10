@@ -1,5 +1,6 @@
 import { GoldenNugget } from '../../shared/types';
 import { UI_CONSTANTS } from '../../shared/constants';
+import { colors } from '../../shared/design-system';
 
 export class Highlighter {
   private highlights: HTMLElement[] = [];
@@ -190,7 +191,7 @@ export class Highlighter {
     popup.style.cssText = `
       position: absolute;
       background: white;
-      border: 1px solid #ccc;
+      border: 1px solid ${colors.border.default};
       padding: 12px;
       border-radius: 4px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.1);

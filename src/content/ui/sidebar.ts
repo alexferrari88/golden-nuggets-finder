@@ -1,6 +1,7 @@
 import { SidebarNuggetItem } from '../../shared/types';
 import { UI_CONSTANTS } from '../../shared/constants';
 import { Highlighter } from './highlighter';
+import { colors } from '../../shared/design-system';
 
 export class Sidebar {
   private sidebar: HTMLElement | null = null;
@@ -121,9 +122,9 @@ export class Sidebar {
       transform: translateY(-50%) translateX(100%);
       width: 40px;
       height: 80px;
-      background: linear-gradient(135deg, #f8fafc 0%, #e5e7eb 100%);
-      color: #374151;
-      border: 1px solid #d1d5db;
+      background: ${colors.background.primary};
+      color: ${colors.text.primary};
+      border: 1px solid ${colors.border.light};
       border-right: none;
       border-radius: 12px 0 0 12px;
       cursor: pointer;
@@ -153,7 +154,7 @@ export class Sidebar {
     label.style.cssText = `
       font-size: 10px;
       font-weight: 600;
-      color: #6b7280;
+      color: ${colors.text.secondary};
       margin-top: 4px;
       writing-mode: vertical-lr;
       text-orientation: mixed;
@@ -176,24 +177,24 @@ export class Sidebar {
     
     button.addEventListener('mouseenter', () => {
       button.style.transform = 'translateY(-50%) translateX(0)';
-      button.style.background = 'linear-gradient(135deg, #ffffff 0%, #f3f4f6 100%)';
-      button.style.color = '#1f2937';
+      button.style.background = '${colors.background.primary}';
+      button.style.color = '${colors.text.primary}';
       button.style.boxShadow = '-6px 0 12px -2px rgba(0, 0, 0, 0.15), -4px 0 8px -1px rgba(0, 0, 0, 0.1)';
       button.style.opacity = '1';
-      label.style.color = '#374151';
+      label.style.color = '${colors.text.primary}';
     });
     
     button.addEventListener('mouseleave', () => {
       button.style.transform = 'translateY(-50%) translateX(100%)';
-      button.style.background = 'linear-gradient(135deg, #f8fafc 0%, #e5e7eb 100%)';
-      button.style.color = '#374151';
+      button.style.background = '${colors.background.primary}';
+      button.style.color = '${colors.text.primary}';
       button.style.boxShadow = '-4px 0 8px -2px rgba(0, 0, 0, 0.1), -2px 0 4px -1px rgba(0, 0, 0, 0.06)';
       button.style.opacity = '0.9';
-      label.style.color = '#6b7280';
+      label.style.color = '${colors.text.secondary}';
     });
     
     button.addEventListener('focus', () => {
-      button.style.outline = '2px solid #3b82f6';
+      button.style.outline = '2px solid ${colors.blueSubtle}';
       button.style.outlineOffset = '2px';
     });
     
@@ -235,8 +236,8 @@ export class Sidebar {
       top: 0;
       width: ${UI_CONSTANTS.SIDEBAR_WIDTH};
       height: 100vh;
-      background: #f8fafc;
-      border-left: 1px solid #e5e7eb;
+      background: ${colors.background.primary};
+      border-left: 1px solid ${colors.border.light};
       overflow-y: auto;
       z-index: ${UI_CONSTANTS.SIDEBAR_Z_INDEX};
       box-shadow: -4px 0 6px -1px rgba(0, 0, 0, 0.1);
@@ -260,7 +261,7 @@ export class Sidebar {
     const header = document.createElement('div');
     header.style.cssText = `
       padding: 24px;
-      border-bottom: 1px solid #e5e7eb;
+      border-bottom: 1px solid ${colors.border.light};
       background: white;
       display: flex;
       justify-content: space-between;
@@ -277,7 +278,7 @@ export class Sidebar {
     title.style.cssText = `
       margin: 0;
       font-size: 18px;
-      color: #1f2937;
+      color: ${colors.text.primary};
       font-weight: 600;
     `;
     
@@ -296,7 +297,7 @@ export class Sidebar {
       justify-content: center;
       border-radius: 8px;
       transition: background-color 0.2s;
-      color: #6b7280;
+      color: ${colors.text.secondary};
     `;
     
     // Debounced collapse handler
@@ -307,7 +308,7 @@ export class Sidebar {
     });
     
     closeBtn.addEventListener('mouseover', () => {
-      closeBtn.style.backgroundColor = '#f3f4f6';
+      closeBtn.style.backgroundColor = '${colors.background.secondary}';
     });
     closeBtn.addEventListener('mouseout', () => {
       closeBtn.style.backgroundColor = 'transparent';
@@ -333,19 +334,19 @@ export class Sidebar {
         padding: 48px 24px;
         background: white;
         border-radius: 12px;
-        border: 1px solid #e5e7eb;
+        border: 1px solid ${colors.border.light};
       `;
       
       // Create content with icon, heading, and helpful text
       emptyState.innerHTML = `
         <div style="font-size: 48px; margin-bottom: 16px; opacity: 0.6;">🔍</div>
-        <h3 style="margin: 0 0 12px 0; font-size: 18px; font-weight: 600; color: #374151;">
+        <h3 style="margin: 0 0 12px 0; font-size: 18px; font-weight: 600; color: ${colors.text.primary};">
           No Golden Nuggets Found
         </h3>
-        <p style="margin: 0 0 16px 0; color: #6b7280; font-size: 14px; line-height: 1.5;">
+        <p style="margin: 0 0 16px 0; color: ${colors.text.secondary}; font-size: 14px; line-height: 1.5;">
           The AI analyzed this page but didn't find any valuable insights, tools, or explanations that match your interests.
         </p>
-        <div style="font-size: 13px; color: #9ca3af; line-height: 1.4;">
+        <div style="font-size: 13px; color: ${colors.text.secondary}; line-height: 1.4;">
           <strong>Try:</strong><br>
           • Using a different prompt or persona<br>
           • Analyzing a different section of the page<br>
@@ -411,7 +412,7 @@ export class Sidebar {
     pageInfo.textContent = `Page ${this.currentPage + 1} of ${totalPages}`;
     pageInfo.style.cssText = `
       align-self: center;
-      color: #6b7280;
+      color: ${colors.text.secondary};
       font-size: 14px;
     `;
     paginationDiv.appendChild(pageInfo);
@@ -433,7 +434,7 @@ export class Sidebar {
     const button = document.createElement('button');
     button.textContent = text;
     button.style.cssText = `
-      background: #3b82f6;
+      background: ${colors.blueSubtle};
       color: white;
       border: none;
       padding: 8px 16px;
@@ -446,10 +447,10 @@ export class Sidebar {
     
     button.addEventListener('click', onClick);
     button.addEventListener('mouseover', () => {
-      button.style.backgroundColor = '#2563eb';
+      button.style.backgroundColor = '${colors.blueSubtle}';
     });
     button.addEventListener('mouseout', () => {
-      button.style.backgroundColor = '#3b82f6';
+      button.style.backgroundColor = '${colors.blueSubtle}';
     });
     
     return button;
@@ -469,7 +470,7 @@ export class Sidebar {
     nuggetDiv.style.cssText = `
       margin-bottom: 16px;
       padding: 20px;
-      border: 1px solid ${item.status === 'highlighted' ? '#3b82f6' : '#e5e7eb'};
+      border: 1px solid ${item.status === 'highlighted' ? colors.blueSubtle : colors.border.light};
       border-radius: 12px;
       background: white;
       transition: all 0.2s;
@@ -488,7 +489,7 @@ export class Sidebar {
         right: 16px;
         width: 8px;
         height: 8px;
-        background: #3b82f6;
+        background: ${colors.blueSubtle};
         border-radius: 50%;
         opacity: 0.6;
       `;
@@ -508,7 +509,7 @@ export class Sidebar {
             </svg>
           `;
           statusIndicator.setAttribute('title', 'Found on page');
-          statusIndicator.style.color = '#10b981';
+          statusIndicator.style.color = '${colors.success}';
         }
       });
     }
@@ -531,7 +532,7 @@ export class Sidebar {
     typeBadge.textContent = item.nugget.type;
     typeBadge.style.cssText = `
       display: inline-block;
-      background: #3b82f6;
+      background: ${colors.blueSubtle};
       color: white;
       padding: 4px 8px;
       border-radius: 6px;
@@ -548,7 +549,7 @@ export class Sidebar {
       align-items: center;
       width: 20px;
       height: 20px;
-      color: ${item.status === 'highlighted' ? '#10b981' : '#f59e0b'};
+      color: ${item.status === 'highlighted' ? colors.success : colors.grayMedium};
     `;
     
     // Add appropriate icon based on status
@@ -582,7 +583,7 @@ export class Sidebar {
       margin-bottom: 12px;
       font-size: 14px;
       line-height: 1.5;
-      color: #374151;
+      color: ${colors.text.primary};
       max-height: 80px;
       overflow: hidden;
       position: relative;
@@ -602,27 +603,27 @@ export class Sidebar {
       const expandButton = document.createElement('span');
       expandButton.textContent = ' show more';
       expandButton.style.cssText = `
-        color: #3b82f6;
+        color: ${colors.blueSubtle};
         cursor: pointer;
         font-weight: 500;
         font-size: 13px;
         margin-left: 4px;
         padding: 2px 6px;
         border-radius: 4px;
-        background: rgba(59, 130, 246, 0.08);
-        border: 1px solid rgba(59, 130, 246, 0.2);
+        background: ${colors.highlight.background};
+        border: 1px solid ${colors.highlight.border};
         transition: all 0.2s ease;
         display: inline-block;
       `;
       
       expandButton.addEventListener('mouseenter', () => {
-        expandButton.style.background = 'rgba(59, 130, 246, 0.12)';
-        expandButton.style.borderColor = 'rgba(59, 130, 246, 0.3)';
+        expandButton.style.background = '${colors.highlight.hover}';
+        expandButton.style.borderColor = '${colors.border.default}';
       });
       
       expandButton.addEventListener('mouseleave', () => {
-        expandButton.style.background = 'rgba(59, 130, 246, 0.08)';
-        expandButton.style.borderColor = 'rgba(59, 130, 246, 0.2)';
+        expandButton.style.background = '${colors.highlight.background}';
+        expandButton.style.borderColor = '${colors.highlight.border}';
       });
       
       let isExpanded = false;
@@ -655,9 +656,9 @@ export class Sidebar {
     synthesis.style.cssText = `
       font-size: 13px;
       line-height: 1.5;
-      color: #6b7280;
+      color: ${colors.text.secondary};
       font-style: italic;
-      border-left: 3px solid #3b82f6;
+      border-left: 3px solid ${colors.blueSubtle};
       padding-left: 12px;
       margin-top: 8px;
     `;
@@ -668,17 +669,17 @@ export class Sidebar {
     nuggetDiv.addEventListener('mouseover', () => {
       clearTimeout(hoverTimeout);
       hoverTimeout = setTimeout(() => {
-        nuggetDiv.style.borderColor = '#3b82f6';
+        nuggetDiv.style.borderColor = '${colors.blueSubtle}';
         nuggetDiv.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)';
         if (item.status === 'highlighted') {
-          nuggetDiv.style.backgroundColor = '#f8fafc';
+          nuggetDiv.style.backgroundColor = '${colors.background.secondary}';
         }
       }, 50);
     });
     
     nuggetDiv.addEventListener('mouseout', () => {
       clearTimeout(hoverTimeout);
-      nuggetDiv.style.borderColor = item.status === 'highlighted' ? '#3b82f6' : '#e5e7eb';
+      nuggetDiv.style.borderColor = item.status === 'highlighted' ? '${colors.blueSubtle}' : '${colors.border.light}';
       nuggetDiv.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.1)';
       nuggetDiv.style.backgroundColor = 'white';
     });

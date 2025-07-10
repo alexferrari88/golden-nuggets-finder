@@ -243,7 +243,7 @@ const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
               padding: '12px 24px',
               backgroundColor: colors.background.secondary,
               color: colors.text.primary,
-              border: '1px solid #e5e7eb',
+              border: `1px solid ${colors.border.light}`,
               borderRadius: '8px',
               cursor: 'pointer',
               fontSize: '14px',
@@ -766,7 +766,7 @@ function OptionsPage() {
           padding: '32px',
           borderRadius: '16px',
           boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
-          border: '1px solid #e5e7eb'
+          border: `1px solid ${colors.border.light}`
         }}>
           <div style={{
             display: 'flex',
@@ -820,7 +820,7 @@ function OptionsPage() {
             padding: '16px',
             backgroundColor: colors.background.secondary,
             borderRadius: '12px',
-            border: '1px solid #e2e8f0'
+            border: `1px solid ${colors.border.light}`
           }}>
             <p style={{
               margin: 0,
@@ -838,7 +838,7 @@ function OptionsPage() {
               padding: '48px 24px',
               backgroundColor: colors.background.secondary,
               borderRadius: '12px',
-              border: '2px dashed #cbd5e1'
+              border: `2px dashed ${colors.border.default}`
             }}>
               <div style={{
                 color: colors.grayMedium,
@@ -897,7 +897,7 @@ function OptionsPage() {
                     padding: '24px',
                     backgroundColor: colors.background.secondary,
                     borderRadius: '12px',
-                    border: '1px solid #e2e8f0',
+                    border: `1px solid ${colors.border.light}`,
                     transition: 'all 0.2s'
                   }}
                   onMouseEnter={(e) => {
@@ -1064,7 +1064,7 @@ function OptionsPage() {
           textAlign: 'center',
           color: colors.grayMedium,
           fontSize: '14px',
-          borderTop: '1px solid #e5e7eb'
+          borderTop: `1px solid ${colors.border.light}`
         }}>
           <p style={{ margin: 0 }}>
             Golden Nugget Finder • Made with ❤️ for better web content analysis
@@ -1218,7 +1218,7 @@ function OptionsPage() {
                   padding: '12px 24px',
                   backgroundColor: colors.background.secondary,
                   color: colors.text.primary,
-                  border: '1px solid #e5e7eb',
+                  border: `1px solid ${colors.border.light}`,
                   borderRadius: '8px',
                   cursor: 'pointer',
                   fontSize: '14px',

@@ -1,4 +1,5 @@
 import { UI_CONSTANTS } from '../../shared/constants';
+import { colors } from '../../shared/design-system';
 
 export class NotificationManager {
   private currentBanner: HTMLElement | null = null;
@@ -76,19 +77,19 @@ export class NotificationManager {
     switch (type) {
       case 'progress':
         typeStyles = `
-          background: #4CAF50;
+          background: ${colors.success};
           color: white;
         `;
         break;
       case 'error':
         typeStyles = `
-          background: #f44336;
+          background: ${colors.error};
           color: white;
         `;
         break;
       case 'info':
         typeStyles = `
-          background: #2196F3;
+          background: ${colors.blueSubtle};
           color: white;
         `;
         break;
@@ -167,7 +168,7 @@ export class NotificationManager {
       font-weight: 500;
       max-width: 400px;
       text-align: center;
-      background: #f44336;
+      background: ${colors.error};
       color: white;
     `;
     
