@@ -40,6 +40,10 @@ export class MessageHandler {
           await this.handleSaveConfig(request, sendResponse);
           break;
 
+        case MESSAGE_TYPES.OPEN_OPTIONS_PAGE:
+          await this.handleOpenOptionsPage(sendResponse);
+          break;
+
         default:
           sendResponse({ success: false, error: 'Unknown message type' });
       }
@@ -118,6 +122,15 @@ export class MessageHandler {
   private async handleSaveConfig(request: any, sendResponse: (response: any) => void): Promise<void> {
     try {
       await storage.saveConfig(request.config, { source: 'background', action: 'write', timestamp: Date.now() });
+      sendResponse({ success: true });
+    } catch (error) {
+      sendResponse({ success: false, error: (error as Error).message });
+    }
+  }
+
+  private async handleOpenOptionsPage(sendResponse: (response: any) => void): Promise<void> {
+    try {
+      await chrome.runtime.openOptionsPage();
       sendResponse({ success: true });
     } catch (error) {
       sendResponse({ success: false, error: (error as Error).message });
