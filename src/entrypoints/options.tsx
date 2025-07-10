@@ -106,11 +106,24 @@ function OptionsPage() {
   };
 
   if (loading) {
-    return <div style={{ padding: '20px', textAlign: 'center' }}>Loading...</div>;
+    return <div style={{ 
+      padding: '20px', 
+      textAlign: 'center',
+      color: '#64748b',
+      fontSize: '16px'
+    }}>Loading...</div>;
   }
 
   if (error) {
-    return <div style={{ padding: '20px', color: 'red' }}>{error}</div>;
+    return <div style={{ 
+      padding: '20px', 
+      color: '#dc2626', 
+      backgroundColor: '#fef2f2',
+      borderRadius: '6px',
+      border: '1px solid #fecaca',
+      margin: '20px',
+      fontSize: '14px'
+    }}>{error}</div>;
   }
 
   return (
@@ -118,13 +131,31 @@ function OptionsPage() {
       maxWidth: '800px', 
       margin: '0 auto', 
       padding: '20px',
-      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+      backgroundColor: '#f8fafc',
+      minHeight: '100vh'
     }}>
-      <h1>Golden Nugget Finder Settings</h1>
+      <h1 style={{ 
+        color: '#1e293b', 
+        marginBottom: '32px',
+        fontSize: '28px',
+        fontWeight: '600'
+      }}>Golden Nugget Finder Settings</h1>
       
       {/* API Key Section */}
-      <div style={{ marginBottom: '40px' }}>
-        <h2>Gemini API Key</h2>
+      <div style={{ 
+        marginBottom: '40px',
+        backgroundColor: 'white',
+        padding: '24px',
+        borderRadius: '8px',
+        boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)'
+      }}>
+        <h2 style={{ 
+          color: '#1e293b', 
+          marginBottom: '16px',
+          fontSize: '20px',
+          fontWeight: '600'
+        }}>Gemini API Key</h2>
         <div style={{ marginBottom: '10px' }}>
           <input
             type="password"
@@ -133,30 +164,38 @@ function OptionsPage() {
             placeholder="Enter your Gemini API key"
             style={{
               width: '400px',
-              padding: '8px',
-              marginRight: '10px',
-              border: '1px solid #ddd',
-              borderRadius: '4px'
+              padding: '12px',
+              marginRight: '12px',
+              border: '1px solid #d1d5db',
+              borderRadius: '6px',
+              fontSize: '14px',
+              backgroundColor: '#ffffff',
+              color: '#1e293b'
             }}
           />
           <button onClick={saveApiKey} style={{
-            padding: '8px 16px',
-            backgroundColor: '#007bff',
+            padding: '12px 20px',
+            backgroundColor: '#6366f1',
             color: 'white',
             border: 'none',
-            borderRadius: '4px',
-            cursor: 'pointer'
+            borderRadius: '6px',
+            cursor: 'pointer',
+            fontSize: '14px',
+            fontWeight: '500',
+            transition: 'background-color 0.2s'
           }}>
             Save & Validate
           </button>
         </div>
         {apiKeyStatus && (
           <div style={{
-            padding: '8px',
-            backgroundColor: apiKeyStatus.includes('Invalid') ? '#f8d7da' : '#d4edda',
-            color: apiKeyStatus.includes('Invalid') ? '#721c24' : '#155724',
-            borderRadius: '4px',
-            marginTop: '10px'
+            padding: '12px',
+            backgroundColor: apiKeyStatus.includes('Invalid') ? '#fef2f2' : '#f0fdf4',
+            color: apiKeyStatus.includes('Invalid') ? '#dc2626' : '#059669',
+            borderRadius: '6px',
+            marginTop: '12px',
+            border: `1px solid ${apiKeyStatus.includes('Invalid') ? '#fecaca' : '#bbf7d0'}`,
+            fontSize: '14px'
           }}>
             {apiKeyStatus}
           </div>
@@ -164,26 +203,39 @@ function OptionsPage() {
       </div>
 
       {/* Prompts Section */}
-      <div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h2>Saved Prompts</h2>
+      <div style={{ 
+        backgroundColor: 'white',
+        padding: '24px',
+        borderRadius: '8px',
+        boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)'
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+          <h2 style={{ 
+            color: '#1e293b', 
+            margin: '0',
+            fontSize: '20px',
+            fontWeight: '600'
+          }}>Saved Prompts</h2>
           <button onClick={() => openPromptEditor()} style={{
-            padding: '8px 16px',
-            backgroundColor: '#28a745',
+            padding: '10px 16px',
+            backgroundColor: '#059669',
             color: 'white',
             border: 'none',
-            borderRadius: '4px',
-            cursor: 'pointer'
+            borderRadius: '6px',
+            cursor: 'pointer',
+            fontSize: '14px',
+            fontWeight: '500',
+            transition: 'background-color 0.2s'
           }}>
             Add New Prompt
           </button>
         </div>
         
-        <div style={{ border: '1px solid #ddd', borderRadius: '4px' }}>
+        <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px' }}>
           {prompts.map((prompt) => (
             <div key={prompt.id} style={{
-              padding: '15px',
-              borderBottom: '1px solid #eee',
+              padding: '20px',
+              borderBottom: '1px solid #f1f5f9',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between'
@@ -192,13 +244,13 @@ function OptionsPage() {
                 <div style={{ 
                   display: 'flex', 
                   alignItems: 'center', 
-                  marginBottom: '5px' 
+                  marginBottom: '8px' 
                 }}>
-                  <strong>{prompt.name}</strong>
+                  <strong style={{ color: '#1e293b', fontSize: '16px' }}>{prompt.name}</strong>
                   {prompt.isDefault && (
                     <span style={{ 
                       marginLeft: '10px', 
-                      color: '#ffc107',
+                      color: '#d97706',
                       fontSize: '16px'
                     }}>
                       ★
@@ -206,7 +258,7 @@ function OptionsPage() {
                   )}
                 </div>
                 <div style={{ 
-                  color: '#666',
+                  color: '#64748b',
                   fontSize: '14px',
                   maxWidth: '500px',
                   overflow: 'hidden',
@@ -217,38 +269,44 @@ function OptionsPage() {
                 </div>
               </div>
               
-              <div style={{ display: 'flex', gap: '10px' }}>
+              <div style={{ display: 'flex', gap: '8px' }}>
                 <button 
                   onClick={() => setDefaultPrompt(prompt.id)}
                   disabled={prompt.isDefault}
                   style={{
-                    padding: '5px 10px',
-                    backgroundColor: prompt.isDefault ? '#6c757d' : '#ffc107',
+                    padding: '6px 12px',
+                    backgroundColor: prompt.isDefault ? '#94a3b8' : '#d97706',
                     color: 'white',
                     border: 'none',
-                    borderRadius: '3px',
-                    cursor: prompt.isDefault ? 'not-allowed' : 'pointer'
+                    borderRadius: '4px',
+                    cursor: prompt.isDefault ? 'not-allowed' : 'pointer',
+                    fontSize: '12px',
+                    fontWeight: '500'
                   }}
                 >
                   {prompt.isDefault ? 'Default' : 'Set Default'}
                 </button>
                 <button onClick={() => openPromptEditor(prompt)} style={{
-                  padding: '5px 10px',
-                  backgroundColor: '#17a2b8',
+                  padding: '6px 12px',
+                  backgroundColor: '#0284c7',
                   color: 'white',
                   border: 'none',
-                  borderRadius: '3px',
-                  cursor: 'pointer'
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  fontSize: '12px',
+                  fontWeight: '500'
                 }}>
                   Edit
                 </button>
                 <button onClick={() => deletePrompt(prompt.id)} style={{
-                  padding: '5px 10px',
-                  backgroundColor: '#dc3545',
+                  padding: '6px 12px',
+                  backgroundColor: '#dc2626',
                   color: 'white',
                   border: 'none',
-                  borderRadius: '3px',
-                  cursor: 'pointer'
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  fontSize: '12px',
+                  fontWeight: '500'
                 }}>
                   Delete
                 </button>
@@ -266,7 +324,7 @@ function OptionsPage() {
           left: 0,
           width: '100%',
           height: '100%',
-          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          backgroundColor: 'rgba(0, 0, 0, 0.6)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -274,56 +332,80 @@ function OptionsPage() {
         }}>
           <div style={{
             backgroundColor: 'white',
-            padding: '20px',
-            borderRadius: '8px',
+            padding: '32px',
+            borderRadius: '12px',
             width: '500px',
-            maxWidth: '90%'
+            maxWidth: '90%',
+            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'
           }}>
-            <h3>{editingPrompt ? 'Edit Prompt' : 'Add New Prompt'}</h3>
+            <h3 style={{
+              color: '#1e293b',
+              marginBottom: '24px',
+              fontSize: '20px',
+              fontWeight: '600'
+            }}>{editingPrompt ? 'Edit Prompt' : 'Add New Prompt'}</h3>
             
-            <div style={{ marginBottom: '15px' }}>
-              <label style={{ display: 'block', marginBottom: '5px' }}>Name:</label>
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ 
+                display: 'block', 
+                marginBottom: '8px',
+                color: '#374151',
+                fontSize: '14px',
+                fontWeight: '500'
+              }}>Name:</label>
               <input
                 type="text"
                 value={promptName}
                 onChange={(e) => setPromptName(e.target.value)}
                 style={{
                   width: '100%',
-                  padding: '8px',
-                  border: '1px solid #ddd',
-                  borderRadius: '4px',
-                  boxSizing: 'border-box'
+                  padding: '12px',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '6px',
+                  boxSizing: 'border-box',
+                  fontSize: '14px',
+                  color: '#1e293b'
                 }}
               />
             </div>
             
-            <div style={{ marginBottom: '15px' }}>
-              <label style={{ display: 'block', marginBottom: '5px' }}>Prompt:</label>
+            <div style={{ marginBottom: '24px' }}>
+              <label style={{ 
+                display: 'block', 
+                marginBottom: '8px',
+                color: '#374151',
+                fontSize: '14px',
+                fontWeight: '500'
+              }}>Prompt:</label>
               <textarea
                 value={promptText}
                 onChange={(e) => setPromptText(e.target.value)}
                 rows={8}
                 style={{
                   width: '100%',
-                  padding: '8px',
-                  border: '1px solid #ddd',
-                  borderRadius: '4px',
+                  padding: '12px',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '6px',
                   boxSizing: 'border-box',
-                  resize: 'vertical'
+                  resize: 'vertical',
+                  fontSize: '14px',
+                  color: '#1e293b'
                 }}
               />
             </div>
             
-            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
               <button 
                 onClick={() => setIsEditing(false)}
                 style={{
-                  padding: '8px 16px',
-                  backgroundColor: '#6c757d',
+                  padding: '10px 20px',
+                  backgroundColor: '#94a3b8',
                   color: 'white',
                   border: 'none',
-                  borderRadius: '4px',
-                  cursor: 'pointer'
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  fontWeight: '500'
                 }}
               >
                 Cancel
@@ -331,12 +413,14 @@ function OptionsPage() {
               <button 
                 onClick={savePrompt}
                 style={{
-                  padding: '8px 16px',
-                  backgroundColor: '#007bff',
+                  padding: '10px 20px',
+                  backgroundColor: '#6366f1',
                   color: 'white',
                   border: 'none',
-                  borderRadius: '4px',
-                  cursor: 'pointer'
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  fontWeight: '500'
                 }}
               >
                 Save
