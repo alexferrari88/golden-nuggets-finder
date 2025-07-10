@@ -17,9 +17,7 @@ describe('GeminiClient', () => {
   describe('initializeClient', () => {
     it('should initialize with API key from storage', async () => {
       const testApiKey = 'test-api-key';
-      mockChrome.storage.sync.get.mockResolvedValueOnce({
-        geminiApiKey: testApiKey
-      });
+      vi.spyOn(storage, 'getApiKey').mockResolvedValue(testApiKey);
 
       await geminiClient['initializeClient']();
       
@@ -27,7 +25,7 @@ describe('GeminiClient', () => {
     });
 
     it('should throw error if no API key found', async () => {
-      mockChrome.storage.sync.get.mockResolvedValueOnce({});
+      vi.spyOn(storage, 'getApiKey').mockResolvedValue('');
 
       await expect(geminiClient['initializeClient']()).rejects.toThrow(
         'Gemini API key not configured. Please set it in the options page.'
@@ -36,24 +34,20 @@ describe('GeminiClient', () => {
 
     it('should not reinitialize if already initialized', async () => {
       const testApiKey = 'test-api-key';
-      mockChrome.storage.sync.get.mockResolvedValueOnce({
-        geminiApiKey: testApiKey
-      });
+      const getApiKeySpy = vi.spyOn(storage, 'getApiKey').mockResolvedValue(testApiKey);
 
       await geminiClient['initializeClient']();
-      mockChrome.storage.sync.get.mockClear();
+      getApiKeySpy.mockClear();
 
       await geminiClient['initializeClient']();
       
-      expect(mockChrome.storage.sync.get).not.toHaveBeenCalled();
+      expect(getApiKeySpy).not.toHaveBeenCalled();
     });
   });
 
   describe('analyzeContent', () => {
     beforeEach(() => {
-      mockChrome.storage.sync.get.mockResolvedValue({
-        geminiApiKey: 'test-api-key'
-      });
+      vi.spyOn(storage, 'getApiKey').mockResolvedValue('test-api-key');
     });
 
     it('should analyze content successfully', async () => {
@@ -125,7 +119,7 @@ describe('GeminiClient', () => {
     });
 
     it('should throw error if API key not initialized', async () => {
-      mockChrome.storage.sync.get.mockResolvedValue({});
+      vi.spyOn(storage, 'getApiKey').mockResolvedValue('');
 
       await expect(
         geminiClient.analyzeContent('test content', 'test prompt')
@@ -239,6 +233,7 @@ describe('GeminiClient', () => {
     });
 
     it('should not retry on API key error', async () => {
+      vi.spyOn(storage, 'getApiKey').mockResolvedValue('test-api-key');
       global.fetch = vi.fn().mockRejectedValueOnce(new Error('API key invalid'));
 
       await expect(
@@ -249,6 +244,7 @@ describe('GeminiClient', () => {
     });
 
     it('should exhaust retries and throw error', async () => {
+      vi.spyOn(storage, 'getApiKey').mockResolvedValue('test-api-key');
       global.fetch = vi.fn().mockRejectedValue(new Error('Network error'));
 
       await expect(
@@ -259,6 +255,7 @@ describe('GeminiClient', () => {
     });
 
     it('should use exponential backoff', async () => {
+      vi.spyOn(storage, 'getApiKey').mockResolvedValue('test-api-key');
       const mockResponse = {
         candidates: [{
           content: {

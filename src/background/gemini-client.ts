@@ -3,6 +3,7 @@ import { GOLDEN_NUGGET_SCHEMA } from '../shared/schemas';
 import { GeminiResponse } from '../shared/types';
 import { storage } from '../shared/storage';
 import { performanceMonitor, measureAPICall, isDevMode } from '../shared/performance';
+import { securityManager } from '../shared/security';
 
 export class GeminiClient {
   private apiKey: string | null = null;
@@ -16,7 +17,7 @@ export class GeminiClient {
   private async initializeClient(): Promise<void> {
     if (this.apiKey) return;
 
-    this.apiKey = await storage.getApiKey();
+    this.apiKey = await storage.getApiKey({ source: 'background', action: 'read', timestamp: Date.now() });
     if (!this.apiKey) {
       throw new Error('Gemini API key not configured. Please set it in the options page.');
     }
@@ -66,10 +67,7 @@ export class GeminiClient {
         performanceMonitor.startTimer('gemini_request');
         const response = await fetch(`${this.API_BASE_URL}/${GEMINI_CONFIG.MODEL}:generateContent`, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-goog-api-key': this.apiKey
-          },
+          headers: this.getSecureHeaders(),
           body: JSON.stringify(requestBody)
         });
         performanceMonitor.logTimer('gemini_request', 'HTTP request to Gemini API');
@@ -273,10 +271,7 @@ export class GeminiClient {
 
       const response = await fetch(`${this.API_BASE_URL}/${GEMINI_CONFIG.MODEL}:generateContent`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-goog-api-key': apiKey
-        },
+        headers: this.getSecureHeaders(apiKey),
         body: JSON.stringify(testRequestBody)
       });
 
@@ -293,6 +288,28 @@ export class GeminiClient {
         console.warn('API key validation failed:', error);
       }
       return false;
+    }
+  }
+
+  /**
+   * Generate headers for API requests
+   */
+  private getSecureHeaders(apiKey?: string): HeadersInit {
+    return {
+      'Content-Type': 'application/json',
+      'x-goog-api-key': apiKey || this.apiKey!
+    };
+  }
+
+
+  /**
+   * Clear sensitive data from memory
+   */
+  clearSensitiveData(): void {
+    this.apiKey = null;
+    this.responseCache.clear();
+    if (isDevMode()) {
+      console.log('[GeminiClient] Sensitive data cleared from memory');
     }
   }
 }

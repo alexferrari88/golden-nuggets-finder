@@ -1,5 +1,7 @@
 import { STORAGE_KEYS, DEFAULT_PROMPTS } from './constants';
 import { ExtensionConfig, SavedPrompt } from './types';
+import { securityManager, AccessContext, EncryptedData } from './security';
+import { isDevMode } from './performance';
 
 export class StorageManager {
   private static instance: StorageManager;
@@ -13,22 +15,68 @@ export class StorageManager {
     return StorageManager.instance;
   }
 
-  async getApiKey(): Promise<string> {
+  async getApiKey(context: AccessContext = { source: 'background', action: 'read', timestamp: Date.now() }): Promise<string> {
+    // Validate access
+    if (!securityManager.validateAccess(context)) {
+      throw new Error('Access denied: Invalid access context');
+    }
+
     const cached = this.getFromCache(STORAGE_KEYS.API_KEY);
     if (cached !== null) {
       return cached;
     }
     
     const result = await chrome.storage.sync.get(STORAGE_KEYS.API_KEY);
-    const apiKey = result[STORAGE_KEYS.API_KEY] || '';
+    const storedData = result[STORAGE_KEYS.API_KEY];
     
-    this.setCache(STORAGE_KEYS.API_KEY, apiKey);
-    return apiKey;
+    if (!storedData) {
+      return '';
+    }
+
+    // Handle both encrypted and legacy plain text data
+    if (typeof storedData === 'string') {
+      // Legacy plain text API key - migrate to encrypted format
+      if (isDevMode()) {
+        console.log('[Storage] Migrating legacy API key to encrypted format');
+      }
+      await this.saveApiKey(storedData, context);
+      return storedData;
+    }
+
+    // Encrypted data
+    const encryptedData = storedData as EncryptedData;
+    
+    // Verify storage integrity
+    if (!await securityManager.verifyStorageIntegrity(encryptedData)) {
+      throw new Error('Storage integrity check failed');
+    }
+
+    // Check if key needs rotation
+    if (securityManager.isKeyRotationNeeded(encryptedData)) {
+      if (isDevMode()) {
+        console.warn('[Storage] API key rotation needed - key is older than 30 days');
+      }
+      // Note: Actual rotation should be triggered by user action
+    }
+
+    // Decrypt the API key
+    const decryptedKey = await securityManager.decryptApiKey(encryptedData);
+    
+    this.setCache(STORAGE_KEYS.API_KEY, decryptedKey);
+    return decryptedKey;
   }
 
-  async saveApiKey(apiKey: string): Promise<void> {
+  async saveApiKey(apiKey: string, context: AccessContext = { source: 'background', action: 'write', timestamp: Date.now() }): Promise<void> {
+    // Validate access
+    if (!securityManager.validateAccess(context)) {
+      throw new Error('Access denied: Invalid access context');
+    }
+
+    // Encrypt the API key
+    const encryptedData = await securityManager.encryptApiKey(apiKey);
+    
     this.setCache(STORAGE_KEYS.API_KEY, apiKey);
-    await chrome.storage.sync.set({ [STORAGE_KEYS.API_KEY]: apiKey });
+    await chrome.storage.sync.set({ [STORAGE_KEYS.API_KEY]: encryptedData });
   }
 
   async getPrompts(): Promise<SavedPrompt[]> {
@@ -97,7 +145,7 @@ export class StorageManager {
     return prompts.find(p => p.isDefault) || prompts[0] || null;
   }
 
-  async getConfig(): Promise<ExtensionConfig> {
+  async getConfig(context: AccessContext = { source: 'background', action: 'read', timestamp: Date.now() }): Promise<ExtensionConfig> {
     const configKey = 'full_config';
     const cached = this.getFromCache(configKey);
     if (cached !== null) {
@@ -105,7 +153,7 @@ export class StorageManager {
     }
     
     const [apiKey, prompts] = await Promise.all([
-      this.getApiKey(),
+      this.getApiKey(context),
       this.getPrompts()
     ]);
     
@@ -118,12 +166,11 @@ export class StorageManager {
     return config;
   }
 
-  async saveConfig(config: Partial<ExtensionConfig>): Promise<void> {
+  async saveConfig(config: Partial<ExtensionConfig>, context: AccessContext = { source: 'background', action: 'write', timestamp: Date.now() }): Promise<void> {
     const updates: { [key: string]: any } = {};
     
     if (config.geminiApiKey !== undefined) {
-      updates[STORAGE_KEYS.API_KEY] = config.geminiApiKey;
-      this.setCache(STORAGE_KEYS.API_KEY, config.geminiApiKey);
+      await this.saveApiKey(config.geminiApiKey, context);
     }
     
     if (config.userPrompts !== undefined) {
@@ -134,11 +181,14 @@ export class StorageManager {
     // Clear full config cache
     this.clearCache('full_config');
     
-    await chrome.storage.sync.set(updates);
+    if (Object.keys(updates).length > 0) {
+      await chrome.storage.sync.set(updates);
+    }
   }
 
   async clearAll(): Promise<void> {
     this.cache.clear();
+    securityManager.clearSensitiveData();
     await chrome.storage.sync.clear();
   }
   
@@ -176,6 +226,45 @@ export class StorageManager {
   // For testing purposes - clear all cache
   clearAllCache(): void {
     this.cache.clear();
+  }
+
+  /**
+   * Check if API key needs rotation
+   */
+  async isApiKeyRotationNeeded(): Promise<boolean> {
+    try {
+      const result = await chrome.storage.sync.get(STORAGE_KEYS.API_KEY);
+      const storedData = result[STORAGE_KEYS.API_KEY];
+      
+      if (!storedData || typeof storedData === 'string') {
+        return false; // No encrypted data or legacy format
+      }
+
+      const encryptedData = storedData as EncryptedData;
+      return securityManager.isKeyRotationNeeded(encryptedData);
+    } catch (error) {
+      if (isDevMode()) {
+        console.error('[Storage] Error checking key rotation:', error);
+      }
+      return false;
+    }
+  }
+
+  /**
+   * Get security audit logs
+   */
+  getSecurityAuditLogs() {
+    return securityManager.getAuditLogs();
+  }
+
+  /**
+   * Clear sensitive data from memory
+   */
+  clearSensitiveData(): void {
+    securityManager.clearSensitiveData();
+    // Clear API key from cache
+    this.clearCache(STORAGE_KEYS.API_KEY);
+    this.clearCache('full_config');
   }
 }
 

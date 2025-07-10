@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import { SavedPrompt } from '../shared/types';
 import { storage } from '../shared/storage';
 import { GeminiClient } from '../background/gemini-client';
+import { colors, typography, spacing, borderRadius, shadows, components } from '../shared/design-system';
 
 // SVG Icons
 const IconCheckCircle = () => (
@@ -78,45 +79,45 @@ interface AlertProps {
 const Alert: React.FC<AlertProps> = ({ type, title, message, onClose }) => {
   const getAlertStyles = () => {
     const baseStyles = {
-      padding: '16px',
-      borderRadius: '12px',
+      padding: spacing.lg,
+      borderRadius: borderRadius.md,
       border: '1px solid',
-      marginBottom: '16px',
+      marginBottom: spacing.lg,
       display: 'flex',
       alignItems: 'flex-start',
-      gap: '12px',
-      fontSize: '14px',
-      fontWeight: '500'
+      gap: spacing.md,
+      fontSize: typography.fontSize.sm,
+      fontWeight: typography.fontWeight.medium
     };
     
     switch (type) {
       case 'success':
         return {
           ...baseStyles,
-          backgroundColor: '#ecfdf5',
-          borderColor: '#10b981',
-          color: '#065f46'
+          backgroundColor: colors.accent.greenLight,
+          borderColor: colors.accent.green + '33',
+          color: colors.accent.green
         };
       case 'error':
         return {
           ...baseStyles,
-          backgroundColor: '#fef2f2',
-          borderColor: '#ef4444',
-          color: '#991b1b'
+          backgroundColor: colors.accent.redLight,
+          borderColor: colors.accent.red + '33',
+          color: colors.accent.red
         };
       case 'warning':
         return {
           ...baseStyles,
-          backgroundColor: '#fffbeb',
-          borderColor: '#f59e0b',
-          color: '#92400e'
+          backgroundColor: colors.accent.amberLight,
+          borderColor: colors.accent.amber + '33',
+          color: colors.accent.amber
         };
       case 'info':
         return {
           ...baseStyles,
-          backgroundColor: '#eff6ff',
-          borderColor: '#3b82f6',
-          color: '#1e40af'
+          backgroundColor: colors.accent.blueLight,
+          borderColor: colors.accent.blue + '33',
+          color: colors.accent.blue
         };
       default:
         return baseStyles;
@@ -315,7 +316,7 @@ function OptionsPage() {
     try {
       setLoading(true);
       const [savedApiKey, savedPrompts] = await Promise.all([
-        storage.getApiKey(),
+        storage.getApiKey({ source: 'options', action: 'read', timestamp: Date.now() }),
         storage.getPrompts()
       ]);
       setApiKey(savedApiKey);
@@ -348,7 +349,7 @@ function OptionsPage() {
       const client = new GeminiClient(apiKey);
       await client.validateApiKey();
       
-      await storage.saveApiKey(apiKey);
+      await storage.saveApiKey(apiKey, { source: 'options', action: 'write', timestamp: Date.now() });
       setApiKeyStatus({
         type: 'success',
         title: 'API Key Saved',
@@ -467,27 +468,32 @@ function OptionsPage() {
         alignItems: 'center',
         justifyContent: 'center',
         minHeight: '100vh',
-        backgroundColor: '#f8fafc',
-        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+        backgroundColor: colors.background.secondary,
+        fontFamily: typography.fontFamily.sans
       }}>
         <div style={{
           display: 'flex',
           alignItems: 'center',
-          gap: '12px',
-          padding: '24px',
-          backgroundColor: 'white',
-          borderRadius: '12px',
-          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+          gap: spacing.md,
+          padding: spacing['2xl'],
+          backgroundColor: colors.background.primary,
+          borderRadius: borderRadius.lg,
+          boxShadow: shadows.md
         }}>
           <div style={{
             width: '24px',
             height: '24px',
-            border: '2px solid #e5e7eb',
-            borderTop: '2px solid #3b82f6',
+            border: `2px solid ${colors.border.default}`,
+            borderTop: `2px solid ${colors.accent.blue}`,
             borderRadius: '50%',
             animation: 'spin 1s linear infinite'
           }} />
-          <span style={{ color: '#6b7280', fontSize: '16px' }}>Loading your settings...</span>
+          <span style={{ 
+            color: colors.text.secondary,
+            fontSize: typography.fontSize.base
+          }}>
+            Loading your settings...
+          </span>
         </div>
       </div>
     );
@@ -500,55 +506,50 @@ function OptionsPage() {
         alignItems: 'center',
         justifyContent: 'center',
         minHeight: '100vh',
-        backgroundColor: '#f8fafc',
-        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+        backgroundColor: colors.background.secondary,
+        fontFamily: typography.fontFamily.sans
       }}>
         <div style={{
           maxWidth: '400px',
-          padding: '32px',
-          backgroundColor: 'white',
-          borderRadius: '16px',
-          boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1)',
+          padding: spacing['3xl'],
+          backgroundColor: colors.background.primary,
+          borderRadius: borderRadius.xl,
+          boxShadow: shadows.lg,
           textAlign: 'center'
         }}>
           <div style={{
-            color: '#ef4444',
-            marginBottom: '16px',
+            color: colors.accent.red,
+            marginBottom: spacing.lg,
             display: 'flex',
             justifyContent: 'center'
           }}>
             <IconExclamationCircle />
           </div>
           <h2 style={{
-            margin: '0 0 8px 0',
-            fontSize: '20px',
-            fontWeight: '600',
-            color: '#1f2937'
+            margin: `0 0 ${spacing.sm} 0`,
+            fontSize: typography.fontSize.xl,
+            fontWeight: typography.fontWeight.semibold,
+            color: colors.text.primary
           }}>
             Failed to Load Settings
           </h2>
           <p style={{
-            margin: '0 0 24px 0',
-            color: '#6b7280',
-            fontSize: '16px'
+            margin: `0 0 ${spacing['2xl']} 0`,
+            color: colors.text.secondary,
+            fontSize: typography.fontSize.base,
+            lineHeight: typography.lineHeight.normal
           }}>
             {error}
           </p>
           <button
             onClick={loadData}
             style={{
-              padding: '12px 24px',
-              backgroundColor: '#3b82f6',
-              color: 'white',
-              border: 'none',
-              borderRadius: '8px',
-              cursor: 'pointer',
-              fontSize: '14px',
-              fontWeight: '500',
-              transition: 'background-color 0.2s'
+              ...components.button.primary,
+              fontSize: typography.fontSize.sm,
+              fontWeight: typography.fontWeight.medium
             }}
-            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#2563eb'}
-            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#3b82f6'}
+            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = colors.accent.blue}
+            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = colors.accent.blue}
           >
             Try Again
           </button>
@@ -560,8 +561,8 @@ function OptionsPage() {
   return (
     <div style={{
       minHeight: '100vh',
-      backgroundColor: '#f8fafc',
-      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+      backgroundColor: colors.background.secondary,
+      fontFamily: typography.fontFamily.sans
     }}>
       <style>
         {`
@@ -575,28 +576,28 @@ function OptionsPage() {
       <div style={{
         maxWidth: '1000px',
         margin: '0 auto',
-        padding: '40px 20px'
+        padding: `${spacing['4xl']} ${spacing['2xl']}`
       }}>
         {/* Header */}
         <div style={{
-          marginBottom: '40px',
+          marginBottom: spacing['4xl'],
           textAlign: 'center'
         }}>
           <div style={{
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            gap: '12px',
-            marginBottom: '16px'
+            gap: spacing.md,
+            marginBottom: spacing.lg
           }}>
-            <div style={{ color: '#f59e0b' }}>
+            <div style={{ color: colors.accent.amber }}>
               <IconSparkles />
             </div>
             <h1 style={{
               margin: 0,
-              fontSize: '32px',
-              fontWeight: '700',
-              color: '#1f2937',
+              fontSize: typography.fontSize['3xl'],
+              fontWeight: typography.fontWeight.bold,
+              color: colors.text.primary,
               letterSpacing: '-0.025em'
             }}>
               Golden Nugget Finder
@@ -604,9 +605,9 @@ function OptionsPage() {
           </div>
           <p style={{
             margin: 0,
-            fontSize: '18px',
-            color: '#6b7280',
-            fontWeight: '400'
+            fontSize: typography.fontSize.lg,
+            color: colors.text.secondary,
+            fontWeight: typography.fontWeight.normal
           }}>
             Configure your AI-powered content analysis tool
           </p>
@@ -624,61 +625,61 @@ function OptionsPage() {
 
         {/* API Key Section */}
         <div style={{
-          marginBottom: '32px',
-          backgroundColor: 'white',
-          padding: '32px',
-          borderRadius: '16px',
-          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
-          border: '1px solid #e5e7eb'
+          marginBottom: spacing['3xl'],
+          backgroundColor: colors.background.primary,
+          padding: spacing['3xl'],
+          borderRadius: borderRadius.xl,
+          boxShadow: shadows.md,
+          border: `1px solid ${colors.border.light}`
         }}>
           <div style={{
             display: 'flex',
             alignItems: 'center',
-            gap: '12px',
-            marginBottom: '24px'
+            gap: spacing.md,
+            marginBottom: spacing['2xl']
           }}>
-            <div style={{ color: '#3b82f6' }}>
+            <div style={{ color: colors.accent.blue }}>
               <IconKey />
             </div>
             <h2 style={{
               margin: 0,
-              fontSize: '20px',
-              fontWeight: '600',
-              color: '#1f2937'
+              fontSize: typography.fontSize.xl,
+              fontWeight: typography.fontWeight.semibold,
+              color: colors.text.primary
             }}>
               Google Gemini API Key
             </h2>
           </div>
           
           <div style={{
-            marginBottom: '24px',
-            padding: '16px',
-            backgroundColor: '#f8fafc',
-            borderRadius: '12px',
-            border: '1px solid #e2e8f0'
+            marginBottom: spacing['2xl'],
+            padding: spacing.lg,
+            backgroundColor: colors.background.secondary,
+            borderRadius: borderRadius.lg,
+            border: `1px solid ${colors.border.light}`
           }}>
             <p style={{
-              margin: '0 0 12px 0',
-              fontSize: '14px',
-              color: '#475569',
-              fontWeight: '500'
+              margin: `0 0 ${spacing.md} 0`,
+              fontSize: typography.fontSize.sm,
+              color: colors.text.secondary,
+              fontWeight: typography.fontWeight.medium
             }}>
               🔒 Your API key is stored securely in your browser and never shared
             </p>
             <p style={{
-              margin: '0 0 12px 0',
-              fontSize: '14px',
-              color: '#64748b',
-              lineHeight: '1.5'
+              margin: `0 0 ${spacing.md} 0`,
+              fontSize: typography.fontSize.sm,
+              color: colors.text.tertiary,
+              lineHeight: typography.lineHeight.normal
             }}>
               You'll need a Google Gemini API key to use this extension. The key is used to analyze webpage content and find valuable insights.
             </p>
             <div style={{
               display: 'flex',
               alignItems: 'center',
-              gap: '8px',
-              fontSize: '14px',
-              color: '#3b82f6'
+              gap: spacing.sm,
+              fontSize: typography.fontSize.sm,
+              color: colors.text.accent
             }}>
               <span>Get your free API key from Google AI Studio</span>
               <a
@@ -686,7 +687,7 @@ function OptionsPage() {
                 target="_blank"
                 rel="noopener noreferrer"
                 style={{
-                  color: '#3b82f6',
+                  color: colors.text.accent,
                   textDecoration: 'none',
                   display: 'flex',
                   alignItems: 'center'
@@ -699,9 +700,9 @@ function OptionsPage() {
 
           <div style={{
             display: 'flex',
-            gap: '12px',
+            gap: spacing.md,
             alignItems: 'stretch',
-            marginBottom: '16px'
+            marginBottom: spacing.lg
           }}>
             <input
               type="password"
@@ -709,44 +710,35 @@ function OptionsPage() {
               onChange={(e) => setApiKey(e.target.value)}
               placeholder="Enter your Gemini API key (e.g., AIzaSyC...)"
               style={{
+                ...components.input.default,
                 flex: 1,
-                padding: '16px',
-                border: '2px solid #e5e7eb',
-                borderRadius: '12px',
-                fontSize: '16px',
-                backgroundColor: 'white',
-                color: '#1f2937',
-                fontFamily: 'inherit',
-                transition: 'border-color 0.2s',
-                outline: 'none'
+                fontSize: typography.fontSize.base,
+                color: colors.text.primary,
+                fontFamily: typography.fontFamily.sans
               }}
-              onFocus={(e) => e.target.style.borderColor = '#3b82f6'}
-              onBlur={(e) => e.target.style.borderColor = '#e5e7eb'}
+              onFocus={(e) => e.target.style.borderColor = colors.accent.blue}
+              onBlur={(e) => e.target.style.borderColor = colors.border.default}
             />
             <button
               onClick={saveApiKey}
               disabled={isValidating}
               style={{
-                padding: '16px 24px',
-                backgroundColor: isValidating ? '#9ca3af' : '#3b82f6',
-                color: 'white',
-                border: 'none',
-                borderRadius: '12px',
+                ...components.button.primary,
+                backgroundColor: isValidating ? colors.text.tertiary : colors.accent.blue,
                 cursor: isValidating ? 'not-allowed' : 'pointer',
-                fontSize: '16px',
-                fontWeight: '600',
-                transition: 'background-color 0.2s',
-                minWidth: '100px',
+                fontSize: typography.fontSize.base,
+                fontWeight: typography.fontWeight.semibold,
+                minWidth: '120px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                gap: '8px'
+                gap: spacing.sm
               }}
               onMouseEnter={(e) => {
-                if (!isValidating) e.currentTarget.style.backgroundColor = '#2563eb';
+                if (!isValidating) e.currentTarget.style.backgroundColor = colors.accent.blue;
               }}
               onMouseLeave={(e) => {
-                if (!isValidating) e.currentTarget.style.backgroundColor = '#3b82f6';
+                if (!isValidating) e.currentTarget.style.backgroundColor = colors.accent.blue;
               }}
             >
               {isValidating ? (
@@ -754,8 +746,8 @@ function OptionsPage() {
                   <div style={{
                     width: '16px',
                     height: '16px',
-                    border: '2px solid #ffffff40',
-                    borderTop: '2px solid #ffffff',
+                    border: `2px solid ${colors.background.primary}40`,
+                    borderTop: `2px solid ${colors.background.primary}`,
                     borderRadius: '50%',
                     animation: 'spin 1s linear infinite'
                   }} />

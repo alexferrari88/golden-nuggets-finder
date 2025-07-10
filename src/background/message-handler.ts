@@ -108,7 +108,7 @@ export class MessageHandler {
 
   private async handleGetConfig(sendResponse: (response: any) => void): Promise<void> {
     try {
-      const config = await storage.getConfig();
+      const config = await storage.getConfig({ source: 'background', action: 'read', timestamp: Date.now() });
       sendResponse({ success: true, data: config });
     } catch (error) {
       sendResponse({ success: false, error: (error as Error).message });
@@ -117,7 +117,7 @@ export class MessageHandler {
 
   private async handleSaveConfig(request: any, sendResponse: (response: any) => void): Promise<void> {
     try {
-      await storage.saveConfig(request.config);
+      await storage.saveConfig(request.config, { source: 'background', action: 'write', timestamp: Date.now() });
       sendResponse({ success: true });
     } catch (error) {
       sendResponse({ success: false, error: (error as Error).message });

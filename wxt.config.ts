@@ -30,6 +30,9 @@ export default defineConfig({
     options_ui: {
       page: 'options.html',
       open_in_tab: true
+    },
+    content_security_policy: {
+      extension_pages: "script-src 'self'; object-src 'self'; connect-src 'self' https://generativelanguage.googleapis.com; style-src 'self' 'unsafe-inline'"
     }
   },
   
