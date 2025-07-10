@@ -72,8 +72,8 @@ export class SecurityManager {
       navigator.userAgent,
       navigator.language,
       navigator.platform,
-      screen.width.toString(),
-      screen.height.toString(),
+      typeof screen !== 'undefined' ? screen.width.toString() : 'unknown',
+      typeof screen !== 'undefined' ? screen.height.toString() : 'unknown',
       new Date().getTimezoneOffset().toString()
     ].join('|');
 
