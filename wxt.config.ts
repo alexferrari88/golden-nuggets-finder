@@ -32,7 +32,7 @@ export default defineConfig({
       open_in_tab: true
     },
     content_security_policy: {
-      extension_pages: "script-src 'self'; object-src 'self'; connect-src 'self' https://generativelanguage.googleapis.com; style-src 'self' 'unsafe-inline'"
+      extension_pages: "script-src 'self'; object-src 'self'; connect-src 'self' https://generativelanguage.googleapis.com ws://localhost:3000; style-src 'self' 'unsafe-inline'"
     }
   },
   
