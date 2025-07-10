@@ -249,6 +249,8 @@ export class SecurityManager {
         console.log('[Security] STEP 1: Starting enhanced error creation...');
       }
       
+      // Create enhanced error - don't throw inside try block to avoid catching our own enhanced error
+      let enhancedError;
       try {
         // Create a more descriptive error based on the type of failure
         let errorMessage = 'Failed to decrypt API key';
@@ -280,7 +282,7 @@ export class SecurityManager {
         }
         
         // Create enhanced error with original details
-        const enhancedError = new Error(errorMessage) as Error & { 
+        enhancedError = new Error(errorMessage) as Error & { 
           code: string; 
           originalError: Error; 
           canRecover: boolean; 
@@ -298,19 +300,20 @@ export class SecurityManager {
           }, null, 2));
         }
         
-        if (isDevMode()) {
-          console.log('[Security] STEP 5: About to throw enhanced error...');
-        }
-        
-        throw enhancedError;
-        
       } catch (enhancementError) {
         if (isDevMode()) {
           console.error('[Security] ERROR in enhanced error creation:', enhancementError);
-          console.log('[Security] FALLBACK: Throwing original error instead');
+          console.log('[Security] FALLBACK: Using original error instead');
         }
-        throw error;  // Fallback to original error if enhancement fails
+        // Fallback to original error if enhancement fails
+        enhancedError = error;
       }
+      
+      if (isDevMode()) {
+        console.log('[Security] STEP 5: About to throw enhanced error...');
+      }
+      
+      throw enhancedError;
     }
   }
 
