@@ -58,49 +58,167 @@ export class Sidebar {
 
   private showToggleButton(): void {
     if (this.toggleButton) {
-      this.toggleButton.style.display = 'block';
+      this.toggleButton.style.display = 'flex';
+      // Add slide-in animation class
+      this.toggleButton.classList.add('slide-in');
+      
+      // Add pulse animation for discoverability after slide-in completes
+      setTimeout(() => {
+        if (this.toggleButton && this.toggleButton.parentElement) {
+          this.toggleButton.classList.add('pulse');
+          // Remove pulse after 3 cycles (9 seconds)
+          setTimeout(() => {
+            if (this.toggleButton) {
+              this.toggleButton.classList.remove('pulse');
+            }
+          }, 9000);
+        }
+      }, 2000);
     }
   }
 
   private hideToggleButton(): void {
     if (this.toggleButton) {
-      this.toggleButton.style.display = 'none';
+      // Remove any animation classes first
+      this.toggleButton.classList.remove('slide-in', 'pulse');
+      
+      // Slide out animation before hiding
+      this.toggleButton.style.transform = 'translateY(-50%) translateX(120%)';
+      setTimeout(() => {
+        if (this.toggleButton) {
+          this.toggleButton.style.display = 'none';
+        }
+      }, 200);
     }
   }
 
   private createToggleButton(): HTMLElement {
     const button = document.createElement('button');
-    button.innerHTML = '📋';
+    
+    // Create SVG icon for sidebar expand
+    const svgIcon = `
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M2 3h12a1 1 0 0 1 0 2H2a1 1 0 0 1 0-2zm0 4h12a1 1 0 0 1 0 2H2a1 1 0 0 1 0-2zm0 4h12a1 1 0 0 1 0 2H2a1 1 0 0 1 0-2z" fill="currentColor"/>
+        <path d="M11 8l3-3v6l-3-3z" fill="currentColor"/>
+      </svg>
+    `;
+    
+    button.innerHTML = svgIcon;
+    button.className = 'nugget-toggle-button';
+    button.setAttribute('aria-label', 'Expand Golden Nuggets sidebar');
+    button.setAttribute('title', 'Show Golden Nuggets');
+    button.setAttribute('role', 'button');
+    button.setAttribute('tabindex', '0');
+    
+    // Modern tab-like design attached to sidebar edge
     button.style.cssText = `
       position: fixed;
-      right: 20px;
-      top: 20px;
-      width: 50px;
-      height: 50px;
-      background: #3b82f6;
-      color: white;
-      border: none;
-      border-radius: 50%;
+      right: 0;
+      top: 50%;
+      transform: translateY(-50%) translateX(100%);
+      width: 40px;
+      height: 80px;
+      background: linear-gradient(135deg, #f8fafc 0%, #e5e7eb 100%);
+      color: #374151;
+      border: 1px solid #d1d5db;
+      border-right: none;
+      border-radius: 12px 0 0 12px;
       cursor: pointer;
       display: none;
       z-index: ${UI_CONSTANTS.SIDEBAR_Z_INDEX + 1};
-      font-size: 20px;
-      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-      transition: all 0.3s ease;
+      box-shadow: -4px 0 8px -2px rgba(0, 0, 0, 0.1), -2px 0 4px -1px rgba(0, 0, 0, 0.06);
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      backdrop-filter: blur(8px);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 4px;
+      writing-mode: vertical-lr;
+      text-orientation: mixed;
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      opacity: 0.9;
     `;
     
+    // Add text label
+    const label = document.createElement('span');
+    label.textContent = 'Nuggets';
+    label.style.cssText = `
+      font-size: 10px;
+      font-weight: 600;
+      color: #6b7280;
+      margin-top: 4px;
+      writing-mode: vertical-lr;
+      text-orientation: mixed;
+      letter-spacing: 0.5px;
+    `;
+    
+    button.appendChild(label);
+    
+    // Enhanced event handlers
     button.addEventListener('click', () => {
       this.expand();
     });
     
-    button.addEventListener('mouseover', () => {
-      button.style.transform = 'scale(1.1)';
-      button.style.backgroundColor = '#2563eb';
+    button.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        this.expand();
+      }
     });
-    button.addEventListener('mouseout', () => {
-      button.style.transform = 'scale(1)';
-      button.style.backgroundColor = '#3b82f6';
+    
+    button.addEventListener('mouseenter', () => {
+      button.style.transform = 'translateY(-50%) translateX(0)';
+      button.style.background = 'linear-gradient(135deg, #ffffff 0%, #f3f4f6 100%)';
+      button.style.color = '#1f2937';
+      button.style.boxShadow = '-6px 0 12px -2px rgba(0, 0, 0, 0.15), -4px 0 8px -1px rgba(0, 0, 0, 0.1)';
+      button.style.opacity = '1';
+      label.style.color = '#374151';
     });
+    
+    button.addEventListener('mouseleave', () => {
+      button.style.transform = 'translateY(-50%) translateX(100%)';
+      button.style.background = 'linear-gradient(135deg, #f8fafc 0%, #e5e7eb 100%)';
+      button.style.color = '#374151';
+      button.style.boxShadow = '-4px 0 8px -2px rgba(0, 0, 0, 0.1), -2px 0 4px -1px rgba(0, 0, 0, 0.06)';
+      button.style.opacity = '0.9';
+      label.style.color = '#6b7280';
+    });
+    
+    button.addEventListener('focus', () => {
+      button.style.outline = '2px solid #3b82f6';
+      button.style.outlineOffset = '2px';
+    });
+    
+    button.addEventListener('blur', () => {
+      button.style.outline = 'none';
+    });
+    
+    // Subtle slide-in animation when button becomes visible
+    const slideIn = () => {
+      button.style.transform = 'translateY(-50%) translateX(85%)';
+      setTimeout(() => {
+        button.style.transform = 'translateY(-50%) translateX(100%)';
+      }, 100);
+    };
+    
+    // Trigger slide-in animation after a brief delay
+    setTimeout(slideIn, 300);
+    
+    // Add pulse animation for discoverability after button has been shown for a few seconds
+    setTimeout(() => {
+      if (button && button.parentElement) {
+        button.classList.add('pulse');
+        // Remove pulse after 3 cycles (9 seconds)
+        setTimeout(() => {
+          button.classList.remove('pulse');
+        }, 9000);
+      }
+    }, 2000);
     
     return button;
   }

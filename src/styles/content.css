@@ -168,6 +168,102 @@ body.nugget-sidebar-open {
   transition: margin-right 0.3s ease;
 }
 
+/* Toggle Button Styles */
+.nugget-toggle-button {
+  position: fixed !important;
+  right: 0 !important;
+  top: 50% !important;
+  transform: translateY(-50%) translateX(100%) !important;
+  width: 40px !important;
+  height: 80px !important;
+  background: linear-gradient(135deg, #f8fafc 0%, #e5e7eb 100%) !important;
+  color: #374151 !important;
+  border: 1px solid #d1d5db !important;
+  border-right: none !important;
+  border-radius: 12px 0 0 12px !important;
+  cursor: pointer !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex-direction: column !important;
+  box-shadow: -4px 0 8px -2px rgba(0, 0, 0, 0.1), -2px 0 4px -1px rgba(0, 0, 0, 0.06) !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  backdrop-filter: blur(8px) !important;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+  font-size: 11px !important;
+  font-weight: 500 !important;
+  letter-spacing: 0.5px !important;
+  text-transform: uppercase !important;
+  opacity: 0.9 !important;
+  z-index: 10001 !important;
+  user-select: none !important;
+}
+
+.nugget-toggle-button:hover {
+  transform: translateY(-50%) translateX(0) !important;
+  background: linear-gradient(135deg, #ffffff 0%, #f3f4f6 100%) !important;
+  color: #1f2937 !important;
+  box-shadow: -6px 0 12px -2px rgba(0, 0, 0, 0.15), -4px 0 8px -1px rgba(0, 0, 0, 0.1) !important;
+  opacity: 1 !important;
+}
+
+.nugget-toggle-button:focus {
+  outline: 2px solid #3b82f6 !important;
+  outline-offset: 2px !important;
+}
+
+.nugget-toggle-button svg {
+  width: 16px !important;
+  height: 16px !important;
+  flex-shrink: 0 !important;
+}
+
+.nugget-toggle-button span {
+  font-size: 10px !important;
+  font-weight: 600 !important;
+  color: #6b7280 !important;
+  margin-top: 4px !important;
+  writing-mode: vertical-lr !important;
+  text-orientation: mixed !important;
+  letter-spacing: 0.5px !important;
+}
+
+.nugget-toggle-button:hover span {
+  color: #374151 !important;
+}
+
+/* Subtle pulse animation for discoverability */
+@keyframes nugget-pulse {
+  0%, 100% { 
+    opacity: 0.9;
+    transform: translateY(-50%) translateX(100%);
+  }
+  50% { 
+    opacity: 0.7;
+    transform: translateY(-50%) translateX(95%);
+  }
+}
+
+.nugget-toggle-button.pulse {
+  animation: nugget-pulse 3s ease-in-out infinite;
+}
+
+/* Slide-in animation */
+@keyframes nugget-slide-in {
+  from {
+    transform: translateY(-50%) translateX(120%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(-50%) translateX(100%);
+    opacity: 0.9;
+  }
+}
+
+.nugget-toggle-button.slide-in {
+  animation: nugget-slide-in 0.5s ease-out forwards;
+}
+
 /* Responsive adjustments */
 @media (max-width: 768px) {
   .nugget-sidebar {
@@ -185,6 +281,25 @@ body.nugget-sidebar-open {
     right: 10px;
     transform: none;
     max-width: none;
+  }
+  
+  .nugget-toggle-button {
+    width: 50px !important;
+    height: 50px !important;
+    border-radius: 50% !important;
+    top: 20px !important;
+    right: 20px !important;
+    transform: translateX(0) !important;
+    flex-direction: row !important;
+    font-size: 14px !important;
+  }
+  
+  .nugget-toggle-button span {
+    display: none !important;
+  }
+  
+  .nugget-toggle-button:hover {
+    transform: translateX(0) scale(1.05) !important;
   }
 }
 
