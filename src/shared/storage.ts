@@ -16,6 +16,10 @@ export class StorageManager {
   }
 
   async getApiKey(context: AccessContext = { source: 'background', action: 'read', timestamp: Date.now() }): Promise<string> {
+    if (isDevMode()) {
+      console.log(`[Storage] getApiKey called from: ${context.source}`);
+    }
+    
     // Validate access
     if (!securityManager.validateAccess(context)) {
       throw new Error('Access denied: Invalid access context');
@@ -23,6 +27,9 @@ export class StorageManager {
 
     const cached = this.getFromCache(STORAGE_KEYS.API_KEY);
     if (cached !== null) {
+      if (isDevMode()) {
+        console.log('[Storage] Returning cached API key');
+      }
       return cached;
     }
     
@@ -30,6 +37,9 @@ export class StorageManager {
     const storedData = result[STORAGE_KEYS.API_KEY];
     
     if (!storedData) {
+      if (isDevMode()) {
+        console.log('[Storage] No API key found in storage');
+      }
       return '';
     }
 
@@ -45,6 +55,10 @@ export class StorageManager {
 
     // Encrypted data
     const encryptedData = storedData as EncryptedData;
+    
+    if (isDevMode()) {
+      console.log(`[Storage] Found encrypted API key data - age: ${Date.now() - encryptedData.timestamp}ms`);
+    }
     
     // Verify storage integrity
     if (!await securityManager.verifyStorageIntegrity(encryptedData)) {
@@ -71,15 +85,27 @@ export class StorageManager {
         if (isDevMode()) {
           console.warn('[Storage] Device characteristics changed - triggering recovery', JSON.stringify({
             errorCode: error.code,
-            canRecover: error.canRecover
+            canRecover: error.canRecover,
+            originalError: error.originalError?.name || 'Unknown'
           }, null, 2));
         }
         
-        // Use the recovery method to properly clean up
-        await this.handleApiKeyRecovery('device_changed');
-        
-        // Return empty string to trigger re-entry workflow
-        return '';
+        try {
+          // Use the recovery method to properly clean up
+          await this.handleApiKeyRecovery('device_changed');
+          
+          if (isDevMode()) {
+            console.log('[Storage] Recovery completed successfully - API key cleared');
+          }
+          
+          // Return empty string to trigger re-entry workflow
+          return '';
+        } catch (recoveryError) {
+          if (isDevMode()) {
+            console.error('[Storage] Recovery failed:', recoveryError);
+          }
+          throw new Error(`Recovery failed: ${recoveryError instanceof Error ? recoveryError.message : String(recoveryError)}`);
+        }
       }
       
       // For other errors, log and re-throw
@@ -256,27 +282,66 @@ export class StorageManager {
    * Handle API key recovery scenarios
    */
   async handleApiKeyRecovery(reason: 'device_changed' | 'corruption' | 'manual_reset'): Promise<void> {
-    // Log the recovery event
-    securityManager.logSecurityEvent('recovery', true, {
-      reason,
-      timestamp: Date.now(),
-      recoveryAction: 'clear_encrypted_data'
-    });
-    
     if (isDevMode()) {
-      console.log(`[Storage] Handling API key recovery: ${reason}`);
+      console.log(`[Storage] Starting API key recovery: ${reason}`);
     }
     
-    // Clear all API key related data
-    await chrome.storage.sync.remove(STORAGE_KEYS.API_KEY);
-    this.clearCache(STORAGE_KEYS.API_KEY);
-    this.clearCache('full_config');
-    
-    // Clear security manager sensitive data
-    securityManager.clearSensitiveData();
-    
-    if (isDevMode()) {
-      console.log('[Storage] API key recovery completed - user needs to re-enter API key');
+    try {
+      // Check what data exists before clearing
+      const beforeClear = await chrome.storage.sync.get(STORAGE_KEYS.API_KEY);
+      const hasEncryptedData = !!beforeClear[STORAGE_KEYS.API_KEY];
+      
+      if (isDevMode()) {
+        console.log(`[Storage] Before recovery - encrypted data exists: ${hasEncryptedData}`);
+      }
+      
+      // Clear all API key related data
+      await chrome.storage.sync.remove(STORAGE_KEYS.API_KEY);
+      this.clearCache(STORAGE_KEYS.API_KEY);
+      this.clearCache('full_config');
+      
+      // Clear security manager sensitive data
+      securityManager.clearSensitiveData();
+      
+      // Verify data was cleared
+      const afterClear = await chrome.storage.sync.get(STORAGE_KEYS.API_KEY);
+      const dataCleared = !afterClear[STORAGE_KEYS.API_KEY];
+      
+      if (isDevMode()) {
+        console.log(`[Storage] After recovery - data cleared: ${dataCleared}`);
+      }
+      
+      // Log the recovery event
+      securityManager.logSecurityEvent('recovery', dataCleared, {
+        reason,
+        timestamp: Date.now(),
+        recoveryAction: 'clear_encrypted_data',
+        hadEncryptedData: hasEncryptedData,
+        dataCleared
+      });
+      
+      if (!dataCleared) {
+        throw new Error('Failed to clear encrypted data from storage');
+      }
+      
+      if (isDevMode()) {
+        console.log('[Storage] API key recovery completed successfully - user needs to re-enter API key');
+      }
+      
+    } catch (error) {
+      if (isDevMode()) {
+        console.error('[Storage] API key recovery failed:', error);
+      }
+      
+      // Log the recovery failure
+      securityManager.logSecurityEvent('recovery', false, {
+        reason,
+        timestamp: Date.now(),
+        recoveryAction: 'clear_encrypted_data',
+        error: error instanceof Error ? error.message : String(error)
+      });
+      
+      throw error;
     }
   }
   

@@ -236,7 +236,7 @@ export class SecurityManager {
     } catch (error) {
       this.logSecurityEvent('decryption', false, {
         errorType: error instanceof DOMException ? error.name : 'Unknown',
-        errorMessage: error instanceof Error ? error.message : String(error),
+        errorMessage: error instanceof Error ? (error.message || `${error.name || 'Unknown'} (no message)`) : String(error),
         encryptedDataVersion: encryptedData.version,
         encryptedDataAge: Date.now() - encryptedData.timestamp
       });
