@@ -140,6 +140,4 @@ export class ContentInjector {
   }
 }
 
-// Global instance to prevent multiple initializations
-(window as any).contentInjector = (window as any).contentInjector || new ContentInjector();
-(window as any).contentInjector.initialize();
+// Global instance management moved to entrypoint
