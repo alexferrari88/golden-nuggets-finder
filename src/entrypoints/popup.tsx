@@ -9,6 +9,7 @@ function IndexPopup() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [noApiKey, setNoApiKey] = useState(false);
+  const [analyzing, setAnalyzing] = useState<string | null>(null);
 
   useEffect(() => {
     loadPrompts();
@@ -49,6 +50,13 @@ function IndexPopup() {
 
   const analyzeWithPrompt = async (promptId: string) => {
     try {
+      // Find the prompt name for better UX
+      const prompt = prompts.find(p => p.id === promptId);
+      const promptName = prompt?.name || 'Unknown';
+      
+      // Show immediate feedback
+      setAnalyzing(promptName);
+      
       // Get the current active tab
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
       
@@ -65,10 +73,13 @@ function IndexPopup() {
         promptId: promptId
       });
       
-      // Close popup
-      window.close();
+      // Close popup after a short delay to show feedback
+      setTimeout(() => {
+        window.close();
+      }, 800);
     } catch (err) {
       console.error('Failed to start analysis:', err);
+      setAnalyzing(null);
       setError('Failed to start analysis. Please try again.');
     }
   };
@@ -109,12 +120,47 @@ function IndexPopup() {
         backgroundColor: colors.background.primary
       }}>
         <div style={{ 
-          color: colors.text.tertiary,
+          color: colors.text.primary,
           fontSize: typography.fontSize.sm,
-          fontWeight: typography.fontWeight.medium
+          fontWeight: typography.fontWeight.medium,
+          marginBottom: spacing.lg
         }}>
           Loading prompts...
         </div>
+        <div style={{ 
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          gap: spacing.xs
+        }}>
+          <div style={{
+            width: '6px',
+            height: '6px',
+            borderRadius: '50%',
+            backgroundColor: colors.text.tertiary,
+            animation: 'pulse 1.5s ease-in-out infinite'
+          }}></div>
+          <div style={{
+            width: '6px',
+            height: '6px',
+            borderRadius: '50%',
+            backgroundColor: colors.text.tertiary,
+            animation: 'pulse 1.5s ease-in-out infinite 0.2s'
+          }}></div>
+          <div style={{
+            width: '6px',
+            height: '6px',
+            borderRadius: '50%',
+            backgroundColor: colors.text.tertiary,
+            animation: 'pulse 1.5s ease-in-out infinite 0.4s'
+          }}></div>
+        </div>
+        <style>{`
+          @keyframes pulse {
+            0%, 100% { opacity: 0.3; transform: scale(0.8); }
+            50% { opacity: 1; transform: scale(1.2); }
+          }
+        `}</style>
       </div>
     );
   }
@@ -178,6 +224,69 @@ function IndexPopup() {
           </button>
           .
         </div>
+      </div>
+    );
+  }
+
+  if (analyzing) {
+    return (
+      <div style={{ 
+        width: '320px', 
+        padding: spacing['2xl'], 
+        textAlign: 'center',
+        fontFamily: typography.fontFamily.sans,
+        backgroundColor: colors.background.primary
+      }}>
+        <div style={{ 
+          color: colors.text.primary,
+          fontSize: typography.fontSize.sm,
+          fontWeight: typography.fontWeight.medium,
+          marginBottom: spacing.md
+        }}>
+          Starting analysis with
+        </div>
+        <div style={{ 
+          color: colors.text.accent,
+          fontSize: typography.fontSize.base,
+          fontWeight: typography.fontWeight.semibold,
+          marginBottom: spacing.lg
+        }}>
+          {analyzing}
+        </div>
+        <div style={{ 
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          gap: spacing.xs
+        }}>
+          <div style={{
+            width: '6px',
+            height: '6px',
+            borderRadius: '50%',
+            backgroundColor: colors.accent.blue,
+            animation: 'pulse 1.5s ease-in-out infinite'
+          }}></div>
+          <div style={{
+            width: '6px',
+            height: '6px',
+            borderRadius: '50%',
+            backgroundColor: colors.accent.blue,
+            animation: 'pulse 1.5s ease-in-out infinite 0.2s'
+          }}></div>
+          <div style={{
+            width: '6px',
+            height: '6px',
+            borderRadius: '50%',
+            backgroundColor: colors.accent.blue,
+            animation: 'pulse 1.5s ease-in-out infinite 0.4s'
+          }}></div>
+        </div>
+        <style>{`
+          @keyframes pulse {
+            0%, 100% { opacity: 0.3; transform: scale(0.8); }
+            50% { opacity: 1; transform: scale(1.2); }
+          }
+        `}</style>
       </div>
     );
   }

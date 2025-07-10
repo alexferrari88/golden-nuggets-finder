@@ -51,7 +51,6 @@ export class NotificationManager {
   private createBanner(message: string, type: 'progress' | 'error' | 'info'): HTMLElement {
     const banner = document.createElement('div');
     banner.className = `nugget-notification-banner nugget-banner-${type}`;
-    banner.textContent = message;
     
     const baseStyles = `
       position: fixed;
@@ -67,6 +66,10 @@ export class NotificationManager {
       font-weight: 500;
       max-width: 400px;
       text-align: center;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
     `;
     
     let typeStyles = '';
@@ -92,7 +95,58 @@ export class NotificationManager {
     }
     
     banner.style.cssText = baseStyles + typeStyles;
+    
+    // Add dynamic content based on type
+    if (type === 'progress') {
+      this.addProgressAnimation(banner, message);
+    } else {
+      banner.textContent = message;
+    }
+    
     return banner;
+  }
+
+  private addProgressAnimation(banner: HTMLElement, message: string): void {
+    // Add text element
+    const textElement = document.createElement('span');
+    textElement.textContent = message;
+    banner.appendChild(textElement);
+    
+    // Add animated dots
+    const dotsContainer = document.createElement('div');
+    dotsContainer.style.cssText = `
+      display: flex;
+      gap: 2px;
+      align-items: center;
+    `;
+    
+    for (let i = 0; i < 3; i++) {
+      const dot = document.createElement('div');
+      dot.style.cssText = `
+        width: 4px;
+        height: 4px;
+        border-radius: 50%;
+        background: white;
+        animation: nugget-pulse 1.5s ease-in-out infinite;
+        animation-delay: ${i * 0.2}s;
+      `;
+      dotsContainer.appendChild(dot);
+    }
+    
+    banner.appendChild(dotsContainer);
+    
+    // Add CSS animation styles
+    if (!document.querySelector('#nugget-progress-styles')) {
+      const style = document.createElement('style');
+      style.id = 'nugget-progress-styles';
+      style.textContent = `
+        @keyframes nugget-pulse {
+          0%, 100% { opacity: 0.3; transform: scale(0.8); }
+          50% { opacity: 1; transform: scale(1.2); }
+        }
+      `;
+      document.head.appendChild(style);
+    }
   }
 
   private createApiKeyErrorBanner(): HTMLElement {
@@ -156,5 +210,10 @@ export class NotificationManager {
 
   cleanup(): void {
     this.hideBanner();
+    // Clean up injected styles
+    const progressStyles = document.querySelector('#nugget-progress-styles');
+    if (progressStyles) {
+      progressStyles.remove();
+    }
   }
 }
