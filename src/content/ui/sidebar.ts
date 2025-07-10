@@ -556,9 +556,8 @@ export class Sidebar {
     if (item.status === 'highlighted') {
       statusIndicator.innerHTML = `
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <circle cx="8" cy="8" r="5" stroke="currentColor" stroke-width="1.5" fill="none"/>
-          <path d="M8 3V5M8 11V13M3 8H5M11 8H13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-          <circle cx="8" cy="8" r="1.5" fill="currentColor"/>
+          <circle cx="7" cy="7" r="3" stroke="currentColor" stroke-width="1.5" fill="none"/>
+          <path d="M10 10l3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
         </svg>
       `;
       statusIndicator.setAttribute('title', 'Click to find on page');
