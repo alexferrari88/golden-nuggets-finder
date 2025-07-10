@@ -236,7 +236,12 @@ function IndexPopup() {
     return (
       <div style={{ 
         width: '320px', 
+        minHeight: '200px',
         padding: spacing['2xl'], 
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center',
+        alignItems: 'center',
         textAlign: 'center',
         fontFamily: typography.fontFamily.sans,
         backgroundColor: colors.background.primary
