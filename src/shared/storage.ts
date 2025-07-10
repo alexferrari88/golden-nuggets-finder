@@ -60,10 +60,39 @@ export class StorageManager {
     }
 
     // Decrypt the API key
-    const decryptedKey = await securityManager.decryptApiKey(encryptedData);
-    
-    this.setCache(STORAGE_KEYS.API_KEY, decryptedKey);
-    return decryptedKey;
+    try {
+      const decryptedKey = await securityManager.decryptApiKey(encryptedData);
+      
+      this.setCache(STORAGE_KEYS.API_KEY, decryptedKey);
+      return decryptedKey;
+    } catch (error: any) {
+      // Handle specific decryption errors
+      if (error.code === 'DEVICE_CHANGED' && error.canRecover) {
+        if (isDevMode()) {
+          console.warn('[Storage] Device characteristics changed - triggering recovery', JSON.stringify({
+            errorCode: error.code,
+            canRecover: error.canRecover
+          }, null, 2));
+        }
+        
+        // Use the recovery method to properly clean up
+        await this.handleApiKeyRecovery('device_changed');
+        
+        // Return empty string to trigger re-entry workflow
+        return '';
+      }
+      
+      // For other errors, log and re-throw
+      if (isDevMode()) {
+        console.error('[Storage] API key decryption failed:', JSON.stringify({
+          errorCode: error.code || 'UNKNOWN',
+          message: error.message,
+          canRecover: error.canRecover || false
+        }, null, 2));
+      }
+      
+      throw error;
+    }
   }
 
   async saveApiKey(apiKey: string, context: AccessContext = { source: 'background', action: 'write', timestamp: Date.now() }): Promise<void> {
@@ -221,6 +250,34 @@ export class StorageManager {
   
   private clearCache(key: string): void {
     this.cache.delete(key);
+  }
+
+  /**
+   * Handle API key recovery scenarios
+   */
+  async handleApiKeyRecovery(reason: 'device_changed' | 'corruption' | 'manual_reset'): Promise<void> {
+    // Log the recovery event
+    securityManager.logSecurityEvent('recovery', true, {
+      reason,
+      timestamp: Date.now(),
+      recoveryAction: 'clear_encrypted_data'
+    });
+    
+    if (isDevMode()) {
+      console.log(`[Storage] Handling API key recovery: ${reason}`);
+    }
+    
+    // Clear all API key related data
+    await chrome.storage.sync.remove(STORAGE_KEYS.API_KEY);
+    this.clearCache(STORAGE_KEYS.API_KEY);
+    this.clearCache('full_config');
+    
+    // Clear security manager sensitive data
+    securityManager.clearSensitiveData();
+    
+    if (isDevMode()) {
+      console.log('[Storage] API key recovery completed - user needs to re-enter API key');
+    }
   }
   
   // For testing purposes - clear all cache

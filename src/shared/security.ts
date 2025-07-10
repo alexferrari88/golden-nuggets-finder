@@ -226,18 +226,49 @@ export class SecurityManager {
 
       performanceMonitor.logTimer('security_decrypt', 'API key decryption');
       
-      if (isDevMode()) {
-        console.log('[Security] API key decrypted successfully', {
-          keyFingerprint: this.keyFingerprint
-        });
-      }
+      this.logSecurityEvent('decryption', true, {
+        keyFingerprint: this.keyFingerprint,
+        encryptedDataVersion: encryptedData.version,
+        encryptedDataAge: Date.now() - encryptedData.timestamp
+      });
 
       return result;
     } catch (error) {
-      if (isDevMode()) {
-        console.error('[Security] API key decryption failed:', error);
+      this.logSecurityEvent('decryption', false, {
+        errorType: error instanceof DOMException ? error.name : 'Unknown',
+        errorMessage: error instanceof Error ? error.message : String(error),
+        encryptedDataVersion: encryptedData.version,
+        encryptedDataAge: Date.now() - encryptedData.timestamp
+      });
+      
+      // Create a more descriptive error based on the type of failure
+      let errorMessage = 'Failed to decrypt API key';
+      let errorCode = 'DECRYPTION_FAILED';
+      
+      if (error instanceof DOMException) {
+        if (error.name === 'OperationError') {
+          errorMessage = 'Decryption failed - device characteristics may have changed';
+          errorCode = 'DEVICE_CHANGED';
+        } else if (error.name === 'InvalidAccessError') {
+          errorMessage = 'Invalid encryption key or corrupted data';
+          errorCode = 'INVALID_KEY';
+        } else {
+          errorMessage = `Crypto operation failed: ${error.name}`;
+          errorCode = 'CRYPTO_ERROR';
+        }
       }
-      throw new Error('Failed to decrypt API key');
+      
+      // Create enhanced error with original details
+      const enhancedError = new Error(errorMessage) as Error & { 
+        code: string; 
+        originalError: Error; 
+        canRecover: boolean; 
+      };
+      enhancedError.code = errorCode;
+      enhancedError.originalError = error as Error;
+      enhancedError.canRecover = errorCode === 'DEVICE_CHANGED';
+      
+      throw enhancedError;
     }
   }
 
@@ -337,7 +368,51 @@ export class SecurityManager {
     }
 
     if (isDevMode()) {
-      console.log('[Security] Access logged:', auditLog);
+      console.log('[Security] Access logged:', JSON.stringify(auditLog, null, 2));
+    }
+  }
+
+  /**
+   * Log security events with enhanced context
+   */
+  logSecurityEvent(
+    event: 'encryption' | 'decryption' | 'recovery' | 'validation' | 'error',
+    success: boolean,
+    details?: { [key: string]: any }
+  ): void {
+    const logEntry = {
+      timestamp: Date.now(),
+      event,
+      success,
+      keyFingerprint: this.keyFingerprint || 'none',
+      details: details || {}
+    };
+
+    if (isDevMode()) {
+      const logLevel = success ? 'log' : 'error';
+      // Serialize the object properly for background script logging
+      const serializedEntry = JSON.stringify(logEntry, null, 2);
+      console[logLevel](`[Security] ${event.toUpperCase()}:\n${serializedEntry}`);
+    }
+
+    // Add to audit logs if it's a security-sensitive event
+    if (['decryption', 'recovery', 'error'].includes(event)) {
+      this.auditLogs.push({
+        timestamp: logEntry.timestamp,
+        context: { 
+          source: 'background', 
+          action: event === 'recovery' ? 'write' : 'read', 
+          timestamp: logEntry.timestamp 
+        },
+        success,
+        error: success ? undefined : (details?.errorMessage || `${event} failed`),
+        keyFingerprint: this.keyFingerprint || undefined
+      });
+
+      // Keep only last 100 entries
+      if (this.auditLogs.length > 100) {
+        this.auditLogs = this.auditLogs.slice(-100);
+      }
     }
   }
 
