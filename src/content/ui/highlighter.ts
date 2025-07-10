@@ -394,9 +394,8 @@ export class Highlighter {
     highlightSpan.dataset.nuggetType = nugget.type;
     highlightSpan.textContent = highlightText;
     
-    // Add clickable indicator
+    // Create clickable indicator
     const indicator = this.createClickableIndicator(nugget);
-    highlightSpan.appendChild(indicator);
     
     // Replace the text node with the highlighted version
     const parent = textNode.parentNode;
@@ -409,9 +408,63 @@ export class Highlighter {
         parent.insertBefore(document.createTextNode(afterText), textNode);
       }
       parent.removeChild(textNode);
+      
+      // Place indicator at the end of the containing comment element
+      this.placeIndicatorAtCommentEnd(indicator, parent as Element);
     }
     
     this.highlights.push(highlightSpan);
+  }
+
+  private placeIndicatorAtCommentEnd(indicator: HTMLElement, startElement: Element): void {
+    // Find the containing comment element by traversing up the DOM tree
+    let commentContainer = startElement;
+    
+    // Look for common comment container selectors
+    const commentSelectors = [
+      '.comment',     // HackerNews
+      '.commtext',    // HackerNews comment text
+      '.thing',       // Reddit
+      '.Comment',     // Reddit modern
+      '[class*="comment"]',  // Generic comment classes
+      '[class*="Comment"]',  // Generic comment classes (capitalized)
+      '[data-testid*="comment"]',  // Test ID patterns
+      'article',      // Generic article elements
+      'p',            // Paragraph elements as last resort
+    ];
+    
+    // Traverse up the DOM tree to find a comment container
+    while (commentContainer && commentContainer !== document.body) {
+      for (const selector of commentSelectors) {
+        if (commentContainer.matches && commentContainer.matches(selector)) {
+          // Found a comment container, place indicator at the end
+          this.appendIndicatorToContainer(indicator, commentContainer);
+          return;
+        }
+      }
+      commentContainer = commentContainer.parentElement!;
+    }
+    
+    // Fallback: place indicator right after the start element
+    if (startElement.parentElement) {
+      startElement.parentElement.insertBefore(indicator, startElement.nextSibling);
+    }
+  }
+
+  private appendIndicatorToContainer(indicator: HTMLElement, container: Element): void {
+    // Try to find the best place to insert the indicator within the container
+    const lastChild = container.lastChild;
+    
+    if (lastChild && lastChild.nodeType === Node.TEXT_NODE) {
+      // If the last child is a text node, insert after it
+      container.appendChild(indicator);
+    } else if (lastChild && lastChild.nodeType === Node.ELEMENT_NODE) {
+      // If the last child is an element, insert after it
+      container.appendChild(indicator);
+    } else {
+      // Fallback: just append to the container
+      container.appendChild(indicator);
+    }
   }
 
   private tryContainerBasedHighlighting(nugget: GoldenNugget): boolean {
