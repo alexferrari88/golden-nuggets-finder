@@ -43,6 +43,12 @@ export interface AnalysisResponse {
   error?: string;
 }
 
+export interface DebugLogMessage {
+  type: 'log' | 'error' | 'warn' | 'llm-request' | 'llm-response' | 'llm-validation';
+  message: string;
+  data?: any;
+}
+
 export interface MessageTypes {
   ANALYZE_CONTENT: 'ANALYZE_CONTENT';
   ANALYSIS_COMPLETE: 'ANALYSIS_COMPLETE';
@@ -56,6 +62,7 @@ export interface MessageTypes {
   SET_DEFAULT_PROMPT: 'SET_DEFAULT_PROMPT';
   GET_CONFIG: 'GET_CONFIG';
   SAVE_CONFIG: 'SAVE_CONFIG';
+  DEBUG_LOG: 'DEBUG_LOG';
 }
 
 export const MESSAGE_TYPES: MessageTypes = {
@@ -70,5 +77,6 @@ export const MESSAGE_TYPES: MessageTypes = {
   DELETE_PROMPT: 'DELETE_PROMPT',
   SET_DEFAULT_PROMPT: 'SET_DEFAULT_PROMPT',
   GET_CONFIG: 'GET_CONFIG',
-  SAVE_CONFIG: 'SAVE_CONFIG'
+  SAVE_CONFIG: 'SAVE_CONFIG',
+  DEBUG_LOG: 'DEBUG_LOG'
 };

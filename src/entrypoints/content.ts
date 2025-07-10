@@ -1,10 +1,11 @@
-import { MESSAGE_TYPES, AnalysisRequest, AnalysisResponse } from '../shared/types';
+import { MESSAGE_TYPES, AnalysisRequest, AnalysisResponse, DebugLogMessage } from '../shared/types';
 import { ContentExtractor } from '../content/extractors/base';
 import { RedditExtractor } from '../content/extractors/reddit';
 import { HackerNewsExtractor } from '../content/extractors/hackernews';
 import { GenericExtractor } from '../content/extractors/generic';
 import { UIManager } from '../content/ui/ui-manager';
 import { performanceMonitor, measureContentExtraction, measureDOMOperation } from '../shared/performance';
+import { isDevMode } from '../shared/debug';
 
 export default defineContentScript({
   matches: ['https://example.com/*'], // Restrictive match to prevent auto-injection
@@ -31,6 +32,53 @@ export default defineContentScript({
       if (!isActivated) {
         extractor = createExtractor();
         isActivated = true;
+      }
+    }
+
+    function handleDebugLog(debugLog: DebugLogMessage): void {
+      // Only log in development mode - double check for safety
+      if (!isDevMode()) return;
+
+      switch (debugLog.type) {
+        case 'llm-request':
+          if (debugLog.data) {
+            console.log('[LLM Request] Gemini API - Endpoint:', debugLog.data.endpoint);
+            console.log('[LLM Request] Request Body:', JSON.stringify(debugLog.data.requestBody, null, 2));
+          }
+          break;
+
+        case 'llm-response':
+          if (debugLog.data) {
+            console.log('[LLM Response] Raw Response:', JSON.stringify(debugLog.data.responseData, null, 2));
+            if (debugLog.data.parsedResponse) {
+              console.log('[LLM Response] Parsed Response:', JSON.stringify(debugLog.data.parsedResponse, null, 2));
+            }
+          }
+          break;
+
+        case 'llm-validation':
+          if (debugLog.data) {
+            console.log('[LLM Request] API Key Validation - Endpoint:', debugLog.data.endpoint);
+            console.log('[LLM Request] Test Request Body:', JSON.stringify(debugLog.data.requestBody, null, 2));
+            console.log('[LLM Response] API Key Validation - Status:', debugLog.data.status, debugLog.data.statusText);
+            console.log('[LLM Response] API Key Valid:', debugLog.data.valid);
+          }
+          break;
+
+        case 'log':
+          console.log(debugLog.message, ...(debugLog.data || []));
+          break;
+
+        case 'error':
+          console.error(debugLog.message, ...(debugLog.data || []));
+          break;
+
+        case 'warn':
+          console.warn(debugLog.message, ...(debugLog.data || []));
+          break;
+
+        default:
+          console.log('[Debug]', debugLog.message, debugLog.data);
       }
     }
 
@@ -68,6 +116,14 @@ export default defineContentScript({
           case MESSAGE_TYPES.SHOW_API_KEY_ERROR:
             // No need to initialize for error display
             uiManager.showApiKeyErrorBanner();
+            sendResponse({ success: true });
+            break;
+
+          case MESSAGE_TYPES.DEBUG_LOG:
+            // Handle debug log forwarding to page console (development mode only)
+            if (isDevMode()) {
+              handleDebugLog(request.data);
+            }
             sendResponse({ success: true });
             break;
 
