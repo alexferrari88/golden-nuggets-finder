@@ -6,9 +6,15 @@ const mockReadability = {
   parse: vi.fn()
 };
 
-vi.mock('@mozilla/readability', () => ({
-  Readability: vi.fn().mockImplementation(() => mockReadability)
-}));
+// Mock the global Readability class
+global.Readability = vi.fn().mockImplementation(() => mockReadability);
+
+// Mock chrome.runtime.getURL
+global.chrome = {
+  runtime: {
+    getURL: vi.fn().mockReturnValue('mocked-readability-url')
+  }
+} as any;
 
 describe('GenericExtractor', () => {
   let extractor: GenericExtractor;
@@ -17,6 +23,8 @@ describe('GenericExtractor', () => {
     extractor = new GenericExtractor();
     document.body.innerHTML = '';
     vi.clearAllMocks();
+    // Make sure window.Readability is available
+    window.Readability = global.Readability;
   });
 
   describe('extractContent with Readability.js', () => {

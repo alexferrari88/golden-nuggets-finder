@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { GeminiClient } from './gemini-client';
 import { mockChrome } from '../../tests/setup';
+import { storage } from '../shared/storage';
 
 describe('GeminiClient', () => {
   let geminiClient: GeminiClient;
@@ -9,6 +10,8 @@ describe('GeminiClient', () => {
     geminiClient = new GeminiClient();
     vi.clearAllMocks();
     global.fetch = vi.fn();
+    // Clear storage cache to ensure fresh state for each test
+    storage.clearAllCache();
   });
 
   describe('initializeClient', () => {
@@ -27,7 +30,7 @@ describe('GeminiClient', () => {
       mockChrome.storage.sync.get.mockResolvedValueOnce({});
 
       await expect(geminiClient['initializeClient']()).rejects.toThrow(
-        'Gemini API key not configured'
+        'Gemini API key not configured. Please set it in the options page.'
       );
     });
 
@@ -126,7 +129,7 @@ describe('GeminiClient', () => {
 
       await expect(
         geminiClient.analyzeContent('test content', 'test prompt')
-      ).rejects.toThrow('Gemini API key not configured');
+      ).rejects.toThrow('Gemini API key not configured. Please set it in the options page.');
     });
 
     it('should throw error on API error response', async () => {
