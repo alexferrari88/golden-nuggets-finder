@@ -246,35 +246,20 @@ export class GeminiClient {
         return false;
       }
 
-      // Test the API key with a simple request
-      const testRequestBody = {
-        contents: [{
-          parts: [{ text: "Test message" }]
-        }],
-        generationConfig: {
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: "object",
-            properties: {
-              test: {
-                type: "string"
-              }
-            },
-            required: ["test"]
-          }
+      // Test the API key with a GET request to list models (cheaper than generateContent)
+      const modelsUrl = `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(apiKey)}`;
+      
+      const response = await fetch(modelsUrl, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json'
         }
-      };
-
-      const response = await fetch(`${this.API_BASE_URL}/${GEMINI_CONFIG.MODEL}:generateContent`, {
-        method: 'POST',
-        headers: this.getSecureHeaders(apiKey),
-        body: JSON.stringify(testRequestBody)
       });
 
       // Log API key validation request/response in development mode
       debugLogger.logLLMValidation(
-        `${this.API_BASE_URL}/${GEMINI_CONFIG.MODEL}:generateContent`,
-        testRequestBody,
+        modelsUrl,
+        null, // No request body for GET
         response.status,
         response.statusText,
         response.ok
