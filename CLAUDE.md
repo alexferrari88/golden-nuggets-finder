@@ -64,42 +64,42 @@ The extension follows a standard Chrome extension architecture with three main c
    - **Popup** (`src/entrypoints/popup.tsx`): Quick access to prompt selection
    - **Options** (`src/entrypoints/options.tsx`): Configuration for API keys and prompt management
 
-### Key Components and Data Flow
+## Development Workflow
 
-#### Content Extraction System
-- **Base Extractor** (`src/content/extractors/base.ts`): Abstract interface
-- **Specialized Extractors**:
-  - `RedditExtractor`: Uses `[slot='text-body']` and `[slot='comment']` selectors
-  - `HackerNewsExtractor`: Uses `.toptext` and `.comment` selectors
-  - `GenericExtractor`: Uses Mozilla's Readability.js for article extraction
+### Making Changes
+1. Always check `@specs/spec.md` for requirements
+2. Run tests after changes: `pnpm test && pnpm test:e2e`
+3. Check build succeeds: `pnpm build`
+4. Test in browser with `pnpm dev`
 
-#### AI Integration
-- **Gemini Client** (`src/background/gemini-client.ts`): Handles API communication
-  - Uses REST API (not SDK due to WXT/Vite limitations)
-  - Implements structured JSON output with schema validation
-  - Features retry logic, caching, and error handling
-  - Optimizes content size and uses thinking budget configuration
+## File Structure and Detailed Documentation
 
-#### UI Management
-- **UI Manager** (`src/content/ui/ui-manager.ts`): Orchestrates all UI interactions
-- **Highlighter** (`src/content/ui/highlighter.ts`): Handles text highlighting on pages
-- **Sidebar** (`src/content/ui/sidebar.ts`): Displays results in right sidebar
-- **Notifications** (`src/content/ui/notifications.ts`): Shows progress and status banners
+### Main Directories
+- `src/entrypoints/` - WXT entry points (background, content, popup, options)
+- `src/content/` - Content script logic and UI components → See [src/content/CLAUDE.md](src/content/CLAUDE.md)
+- `src/background/` - Background script services → See [src/background/CLAUDE.md](src/background/CLAUDE.md)
+- `src/shared/` - Common utilities and types → See [src/shared/CLAUDE.md](src/shared/CLAUDE.md)
+- `tests/` - Testing files and fixtures → See [tests/CLAUDE.md](tests/CLAUDE.md)
+- `@specs/` - Project specifications (single source of truth)
 
-#### Storage and Configuration
-- **Storage Manager** (`src/shared/storage.ts`): Handles Chrome storage with caching
-- **Types** (`src/shared/types.ts`): TypeScript interfaces for all data structures
-- **Constants** (`src/shared/constants.ts`): Configuration values and defaults
+### Component-Specific Documentation
+For detailed information about specific components, refer to the CLAUDE.md files in each directory:
 
-#### Performance Monitoring
-- **Performance Monitor** (`src/shared/performance.ts`): Tracks timing and memory usage
-- Measures content extraction, API calls, and DOM operations
-- Provides insights for optimization
+- **Content Scripts**: [src/content/CLAUDE.md](src/content/CLAUDE.md) - Content extraction, UI management, site-specific behavior
+- **Background Scripts**: [src/background/CLAUDE.md](src/background/CLAUDE.md) - AI integration, API management, message passing
+- **Shared Utilities**: [src/shared/CLAUDE.md](src/shared/CLAUDE.md) - Storage, types, constants, performance monitoring
+- **Testing**: [tests/CLAUDE.md](tests/CLAUDE.md) - Testing strategy, E2E setup, fixtures
 
-### Data Models and APIs
+## Key Integration Points
 
-#### Golden Nugget Response Schema
-The extension expects Gemini API responses in this exact format:
+### Data Flow
+1. User triggers analysis via context menu or popup
+2. Background script receives request and injects content script
+3. Content script extracts page content using specialized extractors
+4. Background script sends content to Gemini API
+5. Results are displayed via content script UI components
+
+### Golden Nugget Response Schema
 ```json
 {
   "golden_nuggets": [
@@ -112,66 +112,6 @@ The extension expects Gemini API responses in this exact format:
 }
 ```
 
-#### Storage Structure
+### Storage Structure
 - `geminiApiKey`: User's Google Gemini API key
 - `userPrompts`: Array of saved prompt objects with names, content, and default status
-
-#### Message Passing
-Uses typed message system with `MESSAGE_TYPES` constants for communication between background and content scripts.
-
-## Development Workflow
-
-### Making Changes
-1. Always check `@specs/spec.md` for requirements
-2. Run tests after changes: `pnpm test && pnpm test:e2e`
-3. Check build succeeds: `pnpm build`
-4. Test in browser with `pnpm dev`
-
-### Testing Strategy
-- **Unit Tests**: Focus on individual components and utilities
-- **E2E Tests**: Test complete user workflows with real extension loading
-- **Coverage**: Excludes UI entry points but covers core logic
-- **Fixtures**: Use `tests/fixtures/` for test data and mocks
-
-### Extension Loading for Testing
-E2E tests load the extension from `./build/chrome-mv3-dev` directory. The Playwright config automatically configures Chrome with the extension loaded.
-
-## Important Notes
-
-### API Configuration
-- Google Gemini API uses `gemini-2.5-flash` model
-- Thinking enabled with `thinkingBudget: -1` (dynamic)
-- Structured output enforced via `responseSchema`
-- Content optimization limits requests to 30KB
-
-### Content Script Injection
-- Content scripts are injected dynamically only when needed
-- Uses `chrome.scripting.executeScript` with `content-injector.js`
-- Prevents unnecessary loading on all pages for performance
-
-### Site-Specific Behavior
-- **Reddit**: Uses shadow DOM selectors for modern Reddit
-- **Hacker News**: Uses CSS class selectors for comments
-- **Generic Sites**: Uses Readability.js for article extraction
-
-### Performance Considerations
-- Content extraction is measured and optimized
-- API responses are cached for 5 minutes
-- DOM operations are batched and measured
-- Memory usage is tracked during analysis
-
-### Error Handling
-- Robust retry logic for API calls with exponential backoff
-- User-friendly error messages for common issues
-- Graceful degradation when content extraction fails
-- Comprehensive logging for debugging
-
-## File Structure Notes
-
-- `src/entrypoints/` - WXT entry points (background, content, popup, options)
-- `src/content/` - Content script logic and UI components
-- `src/background/` - Background script services
-- `src/shared/` - Common utilities and types
-- `tests/e2e/` - End-to-end tests
-- `tests/fixtures/` - Test data and mocks
-- `@specs/` - Project specifications (single source of truth)
