@@ -20,6 +20,7 @@ export class Highlighter {
 
   scrollToHighlight(nugget: GoldenNugget): void {
     const element = this.getHighlightElement(nugget);
+    
     if (element) {
       element.scrollIntoView({ 
         behavior: 'smooth', 
@@ -37,7 +38,20 @@ export class Highlighter {
   }
 
   private getNuggetKey(nugget: GoldenNugget): string {
-    return `${nugget.type}_${nugget.content.slice(0, 50)}`;
+    // Create a more unique key using content hash and synthesis
+    const contentHash = this.simpleHash(nugget.content);
+    const synthesisHash = this.simpleHash(nugget.synthesis);
+    return `${nugget.type}_${contentHash}_${synthesisHash}`;
+  }
+
+  private simpleHash(str: string): string {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      const char = str.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // Convert to 32-bit integer
+    }
+    return Math.abs(hash).toString(36);
   }
 
   clearHighlights(): void {

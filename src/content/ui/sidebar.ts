@@ -553,44 +553,94 @@ export class Sidebar {
     
     const maxLength = 150;
     const isTruncated = item.nugget.content.length > maxLength;
-    const truncatedContent = isTruncated 
-      ? item.nugget.content.substring(0, maxLength)
-      : item.nugget.content;
     
-    contentPreview.textContent = truncatedContent;
-    
-    // Add truncation indicator and expand functionality
     if (isTruncated) {
-      const truncationIndicator = document.createElement('span');
-      truncationIndicator.textContent = '...';
-      truncationIndicator.style.cssText = `
+      // Create a container for the truncated content with fade effect
+      const contentContainer = document.createElement('div');
+      contentContainer.style.cssText = `
+        position: relative;
+        overflow: hidden;
+      `;
+      
+      const truncatedContent = item.nugget.content.substring(0, maxLength);
+      contentContainer.textContent = truncatedContent;
+      
+      // Add fade gradient overlay to make truncation obvious
+      const fadeOverlay = document.createElement('div');
+      fadeOverlay.style.cssText = `
+        position: absolute;
+        bottom: 0;
+        right: 0;
+        width: 40px;
+        height: 1.5em;
+        background: linear-gradient(to right, rgba(255,255,255,0), rgba(255,255,255,1));
+        pointer-events: none;
+      `;
+      
+      // Add prominent ellipsis with expand button
+      const ellipsisButton = document.createElement('span');
+      ellipsisButton.textContent = '… show more';
+      ellipsisButton.style.cssText = `
         color: #3b82f6;
         cursor: pointer;
         font-weight: 500;
+        font-size: 13px;
         margin-left: 4px;
+        padding: 2px 6px;
+        border-radius: 4px;
+        background: rgba(59, 130, 246, 0.08);
+        border: 1px solid rgba(59, 130, 246, 0.2);
+        transition: all 0.2s ease;
+        display: inline-block;
+        margin-top: 4px;
       `;
       
+      ellipsisButton.addEventListener('mouseenter', () => {
+        ellipsisButton.style.background = 'rgba(59, 130, 246, 0.12)';
+        ellipsisButton.style.borderColor = 'rgba(59, 130, 246, 0.3)';
+      });
+      
+      ellipsisButton.addEventListener('mouseleave', () => {
+        ellipsisButton.style.background = 'rgba(59, 130, 246, 0.08)';
+        ellipsisButton.style.borderColor = 'rgba(59, 130, 246, 0.2)';
+      });
+      
       let isExpanded = false;
-      truncationIndicator.addEventListener('click', (e) => {
+      ellipsisButton.addEventListener('click', (e) => {
         e.stopPropagation();
         isExpanded = !isExpanded;
         
         if (isExpanded) {
+          contentPreview.innerHTML = '';
           contentPreview.textContent = item.nugget.content;
-          truncationIndicator.textContent = ' Show less';
           contentPreview.style.maxHeight = 'none';
           contentPreview.style.overflow = 'visible';
-        } else {
-          contentPreview.textContent = truncatedContent;
-          truncationIndicator.textContent = '...';
-          contentPreview.style.maxHeight = '80px';
-          contentPreview.style.overflow = 'hidden';
+          
+          // Add collapse button
+          const collapseButton = document.createElement('span');
+          collapseButton.textContent = 'show less';
+          collapseButton.style.cssText = ellipsisButton.style.cssText;
+          
+          collapseButton.addEventListener('click', (e) => {
+            e.stopPropagation();
+            // Rebuild the truncated view
+            contentPreview.innerHTML = '';
+            contentPreview.appendChild(contentContainer);
+            contentPreview.style.maxHeight = '80px';
+            contentPreview.style.overflow = 'hidden';
+          });
+          
+          contentPreview.appendChild(document.createElement('br'));
+          contentPreview.appendChild(collapseButton);
         }
-        
-        contentPreview.appendChild(truncationIndicator);
       });
       
-      contentPreview.appendChild(truncationIndicator);
+      contentContainer.appendChild(fadeOverlay);
+      contentPreview.appendChild(contentContainer);
+      contentPreview.appendChild(document.createElement('br'));
+      contentPreview.appendChild(ellipsisButton);
+    } else {
+      contentPreview.textContent = item.nugget.content;
     }
     
     // Synthesis
