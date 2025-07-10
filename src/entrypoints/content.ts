@@ -65,6 +65,12 @@ export default defineContentScript({
             sendResponse({ success: true });
             break;
 
+          case MESSAGE_TYPES.SHOW_API_KEY_ERROR:
+            // No need to initialize for error display
+            uiManager.showApiKeyErrorBanner();
+            sendResponse({ success: true });
+            break;
+
           case 'PING':
             // Respond to ping messages for injection detection
             sendResponse({ success: true });

@@ -28,6 +28,10 @@ export class UIManager {
     this.notifications.showError(message);
   }
 
+  showApiKeyErrorBanner(): void {
+    this.notifications.showApiKeyError();
+  }
+
   showNoResultsBanner(): void {
     this.notifications.showInfo('✓ Analysis complete - Check the sidebar for details');
   }

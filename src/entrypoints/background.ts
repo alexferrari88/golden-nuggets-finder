@@ -73,12 +73,11 @@ export default defineBackground(() => {
       await injectContentScript(tab.id);
       
       if (!apiKey) {
-        // Show error message if API key is not configured
+        // Show API key error message with link to options page
         // Add a small delay to ensure content script is ready
         await new Promise(resolve => setTimeout(resolve, 100));
         await chrome.tabs.sendMessage(tab.id, {
-          type: MESSAGE_TYPES.SHOW_ERROR,
-          message: 'Gemini API key not configured. Please set it in the extension options.'
+          type: MESSAGE_TYPES.SHOW_API_KEY_ERROR
         });
         return;
       }
