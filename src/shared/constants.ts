@@ -15,7 +15,7 @@ export const SITE_SELECTORS = {
 } as const;
 
 export const UI_CONSTANTS = {
-  HIGHLIGHT_STYLE: 'background-color: rgba(255, 215, 0, 0.3);',
+  HIGHLIGHT_STYLE: 'background-color: rgba(59, 130, 246, 0.08); padding: 1px 2px; border-radius: 3px; border-bottom: 1px solid rgba(59, 130, 246, 0.2); box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.1);',
   SIDEBAR_WIDTH: '320px',
   NOTIFICATION_TIMEOUT: 5000,
   POPUP_Z_INDEX: 10000,

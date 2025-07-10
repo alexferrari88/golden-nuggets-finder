@@ -1,5 +1,6 @@
 import { SidebarNuggetItem } from '../../shared/types';
 import { UI_CONSTANTS } from '../../shared/constants';
+import { Highlighter } from './highlighter';
 
 export class Sidebar {
   private sidebar: HTMLElement | null = null;
@@ -8,13 +9,15 @@ export class Sidebar {
   private currentPage = 0;
   private allItems: SidebarNuggetItem[] = [];
   private isCollapsed = false;
+  private highlighter: Highlighter | null = null;
 
-  show(nuggetItems: SidebarNuggetItem[]): void {
+  show(nuggetItems: SidebarNuggetItem[], highlighter?: Highlighter): void {
     this.hide(); // Remove existing sidebar if any
     
     this.allItems = nuggetItems;
     this.currentPage = 0;
     this.isCollapsed = false;
+    this.highlighter = highlighter || null;
     this.sidebar = this.createSidebar();
     document.body.appendChild(this.sidebar);
     
@@ -466,12 +469,35 @@ export class Sidebar {
     nuggetDiv.style.cssText = `
       margin-bottom: 16px;
       padding: 20px;
-      border: 1px solid #e5e7eb;
+      border: 1px solid ${item.status === 'highlighted' ? '#3b82f6' : '#e5e7eb'};
       border-radius: 12px;
-      background: ${item.status === 'highlighted' ? '#fef3c7' : 'white'};
+      background: white;
       transition: all 0.2s;
       box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      cursor: ${item.status === 'highlighted' ? 'pointer' : 'default'};
+      position: relative;
     `;
+    
+    // Add click handler for highlighted nuggets
+    if (item.status === 'highlighted' && this.highlighter) {
+      nuggetDiv.addEventListener('click', () => {
+        this.highlighter?.scrollToHighlight(item.nugget);
+      });
+      
+      // Add visual indicator for clickable items
+      const clickIndicator = document.createElement('div');
+      clickIndicator.style.cssText = `
+        position: absolute;
+        top: 16px;
+        right: 16px;
+        width: 8px;
+        height: 8px;
+        background: #3b82f6;
+        border-radius: 50%;
+        opacity: 0.6;
+      `;
+      nuggetDiv.appendChild(clickIndicator);
+    }
     
     // Use DocumentFragment for efficient DOM construction
     const fragment = document.createDocumentFragment();
@@ -502,7 +528,7 @@ export class Sidebar {
     
     // Status indicator
     const statusIndicator = document.createElement('span');
-    statusIndicator.textContent = item.status === 'highlighted' ? '✓ Highlighted' : '⚠ Not found';
+    statusIndicator.textContent = item.status === 'highlighted' ? '✓ Click to locate' : '⚠ Not found';
     statusIndicator.style.cssText = `
       font-size: 12px;
       color: ${item.status === 'highlighted' ? '#10b981' : '#f59e0b'};
@@ -525,11 +551,47 @@ export class Sidebar {
       position: relative;
     `;
     
-    const truncatedContent = item.nugget.content.length > 150 
-      ? item.nugget.content.substring(0, 150) + '...'
+    const maxLength = 150;
+    const isTruncated = item.nugget.content.length > maxLength;
+    const truncatedContent = isTruncated 
+      ? item.nugget.content.substring(0, maxLength)
       : item.nugget.content;
     
     contentPreview.textContent = truncatedContent;
+    
+    // Add truncation indicator and expand functionality
+    if (isTruncated) {
+      const truncationIndicator = document.createElement('span');
+      truncationIndicator.textContent = '...';
+      truncationIndicator.style.cssText = `
+        color: #3b82f6;
+        cursor: pointer;
+        font-weight: 500;
+        margin-left: 4px;
+      `;
+      
+      let isExpanded = false;
+      truncationIndicator.addEventListener('click', (e) => {
+        e.stopPropagation();
+        isExpanded = !isExpanded;
+        
+        if (isExpanded) {
+          contentPreview.textContent = item.nugget.content;
+          truncationIndicator.textContent = ' Show less';
+          contentPreview.style.maxHeight = 'none';
+          contentPreview.style.overflow = 'visible';
+        } else {
+          contentPreview.textContent = truncatedContent;
+          truncationIndicator.textContent = '...';
+          contentPreview.style.maxHeight = '80px';
+          contentPreview.style.overflow = 'hidden';
+        }
+        
+        contentPreview.appendChild(truncationIndicator);
+      });
+      
+      contentPreview.appendChild(truncationIndicator);
+    }
     
     // Synthesis
     const synthesis = document.createElement('div');
@@ -552,13 +614,17 @@ export class Sidebar {
       hoverTimeout = setTimeout(() => {
         nuggetDiv.style.borderColor = '#3b82f6';
         nuggetDiv.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)';
+        if (item.status === 'highlighted') {
+          nuggetDiv.style.backgroundColor = '#f8fafc';
+        }
       }, 50);
     });
     
     nuggetDiv.addEventListener('mouseout', () => {
       clearTimeout(hoverTimeout);
-      nuggetDiv.style.borderColor = '#e5e7eb';
+      nuggetDiv.style.borderColor = item.status === 'highlighted' ? '#3b82f6' : '#e5e7eb';
       nuggetDiv.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.1)';
+      nuggetDiv.style.backgroundColor = 'white';
     });
     
     // Assemble the element
@@ -573,9 +639,11 @@ export class Sidebar {
     if (showSidebar) {
       // Add margin to prevent content from being hidden behind sidebar
       document.body.style.marginRight = UI_CONSTANTS.SIDEBAR_WIDTH;
+      document.body.style.transition = 'margin-right 0.3s ease';
     } else {
       // Remove margin
       document.body.style.marginRight = '';
+      document.body.style.transition = 'margin-right 0.3s ease';
     }
   }
 }

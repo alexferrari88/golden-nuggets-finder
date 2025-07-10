@@ -56,7 +56,7 @@ export class UIManager {
     performanceMonitor.logTimer('highlight_nuggets', `Highlighted ${nuggets.length} nuggets`);
 
     // Show sidebar with all nuggets
-    measureDOMOperation('show_sidebar', () => this.sidebar.show(sidebarItems));
+    measureDOMOperation('show_sidebar', () => this.sidebar.show(sidebarItems, this.highlighter));
     
     performanceMonitor.logTimer('display_results', 'Complete results display');
   }

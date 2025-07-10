@@ -39,8 +39,8 @@ describe('Highlighter', () => {
     });
 
     it('should not highlight if content not found', async () => {
-      const nugget = createMockNugget('missing content');
-      document.body.innerHTML = '<p>This is some other content</p>';
+      const nugget = createMockNugget('completely different words here');
+      document.body.innerHTML = '<p>This is some other text</p>';
 
       const result = await highlighter.highlightNugget(nugget);
       

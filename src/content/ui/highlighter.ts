@@ -6,10 +6,38 @@ export class Highlighter {
   private popups: HTMLElement[] = [];
   private textCache = new Map<string, string>();
   private searchCache = new Map<string, Element[]>();
+  private nuggetHighlightMap = new Map<string, HTMLElement>();
 
   async highlightNugget(nugget: GoldenNugget): Promise<boolean> {
     const found = this.findAndHighlightText(nugget);
     return found;
+  }
+
+  getHighlightElement(nugget: GoldenNugget): HTMLElement | null {
+    const key = this.getNuggetKey(nugget);
+    return this.nuggetHighlightMap.get(key) || null;
+  }
+
+  scrollToHighlight(nugget: GoldenNugget): void {
+    const element = this.getHighlightElement(nugget);
+    if (element) {
+      element.scrollIntoView({ 
+        behavior: 'smooth', 
+        block: 'center',
+        inline: 'nearest'
+      });
+      
+      // Add temporary glow effect
+      const originalBoxShadow = element.style.boxShadow;
+      element.style.boxShadow = '0 0 0 3px rgba(59, 130, 246, 0.5)';
+      setTimeout(() => {
+        element.style.boxShadow = originalBoxShadow;
+      }, 1500);
+    }
+  }
+
+  private getNuggetKey(nugget: GoldenNugget): string {
+    return `${nugget.type}_${nugget.content.slice(0, 50)}`;
   }
 
   clearHighlights(): void {
@@ -33,6 +61,7 @@ export class Highlighter {
     // Clear caches
     this.textCache.clear();
     this.searchCache.clear();
+    this.nuggetHighlightMap.clear();
   }
 
   private findAndHighlightText(nugget: GoldenNugget): boolean {
@@ -52,19 +81,8 @@ export class Highlighter {
       this.searchCache.set(cacheKey, textNodes);
     }
 
-    // Use more efficient text search
-    for (const textNode of textNodes) {
-      const text = textNode.textContent || '';
-      const normalizedText = this.normalizeText(text);
-      
-      // Use exact matching only for more precision
-      if (normalizedText.includes(normalizedContent)) {
-        this.highlightTextNode(textNode as Text, nugget);
-        return true; // Only highlight the first occurrence
-      }
-    }
-
-    return false;
+    // Try multiple matching strategies in order of preference
+    return this.tryMultipleMatchingStrategies(textNodes, nugget, normalizedContent);
   }
 
   private highlightTextNode(textNode: Text, nugget: GoldenNugget): void {
@@ -105,6 +123,10 @@ export class Highlighter {
     }
     
     this.highlights.push(highlightSpan);
+    
+    // Store highlight reference for scrolling
+    const key = this.getNuggetKey(nugget);
+    this.nuggetHighlightMap.set(key, highlightSpan);
   }
 
   private createClickableIndicator(nugget: GoldenNugget): HTMLElement {
@@ -295,14 +317,80 @@ export class Highlighter {
     return textNodes;
   }
   
-  private fuzzyMatch(text: string, pattern: string): boolean {
-    // Try exact substring match first
-    if (text.includes(pattern)) {
-      return true;
+  private tryMultipleMatchingStrategies(textNodes: Element[], nugget: GoldenNugget, normalizedContent: string): boolean {
+    const originalContent = nugget.content;
+    
+    // Strategy 1: Exact substring match (most precise)
+    for (const textNode of textNodes) {
+      const text = textNode.textContent || '';
+      const normalizedText = this.normalizeText(text);
+      
+      if (normalizedText.includes(normalizedContent)) {
+        this.highlightTextNode(textNode as Text, nugget);
+        return true;
+      }
     }
     
-    // For fuzzy matching, require higher similarity
-    const threshold = 0.9; // 90% similarity threshold
+    // Strategy 2: Key phrase matching (extract key phrases from content)
+    const keyPhrases = this.extractKeyPhrases(originalContent);
+    for (const phrase of keyPhrases) {
+      const normalizedPhrase = this.normalizeText(phrase);
+      if (normalizedPhrase.length > 8) { // Only try meaningful phrases
+        for (const textNode of textNodes) {
+          const text = textNode.textContent || '';
+          const normalizedText = this.normalizeText(text);
+          
+          if (normalizedText.includes(normalizedPhrase)) {
+            this.highlightTextNode(textNode as Text, nugget);
+            return true;
+          }
+        }
+      }
+    }
+    
+    // Strategy 3: Fuzzy word matching
+    for (const textNode of textNodes) {
+      const text = textNode.textContent || '';
+      const normalizedText = this.normalizeText(text);
+      
+      if (this.fuzzyMatch(normalizedText, normalizedContent)) {
+        this.highlightTextNode(textNode as Text, nugget);
+        return true;
+      }
+    }
+    
+    return false;
+  }
+
+  private extractKeyPhrases(content: string): string[] {
+    const phrases: string[] = [];
+    
+    // Extract quoted text
+    const quotedMatches = content.match(/["'`]([^"'`]+)["'`]/g);
+    if (quotedMatches) {
+      phrases.push(...quotedMatches.map(m => m.slice(1, -1)));
+    }
+    
+    // Extract sentences or clauses
+    const sentences = content.split(/[.!?;:]/).filter(s => s.trim().length > 10);
+    phrases.push(...sentences);
+    
+    // Extract meaningful phrases (5+ words)
+    const words = content.split(/\s+/);
+    for (let i = 0; i < words.length - 4; i++) {
+      const phrase = words.slice(i, i + 5).join(' ');
+      if (phrase.length > 20) {
+        phrases.push(phrase);
+      }
+    }
+    
+    // Sort by length descending to try longer phrases first
+    return phrases.sort((a, b) => b.length - a.length);
+  }
+
+  private fuzzyMatch(text: string, pattern: string): boolean {
+    // Improved fuzzy matching with multiple strategies
+    const threshold = 0.7; // Relaxed threshold
     const words = pattern.split(' ').filter(w => w.length > 2);
     const textWords = text.split(' ');
     
@@ -312,11 +400,52 @@ export class Highlighter {
     
     let matchCount = 0;
     for (const word of words) {
-      if (textWords.some(tw => tw.includes(word) || word.includes(tw))) {
+      // Check for exact word match, substring match, or similar words
+      if (textWords.some(tw => 
+        tw === word || 
+        tw.includes(word) || 
+        word.includes(tw) ||
+        this.similarity(tw, word) > 0.8
+      )) {
         matchCount++;
       }
     }
     
     return matchCount / words.length >= threshold;
+  }
+
+  private similarity(a: string, b: string): number {
+    // Simple similarity measure using Levenshtein distance
+    const matrix = [];
+    const n = a.length;
+    const m = b.length;
+    
+    if (n === 0) return m === 0 ? 1 : 0;
+    if (m === 0) return 0;
+    
+    for (let i = 0; i <= n; i++) {
+      matrix[i] = [i];
+    }
+    
+    for (let j = 0; j <= m; j++) {
+      matrix[0][j] = j;
+    }
+    
+    for (let i = 1; i <= n; i++) {
+      for (let j = 1; j <= m; j++) {
+        if (a[i - 1] === b[j - 1]) {
+          matrix[i][j] = matrix[i - 1][j - 1];
+        } else {
+          matrix[i][j] = Math.min(
+            matrix[i - 1][j] + 1,
+            matrix[i][j - 1] + 1,
+            matrix[i - 1][j - 1] + 1
+          );
+        }
+      }
+    }
+    
+    const distance = matrix[n][m];
+    return 1 - distance / Math.max(n, m);
   }
 }
