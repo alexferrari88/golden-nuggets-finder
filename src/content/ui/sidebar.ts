@@ -77,7 +77,7 @@ export class Sidebar {
       top: 20px;
       width: 50px;
       height: 50px;
-      background: #007bff;
+      background: #3b82f6;
       color: white;
       border: none;
       border-radius: 50%;
@@ -85,7 +85,7 @@ export class Sidebar {
       display: none;
       z-index: ${UI_CONSTANTS.SIDEBAR_Z_INDEX + 1};
       font-size: 20px;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
       transition: all 0.3s ease;
     `;
     
@@ -95,11 +95,11 @@ export class Sidebar {
     
     button.addEventListener('mouseover', () => {
       button.style.transform = 'scale(1.1)';
-      button.style.backgroundColor = '#0056b3';
+      button.style.backgroundColor = '#2563eb';
     });
     button.addEventListener('mouseout', () => {
       button.style.transform = 'scale(1)';
-      button.style.backgroundColor = '#007bff';
+      button.style.backgroundColor = '#3b82f6';
     });
     
     return button;
@@ -114,11 +114,11 @@ export class Sidebar {
       top: 0;
       width: ${UI_CONSTANTS.SIDEBAR_WIDTH};
       height: 100vh;
-      background: white;
-      border-left: 1px solid #ddd;
+      background: #f8fafc;
+      border-left: 1px solid #e5e7eb;
       overflow-y: auto;
       z-index: ${UI_CONSTANTS.SIDEBAR_Z_INDEX};
-      box-shadow: -2px 0 8px rgba(0,0,0,0.1);
+      box-shadow: -4px 0 6px -1px rgba(0, 0, 0, 0.1);
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       transition: transform 0.3s ease;
       transform: translateX(0);
@@ -138,9 +138,9 @@ export class Sidebar {
   private createOptimizedHeader(): HTMLElement {
     const header = document.createElement('div');
     header.style.cssText = `
-      padding: 20px;
-      border-bottom: 1px solid #eee;
-      background: #f8f9fa;
+      padding: 24px;
+      border-bottom: 1px solid #e5e7eb;
+      background: white;
       display: flex;
       justify-content: space-between;
       align-items: center;
@@ -148,14 +148,16 @@ export class Sidebar {
       position: sticky;
       top: 0;
       z-index: 1;
+      border-radius: 0;
     `;
     
     const title = document.createElement('h3');
     title.textContent = `Golden Nuggets (${this.allItems.length})`;
     title.style.cssText = `
       margin: 0;
-      font-size: 16px;
-      color: #333;
+      font-size: 18px;
+      color: #1f2937;
+      font-weight: 600;
     `;
     
     const closeBtn = document.createElement('button');
@@ -165,14 +167,15 @@ export class Sidebar {
       border: none;
       font-size: 20px;
       cursor: pointer;
-      padding: 4px;
-      width: 28px;
-      height: 28px;
+      padding: 8px;
+      width: 32px;
+      height: 32px;
       display: flex;
       align-items: center;
       justify-content: center;
-      border-radius: 4px;
+      border-radius: 8px;
       transition: background-color 0.2s;
+      color: #6b7280;
     `;
     
     // Debounced collapse handler
@@ -183,7 +186,7 @@ export class Sidebar {
     });
     
     closeBtn.addEventListener('mouseover', () => {
-      closeBtn.style.backgroundColor = '#e9ecef';
+      closeBtn.style.backgroundColor = '#f3f4f6';
     });
     closeBtn.addEventListener('mouseout', () => {
       closeBtn.style.backgroundColor = 'transparent';
@@ -199,16 +202,19 @@ export class Sidebar {
     const nuggetList = document.createElement('div');
     nuggetList.id = 'nugget-list-container';
     nuggetList.style.cssText = `
-      padding: 20px;
+      padding: 24px;
     `;
     
     if (this.allItems.length === 0) {
       const emptyState = document.createElement('div');
       emptyState.style.cssText = `
         text-align: center;
-        color: #666;
+        color: #6b7280;
         font-style: italic;
-        padding: 40px 20px;
+        padding: 48px 24px;
+        background: white;
+        border-radius: 12px;
+        border: 1px solid #e5e7eb;
       `;
       emptyState.textContent = 'No golden nuggets found.';
       nuggetList.appendChild(emptyState);
@@ -270,7 +276,7 @@ export class Sidebar {
     pageInfo.textContent = `Page ${this.currentPage + 1} of ${totalPages}`;
     pageInfo.style.cssText = `
       align-self: center;
-      color: #666;
+      color: #6b7280;
       font-size: 14px;
     `;
     paginationDiv.appendChild(pageInfo);
@@ -292,22 +298,23 @@ export class Sidebar {
     const button = document.createElement('button');
     button.textContent = text;
     button.style.cssText = `
-      background: #007bff;
+      background: #3b82f6;
       color: white;
       border: none;
       padding: 8px 16px;
-      border-radius: 4px;
+      border-radius: 8px;
       cursor: pointer;
       font-size: 14px;
       transition: background-color 0.2s;
+      font-weight: 500;
     `;
     
     button.addEventListener('click', onClick);
     button.addEventListener('mouseover', () => {
-      button.style.backgroundColor = '#0056b3';
+      button.style.backgroundColor = '#2563eb';
     });
     button.addEventListener('mouseout', () => {
-      button.style.backgroundColor = '#007bff';
+      button.style.backgroundColor = '#3b82f6';
     });
     
     return button;
@@ -325,12 +332,13 @@ export class Sidebar {
     const nuggetDiv = document.createElement('div');
     nuggetDiv.className = 'nugget-item';
     nuggetDiv.style.cssText = `
-      margin-bottom: 20px;
-      padding: 16px;
-      border: 1px solid #e9ecef;
-      border-radius: 8px;
-      background: ${item.status === 'highlighted' ? '#fff8dc' : '#f8f9fa'};
+      margin-bottom: 16px;
+      padding: 20px;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      background: ${item.status === 'highlighted' ? '#fef3c7' : 'white'};
       transition: all 0.2s;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     `;
     
     // Use DocumentFragment for efficient DOM construction
@@ -351,10 +359,10 @@ export class Sidebar {
     typeBadge.textContent = item.nugget.type;
     typeBadge.style.cssText = `
       display: inline-block;
-      background: #007bff;
+      background: #3b82f6;
       color: white;
       padding: 4px 8px;
-      border-radius: 4px;
+      border-radius: 6px;
       font-size: 12px;
       font-weight: 500;
       text-transform: uppercase;
@@ -365,7 +373,7 @@ export class Sidebar {
     statusIndicator.textContent = item.status === 'highlighted' ? '✓ Highlighted' : '⚠ Not found';
     statusIndicator.style.cssText = `
       font-size: 12px;
-      color: ${item.status === 'highlighted' ? '#28a745' : '#ffc107'};
+      color: ${item.status === 'highlighted' ? '#10b981' : '#f59e0b'};
       font-weight: 500;
     `;
     
@@ -378,8 +386,8 @@ export class Sidebar {
     contentPreview.style.cssText = `
       margin-bottom: 12px;
       font-size: 14px;
-      line-height: 1.4;
-      color: #495057;
+      line-height: 1.5;
+      color: #374151;
       max-height: 80px;
       overflow: hidden;
       position: relative;
@@ -396,10 +404,10 @@ export class Sidebar {
     synthesis.className = 'nugget-synthesis';
     synthesis.style.cssText = `
       font-size: 13px;
-      line-height: 1.4;
-      color: #6c757d;
+      line-height: 1.5;
+      color: #6b7280;
       font-style: italic;
-      border-left: 3px solid #007bff;
+      border-left: 3px solid #3b82f6;
       padding-left: 12px;
       margin-top: 8px;
     `;
@@ -410,15 +418,15 @@ export class Sidebar {
     nuggetDiv.addEventListener('mouseover', () => {
       clearTimeout(hoverTimeout);
       hoverTimeout = setTimeout(() => {
-        nuggetDiv.style.borderColor = '#007bff';
-        nuggetDiv.style.boxShadow = '0 2px 8px rgba(0,123,255,0.1)';
+        nuggetDiv.style.borderColor = '#3b82f6';
+        nuggetDiv.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)';
       }, 50);
     });
     
     nuggetDiv.addEventListener('mouseout', () => {
       clearTimeout(hoverTimeout);
-      nuggetDiv.style.borderColor = '#e9ecef';
-      nuggetDiv.style.boxShadow = 'none';
+      nuggetDiv.style.borderColor = '#e5e7eb';
+      nuggetDiv.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.1)';
     });
     
     // Assemble the element
