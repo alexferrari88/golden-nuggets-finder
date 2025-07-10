@@ -3,17 +3,24 @@ import { UI_CONSTANTS } from '../../shared/constants';
 
 export class Sidebar {
   private sidebar: HTMLElement | null = null;
+  private toggleButton: HTMLElement | null = null;
   private itemsPerPage = 20;
   private currentPage = 0;
   private allItems: SidebarNuggetItem[] = [];
+  private isCollapsed = false;
 
   show(nuggetItems: SidebarNuggetItem[]): void {
     this.hide(); // Remove existing sidebar if any
     
     this.allItems = nuggetItems;
     this.currentPage = 0;
+    this.isCollapsed = false;
     this.sidebar = this.createSidebar();
     document.body.appendChild(this.sidebar);
+    
+    // Create toggle button
+    this.toggleButton = this.createToggleButton();
+    document.body.appendChild(this.toggleButton);
     
     // Adjust page margin to account for sidebar
     this.adjustPageLayout(true);
@@ -25,6 +32,77 @@ export class Sidebar {
       this.sidebar = null;
       this.adjustPageLayout(false);
     }
+    if (this.toggleButton) {
+      this.toggleButton.remove();
+      this.toggleButton = null;
+    }
+  }
+
+  collapse(): void {
+    if (this.sidebar && !this.isCollapsed) {
+      this.isCollapsed = true;
+      this.sidebar.style.transform = 'translateX(100%)';
+      this.adjustPageLayout(false);
+      this.showToggleButton();
+    }
+  }
+
+  expand(): void {
+    if (this.sidebar && this.isCollapsed) {
+      this.isCollapsed = false;
+      this.sidebar.style.transform = 'translateX(0)';
+      this.adjustPageLayout(true);
+      this.hideToggleButton();
+    }
+  }
+
+  private showToggleButton(): void {
+    if (this.toggleButton) {
+      this.toggleButton.style.display = 'block';
+    }
+  }
+
+  private hideToggleButton(): void {
+    if (this.toggleButton) {
+      this.toggleButton.style.display = 'none';
+    }
+  }
+
+  private createToggleButton(): HTMLElement {
+    const button = document.createElement('button');
+    button.innerHTML = '📋';
+    button.style.cssText = `
+      position: fixed;
+      right: 20px;
+      top: 20px;
+      width: 50px;
+      height: 50px;
+      background: #007bff;
+      color: white;
+      border: none;
+      border-radius: 50%;
+      cursor: pointer;
+      display: none;
+      z-index: ${UI_CONSTANTS.SIDEBAR_Z_INDEX + 1};
+      font-size: 20px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+      transition: all 0.3s ease;
+    `;
+    
+    button.addEventListener('click', () => {
+      this.expand();
+    });
+    
+    button.addEventListener('mouseover', () => {
+      button.style.transform = 'scale(1.1)';
+      button.style.backgroundColor = '#0056b3';
+    });
+    button.addEventListener('mouseout', () => {
+      button.style.transform = 'scale(1)';
+      button.style.backgroundColor = '#007bff';
+    });
+    
+    return button;
   }
 
   private createSidebar(): HTMLElement {
@@ -42,6 +120,8 @@ export class Sidebar {
       z-index: ${UI_CONSTANTS.SIDEBAR_Z_INDEX};
       box-shadow: -2px 0 8px rgba(0,0,0,0.1);
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      transition: transform 0.3s ease;
+      transform: translateX(0);
     `;
     
     // Create header with performance optimizations
@@ -95,11 +175,11 @@ export class Sidebar {
       transition: background-color 0.2s;
     `;
     
-    // Debounced close handler
-    let closeTimeout: NodeJS.Timeout;
+    // Debounced collapse handler
+    let collapseTimeout: NodeJS.Timeout;
     closeBtn.addEventListener('click', () => {
-      clearTimeout(closeTimeout);
-      closeTimeout = setTimeout(() => this.hide(), 100);
+      clearTimeout(collapseTimeout);
+      collapseTimeout = setTimeout(() => this.collapse(), 100);
     });
     
     closeBtn.addEventListener('mouseover', () => {

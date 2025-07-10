@@ -101,8 +101,9 @@ The project is to create a Chrome extension that acts as an intelligent informat
         *   **For discussion threads (HN/Reddit):** A small, clickable tag (e.g., `[tool]`) is injected into the comment's metadata area. Clicking it opens a popup with the `synthesis`.
         *   **For generic pages:** A small, clickable icon (e.g., ✨) is placed at the end of the highlighted text. Clicking this icon opens a popup with the `synthesis`.
 *   **Results Sidebar:**
-    *   **Behavior:** The sidebar will **always** appear on the right side of the screen after an analysis is complete.
+    *   **Behavior:** The sidebar will **always** appear on the right side of the screen after an analysis is complete. The sidebar is **collapsible** - users can hide it by clicking the close button, and it will slide out of view while keeping the results in memory. A floating toggle button will appear when the sidebar is collapsed, allowing users to expand it again at any time.
     *   **Content:** It will display a **complete master list** of all golden nuggets found by the LLM. Each item in the list will show the nugget's `content` and `type`, and indicate its status (e.g., "Highlighted on page" or "Could not be located"). The full `synthesis` for each nugget will be readable within this sidebar.
+    *   **Collapsible Functionality:** When collapsed, the sidebar slides off-screen with a smooth animation and the page layout adjusts to reclaim the space. A floating toggle button (📋) appears in the top-right corner to allow users to expand the sidebar again. The sidebar maintains all nugget data while collapsed.
 *   **Options Page UI:**
     *   **Prompt Management:** Will feature a simple list of all saved prompts. Each prompt in the list will have distinct buttons next to it for "Edit," "Delete," and a star icon (★) to "Set as Default." An "Add New Prompt" button will be present to create new prompts.
 

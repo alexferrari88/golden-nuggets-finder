@@ -62,6 +62,14 @@ export class UIManager {
     this.sidebar.hide();
   }
 
+  collapseSidebar(): void {
+    this.sidebar.collapse();
+  }
+
+  expandSidebar(): void {
+    this.sidebar.expand();
+  }
+
   cleanup(): void {
     this.clearResults();
     this.notifications.cleanup();
