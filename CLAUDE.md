@@ -9,6 +9,31 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Whenever you have unsolvable doubts or questions, stop everything and ask me.
 - Commit using conventional commit at the end of important work.
 
+## ⚠️ CRITICAL WARNINGS - DO NOT IGNORE
+
+### NEVER Change Content Script Matches to `<all_urls>`
+
+**ABSOLUTELY NEVER** change the content script matches from `['https://example.com/*']` to `['<all_urls>']` or any broad pattern.
+
+**Why this is critical:**
+- Changing to `<all_urls>` causes Chrome to **reload every single open tab** when the extension is loaded/reloaded
+- This creates terrible UX and users will be extremely frustrated
+- The extension is designed to use **dynamic injection** via `chrome.scripting.executeScript()`
+- Content scripts should only be injected when explicitly needed via context menu actions
+
+**Current Architecture (DO NOT CHANGE):**
+- Content script matches: `['https://example.com/*']` (restrictive pattern)
+- Dynamic injection: Background script injects `content-scripts/content.js` on demand
+- Error handling: Content script handles error messages even when dynamically injected
+
+**If you need content scripts on different sites:**
+- Use the existing dynamic injection system in `background.ts`
+- Inject `content-scripts/content.js` using `chrome.scripting.executeScript()`
+- Add proper timing delays and verification for injection
+- Never change the matches pattern to be broader
+
+**This warning exists because this mistake was made and caused significant UX problems.** The extension works perfectly with dynamic injection - do not try to "fix" it by changing the matches pattern.
+
 ## Common Development Commands
 
 ### Development and Build

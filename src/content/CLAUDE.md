@@ -2,6 +2,26 @@
 
 This document covers the content script architecture, extraction system, and UI management for the Golden Nugget Finder extension.
 
+## ⚠️ CRITICAL WARNING - Content Script Matches
+
+**NEVER change the content script matches pattern to `<all_urls>` or any broad pattern.**
+
+The content script in `src/entrypoints/content.ts` is configured with:
+```typescript
+matches: ['https://example.com/*'] // Restrictive pattern - DO NOT CHANGE
+```
+
+**Why this restriction exists:**
+- Changing to `<all_urls>` causes Chrome to reload every open tab when the extension loads
+- This creates terrible UX and user frustration
+- The extension uses dynamic injection via `chrome.scripting.executeScript()` instead
+- Content scripts are injected only when needed via context menu actions
+
+**The correct approach:**
+- Keep the restrictive matches pattern
+- Use dynamic injection in `background.ts` to inject content scripts on demand
+- Inject `content-scripts/content.js` using `chrome.scripting.executeScript()`
+
 ## Content Script Overview
 
 Content scripts are injected dynamically only when needed (not on all pages) and handle:

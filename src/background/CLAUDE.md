@@ -54,15 +54,28 @@ Uses typed message system with `MESSAGE_TYPES` constants for communication betwe
 
 ## Content Script Injection
 
-### Dynamic Injection Strategy
+### ⚠️ CRITICAL: Dynamic Injection Strategy
+
+**The extension uses dynamic injection to avoid tab reloads. DO NOT change the content script matches pattern.**
+
 - Content scripts are injected dynamically only when needed
-- Uses `chrome.scripting.executeScript` with `content-injector.js`
+- Uses `chrome.scripting.executeScript` with `content-scripts/content.js`
 - Prevents unnecessary loading on all pages for performance
+- **Never change content script matches to `<all_urls>` - this causes all tabs to reload**
 
 ### Injection Triggers
 - Context menu interactions
 - Extension popup actions
 - Programmatic analysis requests
+
+### Injection Implementation
+```typescript
+// Correct approach - inject built content script file
+await chrome.scripting.executeScript({
+  target: { tabId },
+  files: ['content-scripts/content.js']
+});
+```
 
 ## Context Menu Management
 
