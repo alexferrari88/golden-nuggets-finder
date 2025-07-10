@@ -95,26 +95,31 @@ export default defineBackground(() => {
 
   async function injectContentScript(tabId: number): Promise<void> {
     try {
-      // Check if content script is already available by trying to send a test message
+      // Check if content script is already injected by trying to send a test message
       const testResponse = await chrome.tabs.sendMessage(tabId, { type: 'PING' }).catch(() => null);
       
       if (testResponse) {
-        // Content script already exists and is responding
+        // Content script already exists
         return;
       }
 
-      // Content script should be automatically injected due to <all_urls> match
-      // If not responding, give it a moment to initialize
-      await new Promise(resolve => setTimeout(resolve, 50));
+      // Inject the content script dynamically using the built file
+      await chrome.scripting.executeScript({
+        target: { tabId },
+        files: ['content-scripts/content.js']
+      });
+
+      // Give the content script a moment to initialize
+      await new Promise(resolve => setTimeout(resolve, 100));
       
-      // Try again to see if it's ready now
-      const retryResponse = await chrome.tabs.sendMessage(tabId, { type: 'PING' }).catch(() => null);
+      // Verify injection worked
+      const verifyResponse = await chrome.tabs.sendMessage(tabId, { type: 'PING' }).catch(() => null);
       
-      if (!retryResponse) {
-        throw new Error('Content script not available on this page');
+      if (!verifyResponse) {
+        throw new Error('Content script failed to inject properly');
       }
     } catch (error) {
-      console.error('Failed to ensure content script is ready:', error);
+      console.error('Failed to inject content script:', error);
       throw error;
     }
   }

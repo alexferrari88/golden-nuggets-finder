@@ -7,7 +7,7 @@ import { UIManager } from '../content/ui/ui-manager';
 import { performanceMonitor, measureContentExtraction, measureDOMOperation } from '../shared/performance';
 
 export default defineContentScript({
-  matches: ['<all_urls>'], // Allow dynamic injection on all URLs
+  matches: ['https://example.com/*'], // Restrictive match to prevent auto-injection
   runAt: 'document_idle',
   main() {
     // Only initialize when explicitly activated to avoid auto-running on all pages
@@ -142,6 +142,7 @@ export default defineContentScript({
       });
     }
 
-    // Content script is now initialized on-demand when messages are received
+    // Content script is ready for dynamic injection and message handling
+    // Initialization happens on-demand when messages are received
   }
 });
