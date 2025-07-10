@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import ReactDOM from "react-dom/client";
 import { storage } from "../shared/storage";
 import { SavedPrompt, MESSAGE_TYPES } from "../shared/types";
+import { colors, typography, spacing, borderRadius, shadows, components } from "../shared/design-system";
 
 function IndexPopup() {
   const [prompts, setPrompts] = useState<SavedPrompt[]>([]);
@@ -20,7 +21,7 @@ function IndexPopup() {
       setNoApiKey(false);
 
       // Check if API key is configured
-      const apiKey = await storage.getApiKey();
+      const apiKey = await storage.getApiKey({ source: 'popup', action: 'read', timestamp: Date.now() });
       if (!apiKey) {
         setNoApiKey(true);
         setLoading(false);
@@ -100,22 +101,41 @@ function IndexPopup() {
 
   if (loading) {
     return (
-      <div style={{ width: '300px', padding: '20px', textAlign: 'center' }}>
-        <div style={{ color: '#6c757d' }}>Loading prompts...</div>
+      <div style={{ 
+        width: '320px', 
+        padding: spacing['2xl'], 
+        textAlign: 'center',
+        fontFamily: typography.fontFamily.sans,
+        backgroundColor: colors.background.primary
+      }}>
+        <div style={{ 
+          color: colors.text.tertiary,
+          fontSize: typography.fontSize.sm,
+          fontWeight: typography.fontWeight.medium
+        }}>
+          Loading prompts...
+        </div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div style={{ width: '300px', padding: '20px' }}>
+      <div style={{ 
+        width: '320px', 
+        padding: spacing['2xl'],
+        fontFamily: typography.fontFamily.sans,
+        backgroundColor: colors.background.primary
+      }}>
         <div style={{ 
           textAlign: 'center', 
-          color: '#dc3545',
-          background: '#f8d7da',
-          border: '1px solid #f5c6cb',
-          borderRadius: '4px',
-          padding: '20px'
+          color: colors.accent.red,
+          backgroundColor: colors.accent.redLight,
+          border: `1px solid ${colors.accent.red}33`,
+          borderRadius: borderRadius.md,
+          padding: spacing['2xl'],
+          fontSize: typography.fontSize.sm,
+          fontWeight: typography.fontWeight.medium
         }}>
           {error}
         </div>
@@ -125,24 +145,33 @@ function IndexPopup() {
 
   if (noApiKey) {
     return (
-      <div style={{ width: '300px', padding: '20px' }}>
+      <div style={{ 
+        width: '320px', 
+        padding: spacing['2xl'],
+        fontFamily: typography.fontFamily.sans,
+        backgroundColor: colors.background.primary
+      }}>
         <div style={{ 
           textAlign: 'center', 
-          color: '#856404',
-          background: '#fff3cd',
-          border: '1px solid #ffeaa7',
-          borderRadius: '4px',
-          padding: '20px'
+          color: colors.text.primary,
+          backgroundColor: colors.accent.amberLight,
+          border: `1px solid ${colors.accent.amber}33`,
+          borderRadius: borderRadius.md,
+          padding: spacing['2xl'],
+          fontSize: typography.fontSize.sm,
+          fontWeight: typography.fontWeight.medium,
+          lineHeight: typography.lineHeight.normal
         }}>
           Please set your Gemini API key in the{' '}
           <button 
             onClick={openOptionsPage}
             style={{
-              background: 'none',
-              border: 'none',
-              color: '#007bff',
+              ...components.button.ghost,
+              padding: '0',
+              color: colors.text.accent,
               textDecoration: 'underline',
-              cursor: 'pointer'
+              fontSize: 'inherit',
+              fontWeight: 'inherit'
             }}
           >
             options page
@@ -154,42 +183,89 @@ function IndexPopup() {
   }
 
   return (
-    <div style={{ width: '300px', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
+    <div style={{ 
+      width: '320px', 
+      fontFamily: typography.fontFamily.sans,
+      backgroundColor: colors.background.primary,
+      borderRadius: borderRadius.lg,
+      overflow: 'hidden',
+      boxShadow: shadows.lg
+    }}>
       <div style={{ 
-        background: '#007bff', 
-        color: 'white', 
-        padding: '16px', 
-        textAlign: 'center' 
+        backgroundColor: colors.background.primary,
+        color: colors.text.primary,
+        padding: spacing['2xl'],
+        textAlign: 'center',
+        borderBottom: `1px solid ${colors.border.light}`
       }}>
-        <h1 style={{ margin: 0, fontSize: '16px', fontWeight: 600 }}>
+        <h1 style={{ 
+          margin: 0, 
+          fontSize: typography.fontSize.lg,
+          fontWeight: typography.fontWeight.semibold,
+          color: colors.text.primary
+        }}>
           Golden Nugget Finder
         </h1>
       </div>
       
-      <div style={{ padding: '16px', background: 'white' }}>
-        <div style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+      <div style={{ 
+        padding: spacing['2xl'],
+        backgroundColor: colors.background.primary
+      }}>
+        <div style={{ 
+          listStyle: 'none', 
+          padding: 0, 
+          margin: 0,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: spacing.sm
+        }}>
           {prompts.map(prompt => (
             <div 
               key={prompt.id}
               onClick={() => analyzeWithPrompt(prompt.id)}
               style={{
-                padding: '12px',
-                marginBottom: '8px',
-                background: prompt.isDefault ? '#fff3cd' : '#f8f9fa',
-                border: prompt.isDefault ? '1px solid #ffc107' : '1px solid #e9ecef',
-                borderRadius: '6px',
+                padding: spacing.lg,
+                backgroundColor: prompt.isDefault ? colors.accent.blueLight : colors.background.secondary,
+                border: `1px solid ${prompt.isDefault ? colors.accent.blue + '33' : colors.border.light}`,
+                borderRadius: borderRadius.md,
                 cursor: 'pointer',
-                transition: 'all 0.2s',
+                transition: 'all 0.2s ease',
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'space-between'
+                justifyContent: 'space-between',
+                fontSize: typography.fontSize.sm,
+                fontWeight: typography.fontWeight.medium,
+                color: colors.text.primary
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = prompt.isDefault ? colors.accent.blueLight : colors.background.tertiary;
+                e.currentTarget.style.borderColor = colors.border.medium;
+                e.currentTarget.style.boxShadow = shadows.sm;
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = prompt.isDefault ? colors.accent.blueLight : colors.background.secondary;
+                e.currentTarget.style.borderColor = prompt.isDefault ? colors.accent.blue + '33' : colors.border.light;
+                e.currentTarget.style.boxShadow = 'none';
               }}
             >
-              <span style={{ fontWeight: 500, color: '#495057' }}>
+              <span style={{ 
+                fontWeight: typography.fontWeight.medium,
+                color: colors.text.primary
+              }}>
                 {prompt.name}
               </span>
               {prompt.isDefault && (
-                <span style={{ color: '#ffc107', fontSize: '16px' }}>★</span>
+                <span style={{ 
+                  backgroundColor: colors.accent.blue,
+                  color: colors.background.primary,
+                  padding: `${spacing.xs} ${spacing.sm}`,
+                  borderRadius: borderRadius.sm,
+                  fontSize: typography.fontSize.xs,
+                  fontWeight: typography.fontWeight.medium
+                }}>
+                  ★
+                </span>
               )}
             </div>
           ))}
@@ -197,20 +273,18 @@ function IndexPopup() {
       </div>
       
       <div style={{ 
-        padding: '16px', 
-        background: '#f8f9fa', 
-        borderTop: '1px solid #e9ecef',
+        padding: spacing['2xl'],
+        backgroundColor: colors.background.secondary,
+        borderTop: `1px solid ${colors.border.light}`,
         textAlign: 'center'
       }}>
         <button 
           onClick={openOptionsPage}
           style={{
-            background: 'none',
-            border: 'none',
-            color: '#007bff',
-            textDecoration: 'none',
-            fontSize: '13px',
-            cursor: 'pointer'
+            ...components.button.ghost,
+            color: colors.text.accent,
+            fontSize: typography.fontSize.sm,
+            fontWeight: typography.fontWeight.medium
           }}
         >
           Manage Prompts & Settings
