@@ -6,7 +6,6 @@ export class Highlighter {
   private popups: HTMLElement[] = [];
   private textCache = new Map<string, string>();
   private searchCache = new Map<string, Element[]>();
-  private nuggetHighlightMap = new Map<string, HTMLElement>();
 
   async highlightNugget(nugget: GoldenNugget): Promise<boolean> {
     const found = this.findAndHighlightText(nugget);
@@ -14,8 +13,8 @@ export class Highlighter {
   }
 
   getHighlightElement(nugget: GoldenNugget): HTMLElement | null {
-    const key = this.getNuggetKey(nugget);
-    return this.nuggetHighlightMap.get(key) || null;
+    // Use the same matching strategy as highlighting to find the existing highlight
+    return this.findExistingHighlight(nugget);
   }
 
   scrollToHighlight(nugget: GoldenNugget): void {
@@ -37,22 +36,55 @@ export class Highlighter {
     }
   }
 
-  private getNuggetKey(nugget: GoldenNugget): string {
-    // Create a more unique key using content hash and synthesis
-    const contentHash = this.simpleHash(nugget.content);
-    const synthesisHash = this.simpleHash(nugget.synthesis);
-    return `${nugget.type}_${contentHash}_${synthesisHash}`;
+  private findExistingHighlight(nugget: GoldenNugget): HTMLElement | null {
+    // Get all existing highlight elements
+    const existingHighlights = document.querySelectorAll('.nugget-highlight');
+    
+    if (existingHighlights.length === 0) {
+      return null;
+    }
+    
+    const normalizedContent = this.normalizeText(nugget.content);
+    
+    // Strategy 1: Try to find highlight by exact content match
+    for (const highlight of existingHighlights) {
+      const highlightText = highlight.textContent || '';
+      const normalizedHighlight = this.normalizeText(highlightText);
+      
+      if (normalizedHighlight.includes(normalizedContent) || normalizedContent.includes(normalizedHighlight)) {
+        return highlight as HTMLElement;
+      }
+    }
+    
+    // Strategy 2: Try to find by key phrases
+    const keyPhrases = this.extractKeyPhrases(nugget.content);
+    for (const phrase of keyPhrases) {
+      const normalizedPhrase = this.normalizeText(phrase);
+      if (normalizedPhrase.length > 8) {
+        for (const highlight of existingHighlights) {
+          const highlightText = highlight.textContent || '';
+          const normalizedHighlight = this.normalizeText(highlightText);
+          
+          if (normalizedHighlight.includes(normalizedPhrase) || normalizedPhrase.includes(normalizedHighlight)) {
+            return highlight as HTMLElement;
+          }
+        }
+      }
+    }
+    
+    // Strategy 3: Try fuzzy matching
+    for (const highlight of existingHighlights) {
+      const highlightText = highlight.textContent || '';
+      const normalizedHighlight = this.normalizeText(highlightText);
+      
+      if (this.fuzzyMatch(normalizedHighlight, normalizedContent) || this.fuzzyMatch(normalizedContent, normalizedHighlight)) {
+        return highlight as HTMLElement;
+      }
+    }
+    
+    return null;
   }
 
-  private simpleHash(str: string): string {
-    let hash = 0;
-    for (let i = 0; i < str.length; i++) {
-      const char = str.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
-      hash = hash & hash; // Convert to 32-bit integer
-    }
-    return Math.abs(hash).toString(36);
-  }
 
   clearHighlights(): void {
     // Use DocumentFragment for batch DOM operations
@@ -75,7 +107,6 @@ export class Highlighter {
     // Clear caches
     this.textCache.clear();
     this.searchCache.clear();
-    this.nuggetHighlightMap.clear();
   }
 
   private findAndHighlightText(nugget: GoldenNugget): boolean {
@@ -137,10 +168,6 @@ export class Highlighter {
     }
     
     this.highlights.push(highlightSpan);
-    
-    // Store highlight reference for scrolling
-    const key = this.getNuggetKey(nugget);
-    this.nuggetHighlightMap.set(key, highlightSpan);
   }
 
   private createClickableIndicator(nugget: GoldenNugget): HTMLElement {
