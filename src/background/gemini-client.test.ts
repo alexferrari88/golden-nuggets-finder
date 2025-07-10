@@ -113,7 +113,7 @@ describe('GeminiClient', () => {
             'Content-Type': 'application/json',
             'x-goog-api-key': 'test-api-key'
           },
-          body: expect.stringContaining('test content\\n\\ntest prompt')
+          body: expect.stringMatching(/"system_instruction":{"parts":\[{"text":"test prompt"}\]}.*"contents":\[{"parts":\[{"text":"test content"}\]}\]/)
         })
       );
     });

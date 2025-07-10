@@ -56,14 +56,14 @@ export class GeminiClient {
       return cachedResponse;
     }
 
-    // Construct prompt with user query at the end for optimal performance
-    const fullPrompt = `${optimizedContent}\n\n${userPrompt}`;
-
     return this.retryRequest(async () => {
       return measureAPICall('gemini_generate_content', async () => {
         const requestBody = {
+          system_instruction: {
+            parts: [{ text: userPrompt }]
+          },
           contents: [{
-            parts: [{ text: fullPrompt }]
+            parts: [{ text: optimizedContent }]
           }],
           generationConfig: {
             responseMimeType: "application/json",
