@@ -327,14 +327,28 @@ export class Sidebar {
       const emptyState = document.createElement('div');
       emptyState.style.cssText = `
         text-align: center;
-        color: #6b7280;
-        font-style: italic;
         padding: 48px 24px;
         background: white;
         border-radius: 12px;
         border: 1px solid #e5e7eb;
       `;
-      emptyState.textContent = 'No golden nuggets found.';
+      
+      // Create content with icon, heading, and helpful text
+      emptyState.innerHTML = `
+        <div style="font-size: 48px; margin-bottom: 16px; opacity: 0.6;">🔍</div>
+        <h3 style="margin: 0 0 12px 0; font-size: 18px; font-weight: 600; color: #374151;">
+          No Golden Nuggets Found
+        </h3>
+        <p style="margin: 0 0 16px 0; color: #6b7280; font-size: 14px; line-height: 1.5;">
+          The AI analyzed this page but didn't find any valuable insights, tools, or explanations that match your interests.
+        </p>
+        <div style="font-size: 13px; color: #9ca3af; line-height: 1.4;">
+          <strong>Try:</strong><br>
+          • Using a different prompt or persona<br>
+          • Analyzing a different section of the page<br>
+          • Visiting content with more detailed information
+        </div>
+      `;
       nuggetList.appendChild(emptyState);
     } else {
       this.renderCurrentPage(nuggetList);

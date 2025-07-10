@@ -29,7 +29,7 @@ export class UIManager {
   }
 
   showNoResultsBanner(): void {
-    this.notifications.showInfo('Analysis complete. No golden nuggets were found.');
+    this.notifications.showInfo('✓ Analysis complete - Check the sidebar for details');
   }
 
   async displayResults(nuggets: GoldenNugget[]): Promise<void> {

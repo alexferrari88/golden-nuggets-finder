@@ -108,6 +108,8 @@ export default defineContentScript({
       
       if (nuggets.length === 0) {
         uiManager.showNoResultsBanner();
+        // Still show sidebar with empty state for better UX
+        await uiManager.displayResults([]);
         return;
       }
 

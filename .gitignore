@@ -118,3 +118,10 @@ temp/
 # Extension specific
 *.pem
 *.crx
+
+# Test artifacts
+test-results/
+playwright-report/
+*.png
+*.jpeg
+*.jpg
