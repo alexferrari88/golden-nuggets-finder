@@ -17,7 +17,15 @@ export class GeminiClient {
   private async initializeClient(): Promise<void> {
     if (this.apiKey) return;
 
-    this.apiKey = await storage.getApiKey({ source: 'background', action: 'read', timestamp: Date.now() });
+    try {
+      this.apiKey = await storage.getApiKey({ source: 'background', action: 'read', timestamp: Date.now() });
+    } catch (apiKeyError) {
+      if (isDevMode()) {
+        console.error('[GeminiClient] API key retrieval failed:', apiKeyError);
+      }
+      throw new Error('Failed to retrieve API key. Please check your configuration in the options page.');
+    }
+    
     if (!this.apiKey) {
       throw new Error('Gemini API key not configured. Please set it in the options page.');
     }

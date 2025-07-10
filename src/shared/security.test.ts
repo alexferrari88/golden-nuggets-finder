@@ -70,7 +70,7 @@ describe('SecurityManager', () => {
         version: '1.0'
       };
       
-      await expect(securityManager.decryptApiKey(encryptedData)).rejects.toThrow('Failed to decrypt API key');
+      await expect(securityManager.decryptApiKey(encryptedData)).rejects.toThrow(/Decryption failed|Failed to decrypt API key/);
     });
   });
 

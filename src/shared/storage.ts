@@ -74,12 +74,32 @@ export class StorageManager {
     }
 
     // Decrypt the API key
+    if (isDevMode()) {
+      console.log('[Storage] Starting API key decryption...');
+    }
+    
     try {
       const decryptedKey = await securityManager.decryptApiKey(encryptedData);
       
       this.setCache(STORAGE_KEYS.API_KEY, decryptedKey);
+      
+      if (isDevMode()) {
+        console.log('[Storage] API key decryption successful, returning key');
+      }
+      
       return decryptedKey;
     } catch (error: any) {
+      if (isDevMode()) {
+        console.log('[Storage] Caught decryption error:', JSON.stringify({
+          hasCode: !!error.code,
+          code: error.code || 'NO_CODE',
+          hasCanRecover: typeof error.canRecover !== 'undefined',
+          canRecover: error.canRecover || false,
+          message: error.message || 'NO_MESSAGE',
+          errorType: error.constructor?.name || 'Unknown'
+        }, null, 2));
+      }
+      
       // Handle specific decryption errors
       if (error.code === 'DEVICE_CHANGED' && error.canRecover) {
         if (isDevMode()) {
@@ -99,12 +119,19 @@ export class StorageManager {
           }
           
           // Return empty string to trigger re-entry workflow
+          if (isDevMode()) {
+            console.log('[Storage] Returning empty string after recovery to trigger re-entry');
+          }
           return '';
         } catch (recoveryError) {
           if (isDevMode()) {
             console.error('[Storage] Recovery failed:', recoveryError);
+            console.log('[Storage] Returning empty string despite recovery failure');
           }
-          throw new Error(`Recovery failed: ${recoveryError instanceof Error ? recoveryError.message : String(recoveryError)}`);
+          
+          // Even if recovery fails, return empty string to trigger re-entry workflow
+          // This prevents throwing errors that get caught by background script
+          return '';
         }
       }
       
@@ -115,6 +142,10 @@ export class StorageManager {
           message: error.message,
           canRecover: error.canRecover || false
         }, null, 2));
+      }
+      
+      if (isDevMode()) {
+        console.log('[Storage] Throwing non-recoverable error');
       }
       
       throw error;

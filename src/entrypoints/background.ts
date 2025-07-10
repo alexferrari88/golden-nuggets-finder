@@ -66,13 +66,25 @@ export default defineBackground(() => {
     if (!tab?.id) return;
 
     try {
-      // Check if API key is configured before proceeding
-      const apiKey = await storage.getApiKey({ source: 'background', action: 'read', timestamp: Date.now() });
-      
-      // Inject content script dynamically
+      // Inject content script dynamically first
       await injectContentScript(tab.id);
       
+      // Check if API key is configured before proceeding
+      let apiKey: string;
+      try {
+        apiKey = await storage.getApiKey({ source: 'background', action: 'read', timestamp: Date.now() });
+      } catch (apiKeyError) {
+        console.error('[Background] API key retrieval failed:', apiKeyError);
+        // Show error message and return - don't proceed with analysis
+        await new Promise(resolve => setTimeout(resolve, 100));
+        await chrome.tabs.sendMessage(tab.id, {
+          type: MESSAGE_TYPES.SHOW_API_KEY_ERROR
+        });
+        return;
+      }
+      
       if (!apiKey) {
+        console.log('[Background] No API key found - showing error message');
         // Show API key error message with link to options page
         // Add a small delay to ensure content script is ready
         await new Promise(resolve => setTimeout(resolve, 100));
@@ -82,13 +94,14 @@ export default defineBackground(() => {
         return;
       }
       
+      console.log('[Background] API key found - starting analysis');
       // Send message to content script to start analysis
       await chrome.tabs.sendMessage(tab.id, {
         type: MESSAGE_TYPES.ANALYZE_CONTENT,
         promptId: promptId
       });
     } catch (error) {
-      console.error('Failed to send message to content script:', error);
+      console.error('[Background] Failed to handle context menu click:', error);
     }
   }
 

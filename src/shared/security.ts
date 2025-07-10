@@ -194,6 +194,10 @@ export class SecurityManager {
    * Decrypt API key with device-specific decryption
    */
   async decryptApiKey(encryptedData: EncryptedData): Promise<string> {
+    if (isDevMode()) {
+      console.log('[Security] decryptApiKey called from:', new Error().stack?.split('\n')[2]?.trim() || 'unknown');
+    }
+    
     try {
       performanceMonitor.startTimer('security_decrypt');
 
@@ -241,34 +245,72 @@ export class SecurityManager {
         encryptedDataAge: Date.now() - encryptedData.timestamp
       });
       
-      // Create a more descriptive error based on the type of failure
-      let errorMessage = 'Failed to decrypt API key';
-      let errorCode = 'DECRYPTION_FAILED';
-      
-      if (error instanceof DOMException) {
-        if (error.name === 'OperationError') {
-          errorMessage = 'Decryption failed - device characteristics may have changed';
-          errorCode = 'DEVICE_CHANGED';
-        } else if (error.name === 'InvalidAccessError') {
-          errorMessage = 'Invalid encryption key or corrupted data';
-          errorCode = 'INVALID_KEY';
-        } else {
-          errorMessage = `Crypto operation failed: ${error.name}`;
-          errorCode = 'CRYPTO_ERROR';
-        }
+      if (isDevMode()) {
+        console.log('[Security] STEP 1: Starting enhanced error creation...');
       }
       
-      // Create enhanced error with original details
-      const enhancedError = new Error(errorMessage) as Error & { 
-        code: string; 
-        originalError: Error; 
-        canRecover: boolean; 
-      };
-      enhancedError.code = errorCode;
-      enhancedError.originalError = error as Error;
-      enhancedError.canRecover = errorCode === 'DEVICE_CHANGED';
-      
-      throw enhancedError;
+      try {
+        // Create a more descriptive error based on the type of failure
+        let errorMessage = 'Failed to decrypt API key';
+        let errorCode = 'DECRYPTION_FAILED';
+        
+        if (isDevMode()) {
+          console.log('[Security] STEP 2: Checking error type...', {
+            isDOMException: error instanceof DOMException,
+            errorName: error?.name,
+            errorConstructor: error?.constructor?.name
+          });
+        }
+        
+        if (error instanceof DOMException) {
+          if (error.name === 'OperationError') {
+            errorMessage = 'Decryption failed - device characteristics may have changed';
+            errorCode = 'DEVICE_CHANGED';
+          } else if (error.name === 'InvalidAccessError') {
+            errorMessage = 'Invalid encryption key or corrupted data';
+            errorCode = 'INVALID_KEY';
+          } else {
+            errorMessage = `Crypto operation failed: ${error.name}`;
+            errorCode = 'CRYPTO_ERROR';
+          }
+        }
+        
+        if (isDevMode()) {
+          console.log(`[Security] STEP 3: Error classification complete - ${errorCode}, canRecover: ${errorCode === 'DEVICE_CHANGED'}`);
+        }
+        
+        // Create enhanced error with original details
+        const enhancedError = new Error(errorMessage) as Error & { 
+          code: string; 
+          originalError: Error; 
+          canRecover: boolean; 
+        };
+        enhancedError.code = errorCode;
+        enhancedError.originalError = error as Error;
+        enhancedError.canRecover = errorCode === 'DEVICE_CHANGED';
+        
+        if (isDevMode()) {
+          console.log(`[Security] STEP 4: Enhanced error created successfully:`, JSON.stringify({
+            code: enhancedError.code,
+            canRecover: enhancedError.canRecover,
+            message: enhancedError.message,
+            originalErrorName: enhancedError.originalError?.name || 'Unknown'
+          }, null, 2));
+        }
+        
+        if (isDevMode()) {
+          console.log('[Security] STEP 5: About to throw enhanced error...');
+        }
+        
+        throw enhancedError;
+        
+      } catch (enhancementError) {
+        if (isDevMode()) {
+          console.error('[Security] ERROR in enhanced error creation:', enhancementError);
+          console.log('[Security] FALLBACK: Throwing original error instead');
+        }
+        throw error;  // Fallback to original error if enhancement fails
+      }
     }
   }
 
