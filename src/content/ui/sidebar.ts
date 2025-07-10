@@ -498,10 +498,17 @@ export class Sidebar {
         this.highlighter?.scrollToHighlight(item.nugget);
         // Remove the dot indicator after clicking
         clickIndicator.remove();
-        // Update the status text to show it's been located
+        // Update the status icon to show it's been found
         const statusIndicator = nuggetDiv.querySelector('.nugget-status') as HTMLElement;
         if (statusIndicator) {
-          statusIndicator.textContent = '✓ Located';
+          statusIndicator.innerHTML = `
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.5" fill="none"/>
+              <path d="M5 8L7 10L11 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          `;
+          statusIndicator.setAttribute('title', 'Found on page');
+          statusIndicator.style.color = '#10b981';
         }
       });
     }
@@ -536,12 +543,34 @@ export class Sidebar {
     // Status indicator
     const statusIndicator = document.createElement('span');
     statusIndicator.className = 'nugget-status';
-    statusIndicator.textContent = item.status === 'highlighted' ? '✓ Click to locate' : '⚠ Not found';
     statusIndicator.style.cssText = `
-      font-size: 12px;
+      display: flex;
+      align-items: center;
+      width: 20px;
+      height: 20px;
       color: ${item.status === 'highlighted' ? '#10b981' : '#f59e0b'};
-      font-weight: 500;
     `;
+    
+    // Add appropriate icon based on status
+    if (item.status === 'highlighted') {
+      statusIndicator.innerHTML = `
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="8" cy="8" r="5" stroke="currentColor" stroke-width="1.5" fill="none"/>
+          <path d="M8 3V5M8 11V13M3 8H5M11 8H13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          <circle cx="8" cy="8" r="1.5" fill="currentColor"/>
+        </svg>
+      `;
+      statusIndicator.setAttribute('title', 'Click to find on page');
+    } else {
+      statusIndicator.innerHTML = `
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.5" fill="none"/>
+          <path d="M8 4V8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          <circle cx="8" cy="11" r="1" fill="currentColor"/>
+        </svg>
+      `;
+      statusIndicator.setAttribute('title', 'Content not found on page');
+    }
     
     headerDiv.appendChild(typeBadge);
     headerDiv.appendChild(statusIndicator);
