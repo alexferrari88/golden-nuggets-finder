@@ -79,8 +79,12 @@ export class ContentInjector {
   }
 
   private async analyzeContent(promptId: string): Promise<void> {
+    let totalTimerStarted = false;
+    let apiTimerStarted = false;
+    
     try {
       performanceMonitor.startTimer('total_analysis');
+      totalTimerStarted = true;
       
       // Extract content from the page
       const content = await measureContentExtraction('page_content', () => this.getExtractor().extractContent());
@@ -98,8 +102,10 @@ export class ContentInjector {
       };
 
       performanceMonitor.startTimer('api_request');
+      apiTimerStarted = true;
       const response = await this.sendMessageToBackground(MESSAGE_TYPES.ANALYZE_CONTENT, analysisRequest);
       performanceMonitor.logTimer('api_request', 'Background API call');
+      apiTimerStarted = false;
       
       if (response.success && response.data) {
         await measureDOMOperation('display_results', () => this.handleAnalysisResults(response.data));
@@ -116,7 +122,13 @@ export class ContentInjector {
       // Notify popup of error
       chrome.runtime.sendMessage({ type: MESSAGE_TYPES.ANALYSIS_ERROR });
     } finally {
-      performanceMonitor.logTimer('total_analysis', 'Complete analysis workflow');
+      // Only log timers if they were actually started
+      if (apiTimerStarted) {
+        performanceMonitor.logTimer('api_request', 'Background API call (cleanup)');
+      }
+      if (totalTimerStarted) {
+        performanceMonitor.logTimer('total_analysis', 'Complete analysis workflow');
+      }
       performanceMonitor.measureMemory();
     }
   }

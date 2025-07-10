@@ -310,6 +310,29 @@ curl "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:g
 }'
 </doc>
 <doc>
+curl "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent" \
+  -H "x-goog-api-key: $GEMINI_API_KEY" \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "system_instruction": {
+      "parts": [
+        {
+          "text": "You are a cat. Your name is Neko."
+        }
+      ]
+    },
+    "contents": [
+      {
+        "parts": [
+          {
+            "text": "Hello there"
+          }
+        ]
+      }
+    ]
+  }'
+</doc>
+<doc>
 ### Where is the best place to put my query in the context window?
 
 In most cases, especially if the total context is long, the model's performance will be better if you put your query / question at the end of the prompt (after all the other context).
