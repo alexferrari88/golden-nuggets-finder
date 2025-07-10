@@ -74,6 +74,8 @@ export default defineBackground(() => {
       
       if (!apiKey) {
         // Show error message if API key is not configured
+        // Add a small delay to ensure content script is ready
+        await new Promise(resolve => setTimeout(resolve, 100));
         await chrome.tabs.sendMessage(tab.id, {
           type: MESSAGE_TYPES.SHOW_ERROR,
           message: 'Gemini API key not configured. Please set it in the extension options.'
@@ -93,21 +95,27 @@ export default defineBackground(() => {
 
   async function injectContentScript(tabId: number): Promise<void> {
     try {
-      // Check if content script is already injected by trying to send a test message
+      // Check if content script is already available by trying to send a test message
       const testResponse = await chrome.tabs.sendMessage(tabId, { type: 'PING' }).catch(() => null);
       
       if (testResponse) {
-        // Content script already exists
+        // Content script already exists and is responding
         return;
       }
 
-      // Inject the content script
-      await chrome.scripting.executeScript({
-        target: { tabId },
-        files: ['content-injector.js']
-      });
+      // Content script should be automatically injected due to <all_urls> match
+      // If not responding, give it a moment to initialize
+      await new Promise(resolve => setTimeout(resolve, 50));
+      
+      // Try again to see if it's ready now
+      const retryResponse = await chrome.tabs.sendMessage(tabId, { type: 'PING' }).catch(() => null);
+      
+      if (!retryResponse) {
+        throw new Error('Content script not available on this page');
+      }
     } catch (error) {
-      console.error('Failed to inject content script:', error);
+      console.error('Failed to ensure content script is ready:', error);
+      throw error;
     }
   }
 });

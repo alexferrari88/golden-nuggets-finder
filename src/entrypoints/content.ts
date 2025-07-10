@@ -7,9 +7,11 @@ import { UIManager } from '../content/ui/ui-manager';
 import { performanceMonitor, measureContentExtraction, measureDOMOperation } from '../shared/performance';
 
 export default defineContentScript({
-  matches: ['https://example.com/*'], // Changed from <all_urls> to prevent auto-injection
+  matches: ['<all_urls>'], // Allow dynamic injection on all URLs
   runAt: 'document_idle',
   main() {
+    // Only initialize when explicitly activated to avoid auto-running on all pages
+    let isActivated = false;
     let extractor: ContentExtractor;
     const uiManager = new UIManager();
 
@@ -26,20 +28,23 @@ export default defineContentScript({
     }
 
     function initialize(): void {
-      extractor = createExtractor();
-
-      // Listen for messages from background script
-      chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-        handleMessage(request, sender, sendResponse);
-        return true; // Keep the message channel open for async responses
-      });
-
-      // Listen for analysis requests from popup
-      document.addEventListener('nugget-analyze', (event: Event) => {
-        const customEvent = event as CustomEvent;
-        analyzeContent(customEvent.detail.promptId);
-      });
+      if (!isActivated) {
+        extractor = createExtractor();
+        isActivated = true;
+      }
     }
+
+    // Always listen for messages from background script
+    chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+      handleMessage(request, sender, sendResponse);
+      return true; // Keep the message channel open for async responses
+    });
+
+    // Listen for analysis requests from popup
+    document.addEventListener('nugget-analyze', (event: Event) => {
+      const customEvent = event as CustomEvent;
+      analyzeContent(customEvent.detail.promptId);
+    });
 
     async function handleMessage(
       request: any,
@@ -49,12 +54,19 @@ export default defineContentScript({
       try {
         switch (request.type) {
           case MESSAGE_TYPES.ANALYZE_CONTENT:
+            initialize(); // Initialize when needed
             await analyzeContent(request.promptId);
             sendResponse({ success: true });
             break;
 
           case MESSAGE_TYPES.SHOW_ERROR:
+            // No need to initialize for error display
             uiManager.showErrorBanner(request.message);
+            sendResponse({ success: true });
+            break;
+
+          case 'PING':
+            // Respond to ping messages for injection detection
             sendResponse({ success: true });
             break;
 
@@ -130,7 +142,6 @@ export default defineContentScript({
       });
     }
 
-    // Initialize the content script
-    initialize();
+    // Content script is now initialized on-demand when messages are received
   }
 });
