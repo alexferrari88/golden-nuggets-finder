@@ -2,7 +2,7 @@ import { GEMINI_CONFIG } from '../shared/constants';
 import { GOLDEN_NUGGET_SCHEMA } from '../shared/schemas';
 import { GeminiResponse } from '../shared/types';
 import { storage } from '../shared/storage';
-import { performanceMonitor, measureAPICall } from '../shared/performance';
+import { performanceMonitor, measureAPICall, isDevMode } from '../shared/performance';
 
 export class GeminiClient {
   private apiKey: string | null = null;
@@ -57,6 +57,14 @@ export class GeminiClient {
           }
         };
 
+        // Log request payload in development mode
+        if (isDevMode()) {
+          console.group('[LLM Request] Gemini API');
+          console.log('Endpoint:', `${this.API_BASE_URL}/${GEMINI_CONFIG.MODEL}:generateContent`);
+          console.log('Request Body:', JSON.stringify(requestBody, null, 2));
+          console.groupEnd();
+        }
+
         performanceMonitor.startTimer('gemini_request');
         const response = await fetch(`${this.API_BASE_URL}/${GEMINI_CONFIG.MODEL}:generateContent`, {
           method: 'POST',
@@ -76,6 +84,12 @@ export class GeminiClient {
         performanceMonitor.startTimer('gemini_response_parse');
         const responseData = await response.json();
         
+        // Log response payload in development mode
+        if (isDevMode()) {
+          console.group('[LLM Response] Gemini API');
+          console.log('Raw Response:', JSON.stringify(responseData, null, 2));
+        }
+        
         // Extract the text from the response
         const responseText = responseData.candidates?.[0]?.content?.parts?.[0]?.text;
         if (!responseText) {
@@ -83,6 +97,13 @@ export class GeminiClient {
         }
 
         const result = JSON.parse(responseText) as GeminiResponse;
+        
+        // Log parsed response in development mode
+        if (isDevMode()) {
+          console.log('Parsed Response:', JSON.stringify(result, null, 2));
+          console.groupEnd();
+        }
+        
         performanceMonitor.logTimer('gemini_response_parse', 'Parse Gemini response');
         
         // Validate the response structure
@@ -126,7 +147,9 @@ export class GeminiClient {
       const jitter = Math.random() * 0.1 * delay;
       await new Promise(resolve => setTimeout(resolve, delay + jitter));
 
-      console.warn(`Retrying Gemini API request (attempt ${currentAttempt + 1}/${this.MAX_RETRIES})`);
+      if (isDevMode()) {
+        console.warn(`Retrying Gemini API request (attempt ${currentAttempt + 1}/${this.MAX_RETRIES})`);
+      }
       return this.retryRequest(operation, currentAttempt + 1);
     }
   }
@@ -161,7 +184,9 @@ export class GeminiClient {
       }
     }
     
-    console.error('Gemini API error:', error);
+    if (isDevMode()) {
+      console.error('Gemini API error:', error);
+    }
     return new Error('Analysis failed. Please try again.');
   }
   
@@ -244,6 +269,14 @@ export class GeminiClient {
         }
       };
 
+      // Log API key validation request in development mode
+      if (isDevMode()) {
+        console.group('[LLM Request] API Key Validation');
+        console.log('Endpoint:', `${this.API_BASE_URL}/${GEMINI_CONFIG.MODEL}:generateContent`);
+        console.log('Test Request Body:', JSON.stringify(testRequestBody, null, 2));
+        console.groupEnd();
+      }
+
       const response = await fetch(`${this.API_BASE_URL}/${GEMINI_CONFIG.MODEL}:generateContent`, {
         method: 'POST',
         headers: {
@@ -253,10 +286,20 @@ export class GeminiClient {
         body: JSON.stringify(testRequestBody)
       });
 
+      // Log API key validation response in development mode
+      if (isDevMode()) {
+        console.group('[LLM Response] API Key Validation');
+        console.log('Response Status:', response.status, response.statusText);
+        console.log('API Key Valid:', response.ok);
+        console.groupEnd();
+      }
+
       // If we get a 200 response, the API key is valid
       return response.ok;
     } catch (error) {
-      console.warn('API key validation failed:', error);
+      if (isDevMode()) {
+        console.warn('API key validation failed:', error);
+      }
       return false;
     }
   }
