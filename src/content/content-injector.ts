@@ -82,9 +82,6 @@ export class ContentInjector {
     try {
       performanceMonitor.startTimer('total_analysis');
       
-      // Show progress indicator
-      this.uiManager.showProgressBanner();
-
       // Extract content from the page
       const content = await measureContentExtraction('page_content', () => this.getExtractor().extractContent());
       
@@ -106,14 +103,19 @@ export class ContentInjector {
       
       if (response.success && response.data) {
         await measureDOMOperation('display_results', () => this.handleAnalysisResults(response.data));
+        // Notify popup of successful completion
+        chrome.runtime.sendMessage({ type: MESSAGE_TYPES.ANALYSIS_COMPLETE });
       } else {
         this.uiManager.showErrorBanner(response.error || 'Analysis failed. Please try again.');
+        // Notify popup of error
+        chrome.runtime.sendMessage({ type: MESSAGE_TYPES.ANALYSIS_ERROR });
       }
     } catch (error) {
       console.error('Analysis failed:', error);
       this.uiManager.showErrorBanner('Analysis failed. Please try again.');
+      // Notify popup of error
+      chrome.runtime.sendMessage({ type: MESSAGE_TYPES.ANALYSIS_ERROR });
     } finally {
-      this.uiManager.hideProgressBanner();
       performanceMonitor.logTimer('total_analysis', 'Complete analysis workflow');
       performanceMonitor.measureMemory();
     }

@@ -145,9 +145,6 @@ export default defineContentScript({
       try {
         performanceMonitor.startTimer('total_analysis');
         
-        // Show progress indicator
-        uiManager.showProgressBanner();
-
         // Extract content from the page
         const content = await measureContentExtraction('page_content', () => extractor.extractContent());
         
@@ -169,14 +166,19 @@ export default defineContentScript({
         
         if (response.success && response.data) {
           await measureDOMOperation('display_results', () => handleAnalysisResults(response.data));
+          // Notify popup of successful completion
+          chrome.runtime.sendMessage({ type: MESSAGE_TYPES.ANALYSIS_COMPLETE });
         } else {
           uiManager.showErrorBanner(response.error || 'Analysis failed. Please try again.');
+          // Notify popup of error
+          chrome.runtime.sendMessage({ type: MESSAGE_TYPES.ANALYSIS_ERROR });
         }
       } catch (error) {
         console.error('Analysis failed:', error);
         uiManager.showErrorBanner('Analysis failed. Please try again.');
+        // Notify popup of error
+        chrome.runtime.sendMessage({ type: MESSAGE_TYPES.ANALYSIS_ERROR });
       } finally {
-        uiManager.hideProgressBanner();
         performanceMonitor.logTimer('total_analysis', 'Complete analysis workflow');
         performanceMonitor.measureMemory();
       }

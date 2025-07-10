@@ -73,10 +73,14 @@ function IndexPopup() {
         promptId: promptId
       });
       
-      // Close popup after a short delay to show feedback
-      setTimeout(() => {
-        window.close();
-      }, 800);
+      // Listen for analysis completion
+      const listener = (message: any) => {
+        if (message.type === MESSAGE_TYPES.ANALYSIS_COMPLETE || message.type === MESSAGE_TYPES.ANALYSIS_ERROR) {
+          chrome.runtime.onMessage.removeListener(listener);
+          window.close();
+        }
+      };
+      chrome.runtime.onMessage.addListener(listener);
     } catch (err) {
       console.error('Failed to start analysis:', err);
       setAnalyzing(null);
