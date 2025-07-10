@@ -66,7 +66,10 @@ export class MessageHandler {
         return;
       }
 
-      const result = await this.geminiClient.analyzeContent(request.content, prompt.prompt);
+      // Replace {{ source }} placeholder with appropriate source type
+      const processedPrompt = this.replaceSourcePlaceholder(prompt.prompt, request.url);
+
+      const result = await this.geminiClient.analyzeContent(request.content, processedPrompt);
       sendResponse({ success: true, data: result });
     } catch (error) {
       console.error('Analysis failed:', error);
@@ -134,6 +137,23 @@ export class MessageHandler {
       sendResponse({ success: true });
     } catch (error) {
       sendResponse({ success: false, error: (error as Error).message });
+    }
+  }
+
+  private replaceSourcePlaceholder(prompt: string, url: string): string {
+    const sourceType = this.detectSourceType(url);
+    return prompt.replace(/\{\{\s*source\s*\}\}/g, sourceType);
+  }
+
+  private detectSourceType(url: string): string {
+    if (url.includes('news.ycombinator.com')) {
+      return 'HackerNews thread';
+    } else if (url.includes('reddit.com')) {
+      return 'Reddit thread';
+    } else if (url.includes('twitter.com') || url.includes('x.com')) {
+      return 'Twitter thread';
+    } else {
+      return 'text';
     }
   }
 }

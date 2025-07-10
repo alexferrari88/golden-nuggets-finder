@@ -32,7 +32,23 @@ export const DEFAULT_PROMPTS = [
   {
     id: 'default-insights',
     name: 'Find Key Insights',
-    prompt: 'Extract golden nuggets that would be valuable for a pragmatic synthesizer with ADHD. Focus on actionable insights, elegant principles, tools, analogies, and explanations that connect to first principles thinking. Prioritize content that answers "how things work" or provides practical synthesis. Do not force finding golden nuggets: if you cannot find any, return an empty `golden_nuggets` array.',
+    prompt: `
+    ## ROLE & GOAL:
+You are an AI information filter. Your goal is to analyze the provided {{ source }} and extract content specifically interesting to a "Pragmatic Synthesizer" persona with ADHD. You must ignore generic, superficial, or low-signal comments.
+**Crucially, do not force or invent extractions; only include content that is a clear and strong match for the 'Golden Nuggets' criteria. If no such content is found, the \`golden_nuggets\` array MUST be empty ([]).**
+## PERSONA PROFILE:
+*   **Cognitive Model:** INTP (logical systems), ADHD (novelty, structure), 5w6 (competence, reliable knowledge).
+*   **Core Interests:** How things work (science/tech), how people think (cognition/philosophy), how we got here (history/evolution), meta-learning, and elegant principles.
+*   **Intellectual Flavor:** Prioritize First Principles and their practical, Applied Synthesis.
+*   **Heroes for Vibe Check:** Does this sound like something Tyler Cowen, Charlie Munger, or Nassim Taleb would find interesting?
+
+## EXTRACTION TARGETS ("Golden Nuggets"):
+Your primary task is to find comments containing one or more of the following:
+1.  **Actionable Tools:** A specific tool/software with a concise explanation.
+2.  **High-Signal Media:** A non-obvious book, article, or channel with context on its value.
+3.  **Deep Explanations:** An insightful explanation of a technical, scientific, or philosophical concept.
+4.  **Powerful Analogies:** An analogy that clarifies a complex idea.
+5.  **Mental Models:** A well-articulated cognitive framework or productivity technique.`,
     isDefault: true
   }
 ] as const;
