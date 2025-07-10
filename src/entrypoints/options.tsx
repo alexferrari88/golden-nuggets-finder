@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
+import ReactDOM from 'react-dom/client';
 import { SavedPrompt } from '../shared/types';
 import { storage } from '../shared/storage';
 import { GeminiClient } from '../background/gemini-client';
 
-function IndexOptions() {
+function OptionsPage() {
   const [apiKey, setApiKey] = useState('');
   const [apiKeyStatus, setApiKeyStatus] = useState<string>('');
   const [prompts, setPrompts] = useState<SavedPrompt[]>([]);
@@ -348,4 +349,9 @@ function IndexOptions() {
   );
 }
 
-export default IndexOptions;
+export default {
+  main() {
+    const root = ReactDOM.createRoot(document.getElementById('root')!);
+    root.render(<OptionsPage />);
+  }
+};
