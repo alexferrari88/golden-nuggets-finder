@@ -41,22 +41,34 @@ Orchestrates all UI interactions and coordinates between components:
 - Coordinates highlighting and sidebar display
 
 ### Highlighter (`ui/highlighter.ts`)
-Handles text highlighting on pages:
-- Highlights golden nuggets in original content
-- Provides visual feedback for discovered insights
-- Manages highlight persistence and cleanup
+Handles text highlighting on pages with minimalistic design:
+- **Subtle Highlighting**: Uses subtle yellow background (rgba(250, 204, 21, 0.12)) instead of bright colors
+- **Minimal Indicators**: Small, unobtrusive indicators with hover states
+- **Consistent Styling**: Follows design system with 3px border radius and smooth transitions
+- **Accessibility**: Maintains proper contrast while being visually minimal
 
 ### Sidebar (`ui/sidebar.ts`)
-Displays results in right sidebar:
-- Shows extracted golden nuggets
-- Provides categorized view of insights
-- Handles user interactions with results
+Displays results in right sidebar with Notion-inspired design:
+- **Clean Layout**: Uses design system colors and spacing
+- **Card-based Design**: Subtle shadows and borders for content hierarchy
+- **Minimal Interactions**: Hover states and smooth transitions
+- **Typography**: System font stack with consistent sizing
 
 ### Notifications (`ui/notifications.ts`)
-Shows progress and status banners:
-- Displays analysis progress
-- Shows error states and user feedback
-- Manages notification lifecycle
+Shows progress and status banners with minimalistic approach:
+- **Subtle Backgrounds**: Uses design system's neutral grays
+- **Clean Typography**: Consistent font sizes and weights
+- **Minimal Shadows**: Subtle depth without visual clutter
+- **Smooth Animations**: Fade-in and slide-in animations for polished feel
+
+### Design System Integration
+Content script UI components follow the shared design system:
+- **Color Consistency**: All components use the same gray-based palette
+- **Typography**: System font stack for consistent reading experience
+- **Spacing**: 8-step spacing scale for proper visual hierarchy
+- **Shadows**: Subtle shadows for depth without visual noise
+- **Animations**: Smooth transitions and animations for professional feel
+- **Z-Index Management**: Proper layering with defined z-index values
 
 ## Site-Specific Behavior
 

@@ -66,8 +66,20 @@ export default defineBackground(() => {
     if (!tab?.id) return;
 
     try {
+      // Check if API key is configured before proceeding
+      const apiKey = await storage.getApiKey({ source: 'background', action: 'read', timestamp: Date.now() });
+      
       // Inject content script dynamically
       await injectContentScript(tab.id);
+      
+      if (!apiKey) {
+        // Show error message if API key is not configured
+        await chrome.tabs.sendMessage(tab.id, {
+          type: MESSAGE_TYPES.SHOW_ERROR,
+          message: 'Gemini API key not configured. Please set it in the extension options.'
+        });
+        return;
+      }
       
       // Send message to content script to start analysis
       await chrome.tabs.sendMessage(tab.id, {

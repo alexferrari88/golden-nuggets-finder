@@ -53,6 +53,11 @@ export default defineContentScript({
             sendResponse({ success: true });
             break;
 
+          case MESSAGE_TYPES.SHOW_ERROR:
+            uiManager.showErrorBanner(request.message);
+            sendResponse({ success: true });
+            break;
+
           default:
             sendResponse({ success: false, error: 'Unknown message type' });
         }

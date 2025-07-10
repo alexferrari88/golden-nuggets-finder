@@ -41,6 +41,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Framework**: WXT (Web Extension Toolkit) - migrated from Plasmo
 - **Language**: TypeScript
 - **UI Framework**: React (for popup and options pages)
+- **Design System**: Notion-inspired minimalistic design with consistent colors, typography, and components
 - **API**: Google Gemini API (`gemini-2.5-flash`) with structured JSON output
 - **Testing**: Vitest (unit), Playwright (E2E), happy-dom (test environment)
 - **Build Output**: `dist/` directory

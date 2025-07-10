@@ -36,6 +36,39 @@ TypeScript interfaces for all data structures:
 - Implement proper type guards for runtime validation
 - Use discriminated unions for complex type hierarchies
 
+## Design System
+
+### Design System (`design-system.ts`)
+Comprehensive Notion-inspired design system with consistent styling:
+- **Color Palette**: Gray-based neutral palette with strategic blue accents
+- **Typography**: System font stack with defined sizes and weights
+- **Spacing**: Consistent spacing scale from 4px to 64px
+- **Components**: Pre-built styles for buttons, cards, inputs, badges
+- **Utilities**: Helper functions for hover, focus, and animation states
+
+### Design Tokens
+- **Colors**: 
+  - Primary grays (50-900 scale) for neutral elements
+  - Accent colors (blue, green, amber, red) for interactive states
+  - Semantic colors for text, backgrounds, and borders
+  - Subtle highlight colors replacing bright yellow
+- **Typography**: System font stack with 7 size variants (xs to 3xl)
+- **Spacing**: 8-step scale for consistent layouts
+- **Shadows**: 4 shadow variants for depth and hierarchy
+- **Border Radius**: 5 variants from subtle to full rounded
+
+### Component Styles
+- **Buttons**: Primary, secondary, and ghost variants
+- **Cards**: Hover states and consistent padding
+- **Inputs**: Focus states with blue accent borders
+- **Badges**: Default and accent variants for status indicators
+
+### Design Philosophy
+- Minimalistic approach inspired by Notion's clean interface
+- Subtle visual feedback over bright, attention-grabbing elements
+- Consistent spacing and typography for professional appearance
+- Accessibility-focused with proper contrast ratios
+
 ## Constants and Configuration
 
 ### Constants (`constants.ts`)
