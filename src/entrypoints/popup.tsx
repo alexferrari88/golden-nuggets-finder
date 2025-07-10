@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import ReactDOM from "react-dom/client";
 import { storage } from "../shared/storage";
 import { SavedPrompt, MESSAGE_TYPES } from "../shared/types";
 
@@ -219,4 +220,9 @@ function IndexPopup() {
   );
 }
 
-export default IndexPopup;
+export default {
+  main() {
+    const root = ReactDOM.createRoot(document.getElementById('root')!);
+    root.render(<IndexPopup />);
+  }
+};
