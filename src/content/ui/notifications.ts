@@ -3,6 +3,7 @@ import { colors } from '../../shared/design-system';
 
 export class NotificationManager {
   private currentBanner: HTMLElement | null = null;
+  private autoHideTimeout: number | null = null;
 
   showProgress(message: string): void {
     this.hideBanner();
@@ -16,7 +17,7 @@ export class NotificationManager {
     document.body.appendChild(this.currentBanner);
     
     // Auto-hide error after timeout
-    setTimeout(() => {
+    this.autoHideTimeout = setTimeout(() => {
       this.hideBanner();
     }, UI_CONSTANTS.NOTIFICATION_TIMEOUT);
   }
@@ -27,7 +28,7 @@ export class NotificationManager {
     document.body.appendChild(this.currentBanner);
     
     // Auto-hide error after timeout
-    setTimeout(() => {
+    this.autoHideTimeout = setTimeout(() => {
       this.hideBanner();
     }, UI_CONSTANTS.NOTIFICATION_TIMEOUT);
   }
@@ -38,7 +39,7 @@ export class NotificationManager {
     document.body.appendChild(this.currentBanner);
     
     // Auto-hide info after timeout
-    setTimeout(() => {
+    this.autoHideTimeout = setTimeout(() => {
       this.hideBanner();
     }, UI_CONSTANTS.NOTIFICATION_TIMEOUT);
   }
@@ -207,6 +208,12 @@ export class NotificationManager {
   }
 
   private hideBanner(): void {
+    // Clear auto-hide timeout
+    if (this.autoHideTimeout) {
+      clearTimeout(this.autoHideTimeout);
+      this.autoHideTimeout = null;
+    }
+    
     if (this.currentBanner) {
       this.currentBanner.remove();
       this.currentBanner = null;

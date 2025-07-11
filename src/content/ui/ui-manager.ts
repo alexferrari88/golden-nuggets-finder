@@ -17,6 +17,11 @@ export class UIManager {
     this.sidebar = new Sidebar();
     this.notifications = new NotificationManager();
     this.commentSelector = new CommentSelector();
+    
+    // Set callback so CommentSelector can notify UIManager when manually exiting
+    this.commentSelector.setOnExitCallback(() => {
+      this.exitSelectionMode();
+    });
   }
 
   showProgressBanner(): void {

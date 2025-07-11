@@ -17,6 +17,7 @@ export class CommentSelector {
   private selectedPromptId: string | null = null;
   private prompts: SavedPrompt[] = [];
   private keydownHandler: (event: KeyboardEvent) => void;
+  private onExitCallback: (() => void) | null = null;
 
   constructor() {
     this.loadPrompts();
@@ -31,10 +32,18 @@ export class CommentSelector {
     }
   }
 
+  setOnExitCallback(callback: () => void): void {
+    this.onExitCallback = callback;
+  }
+
   private handleKeydown(event: KeyboardEvent): void {
     if (event.key === 'Escape' && this.isActive) {
       event.preventDefault();
-      this.exitSelectionMode();
+      if (this.onExitCallback) {
+        this.onExitCallback();
+      } else {
+        this.exitSelectionMode();
+      }
     }
   }
 
@@ -259,7 +268,11 @@ export class CommentSelector {
     closeButton.title = 'Close selection mode (Esc)';
 
     closeButton.addEventListener('click', () => {
-      this.exitSelectionMode();
+      if (this.onExitCallback) {
+        this.onExitCallback();
+      } else {
+        this.exitSelectionMode();
+      }
     });
 
     closeButton.addEventListener('mouseenter', () => {
