@@ -11,6 +11,13 @@ export const SITE_SELECTORS = {
   HACKER_NEWS: {
     POST: '.toptext',
     COMMENTS: '.commtext'
+  },
+  TWITTER: {
+    TWEET: '[data-testid="tweetText"]',
+    TWEET_ARTICLE: 'article[data-testid="tweet"]',
+    SHOW_MORE_BUTTON: 'button[data-testid="tweet-text-show-more-link"]',
+    USER_NAME: 'div[data-testid="User-Name"] a[href^="/"]',
+    SPAM_BUTTON: 'button:has(span:contains("Show probable spam"))'
   }
 } as const;
 

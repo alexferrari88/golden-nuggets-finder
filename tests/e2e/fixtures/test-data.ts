@@ -76,6 +76,40 @@ export const MOCK_BLOG_POST = {
   `,
 };
 
+export const MOCK_TWITTER_THREAD = {
+  title: 'Thread about AI development tools',
+  url: 'https://twitter.com/ai_developer/status/1234567890',
+  author: '/ai_developer',
+  tweets: [
+    {
+      fullText: 'Just discovered Claude Code - an AI assistant that helps with development. Game changer for debugging complex issues. 🧵',
+      truncatedText: 'Just discovered Claude Code - an AI assistant that helps with development. Game changer for debugging...',
+      isOriginalAuthor: true,
+      needsExpansion: true,
+    },
+    {
+      fullText: 'The key insight is that AI tools work best when you give them context. Don\'t just ask "fix this bug" - explain what you\'re trying to achieve.',
+      truncatedText: null,
+      isOriginalAuthor: true,
+      needsExpansion: false,
+    },
+    {
+      fullText: 'Another powerful technique: use AI to explain complex code. I often ask it to break down algorithms I\'m not familiar with.',
+      truncatedText: null,
+      isOriginalAuthor: true,
+      needsExpansion: false,
+    },
+  ],
+  relatedTweets: [
+    {
+      fullText: 'Thanks for sharing this! I\'ve been looking for better AI tools.',
+      truncatedText: null,
+      isOriginalAuthor: false,
+      needsExpansion: false,
+    },
+  ],
+};
+
 export const MOCK_ANALYSIS_RESPONSE = {
   golden_nuggets: [
     {

@@ -1,5 +1,5 @@
 import { Page } from '@playwright/test';
-import { MOCK_REDDIT_THREAD, MOCK_HACKERNEWS_THREAD, MOCK_BLOG_POST } from './test-data';
+import { MOCK_REDDIT_THREAD, MOCK_HACKERNEWS_THREAD, MOCK_BLOG_POST, MOCK_TWITTER_THREAD } from './test-data';
 
 export async function createMockRedditPage(page: Page) {
   await page.route('**/reddit.com/**', async (route) => {
@@ -92,6 +92,84 @@ export async function createMockBlogPage(page: Page) {
       </html>
     `;
     await route.fulfill({ body: html, contentType: 'text/html' });
+  });
+}
+
+export async function createMockTwitterPage(page: Page) {
+  await page.route('**/twitter.com/**', async (route) => {
+    const html = `
+      <!DOCTYPE html>
+      <html>
+        <head><title>${MOCK_TWITTER_THREAD.title}</title></head>
+        <body>
+          <div id="react-root">
+            <div class="css-1dbjc4n">
+              <!-- Thread tweets -->
+              ${MOCK_TWITTER_THREAD.tweets.map((tweet, index) => `
+                <article data-testid="tweet" class="css-1dbjc4n">
+                  <div data-testid="User-Name" class="css-1dbjc4n">
+                    <a href="${MOCK_TWITTER_THREAD.author}" class="css-4rbku5">
+                      <span>AI Developer</span>
+                    </a>
+                  </div>
+                  <div data-testid="tweetText" class="css-901oao">
+                    ${tweet.needsExpansion ? tweet.truncatedText : tweet.fullText}
+                  </div>
+                  ${tweet.needsExpansion ? `
+                    <button data-testid="tweet-text-show-more-link" class="css-901oao">
+                      Show more
+                    </button>
+                  ` : ''}
+                </article>
+              `).join('')}
+              
+              <!-- Related tweets (after thread) -->
+              ${MOCK_TWITTER_THREAD.relatedTweets.map((tweet, index) => `
+                <article data-testid="tweet" class="css-1dbjc4n">
+                  <div data-testid="User-Name" class="css-1dbjc4n">
+                    <a href="/other_user" class="css-4rbku5">
+                      <span>Other User</span>
+                    </a>
+                  </div>
+                  <div data-testid="tweetText" class="css-901oao">
+                    ${tweet.fullText}
+                  </div>
+                </article>
+              `).join('')}
+              
+              <!-- Spam button indicator (end of thread) -->
+              <div class="css-1dbjc4n">
+                <button class="css-1dbjc4n">
+                  <span>Show probable spam</span>
+                </button>
+              </div>
+            </div>
+          </div>
+          
+          <script>
+            // Mock the tweet expansion functionality
+            document.addEventListener('click', (event) => {
+              if (event.target.matches('[data-testid="tweet-text-show-more-link"]')) {
+                const tweetText = event.target.previousElementSibling;
+                const expandedText = '${MOCK_TWITTER_THREAD.tweets[0].fullText}';
+                tweetText.textContent = expandedText;
+                event.target.remove();
+              }
+            });
+          </script>
+        </body>
+      </html>
+    `;
+    await route.fulfill({ body: html, contentType: 'text/html' });
+  });
+  
+  // Also handle x.com URLs
+  await page.route('**/x.com/**', async (route) => {
+    // Redirect x.com to twitter.com for consistency
+    await route.fulfill({ 
+      status: 302, 
+      headers: { 'Location': route.request().url().replace('x.com', 'twitter.com') }
+    });
   });
 }
 

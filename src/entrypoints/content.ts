@@ -2,6 +2,7 @@ import { MESSAGE_TYPES, AnalysisRequest, AnalysisResponse, DebugLogMessage } fro
 import { ContentExtractor } from '../content/extractors/base';
 import { RedditExtractor } from '../content/extractors/reddit';
 import { HackerNewsExtractor } from '../content/extractors/hackernews';
+import { TwitterExtractor } from '../content/extractors/twitter';
 import { GenericExtractor } from '../content/extractors/generic';
 import { UIManager } from '../content/ui/ui-manager';
 import { performanceMonitor, measureContentExtraction, measureDOMOperation } from '../shared/performance';
@@ -23,6 +24,8 @@ export default defineContentScript({
         return new RedditExtractor();
       } else if (url.includes('news.ycombinator.com')) {
         return new HackerNewsExtractor();
+      } else if (url.includes('twitter.com') || url.includes('x.com')) {
+        return new TwitterExtractor();
       } else {
         return new GenericExtractor();
       }
