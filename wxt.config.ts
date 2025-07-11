@@ -1,4 +1,5 @@
 import { defineConfig } from 'wxt';
+import tailwindcss from '@tailwindcss/vite';
 
 export default defineConfig({
   // Configure to use src/ directory
@@ -37,5 +38,10 @@ export default defineConfig({
   },
   
   // Configure output directory
-  outDir: 'dist'
+  outDir: 'dist',
+  
+  // Vite configuration
+  vite: () => ({
+    plugins: [tailwindcss()]
+  })
 });

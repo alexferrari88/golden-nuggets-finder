@@ -3,6 +3,11 @@ export default {
   darkMode: ["class"],
   content: [
     './src/**/*.{ts,tsx}',
+    './src/**/*.{js,jsx}',
+    './src/**/*.{html,vue}',
+    './src/entrypoints/**/*.{ts,tsx}',
+    './src/content/**/*.{ts,tsx}',
+    './src/components/**/*.{ts,tsx}',
   ],
   prefix: "",
   theme: {
