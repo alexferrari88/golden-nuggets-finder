@@ -1,4 +1,13 @@
-import { colors, typography, spacing, borderRadius, shadows } from '../../shared/design-system';
+import { 
+  createStyledElement, 
+  applyButtonStyles, 
+  applyCardStyles,
+  colors, 
+  typography, 
+  spacing, 
+  borderRadius, 
+  shadows 
+} from './tailwind-utils';
 import { SavedPrompt, MESSAGE_TYPES } from '../../shared/types';
 import { storage } from '../../shared/storage';
 import { SITE_SELECTORS } from '../../shared/constants';
@@ -212,32 +221,20 @@ export class CommentSelector {
   private createCheckbox(comment: CommentItem, index: number): HTMLElement {
     const checkbox = document.createElement('div');
     checkbox.className = 'nugget-comment-checkbox';
-    checkbox.style.cssText = `
-      width: 18px;
-      height: 18px;
-      border: 2px solid ${colors.border.default};
-      border-radius: ${borderRadius.sm};
-      background-color: ${colors.background.primary};
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      box-shadow: ${shadows.sm};
-      transition: all 0.2s ease;
-      user-select: none;
-    `;
+    checkbox.classList.add(
+      'w-4.5', 'h-4.5', 'border-2', 'border-gray-200', 'rounded-sm', 
+      'bg-white', 'cursor-pointer', 'flex', 'items-center', 'justify-center',
+      'shadow-sm', 'transition-all', 'duration-200', 'select-none'
+    );
 
     const updateCheckboxState = () => {
       if (comment.selected) {
-        checkbox.style.backgroundColor = colors.text.accent;
-        checkbox.style.borderColor = colors.text.accent;
+        checkbox.classList.remove('bg-white', 'border-gray-200');
+        checkbox.classList.add('bg-gray-900', 'border-gray-900', 'text-white', 'text-xs', 'font-semibold');
         checkbox.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
-        checkbox.style.color = colors.background.primary;
-        checkbox.style.fontSize = '12px';
-        checkbox.style.fontWeight = '600';
       } else {
-        checkbox.style.backgroundColor = colors.background.primary;
-        checkbox.style.borderColor = colors.border.default;
+        checkbox.classList.remove('bg-gray-900', 'border-gray-900', 'text-white', 'text-xs', 'font-semibold');
+        checkbox.classList.add('bg-white', 'border-gray-200');
         checkbox.innerHTML = '';
       }
     };
@@ -250,13 +247,17 @@ export class CommentSelector {
     });
 
     checkbox.addEventListener('mouseenter', () => {
-      checkbox.style.borderColor = colors.text.accent;
-      checkbox.style.boxShadow = shadows.md;
+      checkbox.classList.add('border-gray-900', 'shadow-md');
     });
 
     checkbox.addEventListener('mouseleave', () => {
-      checkbox.style.borderColor = comment.selected ? colors.text.accent : colors.border.default;
-      checkbox.style.boxShadow = shadows.sm;
+      checkbox.classList.remove('shadow-md');
+      if (comment.selected) {
+        checkbox.classList.add('border-gray-900');
+      } else {
+        checkbox.classList.remove('border-gray-900');
+        checkbox.classList.add('border-gray-200');
+      }
     });
 
     updateCheckboxState();
@@ -272,57 +273,33 @@ export class CommentSelector {
 
     this.controlPanel = document.createElement('div');
     this.controlPanel.className = 'nugget-control-panel';
+    this.controlPanel.classList.add(
+      'fixed', 'bottom-5', 'right-5', 'w-80', 'bg-white', 
+      'border', 'border-gray-100', 'rounded-xl', 'shadow-lg',
+      'z-[10001]', 'font-sans', 'p-4', 'transition-all', 'duration-300'
+    );
     this.controlPanel.style.cssText = `
-      position: fixed;
-      bottom: 20px;
-      right: 20px;
-      width: 320px;
-      background: ${colors.background.primary};
-      border: 1px solid ${colors.border.light};
-      border-radius: ${borderRadius.lg};
-      box-shadow: ${shadows.lg};
-      z-index: 10001;
-      font-family: ${typography.fontFamily.sans};
-      padding: ${spacing.lg};
       transform: translateY(100px);
       opacity: 0;
-      transition: all 0.3s ease;
     `;
 
     // Header with close button
     const headerContainer = document.createElement('div');
-    headerContainer.style.cssText = `
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: ${spacing.md};
-    `;
+    headerContainer.classList.add(
+      'flex', 'justify-between', 'items-center', 'mb-3'
+    );
 
     const header = document.createElement('div');
-    header.style.cssText = `
-      font-size: ${typography.fontSize.sm};
-      font-weight: ${typography.fontWeight.semibold};
-      color: ${colors.text.primary};
-    `;
+    header.classList.add('text-sm', 'font-semibold', 'text-gray-800');
     header.textContent = this.comments.length > 0 ? 'Select Comments to Analyze' : 'No Comments Found';
 
     // Close button
     const closeButton = document.createElement('button');
-    closeButton.style.cssText = `
-      background: none;
-      border: none;
-      cursor: pointer;
-      color: ${colors.text.secondary};
-      font-size: ${typography.fontSize.lg};
-      padding: ${spacing.xs};
-      border-radius: ${borderRadius.sm};
-      transition: all 0.2s ease;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 24px;
-      height: 24px;
-    `;
+    closeButton.classList.add(
+      'bg-transparent', 'border-none', 'cursor-pointer', 'text-gray-500',
+      'text-lg', 'p-1', 'rounded-sm', 'transition-all', 'duration-200',
+      'flex', 'items-center', 'justify-center', 'w-6', 'h-6'
+    );
     closeButton.innerHTML = '×';
     closeButton.title = 'Close selection mode (Esc)';
 
@@ -335,13 +312,11 @@ export class CommentSelector {
     });
 
     closeButton.addEventListener('mouseenter', () => {
-      closeButton.style.backgroundColor = colors.background.secondary;
-      closeButton.style.color = colors.text.primary;
+      closeButton.classList.add('bg-gray-25', 'text-gray-800');
     });
 
     closeButton.addEventListener('mouseleave', () => {
-      closeButton.style.backgroundColor = 'transparent';
-      closeButton.style.color = colors.text.secondary;
+      closeButton.classList.remove('bg-gray-25', 'text-gray-800');
     });
 
     headerContainer.appendChild(header);
@@ -349,19 +324,11 @@ export class CommentSelector {
 
     const counter = document.createElement('div');
     counter.className = 'comment-counter';
-    counter.style.cssText = `
-      font-size: ${typography.fontSize.sm};
-      color: ${colors.text.secondary};
-      margin-bottom: ${spacing.md};
-    `;
+    counter.classList.add('text-sm', 'text-gray-500', 'mb-3');
 
     // Quick actions
     const quickActions = document.createElement('div');
-    quickActions.style.cssText = `
-      display: flex;
-      gap: ${spacing.sm};
-      margin-bottom: ${spacing.md};
-    `;
+    quickActions.classList.add('flex', 'gap-2', 'mb-3');
 
     const selectAllBtn = this.createButton('Select All', () => {
       this.selectAll();
@@ -376,29 +343,17 @@ export class CommentSelector {
 
     // Prompt selection
     const promptSection = document.createElement('div');
-    promptSection.style.cssText = `
-      margin-bottom: ${spacing.md};
-    `;
+    promptSection.classList.add('mb-3');
 
     const promptLabel = document.createElement('div');
-    promptLabel.style.cssText = `
-      font-size: ${typography.fontSize.sm};
-      font-weight: ${typography.fontWeight.medium};
-      color: ${colors.text.primary};
-      margin-bottom: ${spacing.sm};
-    `;
+    promptLabel.classList.add('text-sm', 'font-medium', 'text-gray-800', 'mb-2');
     promptLabel.textContent = 'Prompt:';
 
     const promptSelect = document.createElement('select');
-    promptSelect.style.cssText = `
-      width: 100%;
-      padding: ${spacing.sm};
-      border: 1px solid ${colors.border.light};
-      border-radius: ${borderRadius.sm};
-      background-color: ${colors.background.primary};
-      color: ${colors.text.primary};
-      font-size: ${typography.fontSize.sm};
-    `;
+    promptSelect.classList.add(
+      'w-full', 'p-2', 'border', 'border-gray-100', 'rounded-sm',
+      'bg-white', 'text-gray-800', 'text-sm'
+    );
 
     // Auto-select default prompt if none is selected (e.g., from right-click menu)
     if (!this.selectedPromptId && this.prompts.length > 0) {
@@ -428,33 +383,15 @@ export class CommentSelector {
 
     // Analyze button
     const analyzeBtn = document.createElement('button');
-    analyzeBtn.style.cssText = `
-      width: 100%;
-      padding: ${spacing.md};
-      background-color: ${colors.text.accent};
-      color: ${colors.background.primary};
-      border: none;
-      border-radius: ${borderRadius.md};
-      font-size: ${typography.fontSize.sm};
-      font-weight: ${typography.fontWeight.semibold};
-      cursor: pointer;
-      transition: all 0.2s ease;
-    `;
+    applyButtonStyles(analyzeBtn, 'primary');
+    analyzeBtn.classList.add('w-full', 'p-3', 'text-sm', 'font-semibold');
     analyzeBtn.textContent = 'Analyze Selected Comments';
 
     analyzeBtn.addEventListener('click', () => {
       this.analyzeSelectedComments();
     });
 
-    analyzeBtn.addEventListener('mouseenter', () => {
-      analyzeBtn.style.backgroundColor = colors.text.accent;
-      analyzeBtn.style.boxShadow = shadows.md;
-    });
-
-    analyzeBtn.addEventListener('mouseleave', () => {
-      analyzeBtn.style.backgroundColor = colors.text.accent;
-      analyzeBtn.style.boxShadow = 'none';
-    });
+    // Hover styles are handled by the utility function
 
     // Assemble panel
     this.controlPanel.appendChild(headerContainer);
@@ -476,29 +413,12 @@ export class CommentSelector {
 
   private createButton(text: string, onClick: () => void): HTMLElement {
     const button = document.createElement('button');
-    button.style.cssText = `
-      flex: 1;
-      padding: ${spacing.sm};
-      background-color: ${colors.background.secondary};
-      color: ${colors.text.primary};
-      border: 1px solid ${colors.border.light};
-      border-radius: ${borderRadius.sm};
-      font-size: ${typography.fontSize.xs};
-      font-weight: ${typography.fontWeight.medium};
-      cursor: pointer;
-      transition: all 0.2s ease;
-    `;
+    applyButtonStyles(button, 'secondary');
+    button.classList.add('flex-1', 'p-2', 'text-xs', 'font-medium');
     button.textContent = text;
 
     button.addEventListener('click', onClick);
-    button.addEventListener('mouseenter', () => {
-      button.style.backgroundColor = colors.background.primary;
-      button.style.borderColor = colors.border.default;
-    });
-    button.addEventListener('mouseleave', () => {
-      button.style.backgroundColor = colors.background.secondary;
-      button.style.borderColor = colors.border.light;
-    });
+    // Hover styles are handled by the utility function
 
     return button;
   }
@@ -539,13 +459,12 @@ export class CommentSelector {
     if (!comment.checkbox) return;
 
     if (comment.selected) {
-      comment.checkbox.style.backgroundColor = colors.text.accent;
-      comment.checkbox.style.borderColor = colors.text.accent;
+      comment.checkbox.classList.remove('bg-white', 'border-gray-200');
+      comment.checkbox.classList.add('bg-gray-900', 'border-gray-900', 'text-white');
       comment.checkbox.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
-      comment.checkbox.style.color = colors.background.primary;
     } else {
-      comment.checkbox.style.backgroundColor = colors.background.primary;
-      comment.checkbox.style.borderColor = colors.border.default;
+      comment.checkbox.classList.remove('bg-gray-900', 'border-gray-900', 'text-white');
+      comment.checkbox.classList.add('bg-white', 'border-gray-200');
       comment.checkbox.innerHTML = '';
     }
   }
@@ -613,35 +532,25 @@ export class CommentSelector {
 
   private createAnalysisStep(step: AnalysisStep): HTMLElement {
     const stepElement = document.createElement('div');
+    stepElement.classList.add(
+      'flex', 'items-center', 'gap-2', 'mb-1', 'opacity-0', 
+      'transition-all', 'duration-300'
+    );
     stepElement.style.cssText = `
-      display: flex;
-      align-items: center;
-      gap: ${spacing.sm};
-      margin-bottom: ${spacing.xs};
-      opacity: 0;
       transform: translateY(10px);
-      transition: all 0.3s ease;
     `;
 
     const indicator = document.createElement('div');
     indicator.className = 'step-indicator';
-    indicator.style.cssText = `
-      font-size: ${typography.fontSize.sm};
-      font-weight: ${typography.fontWeight.medium};
-      color: ${colors.text.tertiary};
-      width: 16px;
-      text-align: center;
-      flex-shrink: 0;
-    `;
+    indicator.classList.add(
+      'text-sm', 'font-medium', 'text-gray-400', 'w-4', 
+      'text-center', 'flex-shrink-0'
+    );
     indicator.textContent = '○';
 
     const text = document.createElement('div');
     text.className = 'step-text';
-    text.style.cssText = `
-      font-size: ${typography.fontSize.sm};
-      color: ${colors.text.tertiary};
-      font-weight: ${typography.fontWeight.normal};
-    `;
+    text.classList.add('text-sm', 'text-gray-400', 'font-normal');
     text.textContent = step.text;
 
     stepElement.appendChild(indicator);
@@ -660,21 +569,27 @@ export class CommentSelector {
     switch (step.status) {
       case 'pending':
         indicator.textContent = '○';
-        indicator.style.color = colors.text.tertiary;
+        indicator.classList.remove('text-gray-900', 'text-gray-500');
+        indicator.classList.add('text-gray-400');
         indicator.style.animation = 'none';
-        text.style.color = colors.text.tertiary;
+        text.classList.remove('text-gray-500', 'text-gray-800');
+        text.classList.add('text-gray-400');
         break;
       case 'in_progress':
         indicator.textContent = '●';
-        indicator.style.color = colors.text.accent;
+        indicator.classList.remove('text-gray-400', 'text-gray-500');
+        indicator.classList.add('text-gray-900');
         indicator.style.animation = 'pulse 1s ease-in-out infinite';
-        text.style.color = colors.text.secondary;
+        text.classList.remove('text-gray-400', 'text-gray-800');
+        text.classList.add('text-gray-500');
         break;
       case 'completed':
         indicator.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
-        indicator.style.color = colors.text.accent;
+        indicator.classList.remove('text-gray-400', 'text-gray-500');
+        indicator.classList.add('text-gray-900');
         indicator.style.animation = 'none';
-        text.style.color = colors.text.primary;
+        text.classList.remove('text-gray-400', 'text-gray-500');
+        text.classList.add('text-gray-800');
         break;
     }
   }
@@ -716,68 +631,42 @@ export class CommentSelector {
 
     // Clear existing content and transform to loading state
     this.controlPanel.innerHTML = '';
+    this.controlPanel.className = 'nugget-control-panel';
+    this.controlPanel.classList.add(
+      'fixed', 'bottom-5', 'right-5', 'w-80', 'min-h-60', 'bg-white',
+      'border', 'border-gray-100', 'rounded-xl', 'shadow-lg', 'z-[10001]',
+      'font-sans', 'p-6', 'flex', 'flex-col', 'gap-4', 'transition-all', 'duration-300'
+    );
     this.controlPanel.style.cssText = `
-      position: fixed;
-      bottom: 20px;
-      right: 20px;
-      width: 320px;
-      min-height: 240px;
-      background: ${colors.background.primary};
-      border: 1px solid ${colors.border.light};
-      border-radius: ${borderRadius.lg};
-      box-shadow: ${shadows.lg};
-      z-index: 10001;
-      font-family: ${typography.fontFamily.sans};
-      padding: ${spacing['2xl']};
-      display: flex;
-      flex-direction: column;
-      gap: ${spacing.lg};
       opacity: 1;
       transform: translateY(0);
-      transition: all 0.3s ease;
     `;
 
     // Create header with AI avatar and typing text
     const header = document.createElement('div');
-    header.style.cssText = `
-      display: flex;
-      align-items: center;
-      justify-content: flex-start;
-      gap: ${spacing.xs};
-      margin-bottom: ${spacing.md};
-    `;
+    header.classList.add(
+      'flex', 'items-center', 'justify-start', 'gap-1', 'mb-3'
+    );
 
     // AI Avatar
     const avatar = document.createElement('div');
+    avatar.classList.add(
+      'w-4', 'h-4', 'rounded-full', 'bg-gray-900', 'flex-shrink-0'
+    );
     avatar.style.cssText = `
-      width: 16px;
-      height: 16px;
-      border-radius: 50%;
-      background: ${colors.text.accent};
-      box-shadow: 0 0 8px ${colors.text.accent}40;
-      flex-shrink: 0;
+      box-shadow: 0 0 8px rgba(26, 26, 26, 0.25);
     `;
 
     // Typing text container
     const typingText = document.createElement('div');
-    typingText.style.cssText = `
-      color: ${colors.text.primary};
-      font-size: ${typography.fontSize.sm};
-      font-weight: ${typography.fontWeight.medium};
-      flex: 1;
-    `;
+    typingText.classList.add('text-gray-800', 'text-sm', 'font-medium', 'flex-1');
 
     header.appendChild(avatar);
     header.appendChild(typingText);
 
     // Create steps container
     const stepsContainer = document.createElement('div');
-    stepsContainer.style.cssText = `
-      display: flex;
-      flex-direction: column;
-      gap: ${spacing.xs};
-      margin-bottom: ${spacing.md};
-    `;
+    stepsContainer.classList.add('flex', 'flex-col', 'gap-1', 'mb-3');
 
     // Create step elements
     this.analysisSteps.forEach(step => {
@@ -787,27 +676,14 @@ export class CommentSelector {
 
     // Create prompt display
     const promptDisplay = document.createElement('div');
-    promptDisplay.style.cssText = `
-      text-align: center;
-      padding-top: ${spacing.md};
-      border-top: 1px solid ${colors.border.light};
-    `;
+    promptDisplay.classList.add('text-center', 'pt-3', 'border-t', 'border-gray-100');
 
     const promptLabel = document.createElement('div');
-    promptLabel.style.cssText = `
-      color: ${colors.text.tertiary};
-      font-size: ${typography.fontSize.xs};
-      font-weight: ${typography.fontWeight.normal};
-      margin-bottom: ${spacing.xs};
-    `;
+    promptLabel.classList.add('text-gray-400', 'text-xs', 'font-normal', 'mb-1');
     promptLabel.textContent = 'Using:';
 
     const promptNameDiv = document.createElement('div');
-    promptNameDiv.style.cssText = `
-      color: ${colors.text.accent};
-      font-size: ${typography.fontSize.sm};
-      font-weight: ${typography.fontWeight.semibold};
-    `;
+    promptNameDiv.classList.add('text-gray-900', 'text-sm', 'font-semibold');
     promptNameDiv.textContent = promptName;
 
     promptDisplay.appendChild(promptLabel);

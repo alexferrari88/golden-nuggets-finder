@@ -1,4 +1,4 @@
-import { colors, generateInlineStyles, zIndex, ui } from '../../shared/design-system';
+import { applyNotificationStyles, colors, zIndex } from './tailwind-utils';
 
 export class NotificationManager {
   private currentBanner: HTMLElement | null = null;
@@ -18,7 +18,7 @@ export class NotificationManager {
     // Auto-hide error after timeout
     this.autoHideTimeout = setTimeout(() => {
       this.hideBanner();
-    }, ui.notificationTimeout);
+    }, 5000); // 5 seconds timeout
   }
 
   showApiKeyError(): void {
@@ -29,7 +29,7 @@ export class NotificationManager {
     // Auto-hide error after timeout
     this.autoHideTimeout = setTimeout(() => {
       this.hideBanner();
-    }, ui.notificationTimeout);
+    }, 5000); // 5 seconds timeout
   }
 
   showInfo(message: string): void {
@@ -40,7 +40,7 @@ export class NotificationManager {
     // Auto-hide info after timeout
     this.autoHideTimeout = setTimeout(() => {
       this.hideBanner();
-    }, ui.notificationTimeout);
+    }, 5000); // 5 seconds timeout
   }
 
   hideProgress(): void {
@@ -57,49 +57,11 @@ export class NotificationManager {
     const banner = document.createElement('div');
     banner.className = `nugget-notification-banner nugget-banner-${type}`;
     
-    const baseStyles = `
-      position: fixed;
-      top: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      padding: 12px 24px;
-      border-radius: 4px;
-      z-index: ${zIndex.notification};
-      box-shadow: ${generateInlineStyles.notification()};
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      font-size: 14px;
-      font-weight: 500;
-      max-width: 400px;
-      text-align: center;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-    `;
+    // Apply notification styles using the tailwind utility
+    applyNotificationStyles(banner, { type: type, position: 'top' });
     
-    let typeStyles = '';
-    switch (type) {
-      case 'progress':
-        typeStyles = `
-          background: ${colors.success};
-          color: white;
-        `;
-        break;
-      case 'error':
-        typeStyles = `
-          background: ${colors.error};
-          color: white;
-        `;
-        break;
-      case 'info':
-        typeStyles = `
-          background: ${colors.text.accent};
-          color: white;
-        `;
-        break;
-    }
-    
-    banner.style.cssText = baseStyles + typeStyles;
+    // Add gap for content alignment
+    banner.classList.add('gap-2');
     
     // Add dynamic content based on type
     if (type === 'progress') {
@@ -119,19 +81,12 @@ export class NotificationManager {
     
     // Add animated dots
     const dotsContainer = document.createElement('div');
-    dotsContainer.style.cssText = `
-      display: flex;
-      gap: 2px;
-      align-items: center;
-    `;
+    dotsContainer.classList.add('flex', 'gap-0.5', 'items-center');
     
     for (let i = 0; i < 3; i++) {
       const dot = document.createElement('div');
+      dot.classList.add('w-1', 'h-1', 'rounded-full', 'bg-white');
       dot.style.cssText = `
-        width: 4px;
-        height: 4px;
-        border-radius: 50%;
-        background: white;
         animation: nugget-pulse 1.5s ease-in-out infinite;
         animation-delay: ${i * 0.2}s;
       `;
@@ -158,25 +113,8 @@ export class NotificationManager {
     const banner = document.createElement('div');
     banner.className = 'nugget-notification-banner nugget-banner-api-key-error';
     
-    const baseStyles = `
-      position: fixed;
-      top: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      padding: 12px 24px;
-      border-radius: 4px;
-      z-index: ${zIndex.notification};
-      box-shadow: ${generateInlineStyles.notification()};
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      font-size: 14px;
-      font-weight: 500;
-      max-width: 400px;
-      text-align: center;
-      background: ${colors.error};
-      color: white;
-    `;
-    
-    banner.style.cssText = baseStyles;
+    // Apply notification styles using the tailwind utility
+    applyNotificationStyles(banner, { type: 'error', position: 'top' });
     
     // Create text content with link
     const textSpan = document.createElement('span');
@@ -184,12 +122,7 @@ export class NotificationManager {
     
     const link = document.createElement('a');
     link.textContent = 'options page';
-    link.style.cssText = `
-      color: white;
-      text-decoration: underline;
-      cursor: pointer;
-      font-weight: 500;
-    `;
+    link.classList.add('text-white', 'underline', 'cursor-pointer', 'font-medium');
     
     link.addEventListener('click', (e) => {
       e.preventDefault();

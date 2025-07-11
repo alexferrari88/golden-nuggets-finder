@@ -1,5 +1,5 @@
 import { GoldenNugget } from '../../shared/types';
-import { colors, generateInlineStyles, zIndex } from '../../shared/design-system';
+import { applyHighlightStyles, applyPopupStyles, colors, zIndex } from './tailwind-utils';
 
 export class Highlighter {
   private highlights: HTMLElement[] = [];
@@ -29,7 +29,7 @@ export class Highlighter {
       
       // Add temporary glow effect
       const originalBoxShadow = element.style.boxShadow;
-      element.style.boxShadow = `0 0 0 3px ${colors.text.accent}30`;
+      element.style.boxShadow = `0 0 0 3px rgba(26, 26, 26, 0.19)`;
       setTimeout(() => {
         element.style.boxShadow = originalBoxShadow;
       }, 1500);
@@ -146,29 +146,20 @@ export class Highlighter {
     
     const indicator = document.createElement('span');
     indicator.className = 'nugget-indicator';
-    indicator.style.cssText = `
-      cursor: pointer;
-      margin-left: 4px;
-      font-size: 12px;
-      opacity: 0.7;
-      user-select: none;
-    `;
+    indicator.classList.add(
+      'cursor-pointer', 'ml-1', 'text-xs', 'opacity-70', 'select-none'
+    );
     
     if (isDiscussionSite) {
       // For discussion sites, show [type] tag
       indicator.textContent = `[${nugget.type}]`;
-      indicator.style.cssText += `
-        background: ${colors.background.overlay};
-        padding: 2px 4px;
-        border-radius: 2px;
-        font-weight: bold;
-      `;
+      indicator.classList.add(
+        'bg-gray-900/5', 'px-1', 'py-0.5', 'rounded-sm', 'font-bold'
+      );
     } else {
       // For generic pages, show sparkles icon
       indicator.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.582a.5.5 0 0 1 0 .962L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/><path d="M20 3v4"/><path d="M22 5h-4"/><path d="M4 17v2"/><path d="M5 18H3"/></svg>';
-      indicator.style.cssText += `
-        font-size: 14px;
-      `;
+      indicator.classList.add('text-sm');
     }
     
     // Add click handler to show synthesis popup
@@ -187,44 +178,23 @@ export class Highlighter {
     
     const popup = document.createElement('div');
     popup.className = 'nugget-synthesis-popup';
-    popup.style.cssText = `
-      position: absolute;
-      background: white;
-      border: 1px solid ${colors.border.default};
-      padding: 12px;
-      border-radius: 4px;
-      box-shadow: ${generateInlineStyles.notification()};
-      max-width: 300px;
-      z-index: ${zIndex.overlay};
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      font-size: 14px;
-      line-height: 1.4;
-    `;
+    applyPopupStyles(popup, { maxWidth: 'sm' });
+    popup.classList.add('text-sm', 'leading-normal');
     
     // Add close button
     const closeBtn = document.createElement('button');
     closeBtn.textContent = '×';
-    closeBtn.style.cssText = `
-      position: absolute;
-      top: 4px;
-      right: 8px;
-      background: none;
-      border: none;
-      font-size: 18px;
-      cursor: pointer;
-      padding: 0;
-      width: 20px;
-      height: 20px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    `;
+    closeBtn.classList.add(
+      'absolute', 'top-1', 'right-2', 'bg-transparent', 'border-none',
+      'text-lg', 'cursor-pointer', 'p-0', 'w-5', 'h-5',
+      'flex', 'items-center', 'justify-center'
+    );
     
     closeBtn.addEventListener('click', () => popup.remove());
     
     // Add content
     const content = document.createElement('div');
-    content.style.paddingRight = '20px';
+    content.classList.add('pr-5');
     content.textContent = nugget.synthesis;
     
     popup.appendChild(closeBtn);
@@ -390,7 +360,7 @@ export class Highlighter {
     // Create the highlight element
     const highlightSpan = document.createElement('span');
     highlightSpan.className = 'nugget-highlight';
-    highlightSpan.style.cssText = generateInlineStyles.highlightStyle();
+    applyHighlightStyles(highlightSpan, { intensity: 'subtle' });
     highlightSpan.dataset.nuggetType = nugget.type;
     highlightSpan.textContent = highlightText;
     
