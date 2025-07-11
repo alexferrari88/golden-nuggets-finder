@@ -1,6 +1,6 @@
 import { test, expect } from './fixtures/extension-fixture';
 import { TEST_API_KEY, DEFAULT_PROMPTS } from './fixtures/test-data';
-import { clearStorageData } from './fixtures/chrome-api-setup';
+import { clearStorageData, seedTestData } from './fixtures/chrome-api-setup';
 
 test.describe('Extension Setup Workflow', () => {
   test.beforeEach(async ({ context, serviceWorker, chromeApiReady }) => {
@@ -40,7 +40,7 @@ test.describe('Extension Setup Workflow', () => {
 
   test('should configure API key in options page', async ({ optionsPage }) => {
     // Should show options page
-    await expect(optionsPage.locator('h1:has-text("Golden Nugget Finder Settings")')).toBeVisible();
+    await expect(optionsPage.locator('h1:has-text("Golden Nugget Finder")')).toBeVisible();
     
     // Find and fill API key input
     const apiKeyInput = optionsPage.locator('input[type="password"]');
@@ -61,10 +61,10 @@ test.describe('Extension Setup Workflow', () => {
     });
     
     // Click save button
-    await optionsPage.locator('button:has-text("Save & Validate")').click();
+    await optionsPage.locator('button:has-text("Save API Key")').click();
     
     // Should show success message
-    await expect(optionsPage.locator('text=API key saved and validated successfully!')).toBeVisible();
+    await expect(optionsPage.locator('text=Your API key has been validated and saved successfully')).toBeVisible();
   });
 
   test('should handle invalid API key', async ({ optionsPage }) => {
@@ -82,7 +82,7 @@ test.describe('Extension Setup Workflow', () => {
       });
     });
     
-    await optionsPage.locator('button:has-text("Save & Validate")').click();
+    await optionsPage.locator('button:has-text("Save API Key")').click();
     
     // Should show error message
     await expect(optionsPage.locator('text=Invalid API key. Please check and try again.')).toBeVisible();
@@ -105,8 +105,8 @@ test.describe('Extension Setup Workflow', () => {
       });
     });
     
-    await optionsPage.locator('button:has-text("Save & Validate")').click();
-    await expect(optionsPage.locator('text=API key saved and validated successfully!')).toBeVisible();
+    await optionsPage.locator('button:has-text("Save API Key")').click();
+    await expect(optionsPage.locator('text=Your API key has been validated and saved successfully')).toBeVisible();
     
     // Click Add New Prompt
     await optionsPage.locator('button:has-text("Add New Prompt")').click();
@@ -126,7 +126,7 @@ test.describe('Extension Setup Workflow', () => {
     await expect(optionsPage.locator('text=Find test-related content and examples.')).toBeVisible();
   });
 
-  test('should edit existing prompt', async ({ optionsPage, page, context }) => {
+  test('should edit existing prompt', async ({ optionsPage, page, serviceWorker }) => {
     // Set up API key and create a prompt first
     await optionsPage.locator('input[type="password"]').fill(TEST_API_KEY);
     
@@ -142,26 +142,17 @@ test.describe('Extension Setup Workflow', () => {
       });
     });
     
-    await optionsPage.locator('button:has-text("Save & Validate")').click();
-    await expect(optionsPage.locator('text=API key saved and validated successfully!')).toBeVisible();
+    await optionsPage.locator('button:has-text("Save API Key")').click();
+    await expect(optionsPage.locator('text=Your API key has been validated and saved successfully')).toBeVisible();
     
-    // Create a test prompt via service worker
-    let serviceWorker = context.serviceWorkers()[0];
-    if (!serviceWorker) {
-      serviceWorker = await context.waitForEvent('serviceworker');
-    }
-    
-    await serviceWorker.evaluate(() => {
-      return new Promise((resolve) => {
-        chrome.storage.sync.set({
-          userPrompts: [{
-            id: 'test-1',
-            name: 'Original Name',
-            prompt: 'Original prompt text',
-            isDefault: false
-          }]
-        }, () => resolve(undefined));
-      });
+    // Create a test prompt via service worker using the new Chrome API setup utilities
+    await seedTestData(serviceWorker, {
+      userPrompts: [{
+        id: 'test-1',
+        name: 'Original Name',
+        prompt: 'Original prompt text',
+        isDefault: false
+      }]
     });
     
     // Reload page to see the new prompt
@@ -187,7 +178,7 @@ test.describe('Extension Setup Workflow', () => {
     await expect(optionsPage.locator('text=Edited prompt text')).toBeVisible();
   });
 
-  test('should delete prompt', async ({ optionsPage, page, context }) => {
+  test('should delete prompt', async ({ optionsPage, page, serviceWorker }) => {
     // Set up API key and create a prompt first
     await optionsPage.locator('input[type="password"]').fill(TEST_API_KEY);
     
@@ -203,26 +194,17 @@ test.describe('Extension Setup Workflow', () => {
       });
     });
     
-    await optionsPage.locator('button:has-text("Save & Validate")').click();
-    await expect(optionsPage.locator('text=API key saved and validated successfully!')).toBeVisible();
+    await optionsPage.locator('button:has-text("Save API Key")').click();
+    await expect(optionsPage.locator('text=Your API key has been validated and saved successfully')).toBeVisible();
     
-    // Create a test prompt via service worker
-    let serviceWorker = context.serviceWorkers()[0];
-    if (!serviceWorker) {
-      serviceWorker = await context.waitForEvent('serviceworker');
-    }
-    
-    await serviceWorker.evaluate(() => {
-      return new Promise((resolve) => {
-        chrome.storage.sync.set({
-          userPrompts: [{
-            id: 'test-delete',
-            name: 'To Be Deleted',
-            prompt: 'This will be deleted',
-            isDefault: false
-          }]
-        }, () => resolve(undefined));
-      });
+    // Create a test prompt via service worker using the new Chrome API setup utilities
+    await seedTestData(serviceWorker, {
+      userPrompts: [{
+        id: 'test-delete',
+        name: 'To Be Deleted',
+        prompt: 'This will be deleted',
+        isDefault: false
+      }]
     });
     
     // Reload page to see the new prompt
@@ -245,7 +227,7 @@ test.describe('Extension Setup Workflow', () => {
     await expect(optionsPage.locator('text=To Be Deleted')).not.toBeVisible();
   });
 
-  test('should set default prompt', async ({ optionsPage, page, context }) => {
+  test('should set default prompt', async ({ optionsPage, page, serviceWorker }) => {
     // Set up API key and create prompts
     await optionsPage.locator('input[type="password"]').fill(TEST_API_KEY);
     
@@ -261,34 +243,25 @@ test.describe('Extension Setup Workflow', () => {
       });
     });
     
-    await optionsPage.locator('button:has-text("Save & Validate")').click();
-    await expect(optionsPage.locator('text=API key saved and validated successfully!')).toBeVisible();
+    await optionsPage.locator('button:has-text("Save API Key")').click();
+    await expect(optionsPage.locator('text=Your API key has been validated and saved successfully')).toBeVisible();
     
-    // Create test prompts via service worker
-    let serviceWorker = context.serviceWorkers()[0];
-    if (!serviceWorker) {
-      serviceWorker = await context.waitForEvent('serviceworker');
-    }
-    
-    await serviceWorker.evaluate(() => {
-      return new Promise((resolve) => {
-        chrome.storage.sync.set({
-          userPrompts: [
-            {
-              id: 'prompt-1',
-              name: 'First Prompt',
-              prompt: 'First prompt text',
-              isDefault: true
-            },
-            {
-              id: 'prompt-2',
-              name: 'Second Prompt',
-              prompt: 'Second prompt text',
-              isDefault: false
-            }
-          ]
-        }, () => resolve(undefined));
-      });
+    // Create test prompts via service worker using the new Chrome API setup utilities
+    await seedTestData(serviceWorker, {
+      userPrompts: [
+        {
+          id: 'prompt-1',
+          name: 'First Prompt',
+          prompt: 'First prompt text',
+          isDefault: true
+        },
+        {
+          id: 'prompt-2',
+          name: 'Second Prompt',
+          prompt: 'Second prompt text',
+          isDefault: false
+        }
+      ]
     });
     
     // Reload page
@@ -305,21 +278,12 @@ test.describe('Extension Setup Workflow', () => {
     await expect(optionsPage.locator('text=First Prompt').locator('..').locator('button:has-text("Set Default")')).toBeVisible();
   });
 
-  test('should show prompts in popup after configuration', async ({ popupPage, page, context }) => {
-    // Set up API key and prompts via service worker
-    let serviceWorker = context.serviceWorkers()[0];
-    if (!serviceWorker) {
-      serviceWorker = await context.waitForEvent('serviceworker');
-    }
-    
-    await serviceWorker.evaluate((testData) => {
-      return new Promise((resolve) => {
-        chrome.storage.sync.set({
-          geminiApiKey: testData.apiKey,
-          userPrompts: testData.prompts
-        }, () => resolve(undefined));
-      });
-    }, { apiKey: TEST_API_KEY, prompts: DEFAULT_PROMPTS });
+  test('should show prompts in popup after configuration', async ({ popupPage, page, serviceWorker }) => {
+    // Set up API key and prompts via service worker using the new Chrome API setup utilities
+    await seedTestData(serviceWorker, {
+      geminiApiKey: TEST_API_KEY,
+      userPrompts: DEFAULT_PROMPTS
+    });
     
     // Reload popup
     await popupPage.reload();

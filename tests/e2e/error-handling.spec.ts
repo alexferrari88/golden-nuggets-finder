@@ -1,22 +1,17 @@
 import { test, expect } from './fixtures/extension-fixture';
 import { TEST_API_KEY, INVALID_API_KEY, DEFAULT_PROMPTS } from './fixtures/test-data';
 import { createMockRedditPage, setupMockApiError } from './fixtures/mock-pages';
+import { seedTestData } from './fixtures/chrome-api-setup';
 
 test.describe('Error Handling Workflow', () => {
-  test.beforeEach(async ({ context }) => {
-    // Set up prompts (but not API key for most tests) via service worker
-    let serviceWorker = context.serviceWorkers()[0];
-    if (!serviceWorker) {
-      serviceWorker = await context.waitForEvent('serviceworker');
-    }
+  test.beforeEach(async ({ serviceWorker, chromeApiReady }) => {
+    // Ensure Chrome APIs are ready before seeding test data
+    expect(chromeApiReady).toBe(true);
     
-    await serviceWorker.evaluate((prompts) => {
-      return new Promise((resolve) => {
-        chrome.storage.sync.set({
-          userPrompts: prompts
-        }, () => resolve(undefined));
-      });
-    }, DEFAULT_PROMPTS);
+    // Set up prompts (but not API key for most tests) using the new Chrome API setup utilities
+    await seedTestData(serviceWorker, {
+      userPrompts: DEFAULT_PROMPTS
+    });
   });
 
   test('should handle invalid API key error', async ({ page, popupPage }) => {

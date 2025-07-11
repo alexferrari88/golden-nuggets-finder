@@ -50,31 +50,19 @@ export const test = base.extend<ExtensionFixtures>({
   },
 
   serviceWorker: async ({ context }, use) => {
-    // Get service worker with proper timeout and activation waiting
+    // Get service worker with proper timeout
     let [serviceWorker] = context.serviceWorkers();
     if (!serviceWorker) {
       serviceWorker = await context.waitForEvent('serviceworker', { timeout: 30000 });
     }
     
-    // Research-proven activation waiting pattern
+    // Simple readiness check - just verify the service worker is responsive
     await serviceWorker.evaluate(() => {
-      return new Promise((resolve) => {
-        if (self.registration.active && self.registration.active.state === 'activated') {
-          resolve(undefined);
-        } else {
-          self.addEventListener('install', () => {
-            self.skipWaiting();
-          });
-          self.addEventListener('activate', () => {
-            resolve(undefined);
-          });
-          // If already activated but we missed the event
-          if (self.registration.active && self.registration.active.state === 'activated') {
-            resolve(undefined);
-          }
-        }
-      });
+      return Promise.resolve(true);
     });
+    
+    // Add a small delay to ensure service worker is fully initialized
+    await new Promise(resolve => setTimeout(resolve, 100));
     
     await use(serviceWorker);
   },
