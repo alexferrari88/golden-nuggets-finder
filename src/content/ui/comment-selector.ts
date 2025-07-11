@@ -16,9 +16,11 @@ export class CommentSelector {
   private isActive: boolean = false;
   private selectedPromptId: string | null = null;
   private prompts: SavedPrompt[] = [];
+  private keydownHandler: (event: KeyboardEvent) => void;
 
   constructor() {
     this.loadPrompts();
+    this.keydownHandler = this.handleKeydown.bind(this);
   }
 
   private async loadPrompts(): Promise<void> {
@@ -29,12 +31,22 @@ export class CommentSelector {
     }
   }
 
+  private handleKeydown(event: KeyboardEvent): void {
+    if (event.key === 'Escape' && this.isActive) {
+      event.preventDefault();
+      this.exitSelectionMode();
+    }
+  }
+
   async enterSelectionMode(promptId?: string): Promise<void> {
     if (this.isActive) return;
 
     console.log('Entering selection mode...', { promptId, url: window.location.href });
     this.isActive = true;
     this.selectedPromptId = promptId || null;
+    
+    // Add keyboard event listener
+    document.addEventListener('keydown', this.keydownHandler);
     
     // Extract comments from the page
     await this.extractComments();
@@ -209,15 +221,59 @@ export class CommentSelector {
       transition: all 0.3s ease;
     `;
 
-    // Content
+    // Header with close button
+    const headerContainer = document.createElement('div');
+    headerContainer.style.cssText = `
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: ${spacing.md};
+    `;
+
     const header = document.createElement('div');
     header.style.cssText = `
       font-size: ${typography.fontSize.sm};
       font-weight: ${typography.fontWeight.semibold};
       color: ${colors.text.primary};
-      margin-bottom: ${spacing.md};
     `;
     header.textContent = this.comments.length > 0 ? 'Select Comments to Analyze' : 'No Comments Found';
+
+    // Close button
+    const closeButton = document.createElement('button');
+    closeButton.style.cssText = `
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: ${colors.text.secondary};
+      font-size: ${typography.fontSize.lg};
+      padding: ${spacing.xs};
+      border-radius: ${borderRadius.sm};
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 24px;
+      height: 24px;
+    `;
+    closeButton.innerHTML = '×';
+    closeButton.title = 'Close selection mode (Esc)';
+
+    closeButton.addEventListener('click', () => {
+      this.exitSelectionMode();
+    });
+
+    closeButton.addEventListener('mouseenter', () => {
+      closeButton.style.backgroundColor = colors.background.secondary;
+      closeButton.style.color = colors.text.primary;
+    });
+
+    closeButton.addEventListener('mouseleave', () => {
+      closeButton.style.backgroundColor = 'transparent';
+      closeButton.style.color = colors.text.secondary;
+    });
+
+    headerContainer.appendChild(header);
+    headerContainer.appendChild(closeButton);
 
     const counter = document.createElement('div');
     counter.className = 'comment-counter';
@@ -329,7 +385,7 @@ export class CommentSelector {
     });
 
     // Assemble panel
-    this.controlPanel.appendChild(header);
+    this.controlPanel.appendChild(headerContainer);
     this.controlPanel.appendChild(counter);
     this.controlPanel.appendChild(quickActions);
     this.controlPanel.appendChild(promptSection);
@@ -551,6 +607,9 @@ export class CommentSelector {
     if (!this.isActive) return;
 
     this.isActive = false;
+    
+    // Remove keyboard event listener
+    document.removeEventListener('keydown', this.keydownHandler);
     
     // Remove checkboxes
     this.comments.forEach(comment => {
