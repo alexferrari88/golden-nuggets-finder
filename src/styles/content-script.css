@@ -1,0 +1,420 @@
+/*
+ * Golden Nugget Finder - Content Script CSS Isolation Strategy
+ * 
+ * This file provides CSS isolation for content scripts injected into arbitrary websites.
+ * Uses CSS cascade layers and prefixed classes to prevent style conflicts.
+ * 
+ * ISOLATION STRATEGY:
+ * 1. All content script styles are prefixed with 'gnf-' (Golden Nugget Finder)
+ * 2. Uses CSS cascade layers to ensure our styles take precedence
+ * 3. Imports only necessary Tailwind utilities with prefix
+ * 4. Resets conflicting styles with !important declarations
+ * 5. Scoped CSS variables to prevent global pollution
+ */
+
+/* CSS Layer for isolation - highest priority */
+@layer gnf-content-script {
+  /* Reset and base styles - prevent inheritance from host page */
+  .gnf-reset {
+    all: initial !important;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Content script specific CSS variables - scoped to avoid conflicts */
+  .gnf-root {
+    /* Notion-inspired ultra-minimal palette */
+    --gnf-white: #FFFFFF;
+    --gnf-black: #000000;
+    --gnf-gray-25: #FCFCFC;
+    --gnf-gray-50: #F7F7F7;
+    --gnf-gray-100: #F1F1F1;
+    --gnf-gray-200: #E6E6E6;
+    --gnf-gray-300: #D0D0D0;
+    --gnf-gray-400: #A8A8A8;
+    --gnf-gray-500: #6F6F6F;
+    --gnf-gray-600: #525252;
+    --gnf-gray-700: #3F3F3F;
+    --gnf-gray-800: #2A2A2A;
+    --gnf-gray-900: #1A1A1A;
+    
+    /* Semantic colors */
+    --gnf-text-primary: #2A2A2A;
+    --gnf-text-secondary: #6F6F6F;
+    --gnf-text-tertiary: #A8A8A8;
+    --gnf-text-accent: #1A1A1A;
+    
+    /* Background colors */
+    --gnf-bg-primary: #FFFFFF;
+    --gnf-bg-secondary: #FCFCFC;
+    --gnf-bg-tertiary: #F7F7F7;
+    --gnf-bg-overlay: rgba(26, 26, 26, 0.04);
+    --gnf-bg-modal-overlay: rgba(26, 26, 26, 0.3);
+    
+    /* Border colors */
+    --gnf-border-light: #F1F1F1;
+    --gnf-border-default: #E6E6E6;
+    --gnf-border-medium: #D0D0D0;
+    --gnf-border-dark: #A8A8A8;
+    
+    /* Highlight colors */
+    --gnf-highlight-bg: rgba(26, 26, 26, 0.02);
+    --gnf-highlight-border: rgba(26, 26, 26, 0.06);
+    --gnf-highlight-hover: rgba(26, 26, 26, 0.04);
+    
+    /* Shadows */
+    --gnf-shadow-sm: 0 1px 2px 0 rgba(26, 26, 26, 0.05);
+    --gnf-shadow-md: 0 4px 6px -1px rgba(26, 26, 26, 0.1), 0 2px 4px -1px rgba(26, 26, 26, 0.06);
+    --gnf-shadow-lg: 0 10px 15px -3px rgba(26, 26, 26, 0.1), 0 4px 6px -2px rgba(26, 26, 26, 0.05);
+    --gnf-shadow-xl: 0 20px 25px -5px rgba(26, 26, 26, 0.1), 0 10px 10px -5px rgba(26, 26, 26, 0.04);
+    
+    /* Z-index values */
+    --gnf-z-dropdown: 1000;
+    --gnf-z-modal: 1050;
+    --gnf-z-tooltip: 1100;
+    --gnf-z-overlay: 1200;
+    --gnf-z-sidebar: 1300;
+    --gnf-z-notification: 1400;
+    --gnf-z-toggle: 1500;
+    
+    /* Spacing */
+    --gnf-spacing-xs: 4px;
+    --gnf-spacing-sm: 8px;
+    --gnf-spacing-md: 12px;
+    --gnf-spacing-lg: 16px;
+    --gnf-spacing-xl: 20px;
+    --gnf-spacing-2xl: 24px;
+    --gnf-spacing-3xl: 32px;
+    --gnf-spacing-4xl: 48px;
+    --gnf-spacing-5xl: 64px;
+    
+    /* Border radius */
+    --gnf-radius-sm: 6px;
+    --gnf-radius-md: 8px;
+    --gnf-radius-lg: 12px;
+    --gnf-radius-xl: 16px;
+    --gnf-radius-full: 9999px;
+    
+    /* Typography */
+    --gnf-font-family-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    --gnf-font-size-xs: 12px;
+    --gnf-font-size-sm: 14px;
+    --gnf-font-size-base: 16px;
+    --gnf-font-size-lg: 18px;
+    --gnf-font-size-xl: 20px;
+    --gnf-font-size-2xl: 24px;
+    --gnf-font-size-3xl: 30px;
+    --gnf-font-weight-normal: 400;
+    --gnf-font-weight-medium: 500;
+    --gnf-font-weight-semibold: 600;
+    --gnf-font-weight-bold: 700;
+    --gnf-line-height-tight: 1.25;
+    --gnf-line-height-normal: 1.5;
+    --gnf-line-height-relaxed: 1.75;
+  }
+
+  /* Highlight styles - ultra subtle and minimal */
+  .gnf-highlight {
+    background-color: var(--gnf-highlight-bg) !important;
+    padding: 1px 2px !important;
+    border-radius: 3px !important;
+    transition: all 0.2s ease !important;
+    border-bottom: 1px solid var(--gnf-highlight-border) !important;
+    box-shadow: 0 0 0 1px var(--gnf-highlight-border) !important;
+    display: inline !important;
+  }
+
+  .gnf-highlight:hover {
+    background-color: var(--gnf-highlight-hover) !important;
+    border-bottom-color: var(--gnf-highlight-border) !important;
+    box-shadow: 0 0 0 1px var(--gnf-highlight-border) !important;
+  }
+
+  /* Indicator styles */
+  .gnf-indicator {
+    cursor: pointer !important;
+    margin-left: 6px !important;
+    font-size: 11px !important;
+    opacity: 0.6 !important;
+    user-select: none !important;
+    transition: opacity 0.2s ease !important;
+    color: var(--gnf-text-secondary) !important;
+    font-weight: 500 !important;
+    display: inline !important;
+  }
+
+  .gnf-indicator:hover {
+    opacity: 0.9 !important;
+    color: var(--gnf-text-primary) !important;
+  }
+
+  /* Synthesis popup styles */
+  .gnf-synthesis-popup {
+    position: absolute !important;
+    background: var(--gnf-bg-primary) !important;
+    border: 1px solid var(--gnf-border-light) !important;
+    padding: var(--gnf-spacing-lg) !important;
+    border-radius: var(--gnf-radius-md) !important;
+    box-shadow: var(--gnf-shadow-lg) !important;
+    max-width: 320px !important;
+    z-index: var(--gnf-z-tooltip) !important;
+    font-family: var(--gnf-font-family-sans) !important;
+    font-size: var(--gnf-font-size-sm) !important;
+    line-height: var(--gnf-line-height-normal) !important;
+    color: var(--gnf-text-primary) !important;
+    backdrop-filter: blur(8px) !important;
+  }
+
+  /* Sidebar styles */
+  .gnf-sidebar {
+    position: fixed !important;
+    right: 0 !important;
+    top: 0 !important;
+    width: 360px !important;
+    height: 100vh !important;
+    background: var(--gnf-bg-primary) !important;
+    border-left: 1px solid var(--gnf-border-light) !important;
+    overflow-y: auto !important;
+    z-index: var(--gnf-z-sidebar) !important;
+    box-shadow: var(--gnf-shadow-lg) !important;
+    font-family: var(--gnf-font-family-sans) !important;
+    backdrop-filter: blur(8px) !important;
+  }
+
+  /* Sidebar scrollbar */
+  .gnf-sidebar::-webkit-scrollbar {
+    width: 6px !important;
+  }
+
+  .gnf-sidebar::-webkit-scrollbar-track {
+    background: transparent !important;
+  }
+
+  .gnf-sidebar::-webkit-scrollbar-thumb {
+    background: var(--gnf-bg-overlay) !important;
+    border-radius: 8px !important;
+  }
+
+  .gnf-sidebar::-webkit-scrollbar-thumb:hover {
+    background: var(--gnf-border-medium) !important;
+  }
+
+  /* Notification banner styles */
+  .gnf-notification-banner {
+    position: fixed !important;
+    top: 24px !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+    padding: 12px 20px !important;
+    border-radius: 8px !important;
+    z-index: var(--gnf-z-notification) !important;
+    box-shadow: var(--gnf-shadow-md) !important;
+    font-family: var(--gnf-font-family-sans) !important;
+    font-size: var(--gnf-font-size-sm) !important;
+    font-weight: var(--gnf-font-weight-medium) !important;
+    max-width: 400px !important;
+    text-align: center !important;
+    animation: gnf-slide-down 0.3s ease !important;
+    backdrop-filter: blur(8px) !important;
+    border: 1px solid var(--gnf-border-light) !important;
+  }
+
+  /* Notification banner animations */
+  @keyframes gnf-slide-down {
+    from {
+      transform: translateX(-50%) translateY(-20px) !important;
+      opacity: 0 !important;
+    }
+    to {
+      transform: translateX(-50%) translateY(0) !important;
+      opacity: 1 !important;
+    }
+  }
+
+  /* Notification banner variants */
+  .gnf-banner-progress {
+    background: var(--gnf-gray-700) !important;
+    color: var(--gnf-white) !important;
+  }
+
+  .gnf-banner-error {
+    background: var(--gnf-gray-800) !important;
+    color: var(--gnf-white) !important;
+  }
+
+  .gnf-banner-info {
+    background: var(--gnf-gray-900) !important;
+    color: var(--gnf-white) !important;
+  }
+
+  /* Nugget item styles */
+  .gnf-item {
+    margin-bottom: 16px !important;
+    padding: 20px !important;
+    border: 1px solid var(--gnf-border-light) !important;
+    border-radius: 8px !important;
+    background: var(--gnf-white) !important;
+    transition: all 0.2s ease !important;
+    box-shadow: var(--gnf-shadow-sm) !important;
+    position: relative !important;
+  }
+
+  .gnf-item:hover {
+    border-color: var(--gnf-border-default) !important;
+    box-shadow: var(--gnf-shadow-md) !important;
+  }
+
+  .gnf-item.gnf-highlighted {
+    border-color: var(--gnf-gray-900) !important;
+    cursor: pointer !important;
+  }
+
+  .gnf-item.gnf-highlighted:hover {
+    background-color: var(--gnf-gray-50) !important;
+    border-color: var(--gnf-gray-900) !important;
+  }
+
+  /* Type badge styles */
+  .gnf-type-badge {
+    display: inline-block !important;
+    background: var(--gnf-gray-100) !important;
+    color: var(--gnf-gray-500) !important;
+    padding: 4px 8px !important;
+    border-radius: 6px !important;
+    font-size: 11px !important;
+    font-weight: 500 !important;
+    text-transform: uppercase !important;
+    margin-bottom: 12px !important;
+    letter-spacing: 0.5px !important;
+  }
+
+  /* Content styles */
+  .gnf-content {
+    margin-bottom: 12px !important;
+    font-size: var(--gnf-font-size-sm) !important;
+    line-height: var(--gnf-line-height-normal) !important;
+    color: var(--gnf-text-primary) !important;
+    max-height: 80px !important;
+    overflow: hidden !important;
+    position: relative !important;
+  }
+
+  .gnf-content .gnf-truncation-indicator {
+    color: var(--gnf-text-accent) !important;
+    cursor: pointer !important;
+    font-weight: 500 !important;
+    font-size: 13px !important;
+    padding: 2px 6px !important;
+    border-radius: 4px !important;
+    background: var(--gnf-highlight-bg) !important;
+    border: 1px solid var(--gnf-highlight-border) !important;
+    transition: all 0.2s ease !important;
+    display: inline-block !important;
+    margin-top: 4px !important;
+  }
+
+  .gnf-content .gnf-truncation-indicator:hover {
+    background: var(--gnf-highlight-hover) !important;
+    border-color: var(--gnf-border-default) !important;
+    color: var(--gnf-text-accent) !important;
+  }
+
+  /* Synthesis styles */
+  .gnf-synthesis {
+    font-size: 13px !important;
+    line-height: var(--gnf-line-height-normal) !important;
+    color: var(--gnf-text-secondary) !important;
+    font-style: normal !important;
+    border-left: 2px solid var(--gnf-border-default) !important;
+    padding-left: 12px !important;
+    margin-top: 12px !important;
+    background: var(--gnf-gray-50) !important;
+    padding: 12px !important;
+    border-radius: 6px !important;
+    border: 1px solid var(--gnf-border-light) !important;
+  }
+
+  /* Toggle button styles */
+  .gnf-toggle-button {
+    position: fixed !important;
+    right: 0 !important;
+    top: 50% !important;
+    transform: translateY(-50%) translateX(100%) !important;
+    width: 40px !important;
+    height: 80px !important;
+    background: var(--gnf-white) !important;
+    color: var(--gnf-text-secondary) !important;
+    border: 1px solid var(--gnf-border-light) !important;
+    border-right: none !important;
+    border-radius: 8px 0 0 8px !important;
+    cursor: pointer !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex-direction: column !important;
+    box-shadow: var(--gnf-shadow-md) !important;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    backdrop-filter: blur(8px) !important;
+    font-family: var(--gnf-font-family-sans) !important;
+    font-size: 11px !important;
+    font-weight: 500 !important;
+    letter-spacing: 0.5px !important;
+    text-transform: uppercase !important;
+    opacity: 0.8 !important;
+    z-index: var(--gnf-z-toggle) !important;
+    user-select: none !important;
+  }
+
+  .gnf-toggle-button:hover {
+    transform: translateY(-50%) translateX(0) !important;
+    background: var(--gnf-white) !important;
+    color: var(--gnf-text-primary) !important;
+    box-shadow: var(--gnf-shadow-lg) !important;
+    opacity: 1 !important;
+    border-color: var(--gnf-border-default) !important;
+  }
+
+  .gnf-toggle-button:focus {
+    outline: 2px solid var(--gnf-text-accent) !important;
+    outline-offset: 2px !important;
+  }
+
+  /* Responsive design */
+  @media (max-width: 768px) {
+    .gnf-sidebar {
+      width: 100% !important;
+      left: 0 !important;
+      right: 0 !important;
+    }
+    
+    .gnf-notification-banner {
+      left: 12px !important;
+      right: 12px !important;
+      transform: none !important;
+      max-width: none !important;
+    }
+    
+    .gnf-toggle-button {
+      width: 48px !important;
+      height: 48px !important;
+      border-radius: 50% !important;
+      top: 24px !important;
+      right: 24px !important;
+      transform: translateX(0) !important;
+      flex-direction: row !important;
+      font-size: 14px !important;
+    }
+  }
+
+  /* Prevent body margin when sidebar is open */
+  .gnf-sidebar-open {
+    margin-right: 360px !important;
+    transition: margin-right 0.3s ease !important;
+  }
+
+  @media (max-width: 768px) {
+    .gnf-sidebar-open {
+      margin-right: 0 !important;
+    }
+  }
+}
