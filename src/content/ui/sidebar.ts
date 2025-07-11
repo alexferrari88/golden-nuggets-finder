@@ -4,7 +4,7 @@ import { colors, shadows, generateInlineStyles, borderRadius, spacing, typograph
 
 export class Sidebar {
   private sidebar: HTMLElement | null = null;
-  private toggleButton: HTMLElement | null = null;
+  private collapsedTab: HTMLElement | null = null;
   private itemsPerPage = 20;
   private currentPage = 0;
   private allItems: SidebarNuggetItem[] = [];
@@ -30,9 +30,9 @@ export class Sidebar {
     this.sidebar = this.createSidebar();
     document.body.appendChild(this.sidebar);
     
-    // Create toggle button
-    this.toggleButton = this.createToggleButton();
-    document.body.appendChild(this.toggleButton);
+    // Create collapsed tab (initially hidden)
+    this.collapsedTab = this.createCollapsedTab();
+    document.body.appendChild(this.collapsedTab);
     
     // Adjust page margin to account for sidebar
     this.adjustPageLayout(true);
@@ -44,142 +44,144 @@ export class Sidebar {
       this.sidebar = null;
       this.adjustPageLayout(false);
     }
-    if (this.toggleButton) {
-      this.toggleButton.remove();
-      this.toggleButton = null;
+    if (this.collapsedTab) {
+      this.collapsedTab.remove();
+      this.collapsedTab = null;
     }
   }
 
   collapse(): void {
     if (this.sidebar && !this.isCollapsed) {
       this.isCollapsed = true;
-      this.sidebar.style.transform = 'translateX(100%)';
-      this.adjustPageLayout(false);
-      this.showToggleButton();
+      this.sidebar.style.width = '40px';
+      this.sidebar.style.overflowY = 'hidden';
+      this.adjustPageLayout(true); // Still showing sidebar, just collapsed
+      this.showCollapsedTab();
     }
   }
 
   expand(): void {
     if (this.sidebar && this.isCollapsed) {
       this.isCollapsed = false;
-      this.sidebar.style.transform = 'translateX(0)';
-      this.adjustPageLayout(true);
-      this.hideToggleButton();
+      this.sidebar.style.width = ui.sidebarWidth;
+      this.sidebar.style.overflowY = 'auto';
+      this.adjustPageLayout(true); // Still showing sidebar, now expanded
+      this.hideCollapsedTab();
     }
   }
 
-  private showToggleButton(): void {
-    if (this.toggleButton) {
-      // Remove hidden class and add visible class
-      this.toggleButton.classList.remove('hidden', 'far-hidden');
-      this.toggleButton.classList.add('visible');
-      
-      // Add slide-in animation class
-      this.toggleButton.classList.add('slide-in');
-      
-      // Add pulse animation for discoverability after slide-in completes
-      setTimeout(() => {
-        if (this.toggleButton && this.toggleButton.parentElement) {
-          this.toggleButton.classList.add('pulse');
-          // Remove pulse after 3 cycles (9 seconds)
-          setTimeout(() => {
-            if (this.toggleButton) {
-              this.toggleButton.classList.remove('pulse');
-            }
-          }, 9000);
-        }
-      }, 2000);
+  private showCollapsedTab(): void {
+    if (this.collapsedTab) {
+      this.collapsedTab.style.display = 'flex';
+      this.collapsedTab.style.opacity = '1';
     }
   }
 
-  private hideToggleButton(): void {
-    if (this.toggleButton) {
-      // Remove any animation classes first
-      this.toggleButton.classList.remove('slide-in', 'pulse');
-      
-      // Add far-hidden class for slide out animation
-      this.toggleButton.classList.add('far-hidden');
-      this.toggleButton.classList.remove('visible');
-      
-      // Hide completely after animation
-      setTimeout(() => {
-        if (this.toggleButton) {
-          this.toggleButton.classList.add('hidden');
-          this.toggleButton.classList.remove('far-hidden');
-        }
-      }, 200);
+  private hideCollapsedTab(): void {
+    if (this.collapsedTab) {
+      this.collapsedTab.style.display = 'none';
+      this.collapsedTab.style.opacity = '0';
     }
   }
 
-  private createToggleButton(): HTMLElement {
-    const button = document.createElement('button');
-    
-    // Create SVG icon for sidebar expand
-    const svgIcon = `
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <line x1="4" x2="20" y1="6" y2="6"/>
-        <line x1="4" x2="20" y1="12" y2="12"/>
-        <line x1="4" x2="20" y1="18" y2="18"/>
-      </svg>
+  private createCollapsedTab(): HTMLElement {
+    const tab = document.createElement('div');
+    tab.className = 'nugget-collapsed-tab';
+    tab.style.cssText = `
+      position: fixed;
+      right: 0;
+      top: 0;
+      width: 40px;
+      height: 100vh;
+      background: ${colors.background.primary};
+      border-left: 1px solid ${colors.border.light};
+      box-shadow: ${generateInlineStyles.sidebarShadow()};
+      z-index: ${zIndex.sidebar};
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      opacity: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     `;
     
-    button.innerHTML = svgIcon;
-    button.className = 'nugget-toggle-button';
-    button.setAttribute('aria-label', 'Expand Golden Nuggets sidebar');
-    button.setAttribute('title', 'Show Golden Nuggets');
-    button.setAttribute('role', 'button');
-    button.setAttribute('tabindex', '0');
+    // Create rotated text container
+    const textContainer = document.createElement('div');
+    textContainer.style.cssText = `
+      transform: rotate(-90deg);
+      white-space: nowrap;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      color: ${colors.text.primary};
+    `;
     
-    // Set initial state - hidden by default
-    button.classList.add('hidden');
+    // Add title text
+    const titleText = document.createElement('span');
+    titleText.textContent = 'Golden Nuggets';
     
-    // Add text label
-    const label = document.createElement('span');
-    label.textContent = 'Nuggets';
+    // Add count badge
+    const countBadge = document.createElement('span');
+    countBadge.textContent = this.allItems.length.toString();
+    countBadge.style.cssText = `
+      background: ${colors.text.accent};
+      color: white;
+      padding: 2px 6px;
+      border-radius: 10px;
+      font-size: 12px;
+      font-weight: 500;
+      min-width: 20px;
+      text-align: center;
+    `;
     
-    button.appendChild(label);
+    textContainer.appendChild(titleText);
+    textContainer.appendChild(countBadge);
+    tab.appendChild(textContainer);
     
-    // Enhanced event handlers
-    button.addEventListener('click', () => {
+    // Event handlers
+    tab.addEventListener('click', () => {
       this.expand();
     });
     
-    button.addEventListener('keydown', (e) => {
+    tab.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault();
         this.expand();
       }
     });
     
-    // Hover effects to make button fully visible
-    button.addEventListener('mouseenter', () => {
-      button.style.transform = 'translateY(-50%) translateX(0)';
-      button.style.background = colors.background.primary;
-      button.style.color = colors.text.primary;
-      button.style.boxShadow = generateInlineStyles.sidebarShadowHover();
-      button.style.opacity = '1';
-      label.style.color = colors.text.primary;
+    // Hover effects
+    tab.addEventListener('mouseenter', () => {
+      tab.style.background = colors.background.secondary;
+      tab.style.boxShadow = generateInlineStyles.sidebarShadowHover();
+      tab.style.borderLeftColor = colors.text.accent;
     });
     
-    button.addEventListener('mouseleave', () => {
-      button.style.transform = 'translateY(-50%) translateX(85%)';
-      button.style.background = colors.background.primary;
-      button.style.color = colors.text.secondary;
-      button.style.boxShadow = generateInlineStyles.sidebarShadow();
-      button.style.opacity = '0.9';
-      label.style.color = colors.text.secondary;
+    tab.addEventListener('mouseleave', () => {
+      tab.style.background = colors.background.primary;
+      tab.style.boxShadow = generateInlineStyles.sidebarShadow();
+      tab.style.borderLeftColor = colors.border.light;
     });
     
-    button.addEventListener('focus', () => {
-      button.style.outline = `2px solid ${colors.text.accent}`;
-      button.style.outlineOffset = '2px';
+    // Focus handling
+    tab.setAttribute('tabindex', '0');
+    tab.setAttribute('role', 'button');
+    tab.setAttribute('aria-label', 'Expand Golden Nuggets sidebar');
+    
+    tab.addEventListener('focus', () => {
+      tab.style.outline = `2px solid ${colors.text.accent}`;
+      tab.style.outlineOffset = '-2px';
     });
     
-    button.addEventListener('blur', () => {
-      button.style.outline = 'none';
+    tab.addEventListener('blur', () => {
+      tab.style.outline = 'none';
     });
     
-    return button;
+    return tab;
   }
 
   private createSidebar(): HTMLElement {
@@ -197,8 +199,7 @@ export class Sidebar {
       z-index: ${zIndex.sidebar};
       box-shadow: ${generateInlineStyles.sidebarShadow()};
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      transition: transform 0.3s ease;
-      transform: translateX(0);
+      transition: width 0.3s ease, overflow-y 0.3s ease;
     `;
     
     // Create header with performance optimizations
@@ -654,10 +655,10 @@ export class Sidebar {
   private adjustPageLayout(showSidebar: boolean): void {
     if (showSidebar) {
       // Add margin to prevent content from being hidden behind sidebar
-      document.body.style.marginRight = ui.sidebarWidth;
+      document.body.style.marginRight = this.isCollapsed ? '40px' : ui.sidebarWidth;
       document.body.style.transition = 'margin-right 0.3s ease';
     } else {
-      // Remove margin
+      // Remove margin completely when sidebar is hidden
       document.body.style.marginRight = '';
       document.body.style.transition = 'margin-right 0.3s ease';
     }
