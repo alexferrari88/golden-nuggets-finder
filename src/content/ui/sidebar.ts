@@ -70,7 +70,10 @@ export class Sidebar {
 
   private showToggleButton(): void {
     if (this.toggleButton) {
-      this.toggleButton.style.display = 'flex';
+      // Remove hidden class and add visible class
+      this.toggleButton.classList.remove('hidden', 'far-hidden');
+      this.toggleButton.classList.add('visible');
+      
       // Add slide-in animation class
       this.toggleButton.classList.add('slide-in');
       
@@ -94,11 +97,15 @@ export class Sidebar {
       // Remove any animation classes first
       this.toggleButton.classList.remove('slide-in', 'pulse');
       
-      // Slide out animation before hiding
-      this.toggleButton.style.transform = 'translateY(-50%) translateX(120%)';
+      // Add far-hidden class for slide out animation
+      this.toggleButton.classList.add('far-hidden');
+      this.toggleButton.classList.remove('visible');
+      
+      // Hide completely after animation
       setTimeout(() => {
         if (this.toggleButton) {
-          this.toggleButton.style.display = 'none';
+          this.toggleButton.classList.add('hidden');
+          this.toggleButton.classList.remove('far-hidden');
         }
       }, 200);
     }
@@ -123,52 +130,12 @@ export class Sidebar {
     button.setAttribute('role', 'button');
     button.setAttribute('tabindex', '0');
     
-    // Modern tab-like design attached to sidebar edge
-    button.style.cssText = `
-      position: fixed;
-      right: 0;
-      top: 50%;
-      transform: translateY(-50%) translateX(100%);
-      width: 40px;
-      height: 80px;
-      background: ${colors.background.primary};
-      color: ${colors.text.primary};
-      border: 1px solid ${colors.border.light};
-      border-right: none;
-      border-radius: 12px 0 0 12px;
-      cursor: pointer;
-      display: none;
-      z-index: ${zIndex.sidebar + 1};
-      box-shadow: ${generateInlineStyles.sidebarShadow()};
-      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-      backdrop-filter: blur(8px);
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-direction: column;
-      gap: 4px;
-      writing-mode: vertical-lr;
-      text-orientation: mixed;
-      font-size: 11px;
-      font-weight: 500;
-      letter-spacing: 0.5px;
-      text-transform: uppercase;
-      opacity: 0.9;
-    `;
+    // Set initial state - hidden by default
+    button.classList.add('hidden');
     
     // Add text label
     const label = document.createElement('span');
     label.textContent = 'Nuggets';
-    label.style.cssText = `
-      font-size: 10px;
-      font-weight: 600;
-      color: ${colors.text.secondary};
-      margin-top: 4px;
-      writing-mode: vertical-lr;
-      text-orientation: mixed;
-      letter-spacing: 0.5px;
-    `;
     
     button.appendChild(label);
     
@@ -184,6 +151,7 @@ export class Sidebar {
       }
     });
     
+    // Hover effects to make button fully visible
     button.addEventListener('mouseenter', () => {
       button.style.transform = 'translateY(-50%) translateX(0)';
       button.style.background = colors.background.primary;
@@ -194,7 +162,7 @@ export class Sidebar {
     });
     
     button.addEventListener('mouseleave', () => {
-      button.style.transform = 'translateY(-50%) translateX(100%)';
+      button.style.transform = 'translateY(-50%) translateX(85%)';
       button.style.background = colors.background.primary;
       button.style.color = colors.text.secondary;
       button.style.boxShadow = generateInlineStyles.sidebarShadow();
@@ -210,28 +178,6 @@ export class Sidebar {
     button.addEventListener('blur', () => {
       button.style.outline = 'none';
     });
-    
-    // Subtle slide-in animation when button becomes visible
-    const slideIn = () => {
-      button.style.transform = 'translateY(-50%) translateX(85%)';
-      setTimeout(() => {
-        button.style.transform = 'translateY(-50%) translateX(100%)';
-      }, 100);
-    };
-    
-    // Trigger slide-in animation after a brief delay
-    setTimeout(slideIn, 300);
-    
-    // Add pulse animation for discoverability after button has been shown for a few seconds
-    setTimeout(() => {
-      if (button && button.parentElement) {
-        button.classList.add('pulse');
-        // Remove pulse after 3 cycles (9 seconds)
-        setTimeout(() => {
-          button.classList.remove('pulse');
-        }, 9000);
-      }
-    }, 2000);
     
     return button;
   }

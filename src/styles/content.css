@@ -266,6 +266,20 @@ body.nugget-sidebar-open {
   user-select: none !important;
 }
 
+/* Toggle button state classes */
+.nugget-toggle-button.hidden {
+  display: none !important;
+}
+
+.nugget-toggle-button.visible {
+  display: flex !important;
+  transform: translateY(-50%) translateX(85%) !important;
+}
+
+.nugget-toggle-button.far-hidden {
+  transform: translateY(-50%) translateX(120%) !important;
+}
+
 .nugget-toggle-button:hover {
   transform: translateY(-50%) translateX(0) !important;
   background: var(--color-white) !important;
@@ -273,6 +287,10 @@ body.nugget-sidebar-open {
   box-shadow: var(--shadow-lg) !important;
   opacity: 1 !important;
   border-color: var(--color-border-default) !important;
+}
+
+.nugget-toggle-button.visible:hover {
+  transform: translateY(-50%) translateX(0) !important;
 }
 
 .nugget-toggle-button:focus {
