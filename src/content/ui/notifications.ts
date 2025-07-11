@@ -1,5 +1,4 @@
-import { UI_CONSTANTS } from '../../shared/constants';
-import { colors, generateInlineStyles } from '../../shared/design-system';
+import { colors, generateInlineStyles, zIndex, ui } from '../../shared/design-system';
 
 export class NotificationManager {
   private currentBanner: HTMLElement | null = null;
@@ -19,7 +18,7 @@ export class NotificationManager {
     // Auto-hide error after timeout
     this.autoHideTimeout = setTimeout(() => {
       this.hideBanner();
-    }, UI_CONSTANTS.NOTIFICATION_TIMEOUT);
+    }, ui.notificationTimeout);
   }
 
   showApiKeyError(): void {
@@ -30,7 +29,7 @@ export class NotificationManager {
     // Auto-hide error after timeout
     this.autoHideTimeout = setTimeout(() => {
       this.hideBanner();
-    }, UI_CONSTANTS.NOTIFICATION_TIMEOUT);
+    }, ui.notificationTimeout);
   }
 
   showInfo(message: string): void {
@@ -41,7 +40,7 @@ export class NotificationManager {
     // Auto-hide info after timeout
     this.autoHideTimeout = setTimeout(() => {
       this.hideBanner();
-    }, UI_CONSTANTS.NOTIFICATION_TIMEOUT);
+    }, ui.notificationTimeout);
   }
 
   hideProgress(): void {
@@ -65,7 +64,7 @@ export class NotificationManager {
       transform: translateX(-50%);
       padding: 12px 24px;
       border-radius: 4px;
-      z-index: ${UI_CONSTANTS.BANNER_Z_INDEX};
+      z-index: ${zIndex.notification};
       box-shadow: ${generateInlineStyles.notification()};
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       font-size: 14px;
@@ -166,7 +165,7 @@ export class NotificationManager {
       transform: translateX(-50%);
       padding: 12px 24px;
       border-radius: 4px;
-      z-index: ${UI_CONSTANTS.BANNER_Z_INDEX};
+      z-index: ${zIndex.notification};
       box-shadow: ${generateInlineStyles.notification()};
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       font-size: 14px;

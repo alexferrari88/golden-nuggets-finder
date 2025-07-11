@@ -1,5 +1,3 @@
-import { generateInlineStyles, zIndex } from './design-system';
-
 export const STORAGE_KEYS = {
   API_KEY: 'geminiApiKey',
   PROMPTS: 'userPrompts'
@@ -21,15 +19,6 @@ export const SITE_SELECTORS = {
     USER_NAME: 'div[data-testid="User-Name"] a[href^="/"]',
     SPAM_BUTTON: 'button:has(span:contains("Show probable spam"))'
   }
-} as const;
-
-export const UI_CONSTANTS = {
-  get HIGHLIGHT_STYLE() { return generateInlineStyles.highlightStyle(); },
-  SIDEBAR_WIDTH: '320px',
-  NOTIFICATION_TIMEOUT: 5000,
-  POPUP_Z_INDEX: zIndex.overlay,
-  SIDEBAR_Z_INDEX: zIndex.sidebar,
-  BANNER_Z_INDEX: zIndex.notification
 } as const;
 
 export const GEMINI_CONFIG = {

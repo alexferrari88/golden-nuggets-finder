@@ -1,6 +1,5 @@
 import { GoldenNugget } from '../../shared/types';
-import { UI_CONSTANTS } from '../../shared/constants';
-import { colors, generateInlineStyles } from '../../shared/design-system';
+import { colors, generateInlineStyles, zIndex } from '../../shared/design-system';
 
 export class Highlighter {
   private highlights: HTMLElement[] = [];
@@ -196,7 +195,7 @@ export class Highlighter {
       border-radius: 4px;
       box-shadow: ${generateInlineStyles.notification()};
       max-width: 300px;
-      z-index: ${UI_CONSTANTS.POPUP_Z_INDEX};
+      z-index: ${zIndex.overlay};
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       font-size: 14px;
       line-height: 1.4;
@@ -391,7 +390,7 @@ export class Highlighter {
     // Create the highlight element
     const highlightSpan = document.createElement('span');
     highlightSpan.className = 'nugget-highlight';
-    highlightSpan.style.cssText = UI_CONSTANTS.HIGHLIGHT_STYLE;
+    highlightSpan.style.cssText = generateInlineStyles.highlightStyle();
     highlightSpan.dataset.nuggetType = nugget.type;
     highlightSpan.textContent = highlightText;
     

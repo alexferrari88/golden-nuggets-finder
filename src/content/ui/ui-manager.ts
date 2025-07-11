@@ -1,5 +1,4 @@
 import { GoldenNugget, SidebarNuggetItem } from '../../shared/types';
-import { UI_CONSTANTS } from '../../shared/constants';
 import { Highlighter } from './highlighter';
 import { Sidebar } from './sidebar';
 import { NotificationManager } from './notifications';

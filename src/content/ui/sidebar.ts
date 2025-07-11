@@ -1,7 +1,6 @@
 import { SidebarNuggetItem } from '../../shared/types';
-import { UI_CONSTANTS } from '../../shared/constants';
 import { Highlighter } from './highlighter';
-import { colors, shadows, generateInlineStyles, borderRadius, spacing, typography } from '../../shared/design-system';
+import { colors, shadows, generateInlineStyles, borderRadius, spacing, typography, zIndex, ui } from '../../shared/design-system';
 
 export class Sidebar {
   private sidebar: HTMLElement | null = null;
@@ -138,7 +137,7 @@ export class Sidebar {
       border-radius: 12px 0 0 12px;
       cursor: pointer;
       display: none;
-      z-index: ${UI_CONSTANTS.SIDEBAR_Z_INDEX + 1};
+      z-index: ${zIndex.sidebar + 1};
       box-shadow: ${generateInlineStyles.sidebarShadow()};
       transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
       backdrop-filter: blur(8px);
@@ -243,12 +242,12 @@ export class Sidebar {
       position: fixed;
       right: 0;
       top: 0;
-      width: ${UI_CONSTANTS.SIDEBAR_WIDTH};
+      width: ${ui.sidebarWidth};
       height: 100vh;
       background: ${colors.background.primary};
       border-left: 1px solid ${colors.border.light};
       overflow-y: auto;
-      z-index: ${UI_CONSTANTS.SIDEBAR_Z_INDEX};
+      z-index: ${zIndex.sidebar};
       box-shadow: ${generateInlineStyles.sidebarShadow()};
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       transition: transform 0.3s ease;
@@ -752,7 +751,7 @@ export class Sidebar {
   private adjustPageLayout(showSidebar: boolean): void {
     if (showSidebar) {
       // Add margin to prevent content from being hidden behind sidebar
-      document.body.style.marginRight = UI_CONSTANTS.SIDEBAR_WIDTH;
+      document.body.style.marginRight = ui.sidebarWidth;
       document.body.style.transition = 'margin-right 0.3s ease';
     } else {
       // Remove margin

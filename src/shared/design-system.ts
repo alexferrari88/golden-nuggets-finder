@@ -126,6 +126,12 @@ export const zIndex = {
   toggle: 1500,
 };
 
+// UI Constants - dimensions, timings, and other UI-specific values
+export const ui = {
+  sidebarWidth: '320px',
+  notificationTimeout: 5000,
+};
+
 // Component-specific styles
 export const components = {
   button: {
