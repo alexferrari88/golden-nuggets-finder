@@ -657,6 +657,7 @@ function IndexPopup() {
           {prompts.map(prompt => (
             <div 
               key={prompt.id}
+              data-testid="prompt-item"
               onClick={() => selectionMode === 'quick' ? analyzeWithPrompt(prompt.id) : enterSelectionMode(prompt.id)}
               style={{
                 padding: spacing.lg,
