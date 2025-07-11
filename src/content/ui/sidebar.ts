@@ -513,18 +513,6 @@ export class Sidebar {
         this.highlighter?.scrollToHighlight(item.nugget);
         // Remove the dot indicator after clicking
         clickIndicator.remove();
-        // Update the status icon to show it's been found
-        const statusIndicator = nuggetDiv.querySelector('.nugget-status') as HTMLElement;
-        if (statusIndicator) {
-          statusIndicator.innerHTML = `
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.5" fill="none"/>
-              <path d="M5 8L7 10L11 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-          `;
-          statusIndicator.setAttribute('title', 'Found on page');
-          statusIndicator.style.color = '${colors.success}';
-        }
       });
     }
     
@@ -594,39 +582,7 @@ export class Sidebar {
       text-transform: uppercase;
     `;
     
-    // Status indicator
-    const statusIndicator = document.createElement('span');
-    statusIndicator.className = 'nugget-status';
-    statusIndicator.style.cssText = `
-      display: flex;
-      align-items: center;
-      width: 20px;
-      height: 20px;
-      color: ${item.status === 'highlighted' ? colors.success : colors.text.secondary};
-    `;
-    
-    // Add appropriate icon based on status
-    if (item.status === 'highlighted') {
-      statusIndicator.innerHTML = `
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <circle cx="7" cy="7" r="3" stroke="currentColor" stroke-width="1.5" fill="none"/>
-          <path d="M10 10l3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-        </svg>
-      `;
-      statusIndicator.setAttribute('title', 'Click to find on page');
-    } else {
-      statusIndicator.innerHTML = `
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.5" fill="none"/>
-          <path d="M8 4V8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-          <circle cx="8" cy="11" r="1" fill="currentColor"/>
-        </svg>
-      `;
-      statusIndicator.setAttribute('title', 'Content not found on page');
-    }
-    
     headerDiv.appendChild(typeBadge);
-    headerDiv.appendChild(statusIndicator);
     
     // Content preview with lazy loading
     const contentPreview = document.createElement('div');
