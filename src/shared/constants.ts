@@ -30,8 +30,7 @@ export const DEFAULT_PROMPTS = [
   {
     id: 'default-insights',
     name: 'Find Key Insights',
-    prompt: `
-    ## ROLE & GOAL:
+    prompt: `## ROLE & GOAL:
 You are an AI information filter. Your goal is to analyze the provided {{ source }} and extract content specifically interesting to a "Pragmatic Synthesizer" persona with ADHD. You must ignore generic, superficial, or low-signal comments.
 **Crucially, do not force or invent extractions; only include content that is a clear and strong match for the 'Golden Nuggets' criteria. If no such content is found, the \`golden_nuggets\` array MUST be empty ([]).**
 ## PERSONA PROFILE:
