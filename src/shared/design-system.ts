@@ -2,57 +2,58 @@
 // This file contains the core design tokens for the Golden Nugget Finder extension
 
 export const colors = {
-  // Ultra-minimal monochromatic palette - pure black, white, and grays only
-  // Inspired by Notion's latest minimalist design philosophy
+  // Notion-inspired ultra-minimal palette
+  // Focus on subtlety, elegance, and exceptional readability
   
-  // Core monochromatic colors
-  black: '#000000',           // Pure black
+  // Core neutral colors
+  black: '#000000',           // Pure black (sparingly used)
   white: '#FFFFFF',           // Pure white
   gray: {
-    50: '#FAFAFA',           // Lightest gray (almost white)
-    100: '#F4F4F4',          // Very light gray
-    200: '#E4E4E4',          // Light gray
-    300: '#D1D1D1',          // Medium-light gray
-    400: '#A3A3A3',          // Medium gray
-    500: '#737373',          // True medium gray
+    25: '#FCFCFC',           // Barely-there gray
+    50: '#F7F7F7',           // Ultra-light gray
+    100: '#F1F1F1',          // Very light gray
+    200: '#E6E6E6',          // Light gray
+    300: '#D0D0D0',          // Medium-light gray
+    400: '#A8A8A8',          // Medium gray
+    500: '#6F6F6F',          // True medium gray
     600: '#525252',          // Medium-dark gray
-    700: '#404040',          // Dark gray
-    800: '#262626',          // Very dark gray
-    900: '#171717',          // Almost black
+    700: '#3F3F3F',          // Dark gray
+    800: '#2A2A2A',          // Very dark gray
+    900: '#1A1A1A',          // Almost black
   },
 
-  // Semantic colors (monochromatic only)
+  // Semantic colors - all neutral tones
   text: {
-    primary: '#171717',       // Almost black for primary text
-    secondary: '#525252',     // Medium-dark gray for secondary text
-    tertiary: '#737373',      // Medium gray for tertiary text
-    accent: '#000000',        // Pure black for emphasis/links
+    primary: '#2A2A2A',       // Very dark gray for primary text (softer than black)
+    secondary: '#6F6F6F',     // Medium gray for secondary text
+    tertiary: '#A8A8A8',      // Light gray for tertiary text
+    accent: '#1A1A1A',        // Almost black for emphasis (softer than pure black)
   },
 
   background: {
     primary: '#FFFFFF',       // Pure white
-    secondary: '#FAFAFA',     // Lightest gray
-    tertiary: '#F4F4F4',      // Very light gray
-    overlay: 'rgba(0, 0, 0, 0.05)', // Ultra-subtle black overlay
+    secondary: '#FCFCFC',     // Barely-there gray
+    tertiary: '#F7F7F7',      // Ultra-light gray
+    overlay: 'rgba(26, 26, 26, 0.04)', // Ultra-subtle dark overlay
   },
 
   border: {
-    light: '#F4F4F4',         // Very light gray border
-    default: '#E4E4E4',       // Light gray border
-    medium: '#D1D1D1',        // Medium-light gray border
-    dark: '#A3A3A3',          // Medium gray border
+    light: '#F1F1F1',         // Very light gray border
+    default: '#E6E6E6',       // Light gray border
+    medium: '#D0D0D0',        // Medium-light gray border
+    dark: '#A8A8A8',          // Medium gray border
   },
 
-  // Highlight colors - extremely subtle grays
+  // Highlight colors - incredibly subtle
   highlight: {
-    background: 'rgba(0, 0, 0, 0.03)', // Ultra-subtle highlight
-    border: 'rgba(0, 0, 0, 0.08)',     // Barely visible border
-    hover: 'rgba(0, 0, 0, 0.05)',      // Slightly more visible on hover
+    background: 'rgba(26, 26, 26, 0.02)', // Almost invisible highlight
+    border: 'rgba(26, 26, 26, 0.06)',     // Barely visible border
+    hover: 'rgba(26, 26, 26, 0.04)',      // Subtle hover state
   },
 
-  // States (monochromatic alternatives)
-  success: '#404040',         // Dark gray for success states
-  error: '#262626',           // Very dark gray for error states
+  // States - all neutral, no color
+  success: '#3F3F3F',         // Dark gray for success states
+  error: '#2A2A2A',           // Very dark gray for error states
   warning: '#525252',         // Medium-dark gray for warnings
 };
 

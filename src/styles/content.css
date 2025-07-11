@@ -2,18 +2,18 @@
 
 /* Highlight styles - ultra subtle and minimal */
 .nugget-highlight {
-  background-color: rgba(120, 119, 116, 0.08) !important;
+  background-color: rgba(26, 26, 26, 0.02) !important;
   padding: 1px 2px;
   border-radius: 3px;
   transition: all 0.2s ease;
-  border-bottom: 1px solid rgba(120, 119, 116, 0.15);
-  box-shadow: 0 0 0 1px rgba(120, 119, 116, 0.1);
+  border-bottom: 1px solid rgba(26, 26, 26, 0.06);
+  box-shadow: 0 0 0 1px rgba(26, 26, 26, 0.04);
 }
 
 .nugget-highlight:hover {
-  background-color: rgba(120, 119, 116, 0.12) !important;
-  border-bottom-color: rgba(120, 119, 116, 0.2);
-  box-shadow: 0 0 0 1px rgba(120, 119, 116, 0.15);
+  background-color: rgba(26, 26, 26, 0.04) !important;
+  border-bottom-color: rgba(26, 26, 26, 0.08);
+  box-shadow: 0 0 0 1px rgba(26, 26, 26, 0.06);
 }
 
 .nugget-indicator {
@@ -23,19 +23,19 @@
   opacity: 0.6;
   user-select: none;
   transition: opacity 0.2s ease;
-  color: #525252;
+  color: #6F6F6F;
   font-weight: 500;
 }
 
 .nugget-indicator:hover {
   opacity: 0.9;
-  color: #171717;
+  color: #2A2A2A;
 }
 
 .nugget-synthesis-popup {
   position: absolute;
   background: #FFFFFF;
-  border: 1px solid #F4F4F4;
+  border: 1px solid #F1F1F1;
   padding: 16px;
   border-radius: 8px;
   box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
@@ -44,7 +44,7 @@
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   font-size: 14px;
   line-height: 1.5;
-  color: #171717;
+  color: #2A2A2A;
   backdrop-filter: blur(8px);
 }
 
@@ -55,7 +55,7 @@
   width: 360px;
   height: 100vh;
   background: #FFFFFF;
-  border-left: 1px solid #F4F4F4;
+  border-left: 1px solid #F1F1F1;
   overflow-y: auto;
   z-index: 10000;
   box-shadow: -4px 0 12px -2px rgba(0, 0, 0, 0.08);
@@ -72,12 +72,12 @@
 }
 
 .nugget-sidebar::-webkit-scrollbar-thumb {
-  background: rgba(120, 119, 116, 0.2);
+  background: rgba(26, 26, 26, 0.12);
   border-radius: 8px;
 }
 
 .nugget-sidebar::-webkit-scrollbar-thumb:hover {
-  background: rgba(120, 119, 116, 0.3);
+  background: rgba(26, 26, 26, 0.16);
 }
 
 .nugget-notification-banner {
@@ -111,24 +111,24 @@
 }
 
 .nugget-banner-progress {
-  background: #404040;
+  background: #3F3F3F;
   color: #FFFFFF;
 }
 
 .nugget-banner-error {
-  background: #262626;
+  background: #2A2A2A;
   color: #FFFFFF;
 }
 
 .nugget-banner-info {
-  background: #000000;
+  background: #1A1A1A;
   color: #FFFFFF;
 }
 
 .nugget-item {
   margin-bottom: 16px;
   padding: 20px;
-  border: 1px solid #F4F4F4;
+  border: 1px solid #F1F1F1;
   border-radius: 8px;
   background: #FFFFFF;
   transition: all 0.2s ease;
@@ -137,24 +137,24 @@
 }
 
 .nugget-item:hover {
-  border-color: rgba(120, 119, 116, 0.2);
+  border-color: rgba(26, 26, 26, 0.12);
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
 }
 
 .nugget-item.highlighted {
-  border-color: #000000;
+  border-color: #1A1A1A;
   cursor: pointer;
 }
 
 .nugget-item.highlighted:hover {
-  background-color: #F4F4F4;
-  border-color: #000000;
+  background-color: #F7F7F7;
+  border-color: #1A1A1A;
 }
 
 .nugget-type-badge {
   display: inline-block;
-  background: #F4F4F4;
-  color: #525252;
+  background: #F1F1F1;
+  color: #6F6F6F;
   padding: 4px 8px;
   border-radius: 6px;
   font-size: 11px;
@@ -168,30 +168,30 @@
   margin-bottom: 12px;
   font-size: 14px;
   line-height: 1.5;
-  color: #171717;
+  color: #2A2A2A;
   max-height: 80px;
   overflow: hidden;
   position: relative;
 }
 
 .nugget-content .truncation-indicator {
-  color: #000000;
+  color: #1A1A1A;
   cursor: pointer;
   font-weight: 500;
   font-size: 13px;
   padding: 2px 6px;
   border-radius: 4px;
-  background: rgba(120, 119, 116, 0.08);
-  border: 1px solid rgba(120, 119, 116, 0.15);
+  background: rgba(26, 26, 26, 0.02);
+  border: 1px solid rgba(26, 26, 26, 0.06);
   transition: all 0.2s ease;
   display: inline-block;
   margin-top: 4px;
 }
 
 .nugget-content .truncation-indicator:hover {
-  background: rgba(120, 119, 116, 0.12);
-  border-color: rgba(120, 119, 116, 0.2);
-  color: #000000;
+  background: rgba(26, 26, 26, 0.04);
+  border-color: rgba(26, 26, 26, 0.08);
+  color: #1A1A1A;
 }
 
 .nugget-content .fade-overlay {
@@ -212,21 +212,21 @@
 .nugget-synthesis {
   font-size: 13px;
   line-height: 1.5;
-  color: #525252;
+  color: #6F6F6F;
   font-style: normal;
-  border-left: 2px solid rgba(120, 119, 116, 0.2);
+  border-left: 2px solid rgba(26, 26, 26, 0.08);
   padding-left: 12px;
   margin-top: 12px;
-  background: #F4F4F4;
+  background: #F7F7F7;
   padding: 12px;
   border-radius: 6px;
-  border: 1px solid #F4F4F4;
+  border: 1px solid #F1F1F1;
 }
 
 /* Hide scrollbar for sidebar content when not needed */
 .nugget-sidebar {
   scrollbar-width: thin;
-  scrollbar-color: rgba(120, 119, 116, 0.2) transparent;
+  scrollbar-color: rgba(26, 26, 26, 0.12) transparent;
 }
 
 /* Ensure content doesn't get hidden behind sidebar */
@@ -244,8 +244,8 @@ body.nugget-sidebar-open {
   width: 40px !important;
   height: 80px !important;
   background: #FFFFFF !important;
-  color: #525252 !important;
-  border: 1px solid #F4F4F4 !important;
+  color: #6F6F6F !important;
+  border: 1px solid #F1F1F1 !important;
   border-right: none !important;
   border-radius: 8px 0 0 8px !important;
   cursor: pointer !important;
@@ -269,14 +269,14 @@ body.nugget-sidebar-open {
 .nugget-toggle-button:hover {
   transform: translateY(-50%) translateX(0) !important;
   background: #FFFFFF !important;
-  color: #171717 !important;
+  color: #2A2A2A !important;
   box-shadow: -6px 0 12px -2px rgba(0, 0, 0, 0.1) !important;
   opacity: 1 !important;
-  border-color: rgba(120, 119, 116, 0.2) !important;
+  border-color: rgba(26, 26, 26, 0.12) !important;
 }
 
 .nugget-toggle-button:focus {
-  outline: 2px solid #000000 !important;
+  outline: 2px solid #1A1A1A !important;
   outline-offset: 2px !important;
 }
 
@@ -289,7 +289,7 @@ body.nugget-sidebar-open {
 .nugget-toggle-button span {
   font-size: 10px !important;
   font-weight: 600 !important;
-  color: #525252 !important;
+  color: #6F6F6F !important;
   margin-top: 4px !important;
   writing-mode: vertical-lr !important;
   text-orientation: mixed !important;
@@ -297,7 +297,7 @@ body.nugget-sidebar-open {
 }
 
 .nugget-toggle-button:hover span {
-  color: #171717 !important;
+  color: #2A2A2A !important;
 }
 
 /* Subtle pulse animation for discoverability */
@@ -384,12 +384,12 @@ body.nugget-sidebar-open {
 
 /* Reapply our styles after reset */
 .nugget-highlight {
-  background-color: rgba(120, 119, 116, 0.08) !important;
+  background-color: rgba(26, 26, 26, 0.02) !important;
   padding: 1px 2px !important;
   border-radius: 3px !important;
   display: inline !important;
-  border-bottom: 1px solid rgba(120, 119, 116, 0.15) !important;
-  box-shadow: 0 0 0 1px rgba(120, 119, 116, 0.1) !important;
+  border-bottom: 1px solid rgba(26, 26, 26, 0.06) !important;
+  box-shadow: 0 0 0 1px rgba(26, 26, 26, 0.04) !important;
 }
 
 .nugget-indicator {
@@ -399,6 +399,6 @@ body.nugget-sidebar-open {
   opacity: 0.6 !important;
   user-select: none !important;
   display: inline !important;
-  color: #525252 !important;
+  color: #6F6F6F !important;
   font-weight: 500 !important;
 }
