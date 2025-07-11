@@ -29,6 +29,12 @@ export default defineConfig({
     /* Capture video on failure */
     video: 'retain-on-failure',
   },
+  
+  /* Extension testing requires longer timeouts for service worker initialization */
+  timeout: 60000, // 60 seconds for extension tests (vs default 30 seconds)
+  expect: {
+    timeout: 15000, // 15 seconds for assertions (vs default 5 seconds)
+  },
 
   /* Configure projects for major browsers */
   projects: [
@@ -37,11 +43,12 @@ export default defineConfig({
       use: {
         ...devices['Desktop Chrome'],
         // Configure Chrome to load extensions
+        // NOTE: These args are overridden by the extension fixture for proper testing
         launchOptions: {
           args: [
             '--disable-web-security',
-            '--disable-extensions-except=./dist/chrome-mv3',
-            '--load-extension=./dist/chrome-mv3',
+            '--disable-extensions-except=./dist/chrome-mv3-dev',
+            '--load-extension=./dist/chrome-mv3-dev',
             '--disable-dev-shm-usage',
             '--no-sandbox',
           ],
