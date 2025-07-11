@@ -7,6 +7,7 @@ import { GenericExtractor } from '../content/extractors/generic';
 import { UIManager } from '../content/ui/ui-manager';
 import { performanceMonitor, measureContentExtraction, measureDOMOperation } from '../shared/performance';
 import { isDevMode } from '../shared/debug';
+import { generateCSSCustomProperties } from '../shared/design-system';
 
 export default defineContentScript({
   matches: ['https://example.com/*'], // Restrictive match to prevent auto-injection
@@ -31,9 +32,21 @@ export default defineContentScript({
       }
     }
 
+    function injectDesignSystemVariables(): void {
+      // Check if already injected
+      if (document.getElementById('nugget-design-system-vars')) return;
+      
+      // Create and inject CSS custom properties
+      const styleElement = document.createElement('style');
+      styleElement.id = 'nugget-design-system-vars';
+      styleElement.textContent = generateCSSCustomProperties();
+      document.head.appendChild(styleElement);
+    }
+
     function initialize(): void {
       if (!isActivated) {
         extractor = createExtractor();
+        injectDesignSystemVariables();
         isActivated = true;
       }
     }

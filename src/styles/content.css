@@ -2,18 +2,18 @@
 
 /* Highlight styles - ultra subtle and minimal */
 .nugget-highlight {
-  background-color: rgba(26, 26, 26, 0.02) !important;
+  background-color: var(--color-highlight-bg) !important;
   padding: 1px 2px;
   border-radius: 3px;
   transition: all 0.2s ease;
-  border-bottom: 1px solid rgba(26, 26, 26, 0.06);
-  box-shadow: 0 0 0 1px rgba(26, 26, 26, 0.04);
+  border-bottom: 1px solid var(--color-highlight-border);
+  box-shadow: 0 0 0 1px var(--color-highlight-border);
 }
 
 .nugget-highlight:hover {
-  background-color: rgba(26, 26, 26, 0.04) !important;
-  border-bottom-color: rgba(26, 26, 26, 0.08);
-  box-shadow: 0 0 0 1px rgba(26, 26, 26, 0.06);
+  background-color: var(--color-highlight-hover) !important;
+  border-bottom-color: var(--color-highlight-border);
+  box-shadow: 0 0 0 1px var(--color-highlight-border);
 }
 
 .nugget-indicator {
@@ -23,28 +23,28 @@
   opacity: 0.6;
   user-select: none;
   transition: opacity 0.2s ease;
-  color: #6F6F6F;
+  color: var(--color-text-secondary);
   font-weight: 500;
 }
 
 .nugget-indicator:hover {
   opacity: 0.9;
-  color: #2A2A2A;
+  color: var(--color-text-primary);
 }
 
 .nugget-synthesis-popup {
   position: absolute;
-  background: #FFFFFF;
-  border: 1px solid #F1F1F1;
-  padding: 16px;
-  border-radius: 8px;
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border-light);
+  padding: var(--spacing-lg);
+  border-radius: var(--border-radius-md);
+  box-shadow: var(--shadow-lg);
   max-width: 320px;
   z-index: 10000;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   font-size: 14px;
   line-height: 1.5;
-  color: #2A2A2A;
+  color: var(--color-text-primary);
   backdrop-filter: blur(8px);
 }
 
@@ -54,11 +54,11 @@
   top: 0;
   width: 360px;
   height: 100vh;
-  background: #FFFFFF;
-  border-left: 1px solid #F1F1F1;
+  background: var(--color-bg-primary);
+  border-left: 1px solid var(--color-border-light);
   overflow-y: auto;
   z-index: 10000;
-  box-shadow: -4px 0 12px -2px rgba(0, 0, 0, 0.08);
+  box-shadow: var(--shadow-lg);
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   backdrop-filter: blur(8px);
 }
@@ -72,12 +72,12 @@
 }
 
 .nugget-sidebar::-webkit-scrollbar-thumb {
-  background: rgba(26, 26, 26, 0.12);
+  background: var(--color-bg-overlay);
   border-radius: 8px;
 }
 
 .nugget-sidebar::-webkit-scrollbar-thumb:hover {
-  background: rgba(26, 26, 26, 0.16);
+  background: var(--color-border-medium);
 }
 
 .nugget-notification-banner {
@@ -88,7 +88,7 @@
   padding: 12px 20px;
   border-radius: 8px;
   z-index: 10001;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  box-shadow: var(--shadow-md);
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   font-size: 14px;
   font-weight: 500;
@@ -96,7 +96,7 @@
   text-align: center;
   animation: slideDown 0.3s ease;
   backdrop-filter: blur(8px);
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  border: 1px solid var(--color-border-light);
 }
 
 @keyframes slideDown {
@@ -111,50 +111,50 @@
 }
 
 .nugget-banner-progress {
-  background: #3F3F3F;
-  color: #FFFFFF;
+  background: var(--color-gray-700);
+  color: var(--color-white);
 }
 
 .nugget-banner-error {
-  background: #2A2A2A;
-  color: #FFFFFF;
+  background: var(--color-gray-800);
+  color: var(--color-white);
 }
 
 .nugget-banner-info {
-  background: #1A1A1A;
-  color: #FFFFFF;
+  background: var(--color-gray-900);
+  color: var(--color-white);
 }
 
 .nugget-item {
   margin-bottom: 16px;
   padding: 20px;
-  border: 1px solid #F1F1F1;
+  border: 1px solid var(--color-border-light);
   border-radius: 8px;
-  background: #FFFFFF;
+  background: var(--color-white);
   transition: all 0.2s ease;
-  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  box-shadow: var(--shadow-sm);
   position: relative;
 }
 
 .nugget-item:hover {
-  border-color: rgba(26, 26, 26, 0.12);
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  border-color: var(--color-border-default);
+  box-shadow: var(--shadow-md);
 }
 
 .nugget-item.highlighted {
-  border-color: #1A1A1A;
+  border-color: var(--color-gray-900);
   cursor: pointer;
 }
 
 .nugget-item.highlighted:hover {
-  background-color: #F7F7F7;
-  border-color: #1A1A1A;
+  background-color: var(--color-gray-50);
+  border-color: var(--color-gray-900);
 }
 
 .nugget-type-badge {
   display: inline-block;
-  background: #F1F1F1;
-  color: #6F6F6F;
+  background: var(--color-gray-100);
+  color: var(--color-gray-500);
   padding: 4px 8px;
   border-radius: 6px;
   font-size: 11px;
@@ -168,30 +168,30 @@
   margin-bottom: 12px;
   font-size: 14px;
   line-height: 1.5;
-  color: #2A2A2A;
+  color: var(--color-text-primary);
   max-height: 80px;
   overflow: hidden;
   position: relative;
 }
 
 .nugget-content .truncation-indicator {
-  color: #1A1A1A;
+  color: var(--color-text-accent);
   cursor: pointer;
   font-weight: 500;
   font-size: 13px;
   padding: 2px 6px;
   border-radius: 4px;
-  background: rgba(26, 26, 26, 0.02);
-  border: 1px solid rgba(26, 26, 26, 0.06);
+  background: var(--color-highlight-bg);
+  border: 1px solid var(--color-highlight-border);
   transition: all 0.2s ease;
   display: inline-block;
   margin-top: 4px;
 }
 
 .nugget-content .truncation-indicator:hover {
-  background: rgba(26, 26, 26, 0.04);
-  border-color: rgba(26, 26, 26, 0.08);
-  color: #1A1A1A;
+  background: var(--color-highlight-hover);
+  border-color: var(--color-border-default);
+  color: var(--color-text-accent);
 }
 
 .nugget-content .fade-overlay {
@@ -200,7 +200,7 @@
   right: 0;
   width: 40px;
   height: 1.5em;
-  background: linear-gradient(to right, rgba(255,255,255,0), rgba(255,255,255,1));
+  background: linear-gradient(to right, transparent, var(--color-white));
   pointer-events: none;
 }
 
@@ -212,21 +212,21 @@
 .nugget-synthesis {
   font-size: 13px;
   line-height: 1.5;
-  color: #6F6F6F;
+  color: var(--color-text-secondary);
   font-style: normal;
-  border-left: 2px solid rgba(26, 26, 26, 0.08);
+  border-left: 2px solid var(--color-border-default);
   padding-left: 12px;
   margin-top: 12px;
-  background: #F7F7F7;
+  background: var(--color-gray-50);
   padding: 12px;
   border-radius: 6px;
-  border: 1px solid #F1F1F1;
+  border: 1px solid var(--color-border-light);
 }
 
 /* Hide scrollbar for sidebar content when not needed */
 .nugget-sidebar {
   scrollbar-width: thin;
-  scrollbar-color: rgba(26, 26, 26, 0.12) transparent;
+  scrollbar-color: var(--color-bg-overlay) transparent;
 }
 
 /* Ensure content doesn't get hidden behind sidebar */
@@ -243,9 +243,9 @@ body.nugget-sidebar-open {
   transform: translateY(-50%) translateX(100%) !important;
   width: 40px !important;
   height: 80px !important;
-  background: #FFFFFF !important;
-  color: #6F6F6F !important;
-  border: 1px solid #F1F1F1 !important;
+  background: var(--color-white) !important;
+  color: var(--color-text-secondary) !important;
+  border: 1px solid var(--color-border-light) !important;
   border-right: none !important;
   border-radius: 8px 0 0 8px !important;
   cursor: pointer !important;
@@ -253,7 +253,7 @@ body.nugget-sidebar-open {
   align-items: center !important;
   justify-content: center !important;
   flex-direction: column !important;
-  box-shadow: -4px 0 8px -2px rgba(0, 0, 0, 0.06) !important;
+  box-shadow: var(--shadow-md) !important;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
   backdrop-filter: blur(8px) !important;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
@@ -268,15 +268,15 @@ body.nugget-sidebar-open {
 
 .nugget-toggle-button:hover {
   transform: translateY(-50%) translateX(0) !important;
-  background: #FFFFFF !important;
-  color: #2A2A2A !important;
-  box-shadow: -6px 0 12px -2px rgba(0, 0, 0, 0.1) !important;
+  background: var(--color-white) !important;
+  color: var(--color-text-primary) !important;
+  box-shadow: var(--shadow-lg) !important;
   opacity: 1 !important;
-  border-color: rgba(26, 26, 26, 0.12) !important;
+  border-color: var(--color-border-default) !important;
 }
 
 .nugget-toggle-button:focus {
-  outline: 2px solid #1A1A1A !important;
+  outline: 2px solid var(--color-text-accent) !important;
   outline-offset: 2px !important;
 }
 
@@ -289,7 +289,7 @@ body.nugget-sidebar-open {
 .nugget-toggle-button span {
   font-size: 10px !important;
   font-weight: 600 !important;
-  color: #6F6F6F !important;
+  color: var(--color-text-secondary) !important;
   margin-top: 4px !important;
   writing-mode: vertical-lr !important;
   text-orientation: mixed !important;
@@ -297,7 +297,7 @@ body.nugget-sidebar-open {
 }
 
 .nugget-toggle-button:hover span {
-  color: #2A2A2A !important;
+  color: var(--color-text-primary) !important;
 }
 
 /* Subtle pulse animation for discoverability */
@@ -360,7 +360,7 @@ body.nugget-sidebar-open {
     transform: translateX(0) !important;
     flex-direction: row !important;
     font-size: 14px !important;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06) !important;
+    box-shadow: var(--shadow-md) !important;
   }
   
   .nugget-toggle-button span {
@@ -384,12 +384,12 @@ body.nugget-sidebar-open {
 
 /* Reapply our styles after reset */
 .nugget-highlight {
-  background-color: rgba(26, 26, 26, 0.02) !important;
+  background-color: var(--color-highlight-bg) !important;
   padding: 1px 2px !important;
   border-radius: 3px !important;
   display: inline !important;
-  border-bottom: 1px solid rgba(26, 26, 26, 0.06) !important;
-  box-shadow: 0 0 0 1px rgba(26, 26, 26, 0.04) !important;
+  border-bottom: 1px solid var(--color-highlight-border) !important;
+  box-shadow: 0 0 0 1px var(--color-highlight-border) !important;
 }
 
 .nugget-indicator {
@@ -399,6 +399,6 @@ body.nugget-sidebar-open {
   opacity: 0.6 !important;
   user-select: none !important;
   display: inline !important;
-  color: #6F6F6F !important;
+  color: var(--color-text-secondary) !important;
   font-weight: 500 !important;
 }

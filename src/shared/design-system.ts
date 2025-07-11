@@ -247,6 +247,70 @@ export const createFocusStyles = (baseStyles: Record<string, any>, focusStyles: 
   },
 });
 
+// CSS Custom Properties Generator for content.css compatibility
+export const generateCSSCustomProperties = () => `
+  :root {
+    --color-white: ${colors.white};
+    --color-black: ${colors.black};
+    --color-gray-25: ${colors.gray[25]};
+    --color-gray-50: ${colors.gray[50]};
+    --color-gray-100: ${colors.gray[100]};
+    --color-gray-200: ${colors.gray[200]};
+    --color-gray-300: ${colors.gray[300]};
+    --color-gray-400: ${colors.gray[400]};
+    --color-gray-500: ${colors.gray[500]};
+    --color-gray-600: ${colors.gray[600]};
+    --color-gray-700: ${colors.gray[700]};
+    --color-gray-800: ${colors.gray[800]};
+    --color-gray-900: ${colors.gray[900]};
+    
+    --color-text-primary: ${colors.text.primary};
+    --color-text-secondary: ${colors.text.secondary};
+    --color-text-tertiary: ${colors.text.tertiary};
+    --color-text-accent: ${colors.text.accent};
+    
+    --color-bg-primary: ${colors.background.primary};
+    --color-bg-secondary: ${colors.background.secondary};
+    --color-bg-tertiary: ${colors.background.tertiary};
+    --color-bg-overlay: ${colors.background.overlay};
+    --color-bg-modal-overlay: ${colors.background.modalOverlay};
+    
+    --color-border-light: ${colors.border.light};
+    --color-border-default: ${colors.border.default};
+    --color-border-medium: ${colors.border.medium};
+    --color-border-dark: ${colors.border.dark};
+    
+    --color-highlight-bg: ${colors.highlight.background};
+    --color-highlight-border: ${colors.highlight.border};
+    --color-highlight-hover: ${colors.highlight.hover};
+    
+    --color-success: ${colors.success};
+    --color-error: ${colors.error};
+    --color-warning: ${colors.warning};
+    
+    --shadow-sm: ${shadows.sm};
+    --shadow-md: ${shadows.md};
+    --shadow-lg: ${shadows.lg};
+    --shadow-xl: ${shadows.xl};
+    --shadow-modal: ${shadows.modal};
+    
+    --border-radius-sm: ${borderRadius.sm};
+    --border-radius-md: ${borderRadius.md};
+    --border-radius-lg: ${borderRadius.lg};
+    --border-radius-xl: ${borderRadius.xl};
+    
+    --spacing-xs: ${spacing.xs};
+    --spacing-sm: ${spacing.sm};
+    --spacing-md: ${spacing.md};
+    --spacing-lg: ${spacing.lg};
+    --spacing-xl: ${spacing.xl};
+    --spacing-2xl: ${spacing['2xl']};
+    --spacing-3xl: ${spacing['3xl']};
+    --spacing-4xl: ${spacing['4xl']};
+    --spacing-5xl: ${spacing['5xl']};
+  }
+`;
+
 // Animation utilities
 export const animations = {
   fadeIn: {
