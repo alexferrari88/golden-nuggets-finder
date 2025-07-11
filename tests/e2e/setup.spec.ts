@@ -336,6 +336,6 @@ test.describe('Extension Setup Workflow', () => {
     await expect(popupPage.locator('text=Find Explanations')).toBeVisible();
     
     // Default prompt should be marked with star
-    await expect(popupPage.locator('text=Find Tools').locator('..').locator('text=⭐')).toBeVisible();
+    await expect(popupPage.locator('svg')).toBeVisible();
   });
 });

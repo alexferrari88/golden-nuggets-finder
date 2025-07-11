@@ -118,6 +118,9 @@ export class ContentInjector {
       performanceMonitor.startTimer('total_analysis');
       totalTimerStarted = true;
       
+      // Show progress banner
+      this.uiManager.showProgressBanner();
+      
       // Extract content from the page
       const content = await measureContentExtraction('page_content', () => this.getExtractor().extractContent());
       

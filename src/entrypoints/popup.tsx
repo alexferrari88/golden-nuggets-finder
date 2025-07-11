@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import ReactDOM from "react-dom/client";
 import { storage } from "../shared/storage";
 import { SavedPrompt, MESSAGE_TYPES } from "../shared/types";
@@ -283,6 +283,26 @@ function IndexPopup() {
         target: { tabId },
         files: ['content-injector.js']
       });
+      
+      // Wait for content script to be ready with retries
+      let attempts = 0;
+      const maxAttempts = 10;
+      while (attempts < maxAttempts) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+        try {
+          const response = await chrome.tabs.sendMessage(tabId, { type: 'PING' });
+          if (response && response.success) {
+            break;
+          }
+        } catch (error) {
+          // Still not ready, continue trying
+        }
+        attempts++;
+      }
+      
+      if (attempts >= maxAttempts) {
+        throw new Error('Content script failed to initialize after injection');
+      }
     } catch (error) {
       console.error('Failed to inject content script:', error);
       throw error;
