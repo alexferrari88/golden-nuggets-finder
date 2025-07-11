@@ -7,7 +7,7 @@ import { GenericExtractor } from '../content/extractors/generic';
 import { UIManager } from '../content/ui/ui-manager';
 import { performanceMonitor, measureContentExtraction, measureDOMOperation } from '../shared/performance';
 import { isDevMode } from '../shared/debug';
-import { generateCSSCustomProperties } from '../shared/design-system';
+// Design system migration: CSS custom properties are now replaced with Tailwind classes
 
 export default defineContentScript({
   matches: ['https://example.com/*'], // Restrictive match to prevent auto-injection
@@ -32,21 +32,22 @@ export default defineContentScript({
       }
     }
 
-    function injectDesignSystemVariables(): void {
+    function injectTailwindStyles(): void {
       // Check if already injected
-      if (document.getElementById('nugget-design-system-vars')) return;
+      if (document.getElementById('nugget-tailwind-styles')) return;
       
-      // Create and inject CSS custom properties
+      // Content script styles are now handled by Tailwind CSS
+      // No need to inject custom properties as Tailwind utilities are used directly
       const styleElement = document.createElement('style');
-      styleElement.id = 'nugget-design-system-vars';
-      styleElement.textContent = generateCSSCustomProperties();
+      styleElement.id = 'nugget-tailwind-styles';
+      styleElement.textContent = '/* Tailwind CSS utilities are applied directly to elements */';
       document.head.appendChild(styleElement);
     }
 
     function initialize(): void {
       if (!isActivated) {
         extractor = createExtractor();
-        injectDesignSystemVariables();
+        injectTailwindStyles();
         isActivated = true;
       }
     }
