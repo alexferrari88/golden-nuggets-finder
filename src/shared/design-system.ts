@@ -45,11 +45,11 @@ export const colors = {
     dark: '#A8A8A8',          // Medium gray border
   },
 
-  // Highlight colors - incredibly subtle
+  // Highlight colors - golden yellow for clear visibility
   highlight: {
-    background: 'rgba(26, 26, 26, 0.02)', // Almost invisible highlight
-    border: 'rgba(26, 26, 26, 0.06)',     // Barely visible border
-    hover: 'rgba(26, 26, 26, 0.04)',      // Subtle hover state
+    background: 'rgba(255, 215, 0, 0.3)',  // Golden yellow highlight - highly visible
+    border: 'rgba(255, 193, 7, 0.6)',      // Slightly darker golden border
+    hover: 'rgba(255, 215, 0, 0.45)',      // Stronger golden hover state
   },
 
   // States - all neutral, no color
