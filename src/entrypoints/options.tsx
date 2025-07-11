@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Badge } from '../components/ui/badge';
 import { cn } from '../lib/utils';
 import { CircleCheck, CircleAlert, Key, FileText, Pencil, Trash, Star, Plus, ExternalLink, Sparkles, X, Lock, StickyNote, Heart } from 'lucide-react';
+import '../styles/main.css';
 // Design system migration: Replaced with Tailwind classes and Shadcn UI components
 
 type AlertType = 'success' | 'error' | 'warning' | 'info';

@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card"
 import { Badge } from "../components/ui/badge";
 import { cn } from "../lib/utils";
 import { Check, Star } from "lucide-react";
+import "../styles/main.css";
 
 // Custom hook for typing effect
 const useTypingEffect = (text: string, speed: number = 80) => {
