@@ -1,7 +1,7 @@
 import { SidebarNuggetItem } from '../../shared/types';
 import { UI_CONSTANTS } from '../../shared/constants';
 import { Highlighter } from './highlighter';
-import { colors } from '../../shared/design-system';
+import { colors, shadows, generateInlineStyles, borderRadius, spacing } from '../../shared/design-system';
 
 export class Sidebar {
   private sidebar: HTMLElement | null = null;
@@ -130,7 +130,7 @@ export class Sidebar {
       cursor: pointer;
       display: none;
       z-index: ${UI_CONSTANTS.SIDEBAR_Z_INDEX + 1};
-      box-shadow: -4px 0 8px -2px rgba(0, 0, 0, 0.1), -2px 0 4px -1px rgba(0, 0, 0, 0.06);
+      box-shadow: ${generateInlineStyles.sidebarShadow()};
       transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
       backdrop-filter: blur(8px);
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -177,24 +177,24 @@ export class Sidebar {
     
     button.addEventListener('mouseenter', () => {
       button.style.transform = 'translateY(-50%) translateX(0)';
-      button.style.background = '${colors.background.primary}';
-      button.style.color = '${colors.text.primary}';
-      button.style.boxShadow = '-6px 0 12px -2px rgba(0, 0, 0, 0.15), -4px 0 8px -1px rgba(0, 0, 0, 0.1)';
+      button.style.background = colors.background.primary;
+      button.style.color = colors.text.primary;
+      button.style.boxShadow = generateInlineStyles.sidebarShadowHover();
       button.style.opacity = '1';
-      label.style.color = '${colors.text.primary}';
+      label.style.color = colors.text.primary;
     });
     
     button.addEventListener('mouseleave', () => {
       button.style.transform = 'translateY(-50%) translateX(100%)';
-      button.style.background = '${colors.background.primary}';
-      button.style.color = '${colors.text.primary}';
-      button.style.boxShadow = '-4px 0 8px -2px rgba(0, 0, 0, 0.1), -2px 0 4px -1px rgba(0, 0, 0, 0.06)';
+      button.style.background = colors.background.primary;
+      button.style.color = colors.text.secondary;
+      button.style.boxShadow = generateInlineStyles.sidebarShadow();
       button.style.opacity = '0.9';
-      label.style.color = '${colors.text.secondary}';
+      label.style.color = colors.text.secondary;
     });
     
     button.addEventListener('focus', () => {
-      button.style.outline = '2px solid ${colors.text.accent}';
+      button.style.outline = `2px solid ${colors.text.accent}`;
       button.style.outlineOffset = '2px';
     });
     
@@ -240,7 +240,7 @@ export class Sidebar {
       border-left: 1px solid ${colors.border.light};
       overflow-y: auto;
       z-index: ${UI_CONSTANTS.SIDEBAR_Z_INDEX};
-      box-shadow: -4px 0 6px -1px rgba(0, 0, 0, 0.1);
+      box-shadow: ${generateInlineStyles.sidebarShadow()};
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       transition: transform 0.3s ease;
       transform: translateX(0);
@@ -474,7 +474,7 @@ export class Sidebar {
       border-radius: 12px;
       background: white;
       transition: all 0.2s;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      box-shadow: ${generateInlineStyles.cardShadow()};
       cursor: ${item.status === 'highlighted' ? 'pointer' : 'default'};
       position: relative;
     `;
@@ -668,19 +668,19 @@ export class Sidebar {
     nuggetDiv.addEventListener('mouseover', () => {
       clearTimeout(hoverTimeout);
       hoverTimeout = setTimeout(() => {
-        nuggetDiv.style.borderColor = '${colors.text.accent}';
-        nuggetDiv.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)';
+        nuggetDiv.style.borderColor = colors.text.accent;
+        nuggetDiv.style.boxShadow = generateInlineStyles.cardShadowHover();
         if (item.status === 'highlighted') {
-          nuggetDiv.style.backgroundColor = '${colors.background.secondary}';
+          nuggetDiv.style.backgroundColor = colors.background.secondary;
         }
       }, 50);
     });
     
     nuggetDiv.addEventListener('mouseout', () => {
       clearTimeout(hoverTimeout);
-      nuggetDiv.style.borderColor = item.status === 'highlighted' ? '${colors.text.accent}' : '${colors.border.light}';
-      nuggetDiv.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.1)';
-      nuggetDiv.style.backgroundColor = 'white';
+      nuggetDiv.style.borderColor = item.status === 'highlighted' ? colors.text.accent : colors.border.light;
+      nuggetDiv.style.boxShadow = generateInlineStyles.cardShadow();
+      nuggetDiv.style.backgroundColor = colors.background.primary;
     });
     
     // Assemble the element

@@ -1,5 +1,5 @@
 import { UI_CONSTANTS } from '../../shared/constants';
-import { colors } from '../../shared/design-system';
+import { colors, generateInlineStyles } from '../../shared/design-system';
 
 export class NotificationManager {
   private currentBanner: HTMLElement | null = null;
@@ -66,7 +66,7 @@ export class NotificationManager {
       padding: 12px 24px;
       border-radius: 4px;
       z-index: ${UI_CONSTANTS.BANNER_Z_INDEX};
-      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      box-shadow: ${generateInlineStyles.notification()};
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       font-size: 14px;
       font-weight: 500;
@@ -167,7 +167,7 @@ export class NotificationManager {
       padding: 12px 24px;
       border-radius: 4px;
       z-index: ${UI_CONSTANTS.BANNER_Z_INDEX};
-      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      box-shadow: ${generateInlineStyles.notification()};
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       font-size: 14px;
       font-weight: 500;

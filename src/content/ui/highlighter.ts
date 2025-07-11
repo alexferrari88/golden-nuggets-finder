@@ -1,6 +1,6 @@
 import { GoldenNugget } from '../../shared/types';
 import { UI_CONSTANTS } from '../../shared/constants';
-import { colors } from '../../shared/design-system';
+import { colors, generateInlineStyles } from '../../shared/design-system';
 
 export class Highlighter {
   private highlights: HTMLElement[] = [];
@@ -30,7 +30,7 @@ export class Highlighter {
       
       // Add temporary glow effect
       const originalBoxShadow = element.style.boxShadow;
-      element.style.boxShadow = '0 0 0 3px rgba(59, 130, 246, 0.5)';
+      element.style.boxShadow = `0 0 0 3px ${colors.text.accent}30`;
       setTimeout(() => {
         element.style.boxShadow = originalBoxShadow;
       }, 1500);
@@ -159,7 +159,7 @@ export class Highlighter {
       // For discussion sites, show [type] tag
       indicator.textContent = `[${nugget.type}]`;
       indicator.style.cssText += `
-        background: rgba(0,0,0,0.1);
+        background: ${colors.background.overlay};
         padding: 2px 4px;
         border-radius: 2px;
         font-weight: bold;
@@ -194,7 +194,7 @@ export class Highlighter {
       border: 1px solid ${colors.border.default};
       padding: 12px;
       border-radius: 4px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      box-shadow: ${generateInlineStyles.notification()};
       max-width: 300px;
       z-index: ${UI_CONSTANTS.POPUP_Z_INDEX};
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;

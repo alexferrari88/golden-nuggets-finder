@@ -200,7 +200,7 @@ const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
       left: 0,
       width: '100%',
       height: '100%',
-      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+      backgroundColor: colors.background.modalOverlay,
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
@@ -214,7 +214,7 @@ const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
         borderRadius: '16px',
         width: '100%',
         maxWidth: '400px',
-        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'
+        boxShadow: shadows.modal
       }}>
         <h3 style={{
           margin: '0 0 16px 0',
@@ -765,7 +765,7 @@ function OptionsPage() {
           backgroundColor: colors.white,
           padding: '32px',
           borderRadius: '16px',
-          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+          boxShadow: shadows.md,
           border: `1px solid ${colors.border.light}`
         }}>
           <div style={{
@@ -1080,7 +1080,7 @@ function OptionsPage() {
           left: 0,
           width: '100%',
           height: '100%',
-          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          backgroundColor: colors.background.modalOverlay,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -1096,7 +1096,7 @@ function OptionsPage() {
             maxWidth: '700px',
             maxHeight: '90vh',
             overflowY: 'auto',
-            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'
+            boxShadow: shadows.modal
           }}>
             <h3 style={{
               margin: '0 0 24px 0',

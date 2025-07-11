@@ -202,7 +202,6 @@ Find golden nuggets that would interest a pragmatic synthesizer with ADHD who lo
 - Use conventional commits
 - Add tests for new features
 - Update documentation as needed
-- Respect the single source of truth in `@specs/spec.md`
 
 ## License
 

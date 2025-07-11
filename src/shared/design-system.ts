@@ -35,6 +35,7 @@ export const colors = {
     secondary: '#FCFCFC',     // Barely-there gray
     tertiary: '#F7F7F7',      // Ultra-light gray
     overlay: 'rgba(26, 26, 26, 0.04)', // Ultra-subtle dark overlay
+    modalOverlay: 'rgba(26, 26, 26, 0.3)', // Subtle modal overlay
   },
 
   border: {
@@ -108,10 +109,11 @@ export const borderRadius = {
 };
 
 export const shadows = {
-  sm: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
-  md: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
-  lg: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
-  xl: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+  sm: '0 1px 2px 0 rgba(26, 26, 26, 0.05)',
+  md: '0 4px 6px -1px rgba(26, 26, 26, 0.1), 0 2px 4px -1px rgba(26, 26, 26, 0.06)',
+  lg: '0 10px 15px -3px rgba(26, 26, 26, 0.1), 0 4px 6px -2px rgba(26, 26, 26, 0.05)',
+  xl: '0 20px 25px -5px rgba(26, 26, 26, 0.1), 0 10px 10px -5px rgba(26, 26, 26, 0.04)',
+  modal: '0 25px 50px -12px rgba(26, 26, 26, 0.15)',
 };
 
 export const zIndex = {
@@ -222,6 +224,19 @@ export const createHoverStyles = (baseStyles: Record<string, any>, hoverStyles: 
     ...hoverStyles,
   },
 });
+
+// Generate inline CSS strings for dynamic styling
+export const generateInlineStyles = {
+  highlightStyle: () => `background-color: ${colors.highlight.background}; padding: 1px 2px; border-radius: 3px; border-bottom: 1px solid ${colors.highlight.border}; box-shadow: 0 0 0 1px ${colors.highlight.border};`,
+  boxShadowMd: () => shadows.md,
+  boxShadowLg: () => shadows.lg,
+  boxShadowXl: () => shadows.xl,
+  sidebarShadow: () => `-4px 0 8px -2px ${colors.background.overlay}, -2px 0 4px -1px ${colors.background.overlay}`,
+  sidebarShadowHover: () => `-6px 0 12px -2px ${colors.background.overlay}, -4px 0 8px -1px ${colors.background.overlay}`,
+  cardShadow: () => `0 1px 3px ${colors.background.overlay}`,
+  cardShadowHover: () => `0 4px 6px -1px ${colors.background.overlay}, 0 2px 4px -1px ${colors.background.overlay}`,
+  notification: () => `0 2px 8px ${colors.background.overlay}`,
+};
 
 export const createFocusStyles = (baseStyles: Record<string, any>, focusStyles: Record<string, any>) => ({
   ...baseStyles,

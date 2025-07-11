@@ -91,10 +91,9 @@ The extension follows a standard Chrome extension architecture with three main c
 ## Development Workflow
 
 ### Making Changes
-1. Always check `@specs/spec.md` for requirements
-2. Run tests after changes: `pnpm test && pnpm test:e2e`
-3. Check build succeeds: `pnpm build`
-4. Test in browser with `pnpm dev`
+1. Run tests after changes: `pnpm test && pnpm test:e2e`
+2. Check build succeeds: `pnpm build`
+3. Test in browser with `pnpm dev`
 
 ## File Structure and Detailed Documentation
 
@@ -104,7 +103,6 @@ The extension follows a standard Chrome extension architecture with three main c
 - `src/background/` - Background script services → See [src/background/CLAUDE.md](src/background/CLAUDE.md)
 - `src/shared/` - Common utilities and types → See [src/shared/CLAUDE.md](src/shared/CLAUDE.md)
 - `tests/` - Testing files and fixtures → See [tests/CLAUDE.md](tests/CLAUDE.md)
-- `@specs/` - Project specifications (single source of truth)
 
 ### Component-Specific Documentation
 For detailed information about specific components, refer to the CLAUDE.md files in each directory:
