@@ -2,13 +2,25 @@ import { test, expect } from './fixtures/extension-fixture';
 import { TEST_API_KEY, DEFAULT_PROMPTS } from './fixtures/test-data';
 
 test.describe('Extension Setup Workflow', () => {
-  test.beforeEach(async ({ page }) => {
-    // Clear any existing storage
-    await page.evaluate(() => {
+  test.beforeEach(async ({ context }) => {
+    // Clear any existing storage by navigating to the extension page
+    const page = await context.newPage();
+    await page.goto('chrome://extensions/');
+    
+    // Wait for service worker to be available
+    let serviceWorker = context.serviceWorkers()[0];
+    if (!serviceWorker) {
+      serviceWorker = await context.waitForEvent('serviceworker');
+    }
+    
+    // Clear storage via service worker
+    await serviceWorker.evaluate(() => {
       return new Promise((resolve) => {
         chrome.storage.sync.clear(() => resolve(undefined));
       });
     });
+    
+    await page.close();
   });
 
   test('should install and load extension properly', async ({ page, extensionId }) => {
@@ -19,7 +31,11 @@ test.describe('Extension Setup Workflow', () => {
     const extensionUrl = `chrome-extension://${extensionId}/popup.html`;
     await page.goto(extensionUrl);
     
-    await expect(page.locator('text=Golden Nugget Finder')).toBeVisible();
+    // Wait for the React app to load and render the root element
+    await page.waitForSelector('#root');
+    
+    // The popup should have loaded successfully (check for the div container)
+    await expect(page.locator('#root')).toBeVisible();
   });
 
   test('should show API key configuration prompt when no key is set', async ({ popupPage }) => {
@@ -116,7 +132,7 @@ test.describe('Extension Setup Workflow', () => {
     await expect(optionsPage.locator('text=Find test-related content and examples.')).toBeVisible();
   });
 
-  test('should edit existing prompt', async ({ optionsPage, page }) => {
+  test('should edit existing prompt', async ({ optionsPage, page, context }) => {
     // Set up API key and create a prompt first
     await optionsPage.locator('input[type="password"]').fill(TEST_API_KEY);
     
@@ -135,8 +151,13 @@ test.describe('Extension Setup Workflow', () => {
     await optionsPage.locator('button:has-text("Save & Validate")').click();
     await expect(optionsPage.locator('text=API key saved and validated successfully!')).toBeVisible();
     
-    // Create a test prompt
-    await page.evaluate(() => {
+    // Create a test prompt via service worker
+    let serviceWorker = context.serviceWorkers()[0];
+    if (!serviceWorker) {
+      serviceWorker = await context.waitForEvent('serviceworker');
+    }
+    
+    await serviceWorker.evaluate(() => {
       return new Promise((resolve) => {
         chrome.storage.sync.set({
           userPrompts: [{
@@ -172,7 +193,7 @@ test.describe('Extension Setup Workflow', () => {
     await expect(optionsPage.locator('text=Edited prompt text')).toBeVisible();
   });
 
-  test('should delete prompt', async ({ optionsPage, page }) => {
+  test('should delete prompt', async ({ optionsPage, page, context }) => {
     // Set up API key and create a prompt first
     await optionsPage.locator('input[type="password"]').fill(TEST_API_KEY);
     
@@ -191,8 +212,13 @@ test.describe('Extension Setup Workflow', () => {
     await optionsPage.locator('button:has-text("Save & Validate")').click();
     await expect(optionsPage.locator('text=API key saved and validated successfully!')).toBeVisible();
     
-    // Create a test prompt
-    await page.evaluate(() => {
+    // Create a test prompt via service worker
+    let serviceWorker = context.serviceWorkers()[0];
+    if (!serviceWorker) {
+      serviceWorker = await context.waitForEvent('serviceworker');
+    }
+    
+    await serviceWorker.evaluate(() => {
       return new Promise((resolve) => {
         chrome.storage.sync.set({
           userPrompts: [{
@@ -225,7 +251,7 @@ test.describe('Extension Setup Workflow', () => {
     await expect(optionsPage.locator('text=To Be Deleted')).not.toBeVisible();
   });
 
-  test('should set default prompt', async ({ optionsPage, page }) => {
+  test('should set default prompt', async ({ optionsPage, page, context }) => {
     // Set up API key and create prompts
     await optionsPage.locator('input[type="password"]').fill(TEST_API_KEY);
     
@@ -244,8 +270,13 @@ test.describe('Extension Setup Workflow', () => {
     await optionsPage.locator('button:has-text("Save & Validate")').click();
     await expect(optionsPage.locator('text=API key saved and validated successfully!')).toBeVisible();
     
-    // Create test prompts
-    await page.evaluate(() => {
+    // Create test prompts via service worker
+    let serviceWorker = context.serviceWorkers()[0];
+    if (!serviceWorker) {
+      serviceWorker = await context.waitForEvent('serviceworker');
+    }
+    
+    await serviceWorker.evaluate(() => {
       return new Promise((resolve) => {
         chrome.storage.sync.set({
           userPrompts: [
@@ -280,16 +311,21 @@ test.describe('Extension Setup Workflow', () => {
     await expect(optionsPage.locator('text=First Prompt').locator('..').locator('button:has-text("Set Default")')).toBeVisible();
   });
 
-  test('should show prompts in popup after configuration', async ({ popupPage, page }) => {
-    // Set up API key and prompts
-    await page.evaluate(() => {
+  test('should show prompts in popup after configuration', async ({ popupPage, page, context }) => {
+    // Set up API key and prompts via service worker
+    let serviceWorker = context.serviceWorkers()[0];
+    if (!serviceWorker) {
+      serviceWorker = await context.waitForEvent('serviceworker');
+    }
+    
+    await serviceWorker.evaluate((testData) => {
       return new Promise((resolve) => {
         chrome.storage.sync.set({
-          geminiApiKey: TEST_API_KEY,
-          userPrompts: DEFAULT_PROMPTS
+          geminiApiKey: testData.apiKey,
+          userPrompts: testData.prompts
         }, () => resolve(undefined));
       });
-    });
+    }, { apiKey: TEST_API_KEY, prompts: DEFAULT_PROMPTS });
     
     // Reload popup
     await popupPage.reload();

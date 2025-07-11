@@ -11,13 +11,35 @@ export interface ExtensionFixtures {
 
 export const test = base.extend<ExtensionFixtures>({
   context: async ({}, use) => {
-    const pathToExtension = path.resolve('./build/chrome-mv3-dev');
-    const context = await chromium.launchPersistentContext('', {
-      headless: false,
+    const pathToExtension = path.resolve('./dist/chrome-mv3');
+    const userDataDir = `/tmp/test-user-data-dir-${Date.now()}-${Math.random()}`;
+    const context = await chromium.launchPersistentContext(userDataDir, {
+      channel: 'chromium',
+      headless: true,
       args: [
         `--disable-extensions-except=${pathToExtension}`,
         `--load-extension=${pathToExtension}`,
         '--disable-web-security',
+        '--disable-dev-shm-usage',
+        '--no-sandbox',
+        '--disable-background-timer-throttling',
+        '--disable-backgrounding-occluded-windows',
+        '--disable-renderer-backgrounding',
+        '--disable-features=TranslateUI',
+        '--disable-ipc-flooding-protection',
+        '--enable-automation',
+        '--allow-running-insecure-content',
+        '--disable-component-extensions-with-background-pages',
+        '--disable-default-apps',
+        '--disable-popup-blocking',
+        '--disable-prompt-on-repost',
+        '--disable-hang-monitor',
+        '--disable-sync',
+        '--disable-background-networking',
+        '--disable-breakpad',
+        '--disable-client-side-phishing-detection',
+        '--disable-component-update',
+        '--disable-domain-reliability'
       ],
     });
     await use(context);
@@ -25,13 +47,13 @@ export const test = base.extend<ExtensionFixtures>({
   },
 
   extensionId: async ({ context }, use) => {
-    // Get the extension ID from the context
-    let [background] = context.serviceWorkers();
-    if (!background) {
-      background = await context.waitForEvent('serviceworker');
+    // Get the extension ID from the service worker
+    let [serviceWorker] = context.serviceWorkers();
+    if (!serviceWorker) {
+      serviceWorker = await context.waitForEvent('serviceworker');
     }
     
-    const extensionId = background.url().split('/')[2];
+    const extensionId = serviceWorker.url().split('/')[2];
     await use(extensionId);
   },
 

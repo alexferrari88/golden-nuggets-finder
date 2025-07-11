@@ -3,16 +3,21 @@ import { TEST_API_KEY, DEFAULT_PROMPTS } from './fixtures/test-data';
 import { createMockRedditPage, createMockHackerNewsPage, createMockBlogPage, setupMockApiResponses } from './fixtures/mock-pages';
 
 test.describe('Content Analysis Workflow', () => {
-  test.beforeEach(async ({ page }) => {
-    // Set up API key and prompts
-    await page.evaluate(([apiKey, prompts]) => {
+  test.beforeEach(async ({ context }) => {
+    // Set up API key and prompts via service worker
+    let serviceWorker = context.serviceWorkers()[0];
+    if (!serviceWorker) {
+      serviceWorker = await context.waitForEvent('serviceworker');
+    }
+    
+    await serviceWorker.evaluate((testData) => {
       return new Promise((resolve) => {
         chrome.storage.sync.set({
-          geminiApiKey: apiKey,
-          userPrompts: prompts
+          geminiApiKey: testData.apiKey,
+          userPrompts: testData.prompts
         }, () => resolve(undefined));
       });
-    }, [TEST_API_KEY, DEFAULT_PROMPTS]);
+    }, { apiKey: TEST_API_KEY, prompts: DEFAULT_PROMPTS });
   });
 
   test('should analyze Reddit thread via toolbar popup', async ({ page, popupPage }) => {

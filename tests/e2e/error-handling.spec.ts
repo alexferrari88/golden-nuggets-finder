@@ -3,15 +3,20 @@ import { TEST_API_KEY, INVALID_API_KEY, DEFAULT_PROMPTS } from './fixtures/test-
 import { createMockRedditPage, setupMockApiError } from './fixtures/mock-pages';
 
 test.describe('Error Handling Workflow', () => {
-  test.beforeEach(async ({ page }) => {
-    // Set up prompts (but not API key for most tests)
-    await page.evaluate((prompts) => {
+  test.beforeEach(async ({ context }) => {
+    // Set up prompts (but not API key for most tests) via service worker
+    let serviceWorker = context.serviceWorkers()[0];
+    if (!serviceWorker) {
+      serviceWorker = await context.waitForEvent('serviceworker');
+    }
+    
+    await serviceWorker.evaluate((prompts) => {
       return new Promise((resolve) => {
         chrome.storage.sync.set({
           userPrompts: prompts
         }, () => resolve(undefined));
       });
-    }, [DEFAULT_PROMPTS]);
+    }, DEFAULT_PROMPTS);
   });
 
   test('should handle invalid API key error', async ({ page, popupPage }) => {

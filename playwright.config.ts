@@ -40,8 +40,10 @@ export default defineConfig({
         launchOptions: {
           args: [
             '--disable-web-security',
-            '--disable-extensions-except=./build/chrome-mv3-dev',
-            '--load-extension=./build/chrome-mv3-dev',
+            '--disable-extensions-except=./dist/chrome-mv3',
+            '--load-extension=./dist/chrome-mv3',
+            '--disable-dev-shm-usage',
+            '--no-sandbox',
           ],
         },
       },

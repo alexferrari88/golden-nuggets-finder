@@ -3,26 +3,21 @@ import { TEST_API_KEY, DEFAULT_PROMPTS, MOCK_TWITTER_THREAD } from './fixtures/t
 import { createMockTwitterPage, setupMockApiResponses } from './fixtures/mock-pages';
 
 test.describe('Twitter Thread Extraction', () => {
-  test.beforeEach(async ({ page }) => {
-    // Set up API key and prompts
-    await page.evaluate(([apiKey, prompts]) => {
-      return new Promise((resolve, reject) => {
-        if (typeof chrome === 'undefined' || !chrome.storage || !chrome.storage.sync) {
-          reject(new Error('Chrome storage API not available'));
-          return;
-        }
+  test.beforeEach(async ({ context }) => {
+    // Set up API key and prompts via service worker
+    let serviceWorker = context.serviceWorkers()[0];
+    if (!serviceWorker) {
+      serviceWorker = await context.waitForEvent('serviceworker');
+    }
+    
+    await serviceWorker.evaluate((testData) => {
+      return new Promise((resolve) => {
         chrome.storage.sync.set({
-          geminiApiKey: apiKey,
-          userPrompts: prompts
-        }, () => {
-          if (chrome.runtime.lastError) {
-            reject(chrome.runtime.lastError);
-          } else {
-            resolve(undefined);
-          }
-        });
+          geminiApiKey: testData.apiKey,
+          userPrompts: testData.prompts
+        }, () => resolve(undefined));
       });
-    }, [TEST_API_KEY, DEFAULT_PROMPTS]);
+    }, { apiKey: TEST_API_KEY, prompts: DEFAULT_PROMPTS });
   });
 
   test('should extract Twitter thread content via toolbar popup', async ({ page, popupPage }) => {
