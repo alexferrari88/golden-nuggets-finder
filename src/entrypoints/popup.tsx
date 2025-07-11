@@ -4,6 +4,65 @@ import { storage } from "../shared/storage";
 import { SavedPrompt, MESSAGE_TYPES } from "../shared/types";
 import { colors, typography, spacing, borderRadius, shadows, components } from "../shared/design-system";
 
+// Custom hook for typing effect
+const useTypingEffect = (text: string, speed: number = 80) => {
+  const [displayText, setDisplayText] = useState('');
+  const [isComplete, setIsComplete] = useState(false);
+
+  useEffect(() => {
+    let index = 0;
+    setDisplayText('');
+    setIsComplete(false);
+
+    const timer = setInterval(() => {
+      if (index < text.length) {
+        setDisplayText(prev => prev + text.charAt(index));
+        index++;
+      } else {
+        setIsComplete(true);
+        clearInterval(timer);
+      }
+    }, speed);
+
+    return () => clearInterval(timer);
+  }, [text, speed]);
+
+  return { displayText, isComplete };
+};
+
+// Custom hook for step progression
+const useStepProgression = (isTypingComplete: boolean) => {
+  const [currentStep, setCurrentStep] = useState(-1);
+  const [completedSteps, setCompletedSteps] = useState<number[]>([]);
+  const [visibleSteps, setVisibleSteps] = useState<number[]>([]);
+
+  useEffect(() => {
+    if (!isTypingComplete) return;
+
+    const progressSteps = async () => {
+      const delays = [1200, 900, 1400, 700];
+      
+      // First, make steps visible with staggered animation
+      for (let i = 0; i < 4; i++) {
+        await new Promise(resolve => setTimeout(resolve, 200));
+        setVisibleSteps(prev => [...prev, i]);
+      }
+      
+      // Then animate step progression
+      for (let i = 0; i < 4; i++) {
+        setCurrentStep(i);
+        await new Promise(resolve => setTimeout(resolve, delays[i]));
+        setCompletedSteps(prev => [...prev, i]);
+        setCurrentStep(-1);
+      }
+    };
+
+    progressSteps();
+  }, [isTypingComplete]);
+
+  return { currentStep, completedSteps, visibleSteps };
+};
+
 function IndexPopup() {
   const [prompts, setPrompts] = useState<SavedPrompt[]>([]);
   const [loading, setLoading] = useState(true);
@@ -11,6 +70,18 @@ function IndexPopup() {
   const [noApiKey, setNoApiKey] = useState(false);
   const [analyzing, setAnalyzing] = useState<string | null>(null);
   const [selectionMode, setSelectionMode] = useState<'quick' | 'custom'>('quick');
+
+  // Analysis steps data
+  const analysisSteps = [
+    { id: 'extract', text: 'Extracting key insights' },
+    { id: 'patterns', text: 'Identifying patterns' },
+    { id: 'generate', text: 'Generating golden nuggets' },
+    { id: 'prepare', text: 'Preparing results' }
+  ];
+
+  // Use custom hooks for loading animation
+  const { displayText, isComplete } = useTypingEffect(analyzing ? 'Analyzing your content...' : '', 80);
+  const { currentStep, completedSteps, visibleSteps } = useStepProgression(isComplete);
 
   useEffect(() => {
     loadPrompts();
@@ -271,60 +342,128 @@ function IndexPopup() {
     return (
       <div style={{ 
         width: '320px', 
-        minHeight: '200px',
+        minHeight: '240px',
         padding: spacing['2xl'], 
         display: 'flex',
         flexDirection: 'column',
-        justifyContent: 'center',
-        alignItems: 'center',
-        textAlign: 'center',
+        gap: spacing.lg,
         fontFamily: typography.fontFamily.sans,
         backgroundColor: colors.background.primary
       }}>
-        <div style={{ 
-          color: colors.text.primary,
-          fontSize: typography.fontSize.sm,
-          fontWeight: typography.fontWeight.medium,
+        {/* Header with AI avatar and typing text */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: spacing.xs,
           marginBottom: spacing.md
         }}>
-          Starting analysis with
+          {/* AI Avatar */}
+          <div style={{
+            width: '16px',
+            height: '16px',
+            borderRadius: '50%',
+            background: colors.text.accent,
+            boxShadow: `0 0 8px ${colors.text.accent}40`,
+            flexShrink: 0
+          }} />
+          
+          {/* Typing text */}
+          <div style={{
+            color: colors.text.primary,
+            fontSize: typography.fontSize.sm,
+            fontWeight: typography.fontWeight.medium,
+            flex: 1
+          }}>
+            {displayText}{isComplete ? '' : '▋'}
+          </div>
         </div>
-        <div style={{ 
-          color: colors.text.accent,
-          fontSize: typography.fontSize.base,
-          fontWeight: typography.fontWeight.semibold,
-          marginBottom: spacing.lg
-        }}>
-          {analyzing}
-        </div>
-        <div style={{ 
+
+        {/* Analysis steps */}
+        <div style={{
           display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          gap: spacing.xs
+          flexDirection: 'column',
+          gap: spacing.xs,
+          marginBottom: spacing.md
+        }}>
+          {analysisSteps.map((step, index) => {
+            const isVisible = visibleSteps.includes(index);
+            const isInProgress = currentStep === index;
+            const isCompleted = completedSteps.includes(index);
+            
+            let indicator = '○';
+            let indicatorColor = colors.text.tertiary;
+            let textColor = colors.text.tertiary;
+            let indicatorAnimation = 'none';
+            
+            if (isCompleted) {
+              indicator = '✓';
+              indicatorColor = colors.text.accent;
+              textColor = colors.text.primary;
+            } else if (isInProgress) {
+              indicator = '●';
+              indicatorColor = colors.text.accent;
+              textColor = colors.text.secondary;
+              indicatorAnimation = 'pulse 1s ease-in-out infinite';
+            }
+            
+            return (
+              <div
+                key={step.id}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: spacing.sm,
+                  opacity: isVisible ? 1 : 0,
+                  transform: isVisible ? 'translateY(0)' : 'translateY(10px)',
+                  transition: 'all 0.3s ease'
+                }}
+              >
+                <div style={{
+                  fontSize: typography.fontSize.sm,
+                  fontWeight: typography.fontWeight.medium,
+                  color: indicatorColor,
+                  width: '16px',
+                  textAlign: 'center',
+                  flexShrink: 0,
+                  animation: indicatorAnimation
+                }}>
+                  {indicator}
+                </div>
+                <div style={{
+                  fontSize: typography.fontSize.sm,
+                  color: textColor,
+                  fontWeight: typography.fontWeight.normal
+                }}>
+                  {step.text}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Prompt display */}
+        <div style={{
+          textAlign: 'center',
+          paddingTop: spacing.md,
+          borderTop: `1px solid ${colors.border.light}`
         }}>
           <div style={{
-            width: '6px',
-            height: '6px',
-            borderRadius: '50%',
-            backgroundColor: colors.text.accent,
-            animation: 'pulse 1.5s ease-in-out infinite'
-          }}></div>
+            color: colors.text.tertiary,
+            fontSize: typography.fontSize.xs,
+            fontWeight: typography.fontWeight.normal,
+            marginBottom: spacing.xs
+          }}>
+            Using:
+          </div>
           <div style={{
-            width: '6px',
-            height: '6px',
-            borderRadius: '50%',
-            backgroundColor: colors.text.accent,
-            animation: 'pulse 1.5s ease-in-out infinite 0.2s'
-          }}></div>
-          <div style={{
-            width: '6px',
-            height: '6px',
-            borderRadius: '50%',
-            backgroundColor: colors.text.accent,
-            animation: 'pulse 1.5s ease-in-out infinite 0.4s'
-          }}></div>
+            color: colors.text.accent,
+            fontSize: typography.fontSize.sm,
+            fontWeight: typography.fontWeight.semibold
+          }}>
+            {analyzing}
+          </div>
         </div>
+
         <style>{`
           @keyframes pulse {
             0%, 100% { opacity: 0.3; transform: scale(0.8); }

@@ -10,6 +10,13 @@ export interface CommentItem {
   checkbox?: HTMLElement;
 }
 
+interface AnalysisStep {
+  id: string;
+  text: string;
+  status: 'pending' | 'in_progress' | 'completed';
+  element?: HTMLElement;
+}
+
 export class CommentSelector {
   private comments: CommentItem[] = [];
   private controlPanel: HTMLElement | null = null;
@@ -18,6 +25,14 @@ export class CommentSelector {
   private prompts: SavedPrompt[] = [];
   private keydownHandler: (event: KeyboardEvent) => void;
   private onExitCallback: (() => void) | null = null;
+  private typingTimer: NodeJS.Timeout | null = null;
+  private stepTimers: NodeJS.Timeout[] = [];
+  private analysisSteps: AnalysisStep[] = [
+    { id: 'extract', text: 'Extracting key insights', status: 'pending' },
+    { id: 'patterns', text: 'Identifying patterns', status: 'pending' },
+    { id: 'generate', text: 'Generating golden nuggets', status: 'pending' },
+    { id: 'prepare', text: 'Preparing results', status: 'pending' }
+  ];
 
   constructor() {
     this.loadPrompts();
@@ -512,7 +527,9 @@ export class CommentSelector {
     console.log(`Analyzing ${selectedComments.length} selected comments`);
 
     // Show loading state immediately
-    this.showLoadingState();
+    this.showLoadingState().catch(error => {
+      console.error('Failed to show loading state:', error);
+    });
 
     // Send message to background script
     chrome.runtime.sendMessage({
@@ -526,12 +543,129 @@ export class CommentSelector {
     // Note: exitSelectionMode will be called when analysis completes or errors
   }
 
-  private showLoadingState(): void {
+  private createTypingEffect(element: HTMLElement, text: string, speed: number = 80): Promise<void> {
+    return new Promise((resolve) => {
+      let index = 0;
+      element.textContent = '';
+      
+      const typeNextChar = () => {
+        if (index < text.length) {
+          element.textContent += text.charAt(index);
+          index++;
+          this.typingTimer = setTimeout(typeNextChar, speed);
+        } else {
+          // Add blinking cursor effect
+          element.textContent += '▋';
+          this.typingTimer = setTimeout(() => {
+            element.textContent = text;
+            resolve();
+          }, 500);
+        }
+      };
+      
+      typeNextChar();
+    });
+  }
+
+  private createAnalysisStep(step: AnalysisStep): HTMLElement {
+    const stepElement = document.createElement('div');
+    stepElement.style.cssText = `
+      display: flex;
+      align-items: center;
+      gap: ${spacing.sm};
+      margin-bottom: ${spacing.xs};
+      opacity: 0;
+      transform: translateY(10px);
+      transition: all 0.3s ease;
+    `;
+
+    const indicator = document.createElement('div');
+    indicator.className = 'step-indicator';
+    indicator.style.cssText = `
+      font-size: ${typography.fontSize.sm};
+      font-weight: ${typography.fontWeight.medium};
+      color: ${colors.text.tertiary};
+      width: 16px;
+      text-align: center;
+      flex-shrink: 0;
+    `;
+    indicator.textContent = '○';
+
+    const text = document.createElement('div');
+    text.className = 'step-text';
+    text.style.cssText = `
+      font-size: ${typography.fontSize.sm};
+      color: ${colors.text.tertiary};
+      font-weight: ${typography.fontWeight.normal};
+    `;
+    text.textContent = step.text;
+
+    stepElement.appendChild(indicator);
+    stepElement.appendChild(text);
+    
+    step.element = stepElement;
+    return stepElement;
+  }
+
+  private updateStepVisual(step: AnalysisStep): void {
+    if (!step.element) return;
+
+    const indicator = step.element.querySelector('.step-indicator') as HTMLElement;
+    const text = step.element.querySelector('.step-text') as HTMLElement;
+
+    switch (step.status) {
+      case 'pending':
+        indicator.textContent = '○';
+        indicator.style.color = colors.text.tertiary;
+        indicator.style.animation = 'none';
+        text.style.color = colors.text.tertiary;
+        break;
+      case 'in_progress':
+        indicator.textContent = '●';
+        indicator.style.color = colors.text.accent;
+        indicator.style.animation = 'pulse 1s ease-in-out infinite';
+        text.style.color = colors.text.secondary;
+        break;
+      case 'completed':
+        indicator.textContent = '✓';
+        indicator.style.color = colors.text.accent;
+        indicator.style.animation = 'none';
+        text.style.color = colors.text.primary;
+        break;
+    }
+  }
+
+  private async animateStep(stepId: string, duration: number): Promise<void> {
+    const step = this.analysisSteps.find(s => s.id === stepId);
+    if (!step) return;
+
+    // Start step
+    step.status = 'in_progress';
+    this.updateStepVisual(step);
+
+    // Wait for duration
+    await new Promise(resolve => {
+      const timer = setTimeout(resolve, duration);
+      this.stepTimers.push(timer);
+    });
+
+    // Complete step
+    step.status = 'completed';
+    this.updateStepVisual(step);
+  }
+
+  private async showLoadingState(): Promise<void> {
     if (!this.controlPanel) return;
 
     // Get the prompt name for display
     const selectedPrompt = this.prompts.find(p => p.id === this.selectedPromptId);
     const promptName = selectedPrompt?.name || 'Unknown';
+
+    // Reset analysis steps
+    this.analysisSteps.forEach(step => {
+      step.status = 'pending';
+      step.element = undefined;
+    });
 
     // Clear existing content and transform to loading state
     this.controlPanel.innerHTML = '';
@@ -540,7 +674,7 @@ export class CommentSelector {
       bottom: 20px;
       right: 20px;
       width: 320px;
-      min-height: 200px;
+      min-height: 240px;
       background: ${colors.background.primary};
       border: 1px solid ${colors.border.light};
       border-radius: ${borderRadius.lg};
@@ -550,55 +684,87 @@ export class CommentSelector {
       padding: ${spacing['2xl']};
       display: flex;
       flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      text-align: center;
+      gap: ${spacing.lg};
       opacity: 1;
       transform: translateY(0);
       transition: all 0.3s ease;
     `;
 
-    // Main text
-    const mainText = document.createElement('div');
-    mainText.style.cssText = `
+    // Create header with AI avatar and typing text
+    const header = document.createElement('div');
+    header.style.cssText = `
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      gap: ${spacing.xs};
+      margin-bottom: ${spacing.md};
+    `;
+
+    // AI Avatar
+    const avatar = document.createElement('div');
+    avatar.style.cssText = `
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: ${colors.text.accent};
+      box-shadow: 0 0 8px ${colors.text.accent}40;
+      flex-shrink: 0;
+    `;
+
+    // Typing text container
+    const typingText = document.createElement('div');
+    typingText.style.cssText = `
       color: ${colors.text.primary};
       font-size: ${typography.fontSize.sm};
       font-weight: ${typography.fontWeight.medium};
+      flex: 1;
+    `;
+
+    header.appendChild(avatar);
+    header.appendChild(typingText);
+
+    // Create steps container
+    const stepsContainer = document.createElement('div');
+    stepsContainer.style.cssText = `
+      display: flex;
+      flex-direction: column;
+      gap: ${spacing.xs};
       margin-bottom: ${spacing.md};
     `;
-    mainText.textContent = 'Starting analysis with';
 
-    // Prompt name
+    // Create step elements
+    this.analysisSteps.forEach(step => {
+      const stepElement = this.createAnalysisStep(step);
+      stepsContainer.appendChild(stepElement);
+    });
+
+    // Create prompt display
+    const promptDisplay = document.createElement('div');
+    promptDisplay.style.cssText = `
+      text-align: center;
+      padding-top: ${spacing.md};
+      border-top: 1px solid ${colors.border.light};
+    `;
+
+    const promptLabel = document.createElement('div');
+    promptLabel.style.cssText = `
+      color: ${colors.text.tertiary};
+      font-size: ${typography.fontSize.xs};
+      font-weight: ${typography.fontWeight.normal};
+      margin-bottom: ${spacing.xs};
+    `;
+    promptLabel.textContent = 'Using:';
+
     const promptNameDiv = document.createElement('div');
     promptNameDiv.style.cssText = `
       color: ${colors.text.accent};
-      font-size: ${typography.fontSize.base};
+      font-size: ${typography.fontSize.sm};
       font-weight: ${typography.fontWeight.semibold};
-      margin-bottom: ${spacing.lg};
     `;
     promptNameDiv.textContent = promptName;
 
-    // Animated dots container
-    const dotsContainer = document.createElement('div');
-    dotsContainer.style.cssText = `
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      gap: ${spacing.xs};
-    `;
-
-    // Create three animated dots
-    for (let i = 0; i < 3; i++) {
-      const dot = document.createElement('div');
-      dot.style.cssText = `
-        width: 6px;
-        height: 6px;
-        border-radius: 50%;
-        background-color: ${colors.text.accent};
-        animation: pulse 1.5s ease-in-out infinite ${i * 0.2}s;
-      `;
-      dotsContainer.appendChild(dot);
-    }
+    promptDisplay.appendChild(promptLabel);
+    promptDisplay.appendChild(promptNameDiv);
 
     // Add CSS animation keyframes
     const style = document.createElement('style');
@@ -610,16 +776,57 @@ export class CommentSelector {
     `;
 
     // Assemble loading state
-    this.controlPanel.appendChild(mainText);
-    this.controlPanel.appendChild(promptNameDiv);
-    this.controlPanel.appendChild(dotsContainer);
+    this.controlPanel.appendChild(header);
+    this.controlPanel.appendChild(stepsContainer);
+    this.controlPanel.appendChild(promptDisplay);
     this.controlPanel.appendChild(style);
+
+    // Start the animation sequence
+    this.startLoadingAnimation(typingText, stepsContainer);
+  }
+
+  private async startLoadingAnimation(typingElement: HTMLElement, stepsContainer: HTMLElement): Promise<void> {
+    try {
+      // Step 1: Type the main text with cursor effect
+      await this.createTypingEffect(typingElement, 'Analyzing your content...');
+      
+      // Step 2: Show steps with staggered fade-in
+      const stepElements = stepsContainer.querySelectorAll('[class*="step"]');
+      for (let i = 0; i < stepElements.length; i++) {
+        const stepElement = stepElements[i] as HTMLElement;
+        stepElement.style.opacity = '1';
+        stepElement.style.transform = 'translateY(0)';
+        await new Promise(resolve => {
+          const timer = setTimeout(resolve, 200);
+          this.stepTimers.push(timer);
+        });
+      }
+
+      // Step 3: Progressive step completion with realistic timing
+      await this.animateStep('extract', 1200);
+      await this.animateStep('patterns', 900);
+      await this.animateStep('generate', 1400);
+      await this.animateStep('prepare', 700);
+      
+    } catch (error) {
+      console.error('Loading animation error:', error);
+      // Gracefully handle animation errors
+    }
   }
 
   exitSelectionMode(): void {
     if (!this.isActive) return;
 
     this.isActive = false;
+    
+    // Clear any running timers
+    if (this.typingTimer) {
+      clearTimeout(this.typingTimer);
+      this.typingTimer = null;
+    }
+    
+    this.stepTimers.forEach(timer => clearTimeout(timer));
+    this.stepTimers = [];
     
     // Remove keyboard event listener
     document.removeEventListener('keydown', this.keydownHandler);
