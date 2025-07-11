@@ -1069,24 +1069,14 @@ export class Sidebar {
 
   private exportNuggets(nuggets: SidebarNuggetItem[], format: 'markdown' | 'json'): void {
     const url = window.location.href;
-    const timestamp = new Date().toISOString();
-    const analysisDate = new Date().toLocaleDateString();
     
     const exportData = {
-      timestamp,
       url,
-      promptName: 'Analysis Results', // TODO: Get actual prompt name
       nuggets: nuggets.map(item => ({
         type: item.nugget.type,
         content: item.nugget.content,
-        synthesis: item.nugget.synthesis,
-        status: item.status
-      })),
-      metadata: {
-        totalNuggets: nuggets.length,
-        highlightedCount: nuggets.filter(n => n.status === 'highlighted').length,
-        analysisDate
-      }
+        synthesis: item.nugget.synthesis
+      }))
     };
     
     let content: string;
@@ -1104,33 +1094,21 @@ export class Sidebar {
   }
 
   private generateMarkdownContent(data: any): string {
-    const domain = this.getDomainFromUrl(data.url);
-    
-    return `# Golden Nuggets from ${domain}
+    return `# Golden Nuggets
 
-**URL:** ${data.url}  
-**Analysis Date:** ${data.metadata.analysisDate}  
-**Total Nuggets:** ${data.metadata.totalNuggets}  
-**Highlighted:** ${data.metadata.highlightedCount}  
+**URL:** ${data.url}
 
----
-
-${data.nuggets.map((nugget: any, index: number) => `
-## ${index + 1}. ${nugget.type.toUpperCase()}
+${data.nuggets.map((nugget: any) => `
+## ${nugget.type.toUpperCase()}
 
 **Content:**
 ${nugget.content}
 
-**Why this matters:**
+**Synthesis:**
 ${nugget.synthesis}
 
-**Status:** ${nugget.status === 'highlighted' ? '✅ Found on page' : '❌ Not found on page'}
-
 ---
-`).join('\n')}
-
-*Generated on ${data.timestamp}*
-`;
+`).join('\n')}`;
   }
 
   private getDomainFromUrl(url: string): string {

@@ -51,20 +51,12 @@ export interface SelectedContentAnalysisRequest {
 }
 
 export interface ExportData {
-  timestamp: string;
   url: string;
-  promptName: string;
   nuggets: Array<{
     type: string;
     content: string;
     synthesis: string;
-    status: 'highlighted' | 'not-found';
   }>;
-  metadata: {
-    totalNuggets: number;
-    highlightedCount: number;
-    analysisDate: string;
-  };
 }
 
 export type ExportFormat = 'json' | 'markdown';
@@ -72,7 +64,6 @@ export type ExportFormat = 'json' | 'markdown';
 export interface ExportOptions {
   format: ExportFormat;
   scope: 'all' | 'selected';
-  includeMetadata: boolean;
 }
 
 export interface AnalysisResponse {
