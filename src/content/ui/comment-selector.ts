@@ -272,6 +272,12 @@ export class CommentSelector {
       font-size: ${typography.fontSize.sm};
     `;
 
+    // Auto-select default prompt if none is selected (e.g., from right-click menu)
+    if (!this.selectedPromptId && this.prompts.length > 0) {
+      const defaultPrompt = this.prompts.find(p => p.isDefault) || this.prompts[0];
+      this.selectedPromptId = defaultPrompt.id;
+    }
+
     this.prompts.forEach(prompt => {
       const option = document.createElement('option');
       option.value = prompt.id;
@@ -282,8 +288,11 @@ export class CommentSelector {
       promptSelect.appendChild(option);
     });
 
+    // Set initial value and add change listener
+    promptSelect.value = this.selectedPromptId || '';
     promptSelect.addEventListener('change', () => {
       this.selectedPromptId = promptSelect.value;
+      console.log('Prompt selected:', this.selectedPromptId);
     });
 
     promptSection.appendChild(promptLabel);
