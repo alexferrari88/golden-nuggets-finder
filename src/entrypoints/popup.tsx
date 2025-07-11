@@ -35,30 +35,75 @@ const useStepProgression = (isTypingComplete: boolean) => {
   const [currentStep, setCurrentStep] = useState(-1);
   const [completedSteps, setCompletedSteps] = useState<number[]>([]);
   const [visibleSteps, setVisibleSteps] = useState<number[]>([]);
+  const timersRef = useRef<NodeJS.Timeout[]>([]);
+
+  // Function to complete all remaining steps immediately
+  const completeAllSteps = () => {
+    // Clear all running timers
+    timersRef.current.forEach(timer => clearTimeout(timer));
+    timersRef.current = [];
+    
+    // Complete all steps immediately
+    setCompletedSteps([0, 1, 2, 3]);
+    setCurrentStep(-1);
+  };
+
+  // Listen for API completion messages
+  useEffect(() => {
+    const messageListener = (message: any) => {
+      if (message.type === 'ANALYSIS_COMPLETE' || message.type === 'ANALYSIS_ERROR') {
+        completeAllSteps();
+      }
+    };
+    
+    chrome.runtime.onMessage.addListener(messageListener);
+    
+    return () => {
+      chrome.runtime.onMessage.removeListener(messageListener);
+      // Clean up timers on unmount
+      timersRef.current.forEach(timer => clearTimeout(timer));
+    };
+  }, []);
 
   useEffect(() => {
     if (!isTypingComplete) return;
 
     const progressSteps = async () => {
-      const delays = [3000, 4000, 6000]; // Only first 3 steps, final step stays in progress
+      // Clear any existing timers
+      timersRef.current.forEach(timer => clearTimeout(timer));
+      timersRef.current = [];
       
       // First, make steps visible with staggered animation
       for (let i = 0; i < 4; i++) {
-        await new Promise(resolve => setTimeout(resolve, 200));
+        await new Promise(resolve => setTimeout(resolve, 300));
         setVisibleSteps(prev => [...prev, i]);
       }
       
-      // Then animate step progression for first 3 steps
-      for (let i = 0; i < 3; i++) {
-        setCurrentStep(i);
-        await new Promise(resolve => setTimeout(resolve, delays[i]));
-        setCompletedSteps(prev => [...prev, i]);
-        setCurrentStep(-1);
-      }
+      // Start step animations with staggered delays
+      const startStep = (stepIndex: number, delay: number, duration: number) => {
+        const timer = setTimeout(() => {
+          setCurrentStep(stepIndex);
+          const completeTimer = setTimeout(() => {
+            setCompletedSteps(prev => {
+              if (!prev.includes(stepIndex)) {
+                return [...prev, stepIndex];
+              }
+              return prev;
+            });
+            if (stepIndex < 3) {
+              setCurrentStep(-1);
+            }
+          }, duration);
+          timersRef.current.push(completeTimer);
+        }, delay);
+        timersRef.current.push(timer);
+      };
       
-      // Start final step in progress and keep it there
-      setCurrentStep(3);
-      // Final step stays in progress until real API completes
+      // Start steps with realistic timing
+      startStep(0, 0, 4000);     // Extract: start immediately, run 4s
+      startStep(1, 2000, 4000);  // Patterns: start after 2s, run 4s
+      startStep(2, 4000, 4000);  // Generate: start after 4s, run 4s
+      startStep(3, 6000, 8000);  // Finalize: start after 6s, run 8s (will be interrupted)
     };
 
     progressSteps();
@@ -93,9 +138,12 @@ function IndexPopup() {
     // Add message listener for analysis completion
     const messageListener = (message: any) => {
       if (message.type === MESSAGE_TYPES.ANALYSIS_COMPLETE) {
-        setAnalyzing(null); // Clear analyzing state
+        // Brief delay to show completion, then clear analyzing state
+        setTimeout(() => {
+          setAnalyzing(null);
+        }, 600);
       } else if (message.type === MESSAGE_TYPES.ANALYSIS_ERROR) {
-        setAnalyzing(null); // Clear analyzing state
+        setAnalyzing(null); // Clear analyzing state immediately on error
       }
     };
     
@@ -393,7 +441,7 @@ function IndexPopup() {
             fontWeight: typography.fontWeight.medium,
             flex: 1
           }}>
-            {displayText}{isComplete ? '' : '▋'}
+            {displayText}{isComplete ? '' : ' |'}
           </div>
         </div>
 

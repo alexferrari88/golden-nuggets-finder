@@ -58,20 +58,29 @@ export class CommentSelector {
   }
 
   private handleAnalysisComplete(): void {
-    // Complete the final step and exit
-    const finalStep = this.analysisSteps.find(s => s.id === 'finalize');
-    if (finalStep) {
-      finalStep.status = 'completed';
-      this.updateStepVisual(finalStep);
-    }
+    // Clear all running timers immediately
+    this.stepTimers.forEach(timer => clearTimeout(timer));
+    this.stepTimers = [];
+    
+    // Complete ALL remaining steps immediately
+    this.analysisSteps.forEach(step => {
+      if (step.status !== 'completed') {
+        step.status = 'completed';
+        this.updateStepVisual(step);
+      }
+    });
     
     // Exit selection mode after a brief delay to show completion
     setTimeout(() => {
       this.exitSelectionMode();
-    }, 800);
+    }, 600);
   }
 
   private handleAnalysisError(error: string): void {
+    // Clear all running timers immediately
+    this.stepTimers.forEach(timer => clearTimeout(timer));
+    this.stepTimers = [];
+    
     // Handle error - maybe show error state in UI
     console.error('Analysis error:', error);
     this.exitSelectionMode();
@@ -589,12 +598,12 @@ export class CommentSelector {
           index++;
           this.typingTimer = setTimeout(typeNextChar, speed);
         } else {
-          // Add blinking cursor effect
-          element.textContent += '▋';
+          // Add blinking cursor effect with proper spacing
+          element.textContent += ' |';
           this.typingTimer = setTimeout(() => {
             element.textContent = text;
             resolve();
-          }, 500);
+          }, 800);
         }
       };
       
@@ -678,15 +687,18 @@ export class CommentSelector {
     step.status = 'in_progress';
     this.updateStepVisual(step);
 
-    // Wait for duration
+    // Wait for duration (but can be interrupted by API completion)
     await new Promise(resolve => {
-      const timer = setTimeout(resolve, duration);
+      const timer = setTimeout(() => {
+        // Only complete if not already completed by API response
+        if (step.status === 'in_progress') {
+          step.status = 'completed';
+          this.updateStepVisual(step);
+        }
+        resolve(undefined);
+      }, duration);
       this.stepTimers.push(timer);
     });
-
-    // Complete step
-    step.status = 'completed';
-    this.updateStepVisual(step);
   }
 
   private async showLoadingState(): Promise<void> {
@@ -832,29 +844,29 @@ export class CommentSelector {
         stepElement.style.opacity = '1';
         stepElement.style.transform = 'translateY(0)';
         await new Promise(resolve => {
-          const timer = setTimeout(resolve, 200);
+          const timer = setTimeout(resolve, 300);
           this.stepTimers.push(timer);
         });
       }
 
       // Step 3: Progressive step completion with realistic timing
-      // These timings match real-world LLM processing expectations
-      await this.animateStep('extract', 3000);  // 3 seconds - content extraction
-      await this.animateStep('patterns', 4000); // 4 seconds - pattern analysis  
-      await this.animateStep('generate', 6000); // 6 seconds - AI generation
+      // Each step starts with a delay and can be interrupted by API completion
       
-      // Start final step but keep it in progress until real API completes
-      const finalStep = this.analysisSteps.find(s => s.id === 'finalize');
-      if (finalStep) {
-        finalStep.status = 'in_progress';
-        this.updateStepVisual(finalStep);
-      }
+      // Start first step immediately
+      setTimeout(() => this.animateStep('extract', 4000), 0);
       
-      // Final step stays in progress until handleAnalysisComplete() is called
+      // Start subsequent steps with staggered delays
+      setTimeout(() => this.animateStep('patterns', 4000), 2000);
+      setTimeout(() => this.animateStep('generate', 4000), 4000);
+      setTimeout(() => this.animateStep('finalize', 8000), 6000);
+      
+      // Animation will continue until API completes and calls handleAnalysisComplete()
       
     } catch (error) {
       console.error('Loading animation error:', error);
-      // Gracefully handle animation errors
+      // Gracefully handle animation errors - clear timers
+      this.stepTimers.forEach(timer => clearTimeout(timer));
+      this.stepTimers = [];
     }
   }
 
