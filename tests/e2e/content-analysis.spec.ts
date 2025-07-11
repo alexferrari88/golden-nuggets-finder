@@ -247,7 +247,7 @@ test.describe('Content Analysis Workflow', () => {
 
   test('should show default prompt first in popup', async ({ popupPage }) => {
     // Should show prompts with default first
-    await expect(popupPage.locator('text=Find Tools').locator('..').locator('text=★')).toBeVisible();
+    await expect(popupPage.locator('text=Find Tools').locator('..').locator('text=⭐')).toBeVisible();
     
     // Check order - default should be first
     const prompts = await popupPage.locator('[data-testid="prompt-item"]').all();

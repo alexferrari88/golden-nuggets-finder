@@ -57,7 +57,7 @@ export default defineBackground(() => {
         chrome.contextMenus.create({
           id: `prompt-${prompt.id}`,
           parentId: 'golden-nugget-finder',
-          title: prompt.isDefault ? `★ ${prompt.name}` : prompt.name,
+          title: prompt.isDefault ? `⭐ ${prompt.name}` : prompt.name,
           contexts: ['page', 'selection']
         });
       });

@@ -109,9 +109,10 @@ export class Sidebar {
     
     // Create SVG icon for sidebar expand
     const svgIcon = `
-      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M2 3h12a1 1 0 0 1 0 2H2a1 1 0 0 1 0-2zm0 4h12a1 1 0 0 1 0 2H2a1 1 0 0 1 0-2zm0 4h12a1 1 0 0 1 0 2H2a1 1 0 0 1 0-2z" fill="currentColor"/>
-        <path d="M11 8l3-3v6l-3-3z" fill="currentColor"/>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="4" x2="20" y1="6" y2="6"/>
+        <line x1="4" x2="20" y1="12" y2="12"/>
+        <line x1="4" x2="20" y1="18" y2="18"/>
       </svg>
     `;
     
@@ -351,7 +352,7 @@ export class Sidebar {
       
       // Create content with icon, heading, and helpful text
       emptyState.innerHTML = `
-        <div style="font-size: 48px; margin-bottom: 16px; opacity: 0.6;">🔍</div>
+        <div style="margin-bottom: 16px; opacity: 0.6;"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg></div>
         <h3 style="margin: 0 0 12px 0; font-size: 18px; font-weight: 600; color: ${colors.text.primary};">
           No Golden Nuggets Found
         </h3>
@@ -797,7 +798,7 @@ export class Sidebar {
     `;
 
     const toggleIcon = document.createElement('span');
-    toggleIcon.textContent = '▶';
+    toggleIcon.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>';
     toggleIcon.style.cssText = `
       font-size: ${typography.fontSize.xs};
       color: ${colors.text.secondary};
@@ -870,8 +871,8 @@ export class Sidebar {
       min-width: 50px;
     `;
 
-    const allBtn = this.createScopeButton('all', `⊞ All (${this.allItems.length})`);
-    const selectedBtn = this.createScopeButton('selected', `☑ Selected (<span class="selected-count">0</span>)`);
+    const allBtn = this.createScopeButton('all', `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg> All (${this.allItems.length})`);
+    const selectedBtn = this.createScopeButton('selected', `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg> Selected (<span class="selected-count">0</span>)`);
 
     scopeRow.appendChild(scopeLabel);
     scopeRow.appendChild(allBtn);
@@ -908,10 +909,10 @@ export class Sidebar {
     
     if (this.exportPanelExpanded) {
       optionsContainer.style.display = 'flex';
-      toggleIcon.textContent = '▼';
+      toggleIcon.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>';
     } else {
       optionsContainer.style.display = 'none';
-      toggleIcon.textContent = '▶';
+      toggleIcon.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>';
     }
   }
 

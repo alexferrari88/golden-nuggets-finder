@@ -231,7 +231,7 @@ export class CommentSelector {
       if (comment.selected) {
         checkbox.style.backgroundColor = colors.text.accent;
         checkbox.style.borderColor = colors.text.accent;
-        checkbox.innerHTML = '✓';
+        checkbox.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
         checkbox.style.color = colors.background.primary;
         checkbox.style.fontSize = '12px';
         checkbox.style.fontWeight = '600';
@@ -541,7 +541,7 @@ export class CommentSelector {
     if (comment.selected) {
       comment.checkbox.style.backgroundColor = colors.text.accent;
       comment.checkbox.style.borderColor = colors.text.accent;
-      comment.checkbox.innerHTML = '✓';
+      comment.checkbox.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
       comment.checkbox.style.color = colors.background.primary;
     } else {
       comment.checkbox.style.backgroundColor = colors.background.primary;
@@ -594,16 +594,16 @@ export class CommentSelector {
       
       const typeNextChar = () => {
         if (index < text.length) {
-          element.textContent += text.charAt(index);
+          element.textContent = text.substring(0, index + 1);
           index++;
           this.typingTimer = setTimeout(typeNextChar, speed);
         } else {
-          // Add blinking cursor effect with proper spacing
-          element.textContent += ' |';
+          // Show cursor briefly at the end
+          element.innerHTML = text + '<span style="opacity: 0.7; margin-left: 2px;">|</span>';
           this.typingTimer = setTimeout(() => {
             element.textContent = text;
             resolve();
-          }, 800);
+          }, 500);
         }
       };
       
@@ -671,7 +671,7 @@ export class CommentSelector {
         text.style.color = colors.text.secondary;
         break;
       case 'completed':
-        indicator.textContent = '✓';
+        indicator.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
         indicator.style.color = colors.text.accent;
         indicator.style.animation = 'none';
         text.style.color = colors.text.primary;

@@ -155,7 +155,7 @@ describe('Highlighter', () => {
       await highlighter.highlightNugget(nugget);
       
       const indicator = document.querySelector('.nugget-indicator');
-      expect(indicator?.textContent).toBe('✨');
+      expect(indicator?.innerHTML).toContain('svg');
     });
 
     it('should set nugget type in dataset', async () => {

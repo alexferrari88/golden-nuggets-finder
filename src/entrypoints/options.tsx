@@ -4,68 +4,8 @@ import { SavedPrompt } from '../shared/types';
 import { storage } from '../shared/storage';
 import { GeminiClient } from '../background/gemini-client';
 import { colors, typography, spacing, borderRadius, shadows, components } from '../shared/design-system';
+import { CircleCheck, CircleAlert, Key, FileText, Pencil, Trash, Star, Plus, ExternalLink, Sparkles, X, Lock, StickyNote, Heart } from 'lucide-react';
 
-// SVG Icons
-const IconCheckCircle = () => (
-  <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
-    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-  </svg>
-);
-
-const IconExclamationCircle = () => (
-  <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
-    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-  </svg>
-);
-
-const IconKey = () => (
-  <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
-    <path fillRule="evenodd" d="M18 8a6 6 0 01-7.743 5.743L10 14l-1 1-1 1H6v2H2v-4l4.257-4.257A6 6 0 1118 8zm-6-4a1 1 0 100 2 2 2 0 012 2 1 1 0 102 0 4 4 0 00-4-4z" clipRule="evenodd" />
-  </svg>
-);
-
-const IconDocument = () => (
-  <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
-    <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clipRule="evenodd" />
-  </svg>
-);
-
-const IconEdit = () => (
-  <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
-    <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-  </svg>
-);
-
-const IconTrash = () => (
-  <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
-    <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
-  </svg>
-);
-
-const IconStar = () => (
-  <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
-    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-  </svg>
-);
-
-const IconPlus = () => (
-  <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
-    <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
-  </svg>
-);
-
-const IconExternalLink = () => (
-  <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
-    <path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z" />
-    <path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z" />
-  </svg>
-);
-
-const IconSparkles = () => (
-  <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-    <path d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456zM16.894 20.567L16.5 21.75l-.394-1.183a2.25 2.25 0 00-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 001.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 001.423 1.423l1.183.394-1.183.394a2.25 2.25 0 00-1.423 1.423z" />
-  </svg>
-);
 
 type AlertType = 'success' | 'error' | 'warning' | 'info';
 
@@ -127,12 +67,12 @@ const Alert: React.FC<AlertProps> = ({ type, title, message, onClose }) => {
   const getIcon = () => {
     switch (type) {
       case 'success':
-        return <IconCheckCircle />;
+        return <CircleCheck size={20} />;
       case 'error':
       case 'warning':
-        return <IconExclamationCircle />;
+        return <CircleAlert size={20} />;
       case 'info':
-        return <IconExclamationCircle />;
+        return <CircleAlert size={20} />;
       default:
         return null;
     }
@@ -164,7 +104,7 @@ const Alert: React.FC<AlertProps> = ({ type, title, message, onClose }) => {
         onMouseEnter={(e) => e.currentTarget.style.opacity = '1'}
         onMouseLeave={(e) => e.currentTarget.style.opacity = '0.6'}
       >
-        ✕
+        <X size={16} />
       </button>
     </div>
   );
@@ -523,7 +463,7 @@ function OptionsPage() {
             display: 'flex',
             justifyContent: 'center'
           }}>
-            <IconExclamationCircle />
+            <CircleAlert size={20} />
           </div>
           <h2 style={{
             margin: `0 0 ${spacing.sm} 0`,
@@ -591,7 +531,7 @@ function OptionsPage() {
             marginBottom: spacing.lg
           }}>
             <div style={{ color: colors.text.secondary }}>
-              <IconSparkles />
+              <Sparkles size={24} />
             </div>
             <h1 style={{
               margin: 0,
@@ -639,7 +579,7 @@ function OptionsPage() {
             marginBottom: spacing['2xl']
           }}>
             <div style={{ color: colors.text.accent }}>
-              <IconKey />
+              <Key size={20} />
             </div>
             <h2 style={{
               margin: 0,
@@ -664,7 +604,7 @@ function OptionsPage() {
               color: colors.text.secondary,
               fontWeight: typography.fontWeight.medium
             }}>
-              🔒 Your API key is stored securely in your browser and never shared
+              <Lock size={16} style={{ display: 'inline', marginRight: '8px' }} />Your API key is stored securely in your browser and never shared
             </p>
             <p style={{
               margin: `0 0 ${spacing.md} 0`,
@@ -693,7 +633,7 @@ function OptionsPage() {
                   alignItems: 'center'
                 }}
               >
-                <IconExternalLink />
+                <ExternalLink size={16} />
               </a>
             </div>
           </div>
@@ -780,7 +720,7 @@ function OptionsPage() {
               gap: '12px'
             }}>
               <div style={{ color: colors.text.accent }}>
-                <IconDocument />
+                <FileText size={20} />
               </div>
               <h2 style={{
                 margin: 0,
@@ -810,7 +750,7 @@ function OptionsPage() {
               onMouseEnter={(e) => e.currentTarget.style.backgroundColor = colors.text.accent}
               onMouseLeave={(e) => e.currentTarget.style.backgroundColor = colors.text.accent}
             >
-              <IconPlus />
+              <Plus size={16} />
               Add New Prompt
             </button>
           </div>
@@ -845,7 +785,7 @@ function OptionsPage() {
                 marginBottom: '16px',
                 fontSize: '48px'
               }}>
-                📝
+                <StickyNote size={16} />
               </div>
               <h3 style={{
                 margin: '0 0 8px 0',
@@ -881,7 +821,7 @@ function OptionsPage() {
                 onMouseEnter={(e) => e.currentTarget.style.backgroundColor = colors.text.accent}
                 onMouseLeave={(e) => e.currentTarget.style.backgroundColor = colors.text.accent}
               >
-                <IconPlus />
+                <Plus size={16} />
                 Create First Prompt
               </button>
             </div>
@@ -942,7 +882,7 @@ function OptionsPage() {
                             fontSize: '12px',
                             fontWeight: '500'
                           }}>
-                            <IconStar />
+                            <Star size={16} />
                             Default
                           </div>
                         )}
@@ -995,7 +935,7 @@ function OptionsPage() {
                           }
                         }}
                       >
-                        <IconStar />
+                        <Star size={16} />
                       </button>
                       <button
                         onClick={() => openPromptEditor(prompt)}
@@ -1021,7 +961,7 @@ function OptionsPage() {
                           e.currentTarget.style.color = colors.text.secondary;
                         }}
                       >
-                        <IconEdit />
+                        <Pencil size={16} />
                       </button>
                       <button
                         onClick={() => deletePrompt(prompt.id)}
@@ -1047,7 +987,7 @@ function OptionsPage() {
                           e.currentTarget.style.color = colors.text.secondary;
                         }}
                       >
-                        <IconTrash />
+                        <Trash size={16} />
                       </button>
                     </div>
                   </div>
@@ -1067,7 +1007,7 @@ function OptionsPage() {
           borderTop: `1px solid ${colors.border.light}`
         }}>
           <p style={{ margin: 0 }}>
-            Golden Nugget Finder • Made with ❤️ for better web content analysis
+            Golden Nugget Finder • Made with <Heart size={16} style={{ display: 'inline', margin: '0 4px' }} /> for better web content analysis
           </p>
         </div>
       </div>

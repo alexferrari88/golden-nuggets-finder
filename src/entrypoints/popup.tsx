@@ -3,23 +3,30 @@ import ReactDOM from "react-dom/client";
 import { storage } from "../shared/storage";
 import { SavedPrompt, MESSAGE_TYPES } from "../shared/types";
 import { colors, typography, spacing, borderRadius, shadows, components } from "../shared/design-system";
+import { Check, Star } from "lucide-react";
 
 // Custom hook for typing effect
 const useTypingEffect = (text: string, speed: number = 80) => {
   const [displayText, setDisplayText] = useState('');
   const [isComplete, setIsComplete] = useState(false);
+  const [showCursor, setShowCursor] = useState(false);
 
   useEffect(() => {
     let index = 0;
     setDisplayText('');
     setIsComplete(false);
+    setShowCursor(false);
 
     const timer = setInterval(() => {
       if (index < text.length) {
-        setDisplayText(prev => prev + text.charAt(index));
+        setDisplayText(text.substring(0, index + 1));
         index++;
       } else {
-        setIsComplete(true);
+        setShowCursor(true);
+        setTimeout(() => {
+          setShowCursor(false);
+          setIsComplete(true);
+        }, 500);
         clearInterval(timer);
       }
     }, speed);
@@ -27,7 +34,7 @@ const useTypingEffect = (text: string, speed: number = 80) => {
     return () => clearInterval(timer);
   }, [text, speed]);
 
-  return { displayText, isComplete };
+  return { displayText, isComplete, showCursor };
 };
 
 // Custom hook for step progression
@@ -129,7 +136,7 @@ function IndexPopup() {
   ];
 
   // Use custom hooks for loading animation
-  const { displayText, isComplete } = useTypingEffect(analyzing ? 'Analyzing your content...' : '', 80);
+  const { displayText, isComplete, showCursor } = useTypingEffect(analyzing ? 'Analyzing your content...' : '', 80);
   const { currentStep, completedSteps, visibleSteps } = useStepProgression(isComplete);
 
   useEffect(() => {
@@ -441,7 +448,8 @@ function IndexPopup() {
             fontWeight: typography.fontWeight.medium,
             flex: 1
           }}>
-            {displayText}{isComplete ? '' : ' |'}
+            {displayText}
+            {showCursor && <span style={{ opacity: 0.7, marginLeft: '2px' }}>|</span>}
           </div>
         </div>
 
@@ -463,7 +471,7 @@ function IndexPopup() {
             let indicatorAnimation = 'none';
             
             if (isCompleted) {
-              indicator = '✓';
+              indicator = <Check size={16} />;
               indicatorColor = colors.text.accent;
               textColor = colors.text.primary;
             } else if (isInProgress) {
@@ -681,7 +689,7 @@ function IndexPopup() {
                   fontSize: typography.fontSize.xs,
                   fontWeight: typography.fontWeight.medium
                 }}>
-                  ★
+                  <Star size={16} />
                 </span>
               )}
             </div>
