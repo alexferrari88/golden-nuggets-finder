@@ -175,7 +175,7 @@ export class CommentSelector {
     });
 
     checkbox.addEventListener('mouseleave', () => {
-      checkbox.style.borderColor = comment.selected ? colors.blueSubtle : colors.border.default;
+      checkbox.style.borderColor = comment.selected ? colors.text.accent : colors.border.default;
       checkbox.style.boxShadow = shadows.sm;
     });
 

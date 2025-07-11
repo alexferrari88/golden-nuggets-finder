@@ -590,7 +590,7 @@ function OptionsPage() {
             gap: spacing.md,
             marginBottom: spacing.lg
           }}>
-            <div style={{ color: colors.grayMedium }}>
+            <div style={{ color: colors.text.secondary }}>
               <IconSparkles />
             </div>
             <h1 style={{
@@ -638,7 +638,7 @@ function OptionsPage() {
             gap: spacing.md,
             marginBottom: spacing['2xl']
           }}>
-            <div style={{ color: colors.blueSubtle }}>
+            <div style={{ color: colors.text.accent }}>
               <IconKey />
             </div>
             <h2 style={{
@@ -779,7 +779,7 @@ function OptionsPage() {
               alignItems: 'center',
               gap: '12px'
             }}>
-              <div style={{ color: colors.blueSubtle }}>
+              <div style={{ color: colors.text.accent }}>
                 <IconDocument />
               </div>
               <h2 style={{
