@@ -3,67 +3,27 @@ import ReactDOM from 'react-dom/client';
 import { SavedPrompt } from '../shared/types';
 import { storage } from '../shared/storage';
 import { GeminiClient } from '../background/gemini-client';
-import { colors, typography, spacing, borderRadius, shadows, components } from '../shared/design-system';
+import { Button } from '../components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
+import { Input } from '../components/ui/input';
+import { Textarea } from '../components/ui/textarea';
+import { Alert, AlertDescription, AlertTitle } from '../components/ui/alert';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
+import { Badge } from '../components/ui/badge';
+import { cn } from '../lib/utils';
 import { CircleCheck, CircleAlert, Key, FileText, Pencil, Trash, Star, Plus, ExternalLink, Sparkles, X, Lock, StickyNote, Heart } from 'lucide-react';
 
 
 type AlertType = 'success' | 'error' | 'warning' | 'info';
 
-interface AlertProps {
+interface CustomAlertProps {
   type: AlertType;
   title: string;
   message: string;
   onClose: () => void;
 }
 
-const Alert: React.FC<AlertProps> = ({ type, title, message, onClose }) => {
-  const getAlertStyles = () => {
-    const baseStyles = {
-      padding: spacing.lg,
-      borderRadius: borderRadius.md,
-      border: '1px solid',
-      marginBottom: spacing.lg,
-      display: 'flex',
-      alignItems: 'flex-start',
-      gap: spacing.md,
-      fontSize: typography.fontSize.sm,
-      fontWeight: typography.fontWeight.medium
-    };
-    
-    switch (type) {
-      case 'success':
-        return {
-          ...baseStyles,
-          backgroundColor: colors.background.secondary,
-          borderColor: colors.success + '33',
-          color: colors.success
-        };
-      case 'error':
-        return {
-          ...baseStyles,
-          backgroundColor: colors.background.secondary,
-          borderColor: colors.error + '33',
-          color: colors.error
-        };
-      case 'warning':
-        return {
-          ...baseStyles,
-          backgroundColor: colors.background.secondary,
-          borderColor: colors.text.secondary + '33',
-          color: colors.text.secondary
-        };
-      case 'info':
-        return {
-          ...baseStyles,
-          backgroundColor: colors.background.secondary,
-          borderColor: colors.text.accent + '33',
-          color: colors.text.accent
-        };
-      default:
-        return baseStyles;
-    }
-  };
-
+const CustomAlert: React.FC<CustomAlertProps> = ({ type, title, message, onClose }) => {
   const getIcon = () => {
     switch (type) {
       case 'success':
@@ -78,35 +38,40 @@ const Alert: React.FC<AlertProps> = ({ type, title, message, onClose }) => {
     }
   };
 
+  const getVariant = () => {
+    switch (type) {
+      case 'error':
+        return 'destructive';
+      case 'warning':
+        return 'warning';
+      case 'info':
+        return 'info';
+      case 'success':
+      default:
+        return 'default';
+    }
+  };
+
   return (
-    <div style={getAlertStyles()}>
-      <div style={{ flexShrink: 0 }}>
-        {getIcon()}
+    <Alert variant={getVariant()} className="mb-4 relative">
+      <div className="flex items-start gap-3">
+        <div className="flex-shrink-0">
+          {getIcon()}
+        </div>
+        <div className="flex-1">
+          <AlertTitle className="font-semibold mb-1">{title}</AlertTitle>
+          <AlertDescription className="opacity-80">{message}</AlertDescription>
+        </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onClose}
+          className="absolute top-2 right-2 h-6 w-6 p-0 opacity-60 hover:opacity-100"
+        >
+          <X size={16} />
+        </Button>
       </div>
-      <div style={{ flex: 1 }}>
-        <div style={{ fontWeight: '600', marginBottom: '4px' }}>{title}</div>
-        <div style={{ fontWeight: '400', opacity: 0.8 }}>{message}</div>
-      </div>
-      <button
-        onClick={onClose}
-        style={{
-          background: 'none',
-          border: 'none',
-          cursor: 'pointer',
-          padding: '4px',
-          borderRadius: '4px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          opacity: 0.6,
-          transition: 'opacity 0.2s'
-        }}
-        onMouseEnter={(e) => e.currentTarget.style.opacity = '1'}
-        onMouseLeave={(e) => e.currentTarget.style.opacity = '0.6'}
-      >
-        <X size={16} />
-      </button>
-    </div>
+    </Alert>
   );
 };
 
@@ -131,101 +96,33 @@ const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
   onCancel,
   type = 'default'
 }) => {
-  if (!isOpen) return null;
-
   return (
-    <div style={{
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      width: '100%',
-      height: '100%',
-      backgroundColor: colors.background.modalOverlay,
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 1000,
-      padding: '20px',
-      boxSizing: 'border-box'
-    }}>
-      <div style={{
-        backgroundColor: colors.white,
-        padding: '32px',
-        borderRadius: '16px',
-        width: '100%',
-        maxWidth: '400px',
-        boxShadow: shadows.modal
-      }}>
-        <h3 style={{
-          margin: '0 0 16px 0',
-          fontSize: '20px',
-          fontWeight: '600',
-          color: colors.text.primary
-        }}>
-          {title}
-        </h3>
-        <p style={{
-          margin: '0 0 32px 0',
-          fontSize: '16px',
-          color: colors.text.secondary,
-          lineHeight: '1.5'
-        }}>
-          {message}
-        </p>
-        <div style={{
-          display: 'flex',
-          gap: '12px',
-          justifyContent: 'flex-end'
-        }}>
-          <button
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onCancel()}>
+      <DialogContent className="sm:max-w-[425px]">
+        <DialogHeader>
+          <DialogTitle className="text-lg font-semibold">{title}</DialogTitle>
+          <DialogDescription className="text-gray-600 leading-relaxed">
+            {message}
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter className="flex gap-3">
+          <Button 
+            variant="outline" 
             onClick={onCancel}
-            style={{
-              padding: '12px 24px',
-              backgroundColor: colors.background.secondary,
-              color: colors.text.primary,
-              border: `1px solid ${colors.border.light}`,
-              borderRadius: '8px',
-              cursor: 'pointer',
-              fontSize: '14px',
-              fontWeight: '500',
-              transition: 'all 0.2s'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = colors.background.secondary;
-              e.currentTarget.style.borderColor = colors.border.default;
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = colors.background.secondary;
-              e.currentTarget.style.borderColor = colors.border.light;
-            }}
+            className="flex-1"
           >
             {cancelText}
-          </button>
-          <button
+          </Button>
+          <Button 
+            variant={type === 'danger' ? 'destructive' : 'default'}
             onClick={onConfirm}
-            style={{
-              padding: '12px 24px',
-              backgroundColor: type === 'danger' ? colors.error : colors.text.accent,
-              color: colors.white,
-              border: 'none',
-              borderRadius: '8px',
-              cursor: 'pointer',
-              fontSize: '14px',
-              fontWeight: '500',
-              transition: 'all 0.2s'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = type === 'danger' ? colors.error : colors.text.accent;
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = type === 'danger' ? colors.error : colors.text.accent;
-            }}
+            className="flex-1"
           >
             {confirmText}
-          </button>
-        </div>
-      </div>
-    </div>
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 };
 
@@ -403,107 +300,44 @@ function OptionsPage() {
 
   if (loading) {
     return (
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        minHeight: '100vh',
-        backgroundColor: colors.background.secondary,
-        fontFamily: typography.fontFamily.sans
-      }}>
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: spacing.md,
-          padding: spacing['2xl'],
-          backgroundColor: colors.background.primary,
-          borderRadius: borderRadius.lg,
-          boxShadow: shadows.md
-        }}>
-          <div style={{
-            width: '24px',
-            height: '24px',
-            border: `2px solid ${colors.border.default}`,
-            borderTop: `2px solid ${colors.text.accent}`,
-            borderRadius: '50%',
-            animation: 'spin 1s linear infinite'
-          }} />
-          <span style={{ 
-            color: colors.text.secondary,
-            fontSize: typography.fontSize.base
-          }}>
-            Loading your settings...
-          </span>
-        </div>
+      <div className="flex items-center justify-center min-h-screen bg-gray-50 font-sans">
+        <Card className="shadow-md">
+          <CardContent className="flex items-center gap-3 p-8">
+            <div className="w-6 h-6 border-2 border-gray-200 border-t-gray-900 rounded-full animate-spin" />
+            <span className="text-gray-600 text-base">
+              Loading your settings...
+            </span>
+          </CardContent>
+        </Card>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        minHeight: '100vh',
-        backgroundColor: colors.background.secondary,
-        fontFamily: typography.fontFamily.sans
-      }}>
-        <div style={{
-          maxWidth: '400px',
-          padding: spacing['3xl'],
-          backgroundColor: colors.background.primary,
-          borderRadius: borderRadius.xl,
-          boxShadow: shadows.lg,
-          textAlign: 'center'
-        }}>
-          <div style={{
-            color: colors.error,
-            marginBottom: spacing.lg,
-            display: 'flex',
-            justifyContent: 'center'
-          }}>
-            <CircleAlert size={20} />
-          </div>
-          <h2 style={{
-            margin: `0 0 ${spacing.sm} 0`,
-            fontSize: typography.fontSize.xl,
-            fontWeight: typography.fontWeight.semibold,
-            color: colors.text.primary
-          }}>
-            Failed to Load Settings
-          </h2>
-          <p style={{
-            margin: `0 0 ${spacing['2xl']} 0`,
-            color: colors.text.secondary,
-            fontSize: typography.fontSize.base,
-            lineHeight: typography.lineHeight.normal
-          }}>
-            {error}
-          </p>
-          <button
-            onClick={loadData}
-            style={{
-              ...components.button.primary,
-              fontSize: typography.fontSize.sm,
-              fontWeight: typography.fontWeight.medium
-            }}
-            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = colors.text.accent}
-            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = colors.text.accent}
-          >
-            Try Again
-          </button>
-        </div>
+      <div className="flex items-center justify-center min-h-screen bg-gray-50 font-sans">
+        <Card className="max-w-md shadow-lg text-center">
+          <CardContent className="p-12">
+            <div className="text-red-600 mb-4 flex justify-center">
+              <CircleAlert size={20} />
+            </div>
+            <h2 className="text-xl font-semibold text-gray-800 mb-2">
+              Failed to Load Settings
+            </h2>
+            <p className="text-gray-600 text-base leading-normal mb-8">
+              {error}
+            </p>
+            <Button onClick={loadData} className="text-sm font-medium">
+              Try Again
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     );
   }
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      backgroundColor: colors.background.secondary,
-      fontFamily: typography.fontFamily.sans
-    }}>
+    <div className="min-h-screen bg-gray-50 font-sans">
       <style>
         {`
           @keyframes spin {
@@ -513,49 +347,25 @@ function OptionsPage() {
         `}
       </style>
       
-      <div style={{
-        maxWidth: '1000px',
-        margin: '0 auto',
-        padding: `${spacing['4xl']} ${spacing['2xl']}`
-      }}>
+      <div className="max-w-4xl mx-auto px-8 py-16">
         {/* Header */}
-        <div style={{
-          marginBottom: spacing['4xl'],
-          textAlign: 'center'
-        }}>
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: spacing.md,
-            marginBottom: spacing.lg
-          }}>
-            <div style={{ color: colors.text.secondary }}>
+        <div className="mb-16 text-center">
+          <div className="flex items-center justify-center gap-3 mb-4">
+            <div className="text-gray-600">
               <Sparkles size={24} />
             </div>
-            <h1 style={{
-              margin: 0,
-              fontSize: typography.fontSize['3xl'],
-              fontWeight: typography.fontWeight.bold,
-              color: colors.text.primary,
-              letterSpacing: '-0.025em'
-            }}>
+            <h1 className="text-3xl font-bold text-gray-800 tracking-tight">
               Golden Nugget Finder
             </h1>
           </div>
-          <p style={{
-            margin: 0,
-            fontSize: typography.fontSize.lg,
-            color: colors.text.secondary,
-            fontWeight: typography.fontWeight.normal
-          }}>
+          <p className="text-lg text-gray-600 font-normal">
             Configure your AI-powered content analysis tool
           </p>
         </div>
 
         {/* Global Alert */}
         {apiKeyStatus && (
-          <Alert
+          <CustomAlert
             type={apiKeyStatus.type}
             title={apiKeyStatus.title}
             message={apiKeyStatus.message}

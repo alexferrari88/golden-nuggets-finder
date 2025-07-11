@@ -1,8 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import ReactDOM from "react-dom/client";
 import { storage } from "../shared/storage";
 import { SavedPrompt, MESSAGE_TYPES } from "../shared/types";
-import { colors, typography, spacing, borderRadius, shadows, components } from "../shared/design-system";
+import { Button } from "../components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
+import { Badge } from "../components/ui/badge";
+import { cn } from "../lib/utils";
 import { Check, Star } from "lucide-react";
 
 // Custom hook for typing effect
@@ -296,48 +299,14 @@ function IndexPopup() {
 
   if (loading) {
     return (
-      <div style={{ 
-        width: '320px', 
-        padding: spacing['2xl'], 
-        textAlign: 'center',
-        fontFamily: typography.fontFamily.sans,
-        backgroundColor: colors.background.primary
-      }}>
-        <div style={{ 
-          color: colors.text.primary,
-          fontSize: typography.fontSize.sm,
-          fontWeight: typography.fontWeight.medium,
-          marginBottom: spacing.lg
-        }}>
+      <div className="w-80 p-8 text-center font-sans bg-white">
+        <div className="text-gray-800 text-sm font-medium mb-4">
           Loading prompts...
         </div>
-        <div style={{ 
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          gap: spacing.xs
-        }}>
-          <div style={{
-            width: '6px',
-            height: '6px',
-            borderRadius: '50%',
-            backgroundColor: colors.text.secondary,
-            animation: 'pulse 1.5s ease-in-out infinite'
-          }}></div>
-          <div style={{
-            width: '6px',
-            height: '6px',
-            borderRadius: '50%',
-            backgroundColor: colors.text.secondary,
-            animation: 'pulse 1.5s ease-in-out infinite 0.2s'
-          }}></div>
-          <div style={{
-            width: '6px',
-            height: '6px',
-            borderRadius: '50%',
-            backgroundColor: colors.text.secondary,
-            animation: 'pulse 1.5s ease-in-out infinite 0.4s'
-          }}></div>
+        <div className="flex justify-center items-center gap-1">
+          <div className="w-1.5 h-1.5 rounded-full bg-gray-500 animate-pulse [animation-delay:0s]" />
+          <div className="w-1.5 h-1.5 rounded-full bg-gray-500 animate-pulse [animation-delay:0.2s]" />
+          <div className="w-1.5 h-1.5 rounded-full bg-gray-500 animate-pulse [animation-delay:0.4s]" />
         </div>
         <style>{`
           @keyframes pulse {
@@ -351,22 +320,8 @@ function IndexPopup() {
 
   if (error) {
     return (
-      <div style={{ 
-        width: '320px', 
-        padding: spacing['2xl'],
-        fontFamily: typography.fontFamily.sans,
-        backgroundColor: colors.background.primary
-      }}>
-        <div style={{ 
-          textAlign: 'center', 
-          color: colors.error,
-          backgroundColor: colors.background.secondary,
-          border: `1px solid ${colors.error}33`,
-          borderRadius: borderRadius.md,
-          padding: spacing['2xl'],
-          fontSize: typography.fontSize.sm,
-          fontWeight: typography.fontWeight.medium
-        }}>
+      <div className="w-80 p-8 font-sans bg-white">
+        <div className="text-center text-red-600 bg-gray-50 border border-red-200 rounded-md p-8 text-sm font-medium">
           {error}
         </div>
       </div>
@@ -375,37 +330,16 @@ function IndexPopup() {
 
   if (noApiKey) {
     return (
-      <div style={{ 
-        width: '320px', 
-        padding: spacing['2xl'],
-        fontFamily: typography.fontFamily.sans,
-        backgroundColor: colors.background.primary
-      }}>
-        <div style={{ 
-          textAlign: 'center', 
-          color: colors.text.primary,
-          backgroundColor: colors.background.secondary,
-          border: `1px solid ${colors.text.secondary}33`,
-          borderRadius: borderRadius.md,
-          padding: spacing['2xl'],
-          fontSize: typography.fontSize.sm,
-          fontWeight: typography.fontWeight.medium,
-          lineHeight: typography.lineHeight.normal
-        }}>
+      <div className="w-80 p-8 font-sans bg-white">
+        <div className="text-center text-gray-800 bg-gray-50 border border-gray-200 rounded-md p-8 text-sm font-medium leading-normal">
           Please set your Gemini API key in the{' '}
-          <button 
+          <Button 
+            variant="link"
             onClick={openOptionsPage}
-            style={{
-              ...components.button.ghost,
-              padding: '0',
-              color: colors.text.accent,
-              textDecoration: 'underline',
-              fontSize: 'inherit',
-              fontWeight: 'inherit'
-            }}
+            className="p-0 h-auto text-sm font-medium text-gray-900 underline"
           >
             options page
-          </button>
+          </Button>
           .
         </div>
       </div>
@@ -414,101 +348,58 @@ function IndexPopup() {
 
   if (analyzing) {
     return (
-      <div style={{ 
-        width: '320px', 
-        minHeight: '240px',
-        padding: spacing['2xl'], 
-        display: 'flex',
-        flexDirection: 'column',
-        gap: spacing.lg,
-        fontFamily: typography.fontFamily.sans,
-        backgroundColor: colors.background.primary
-      }}>
+      <div className="w-80 min-h-60 p-8 flex flex-col gap-4 font-sans bg-white">
         {/* Header with AI avatar and typing text */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: spacing.xs,
-          marginBottom: spacing.md
-        }}>
+        <div className="flex items-center gap-1 mb-3">
           {/* AI Avatar */}
-          <div style={{
-            width: '16px',
-            height: '16px',
-            borderRadius: '50%',
-            background: colors.text.accent,
-            boxShadow: `0 0 8px ${colors.text.accent}40`,
-            flexShrink: 0
-          }} />
+          <div className="w-4 h-4 rounded-full bg-gray-900 shadow-lg shadow-gray-900/25 flex-shrink-0" />
           
           {/* Typing text */}
-          <div style={{
-            color: colors.text.primary,
-            fontSize: typography.fontSize.sm,
-            fontWeight: typography.fontWeight.medium,
-            flex: 1
-          }}>
+          <div className="text-gray-800 text-sm font-medium flex-1">
             {displayText}
-            {showCursor && <span style={{ opacity: 0.7, marginLeft: '2px' }}>|</span>}
+            {showCursor && <span className="opacity-70 ml-0.5">|</span>}
           </div>
         </div>
 
         {/* Analysis steps */}
-        <div style={{
-          display: 'flex',
-          flexDirection: 'column',
-          gap: spacing.xs,
-          marginBottom: spacing.md
-        }}>
+        <div className="flex flex-col gap-1 mb-3">
           {analysisSteps.map((step, index) => {
             const isVisible = visibleSteps.includes(index);
             const isInProgress = currentStep === index;
             const isCompleted = completedSteps.includes(index);
             
             let indicator = '○';
-            let indicatorColor = colors.text.tertiary;
-            let textColor = colors.text.tertiary;
-            let indicatorAnimation = 'none';
+            let indicatorClasses = 'text-gray-400';
+            let textClasses = 'text-gray-400';
+            let animationClasses = '';
             
             if (isCompleted) {
               indicator = <Check size={16} />;
-              indicatorColor = colors.text.accent;
-              textColor = colors.text.primary;
+              indicatorClasses = 'text-gray-900';
+              textClasses = 'text-gray-800';
             } else if (isInProgress) {
               indicator = '●';
-              indicatorColor = colors.text.accent;
-              textColor = colors.text.secondary;
-              indicatorAnimation = 'pulse 1s ease-in-out infinite';
+              indicatorClasses = 'text-gray-900';
+              textClasses = 'text-gray-500';
+              animationClasses = 'animate-pulse';
             }
             
             return (
               <div
                 key={step.id}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: spacing.sm,
-                  opacity: isVisible ? 1 : 0,
-                  transform: isVisible ? 'translateY(0)' : 'translateY(10px)',
-                  transition: 'all 0.3s ease'
-                }}
+                className={cn(
+                  'flex items-center gap-2 transition-all duration-300',
+                  isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2.5'
+                )}
               >
-                <div style={{
-                  fontSize: typography.fontSize.sm,
-                  fontWeight: typography.fontWeight.medium,
-                  color: indicatorColor,
-                  width: '16px',
-                  textAlign: 'center',
-                  flexShrink: 0,
-                  animation: indicatorAnimation
-                }}>
+                <div className={cn(
+                  'text-sm font-medium w-4 text-center flex-shrink-0',
+                  indicatorClasses,
+                  animationClasses
+                )}>
                   {indicator}
                 </div>
-                <div style={{
-                  fontSize: typography.fontSize.sm,
-                  color: textColor,
-                  fontWeight: typography.fontWeight.normal
-                }}>
+                <div className={cn('text-sm font-normal', textClasses)}>
                   {step.text}
                 </div>
               </div>
@@ -517,24 +408,11 @@ function IndexPopup() {
         </div>
 
         {/* Prompt display */}
-        <div style={{
-          textAlign: 'center',
-          paddingTop: spacing.md,
-          borderTop: `1px solid ${colors.border.light}`
-        }}>
-          <div style={{
-            color: colors.text.tertiary,
-            fontSize: typography.fontSize.xs,
-            fontWeight: typography.fontWeight.normal,
-            marginBottom: spacing.xs
-          }}>
+        <div className="text-center pt-3 border-t border-gray-100">
+          <div className="text-gray-400 text-xs font-normal mb-1">
             Using:
           </div>
-          <div style={{
-            color: colors.text.accent,
-            fontSize: typography.fontSize.sm,
-            fontWeight: typography.fontWeight.semibold
-          }}>
+          <div className="text-gray-900 text-sm font-semibold">
             {analyzing}
           </div>
         </div>
@@ -550,170 +428,82 @@ function IndexPopup() {
   }
 
   return (
-    <div style={{ 
-      width: '320px', 
-      fontFamily: typography.fontFamily.sans,
-      backgroundColor: colors.background.primary,
-      borderRadius: borderRadius.lg,
-      overflow: 'hidden',
-      boxShadow: shadows.lg
-    }}>
-      <div style={{ 
-        backgroundColor: colors.background.primary,
-        color: colors.text.primary,
-        padding: spacing['2xl'],
-        textAlign: 'center',
-        borderBottom: `1px solid ${colors.border.light}`
-      }}>
-        <h1 style={{ 
-          margin: 0, 
-          fontSize: typography.fontSize.lg,
-          fontWeight: typography.fontWeight.semibold,
-          color: colors.text.primary,
-          marginBottom: spacing.md
-        }}>
+    <div className="w-80 font-sans bg-white rounded-lg overflow-hidden shadow-lg">
+      <div className="bg-white text-gray-800 p-8 text-center border-b border-gray-100">
+        <h1 className="m-0 text-lg font-semibold text-gray-800 mb-3">
           Golden Nugget Finder
         </h1>
         
         {/* Mode Toggle */}
-        <div style={{
-          display: 'flex',
-          backgroundColor: colors.background.secondary,
-          borderRadius: borderRadius.md,
-          padding: spacing.xs,
-          gap: spacing.xs
-        }}>
+        <div className="flex bg-gray-50 rounded-md p-1 gap-1">
           <button
             onClick={() => setSelectionMode('quick')}
-            style={{
-              flex: 1,
-              padding: `${spacing.sm} ${spacing.md}`,
-              backgroundColor: selectionMode === 'quick' ? colors.background.primary : 'transparent',
-              color: selectionMode === 'quick' ? colors.text.primary : colors.text.secondary,
-              border: 'none',
-              borderRadius: borderRadius.sm,
-              fontSize: typography.fontSize.sm,
-              fontWeight: typography.fontWeight.medium,
-              cursor: 'pointer',
-              transition: 'all 0.2s ease',
-              boxShadow: selectionMode === 'quick' ? shadows.sm : 'none'
-            }}
+            className={cn(
+              'flex-1 px-3 py-2 border-none rounded-sm text-sm font-medium cursor-pointer transition-all duration-200',
+              selectionMode === 'quick' 
+                ? 'bg-white text-gray-800 shadow-sm' 
+                : 'bg-transparent text-gray-500'
+            )}
           >
             Quick Analysis
           </button>
           <button
             onClick={() => setSelectionMode('custom')}
-            style={{
-              flex: 1,
-              padding: `${spacing.sm} ${spacing.md}`,
-              backgroundColor: selectionMode === 'custom' ? colors.background.primary : 'transparent',
-              color: selectionMode === 'custom' ? colors.text.primary : colors.text.secondary,
-              border: 'none',
-              borderRadius: borderRadius.sm,
-              fontSize: typography.fontSize.sm,
-              fontWeight: typography.fontWeight.medium,
-              cursor: 'pointer',
-              transition: 'all 0.2s ease',
-              boxShadow: selectionMode === 'custom' ? shadows.sm : 'none'
-            }}
+            className={cn(
+              'flex-1 px-3 py-2 border-none rounded-sm text-sm font-medium cursor-pointer transition-all duration-200',
+              selectionMode === 'custom' 
+                ? 'bg-white text-gray-800 shadow-sm' 
+                : 'bg-transparent text-gray-500'
+            )}
           >
             Custom Selection
           </button>
         </div>
       </div>
       
-      <div style={{ 
-        padding: spacing['2xl'],
-        backgroundColor: colors.background.primary
-      }}>
-        <div style={{ 
-          listStyle: 'none', 
-          padding: 0, 
-          margin: 0,
-          display: 'flex',
-          flexDirection: 'column',
-          gap: spacing.sm
-        }}>
+      <div className="p-8 bg-white">
+        <div className="list-none p-0 m-0 flex flex-col gap-2">
           {prompts.map(prompt => (
-            <div 
+            <Card 
               key={prompt.id}
-              onClick={() => selectionMode === 'quick' ? analyzeWithPrompt(prompt.id) : enterSelectionMode(prompt.id)}
-              style={{
-                padding: spacing.lg,
-                backgroundColor: prompt.isDefault ? colors.background.secondary : colors.background.secondary,
-                border: `1px solid ${prompt.isDefault ? colors.text.accent + '33' : colors.border.light}`,
-                borderRadius: borderRadius.md,
-                cursor: 'pointer',
-                transition: 'all 0.2s ease',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                fontSize: typography.fontSize.sm,
-                fontWeight: typography.fontWeight.medium,
-                color: colors.text.primary
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = prompt.isDefault ? colors.background.secondary : colors.background.secondary;
-                e.currentTarget.style.borderColor = colors.border.default;
-                e.currentTarget.style.boxShadow = shadows.sm;
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = prompt.isDefault ? colors.background.secondary : colors.background.secondary;
-                e.currentTarget.style.borderColor = prompt.isDefault ? colors.text.accent + '33' : colors.border.light;
-                e.currentTarget.style.boxShadow = 'none';
-              }}
-            >
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: spacing.xs }}>
-                <span style={{ 
-                  fontWeight: typography.fontWeight.medium,
-                  color: colors.text.primary
-                }}>
-                  {prompt.name}
-                </span>
-                {selectionMode === 'custom' && (
-                  <span style={{ 
-                    fontSize: typography.fontSize.xs,
-                    color: colors.text.secondary,
-                    fontWeight: typography.fontWeight.normal
-                  }}>
-                    Select & Analyze
-                  </span>
-                )}
-              </div>
-              {prompt.isDefault && (
-                <span style={{ 
-                  backgroundColor: colors.text.accent,
-                  color: colors.background.primary,
-                  padding: `${spacing.xs} ${spacing.sm}`,
-                  borderRadius: borderRadius.sm,
-                  fontSize: typography.fontSize.xs,
-                  fontWeight: typography.fontWeight.medium
-                }}>
-                  <Star size={16} />
-                </span>
+              className={cn(
+                'cursor-pointer transition-all duration-200 hover:shadow-sm',
+                prompt.isDefault 
+                  ? 'border-gray-900/20 bg-gray-50' 
+                  : 'border-gray-100 bg-gray-50'
               )}
-            </div>
+              onClick={() => selectionMode === 'quick' ? analyzeWithPrompt(prompt.id) : enterSelectionMode(prompt.id)}
+            >
+              <CardContent className="p-4 flex items-center justify-between">
+                <div className="flex flex-col items-start gap-1">
+                  <span className="font-medium text-gray-800">
+                    {prompt.name}
+                  </span>
+                  {selectionMode === 'custom' && (
+                    <span className="text-xs text-gray-500 font-normal">
+                      Select & Analyze
+                    </span>
+                  )}
+                </div>
+                {prompt.isDefault && (
+                  <Badge className="bg-gray-900 text-white text-xs font-medium">
+                    <Star size={16} />
+                  </Badge>
+                )}
+              </CardContent>
+            </Card>
           ))}
         </div>
       </div>
       
-      <div style={{ 
-        padding: spacing['2xl'],
-        backgroundColor: colors.background.secondary,
-        borderTop: `1px solid ${colors.border.light}`,
-        textAlign: 'center'
-      }}>
-        <button 
+      <div className="p-8 bg-gray-50 border-t border-gray-100 text-center">
+        <Button 
+          variant="ghost"
           onClick={openOptionsPage}
-          style={{
-            ...components.button.ghost,
-            color: colors.text.accent,
-            fontSize: typography.fontSize.sm,
-            fontWeight: typography.fontWeight.medium
-          }}
+          className="text-gray-900 text-sm font-medium hover:bg-gray-100"
         >
           Manage Prompts & Settings
-        </button>
+        </Button>
       </div>
     </div>
   );
