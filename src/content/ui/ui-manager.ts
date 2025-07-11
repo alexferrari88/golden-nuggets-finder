@@ -82,14 +82,22 @@ export class UIManager {
   }
 
   async enterSelectionMode(promptId?: string): Promise<void> {
-    // Clear any existing results first
-    this.clearResults();
-    
-    // Enter comment selection mode
-    await this.commentSelector.enterSelectionMode(promptId);
-    
-    // Show info banner
-    this.notifications.showInfo('Select comments to analyze, then click "Analyze Selected Comments"');
+    try {
+      // Clear any existing results first
+      this.clearResults();
+      
+      // Enter comment selection mode
+      await this.commentSelector.enterSelectionMode(promptId);
+      
+      // Show info banner
+      this.notifications.showInfo('Select comments to analyze, then click "Analyze Selected Comments"');
+    } catch (error) {
+      console.error('UI Manager failed to enter selection mode:', error);
+      // Clean up any partial state
+      this.clearResults();
+      // Re-throw to let the caller handle the error
+      throw error;
+    }
   }
 
   exitSelectionMode(): void {

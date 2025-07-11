@@ -106,7 +106,17 @@ export class ContentInjector {
       }
     } catch (error) {
       console.error('Error handling message:', error);
-      sendResponse({ success: false, error: (error as Error).message });
+      
+      // Provide more helpful error message based on error type
+      let errorMessage = (error as Error).message || 'Unknown error occurred';
+      
+      if (error instanceof DOMException) {
+        errorMessage = 'Unable to analyze comments on this page. The page structure may not be supported.';
+      } else if (error instanceof TypeError) {
+        errorMessage = 'Page not fully loaded. Please wait for the page to load and try again.';
+      }
+      
+      sendResponse({ success: false, error: errorMessage });
     }
   }
 
@@ -172,7 +182,17 @@ export class ContentInjector {
       await this.uiManager.enterSelectionMode(promptId);
     } catch (error) {
       console.error('Failed to enter selection mode:', error);
-      this.uiManager.showErrorBanner('Failed to enter selection mode. Please try again.');
+      
+      // Provide more helpful error message based on error type
+      let errorMessage = 'Failed to enter selection mode. Please try again.';
+      
+      if (error instanceof DOMException) {
+        errorMessage = 'Unable to analyze comments on this page. The page structure may not be supported.';
+      } else if (error instanceof TypeError) {
+        errorMessage = 'Page not fully loaded. Please wait for the page to load and try again.';
+      }
+      
+      this.uiManager.showErrorBanner(errorMessage);
     }
   }
 
