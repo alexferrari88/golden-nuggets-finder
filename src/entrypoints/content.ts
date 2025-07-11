@@ -122,6 +122,20 @@ export default defineContentScript({
             sendResponse({ success: true });
             break;
 
+          case MESSAGE_TYPES.ANALYSIS_COMPLETE:
+            initialize(); // Initialize when needed
+            if (request.data) {
+              await measureDOMOperation('display_results', () => handleAnalysisResults(request.data));
+            }
+            sendResponse({ success: true });
+            break;
+
+          case MESSAGE_TYPES.ANALYSIS_ERROR:
+            initialize(); // Initialize when needed
+            uiManager.showErrorBanner(request.error || 'Analysis failed. Please try again.');
+            sendResponse({ success: true });
+            break;
+
           case MESSAGE_TYPES.SHOW_ERROR:
             // No need to initialize for error display
             uiManager.showErrorBanner(request.message);

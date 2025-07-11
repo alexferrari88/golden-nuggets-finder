@@ -16,6 +16,10 @@ export class MessageHandler {
           await this.handleAnalyzeContent(request, sendResponse);
           break;
 
+        case MESSAGE_TYPES.ANALYZE_SELECTED_CONTENT:
+          await this.handleAnalyzeSelectedContent(request, sender, sendResponse);
+          break;
+
         case MESSAGE_TYPES.GET_PROMPTS:
           await this.handleGetPrompts(sendResponse);
           break;
@@ -73,6 +77,49 @@ export class MessageHandler {
       sendResponse({ success: true, data: result });
     } catch (error) {
       console.error('Analysis failed:', error);
+      sendResponse({ success: false, error: (error as Error).message });
+    }
+  }
+
+  private async handleAnalyzeSelectedContent(
+    request: any,
+    sender: chrome.runtime.MessageSender,
+    sendResponse: (response: any) => void
+  ): Promise<void> {
+    try {
+      const prompts = await storage.getPrompts();
+      const prompt = prompts.find(p => p.id === request.promptId);
+      
+      if (!prompt) {
+        sendResponse({ success: false, error: 'Prompt not found' });
+        return;
+      }
+
+      // Replace {{ source }} placeholder with appropriate source type
+      const processedPrompt = this.replaceSourcePlaceholder(prompt.prompt, request.url);
+
+      const result = await this.geminiClient.analyzeContent(request.content, processedPrompt);
+      
+      // Send results to content script for display
+      if (sender.tab?.id) {
+        await chrome.tabs.sendMessage(sender.tab.id, {
+          type: MESSAGE_TYPES.ANALYSIS_COMPLETE,
+          data: result
+        });
+      }
+      
+      sendResponse({ success: true, data: result });
+    } catch (error) {
+      console.error('Selected content analysis failed:', error);
+      
+      // Send error to content script
+      if (sender.tab?.id) {
+        await chrome.tabs.sendMessage(sender.tab.id, {
+          type: MESSAGE_TYPES.ANALYSIS_ERROR,
+          error: (error as Error).message
+        });
+      }
+      
       sendResponse({ success: false, error: (error as Error).message });
     }
   }
