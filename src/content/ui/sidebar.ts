@@ -13,6 +13,7 @@ export class Sidebar {
   private highlighter: Highlighter | null = null;
   private selectedItems: Set<number> = new Set();
   private exportPanel: HTMLElement | null = null;
+  private exportPanelExpanded: boolean = false;
 
   show(nuggetItems: SidebarNuggetItem[], highlighter?: Highlighter): void {
     this.hide(); // Remove existing sidebar if any
@@ -25,6 +26,7 @@ export class Sidebar {
     this.selectedItems.clear();
     this.currentPage = 0;
     this.isCollapsed = false;
+    this.exportPanelExpanded = false;
     this.highlighter = highlighter || null;
     this.sidebar = this.createSidebar();
     document.body.appendChild(this.sidebar);
@@ -814,29 +816,65 @@ export class Sidebar {
     panel.style.cssText = `
       border-top: 1px solid ${colors.border.light};
       background: ${colors.background.primary};
-      padding: ${spacing.lg};
       position: sticky;
       bottom: 0;
       z-index: 1;
     `;
 
-    // Export title
-    const title = document.createElement('div');
-    title.textContent = 'Export';
-    title.style.cssText = `
+    // Export title (clickable header)
+    const titleContainer = document.createElement('div');
+    titleContainer.style.cssText = `
+      padding: ${spacing.md} ${spacing.lg};
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: ${spacing.xs};
+      user-select: none;
+      transition: background-color 0.2s ease;
+    `;
+
+    const titleText = document.createElement('span');
+    titleText.textContent = 'Export';
+    titleText.style.cssText = `
       font-size: ${typography.fontSize.sm};
       font-weight: ${typography.fontWeight.medium};
       color: ${colors.text.primary};
-      margin-bottom: ${spacing.sm};
     `;
 
-    // Export options container
+    const toggleIcon = document.createElement('span');
+    toggleIcon.textContent = '▶';
+    toggleIcon.style.cssText = `
+      font-size: ${typography.fontSize.xs};
+      color: ${colors.text.secondary};
+      transition: transform 0.2s ease;
+    `;
+
+    titleContainer.appendChild(titleText);
+    titleContainer.appendChild(toggleIcon);
+
+    // Export options container (initially hidden)
     const optionsContainer = document.createElement('div');
     optionsContainer.style.cssText = `
-      display: flex;
+      display: none;
       flex-direction: column;
-      gap: ${spacing.md};
+      gap: ${spacing.sm};
+      padding: 0 ${spacing.lg} ${spacing.lg} ${spacing.lg};
+      transition: all 0.2s ease;
     `;
+
+    // Add click handler for collapse/expand
+    titleContainer.addEventListener('click', () => {
+      this.toggleExportPanel(optionsContainer, toggleIcon);
+    });
+
+    // Hover effect for title
+    titleContainer.addEventListener('mouseenter', () => {
+      titleContainer.style.backgroundColor = colors.background.secondary;
+    });
+
+    titleContainer.addEventListener('mouseleave', () => {
+      titleContainer.style.backgroundColor = 'transparent';
+    });
 
     // Format selection
     const formatRow = document.createElement('div');
@@ -849,9 +887,9 @@ export class Sidebar {
     const formatLabel = document.createElement('span');
     formatLabel.textContent = 'Format:';
     formatLabel.style.cssText = `
-      font-size: ${typography.fontSize.sm};
+      font-size: ${typography.fontSize.xs};
       color: ${colors.text.secondary};
-      min-width: 60px;
+      min-width: 50px;
     `;
 
     const markdownBtn = this.createFormatButton('markdown', '□ Markdown');
@@ -872,9 +910,9 @@ export class Sidebar {
     const scopeLabel = document.createElement('span');
     scopeLabel.textContent = 'Scope:';
     scopeLabel.style.cssText = `
-      font-size: ${typography.fontSize.sm};
+      font-size: ${typography.fontSize.xs};
       color: ${colors.text.secondary};
-      min-width: 60px;
+      min-width: 50px;
     `;
 
     const allBtn = this.createScopeButton('all', `⊞ All (${this.allItems.length})`);
@@ -904,10 +942,22 @@ export class Sidebar {
     optionsContainer.appendChild(scopeRow);
     optionsContainer.appendChild(actionsRow);
 
-    panel.appendChild(title);
+    panel.appendChild(titleContainer);
     panel.appendChild(optionsContainer);
 
     return panel;
+  }
+
+  private toggleExportPanel(optionsContainer: HTMLElement, toggleIcon: HTMLElement): void {
+    this.exportPanelExpanded = !this.exportPanelExpanded;
+    
+    if (this.exportPanelExpanded) {
+      optionsContainer.style.display = 'flex';
+      toggleIcon.textContent = '▼';
+    } else {
+      optionsContainer.style.display = 'none';
+      toggleIcon.textContent = '▶';
+    }
   }
 
   private createFormatButton(format: string, label: string): HTMLElement {
@@ -915,13 +965,13 @@ export class Sidebar {
     button.textContent = label;
     button.dataset.format = format;
     button.style.cssText = `
-      padding: ${spacing.sm} ${spacing.md};
+      padding: ${spacing.xs} ${spacing.sm};
       border: 1px solid ${colors.border.default};
-      border-radius: ${borderRadius.md};
+      border-radius: ${borderRadius.sm};
       background: ${colors.background.primary};
       color: ${colors.text.secondary};
       cursor: pointer;
-      font-size: ${typography.fontSize.sm};
+      font-size: ${typography.fontSize.xs};
       transition: all 0.2s ease;
       ${format === 'markdown' ? `background: ${colors.background.secondary}; color: ${colors.text.primary};` : ''}
     `;
@@ -946,13 +996,13 @@ export class Sidebar {
     button.innerHTML = label;
     button.dataset.scope = scope;
     button.style.cssText = `
-      padding: ${spacing.sm} ${spacing.md};
+      padding: ${spacing.xs} ${spacing.sm};
       border: 1px solid ${colors.border.default};
-      border-radius: ${borderRadius.md};
+      border-radius: ${borderRadius.sm};
       background: ${colors.background.primary};
       color: ${colors.text.secondary};
       cursor: pointer;
-      font-size: ${typography.fontSize.sm};
+      font-size: ${typography.fontSize.xs};
       transition: all 0.2s ease;
       ${scope === 'all' ? `background: ${colors.background.secondary}; color: ${colors.text.primary};` : ''}
     `;
@@ -976,13 +1026,13 @@ export class Sidebar {
     const button = document.createElement('button');
     button.textContent = label;
     button.style.cssText = `
-      padding: ${spacing.sm} ${spacing.md};
+      padding: ${spacing.xs} ${spacing.sm};
       border: 1px solid ${colors.border.default};
-      border-radius: ${borderRadius.md};
+      border-radius: ${borderRadius.sm};
       background: ${colors.background.primary};
       color: ${colors.text.primary};
       cursor: pointer;
-      font-size: ${typography.fontSize.sm};
+      font-size: ${typography.fontSize.xs};
       font-weight: ${typography.fontWeight.medium};
       transition: all 0.2s ease;
     `;
