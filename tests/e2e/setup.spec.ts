@@ -1,24 +1,18 @@
 import { test, expect } from './fixtures/extension-fixture';
 import { TEST_API_KEY, DEFAULT_PROMPTS } from './fixtures/test-data';
+import { clearStorageData } from './fixtures/chrome-api-setup';
 
 test.describe('Extension Setup Workflow', () => {
-  test.beforeEach(async ({ context }) => {
+  test.beforeEach(async ({ context, serviceWorker, chromeApiReady }) => {
+    // Ensure Chrome APIs are ready before clearing storage
+    expect(chromeApiReady).toBe(true);
+    
     // Clear any existing storage by navigating to the extension page
     const page = await context.newPage();
     await page.goto('chrome://extensions/');
     
-    // Wait for service worker to be available
-    let serviceWorker = context.serviceWorkers()[0];
-    if (!serviceWorker) {
-      serviceWorker = await context.waitForEvent('serviceworker');
-    }
-    
-    // Clear storage via service worker
-    await serviceWorker.evaluate(() => {
-      return new Promise((resolve) => {
-        chrome.storage.sync.clear(() => resolve(undefined));
-      });
-    });
+    // Clear storage using the new Chrome API setup utilities
+    await clearStorageData(serviceWorker);
     
     await page.close();
   });

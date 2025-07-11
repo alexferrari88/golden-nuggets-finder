@@ -1,23 +1,18 @@
 import { test, expect } from './fixtures/extension-fixture';
 import { TEST_API_KEY, DEFAULT_PROMPTS } from './fixtures/test-data';
 import { createMockRedditPage, createMockHackerNewsPage, createMockBlogPage, setupMockApiResponses } from './fixtures/mock-pages';
+import { seedTestData } from './fixtures/chrome-api-setup';
 
 test.describe('Content Analysis Workflow', () => {
-  test.beforeEach(async ({ context }) => {
-    // Set up API key and prompts via service worker
-    let serviceWorker = context.serviceWorkers()[0];
-    if (!serviceWorker) {
-      serviceWorker = await context.waitForEvent('serviceworker');
-    }
+  test.beforeEach(async ({ serviceWorker, chromeApiReady }) => {
+    // Ensure Chrome APIs are ready before seeding test data
+    expect(chromeApiReady).toBe(true);
     
-    await serviceWorker.evaluate((testData) => {
-      return new Promise((resolve) => {
-        chrome.storage.sync.set({
-          geminiApiKey: testData.apiKey,
-          userPrompts: testData.prompts
-        }, () => resolve(undefined));
-      });
-    }, { apiKey: TEST_API_KEY, prompts: DEFAULT_PROMPTS });
+    // Set up API key and prompts using the new Chrome API setup utilities
+    await seedTestData(serviceWorker, {
+      geminiApiKey: TEST_API_KEY,
+      userPrompts: DEFAULT_PROMPTS
+    });
   });
 
   test('should analyze Reddit thread via toolbar popup', async ({ page, popupPage }) => {
