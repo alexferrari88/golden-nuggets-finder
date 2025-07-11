@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Badge } from '../components/ui/badge';
 import { cn } from '../lib/utils';
 import { CircleCheck, CircleAlert, Key, FileText, Pencil, Trash, Star, Plus, ExternalLink, Sparkles, X, Lock, StickyNote, Heart } from 'lucide-react';
-
+// Design system migration: Replaced with Tailwind classes and Shadcn UI components
 
 type AlertType = 'success' | 'error' | 'warning' | 'info';
 
@@ -374,428 +374,154 @@ function OptionsPage() {
         )}
 
         {/* API Key Section */}
-        <div style={{
-          marginBottom: spacing['3xl'],
-          backgroundColor: colors.background.primary,
-          padding: spacing['3xl'],
-          borderRadius: borderRadius.xl,
-          boxShadow: shadows.md,
-          border: `1px solid ${colors.border.light}`
-        }}>
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: spacing.md,
-            marginBottom: spacing['2xl']
-          }}>
-            <div style={{ color: colors.text.accent }}>
-              <Key size={20} />
+        <Card className="mb-8 p-8">
+          <CardHeader className="p-0 mb-6">
+            <div className="flex items-center gap-3">
+              <div className="text-gray-900">
+                <Key size={20} />
+              </div>
+              <CardTitle className="text-xl font-semibold text-gray-800">
+                Google Gemini API Key
+              </CardTitle>
             </div>
-            <h2 style={{
-              margin: 0,
-              fontSize: typography.fontSize.xl,
-              fontWeight: typography.fontWeight.semibold,
-              color: colors.text.primary
-            }}>
-              Google Gemini API Key
-            </h2>
-          </div>
+          </CardHeader>
           
-          <div style={{
-            marginBottom: spacing['2xl'],
-            padding: spacing.lg,
-            backgroundColor: colors.background.secondary,
-            borderRadius: borderRadius.lg,
-            border: `1px solid ${colors.border.light}`
-          }}>
-            <p style={{
-              margin: `0 0 ${spacing.md} 0`,
-              fontSize: typography.fontSize.sm,
-              color: colors.text.secondary,
-              fontWeight: typography.fontWeight.medium
-            }}>
-              <Lock size={16} style={{ display: 'inline', marginRight: '8px' }} />Your API key is stored securely in your browser and never shared
+          <div className="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-100">
+            <p className="mb-3 text-sm text-gray-500 font-medium flex items-center">
+              <Lock size={16} className="mr-2" />
+              Your API key is stored securely in your browser and never shared
             </p>
-            <p style={{
-              margin: `0 0 ${spacing.md} 0`,
-              fontSize: typography.fontSize.sm,
-              color: colors.text.tertiary,
-              lineHeight: typography.lineHeight.normal
-            }}>
+            <p className="mb-3 text-sm text-gray-400 leading-normal">
               You'll need a Google Gemini API key to use this extension. The key is used to analyze webpage content and find valuable insights.
             </p>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: spacing.sm,
-              fontSize: typography.fontSize.sm,
-              color: colors.text.accent
-            }}>
+            <div className="flex items-center gap-2 text-sm text-gray-900">
               <span>Get your free API key from Google AI Studio</span>
               <a
                 href="https://aistudio.google.com/app/apikey"
                 target="_blank"
                 rel="noopener noreferrer"
-                style={{
-                  color: colors.text.accent,
-                  textDecoration: 'none',
-                  display: 'flex',
-                  alignItems: 'center'
-                }}
+                className="text-gray-900 hover:text-gray-700 flex items-center"
               >
                 <ExternalLink size={16} />
               </a>
             </div>
           </div>
 
-          <div style={{
-            display: 'flex',
-            gap: spacing.md,
-            alignItems: 'stretch',
-            marginBottom: spacing.lg
-          }}>
-            <input
+          <div className="flex gap-3 items-stretch mb-4">
+            <Input
               type="password"
               value={apiKey}
               onChange={(e) => setApiKey(e.target.value)}
               placeholder="Enter your Gemini API key (e.g., AIzaSyC...)"
-              style={{
-                ...components.input.default,
-                flex: 1,
-                fontSize: typography.fontSize.base,
-                color: colors.text.primary,
-                fontFamily: typography.fontFamily.sans
-              }}
-              onFocus={(e) => e.target.style.borderColor = colors.text.accent}
-              onBlur={(e) => e.target.style.borderColor = colors.border.default}
+              className="flex-1"
             />
-            <button
+            <Button
               onClick={saveApiKey}
               disabled={isValidating}
-              style={{
-                ...components.button.primary,
-                backgroundColor: isValidating ? colors.text.secondary : colors.text.accent,
-                cursor: isValidating ? 'not-allowed' : 'pointer',
-                fontSize: typography.fontSize.base,
-                fontWeight: typography.fontWeight.semibold,
-                minWidth: '120px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: spacing.sm
-              }}
-              onMouseEnter={(e) => {
-                if (!isValidating) e.currentTarget.style.backgroundColor = colors.text.accent;
-              }}
-              onMouseLeave={(e) => {
-                if (!isValidating) e.currentTarget.style.backgroundColor = colors.text.accent;
-              }}
+              className="min-w-[120px]"
             >
               {isValidating ? (
                 <>
-                  <div style={{
-                    width: '16px',
-                    height: '16px',
-                    border: `2px solid ${colors.background.primary}40`,
-                    borderTop: `2px solid ${colors.background.primary}`,
-                    borderRadius: '50%',
-                    animation: 'spin 1s linear infinite'
-                  }} />
+                  <div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin mr-2" />
                   Validating...
                 </>
               ) : (
                 'Save API Key'
               )}
-            </button>
+            </Button>
           </div>
-        </div>
+        </Card>
 
         {/* Prompts Section */}
-        <div style={{
-          backgroundColor: colors.white,
-          padding: '32px',
-          borderRadius: '16px',
-          boxShadow: shadows.md,
-          border: `1px solid ${colors.border.light}`
-        }}>
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            marginBottom: '24px'
-          }}>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px'
-            }}>
-              <div style={{ color: colors.text.accent }}>
-                <FileText size={20} />
+        <Card className="p-8">
+          <CardHeader className="p-0 mb-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="text-gray-900">
+                  <FileText size={20} />
+                </div>
+                <CardTitle className="text-xl font-semibold text-gray-800">
+                  Analysis Prompts
+                </CardTitle>
               </div>
-              <h2 style={{
-                margin: 0,
-                fontSize: '20px',
-                fontWeight: '600',
-                color: colors.text.primary
-              }}>
-                Analysis Prompts
-              </h2>
+              <Button onClick={() => openPromptEditor()}>
+                <Plus size={16} className="mr-2" />
+                Add New Prompt
+              </Button>
             </div>
-            <button
-              onClick={() => openPromptEditor()}
-              style={{
-                padding: '12px 20px',
-                backgroundColor: colors.text.accent,
-                color: colors.white,
-                border: 'none',
-                borderRadius: '8px',
-                cursor: 'pointer',
-                fontSize: '14px',
-                fontWeight: '600',
-                transition: 'background-color 0.2s',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px'
-              }}
-              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = colors.text.accent}
-              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = colors.text.accent}
-            >
-              <Plus size={16} />
-              Add New Prompt
-            </button>
-          </div>
+          </CardHeader>
           
-          <div style={{
-            marginBottom: '24px',
-            padding: '16px',
-            backgroundColor: colors.background.secondary,
-            borderRadius: '12px',
-            border: `1px solid ${colors.border.light}`
-          }}>
-            <p style={{
-              margin: 0,
-              fontSize: '14px',
-              color: colors.text.secondary,
-              lineHeight: '1.5'
-            }}>
+          <div className="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-100">
+            <p className="text-sm text-gray-500 leading-normal">
               Prompts define what the AI looks for when analyzing web content. Create custom prompts for different use cases, or use the default prompt to get started.
             </p>
           </div>
           
           {prompts.length === 0 ? (
-            <div style={{
-              textAlign: 'center',
-              padding: '48px 24px',
-              backgroundColor: colors.background.secondary,
-              borderRadius: '12px',
-              border: `2px dashed ${colors.border.default}`
-            }}>
-              <div style={{
-                color: colors.text.secondary,
-                marginBottom: '16px',
-                fontSize: '48px'
-              }}>
-                <StickyNote size={16} />
+            <div className="text-center py-12 px-6 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
+              <div className="text-gray-500 mb-4">
+                <StickyNote size={48} />
               </div>
-              <h3 style={{
-                margin: '0 0 8px 0',
-                fontSize: '18px',
-                fontWeight: '600',
-                color: colors.text.primary
-              }}>
+              <h3 className="text-lg font-semibold text-gray-800 mb-2">
                 No prompts yet
               </h3>
-              <p style={{
-                margin: '0 0 24px 0',
-                color: colors.text.secondary,
-                fontSize: '16px'
-              }}>
+              <p className="text-gray-500 text-base mb-6">
                 Create your first prompt to start analyzing web content
               </p>
-              <button
-                onClick={() => openPromptEditor()}
-                style={{
-                  padding: '12px 24px',
-                  backgroundColor: colors.text.accent,
-                  color: colors.white,
-                  border: 'none',
-                  borderRadius: '8px',
-                  cursor: 'pointer',
-                  fontSize: '14px',
-                  fontWeight: '600',
-                  transition: 'background-color 0.2s',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '8px'
-                }}
-                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = colors.text.accent}
-                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = colors.text.accent}
-              >
-                <Plus size={16} />
+              <Button onClick={() => openPromptEditor()}>
+                <Plus size={16} className="mr-2" />
                 Create First Prompt
-              </button>
+              </Button>
             </div>
           ) : (
-            <div style={{
-              display: 'grid',
-              gap: '16px'
-            }}>
+            <div className="space-y-4">
               {prompts.map((prompt, index) => (
                 <div
                   key={prompt.id}
-                  style={{
-                    padding: '24px',
-                    backgroundColor: colors.background.secondary,
-                    borderRadius: '12px',
-                    border: `1px solid ${colors.border.light}`,
-                    transition: 'all 0.2s'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = colors.background.secondary;
-                    e.currentTarget.style.borderColor = colors.border.default;
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = colors.background.secondary;
-                    e.currentTarget.style.borderColor = colors.border.light;
-                  }}
+                  className="p-6 bg-gray-50 rounded-xl border border-gray-100 hover:bg-gray-50 hover:border-gray-200 transition-all duration-200"
                 >
-                  <div style={{
-                    display: 'flex',
-                    alignItems: 'flex-start',
-                    justifyContent: 'space-between',
-                    gap: '16px'
-                  }}>
-                    <div style={{ flex: 1 }}>
-                      <div style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '12px',
-                        marginBottom: '8px'
-                      }}>
-                        <h3 style={{
-                          margin: 0,
-                          fontSize: '18px',
-                          fontWeight: '600',
-                          color: colors.text.primary
-                        }}>
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-2">
+                        <h3 className="text-lg font-semibold text-gray-800 m-0">
                           {prompt.name}
                         </h3>
                         {prompt.isDefault && (
-                          <div style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '4px',
-                            padding: '4px 8px',
-                            backgroundColor: colors.background.secondary,
-                            color: colors.text.secondary,
-                            borderRadius: '6px',
-                            fontSize: '12px',
-                            fontWeight: '500'
-                          }}>
+                          <div className="flex items-center gap-1 px-2 py-1 bg-gray-100 text-gray-600 rounded-md text-xs font-medium">
                             <Star size={16} />
                             Default
                           </div>
                         )}
                       </div>
-                      <p style={{
-                        margin: 0,
-                        color: colors.text.secondary,
-                        fontSize: '14px',
-                        lineHeight: '1.5',
-                        display: '-webkit-box',
-                        WebkitLineClamp: 3,
-                        WebkitBoxOrient: 'vertical' as any,
-                        overflow: 'hidden'
-                      } as React.CSSProperties}>
+                      <p className="text-gray-600 text-sm leading-relaxed line-clamp-3 m-0">
                         {prompt.prompt}
                       </p>
                     </div>
                     
-                    <div style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px'
-                    }}>
+                    <div className="flex items-center gap-2">
                       <button
                         onClick={() => setDefaultPrompt(prompt.id)}
                         disabled={prompt.isDefault}
                         title={prompt.isDefault ? 'This is the default prompt' : 'Set as default prompt'}
-                        style={{
-                          padding: '8px',
-                          backgroundColor: 'transparent',
-                          color: prompt.isDefault ? colors.text.secondary : colors.text.secondary,
-                          border: 'none',
-                          borderRadius: '6px',
-                          cursor: prompt.isDefault ? 'default' : 'pointer',
-                          transition: 'all 0.2s',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center'
-                        }}
-                        onMouseEnter={(e) => {
-                          if (!prompt.isDefault) {
-                            e.currentTarget.style.backgroundColor = colors.background.secondary;
-                            e.currentTarget.style.color = colors.text.secondary;
-                          }
-                        }}
-                        onMouseLeave={(e) => {
-                          if (!prompt.isDefault) {
-                            e.currentTarget.style.backgroundColor = 'transparent';
-                            e.currentTarget.style.color = colors.text.secondary;
-                          }
-                        }}
+                        className={`p-2 rounded-md transition-all duration-200 flex items-center justify-center ${
+                          prompt.isDefault 
+                            ? 'text-gray-400 cursor-default' 
+                            : 'text-gray-500 hover:bg-gray-100 hover:text-gray-700 cursor-pointer'
+                        }`}
                       >
                         <Star size={16} />
                       </button>
                       <button
                         onClick={() => openPromptEditor(prompt)}
                         title="Edit prompt"
-                        style={{
-                          padding: '8px',
-                          backgroundColor: 'transparent',
-                          color: colors.text.secondary,
-                          border: 'none',
-                          borderRadius: '6px',
-                          cursor: 'pointer',
-                          transition: 'all 0.2s',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center'
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.backgroundColor = colors.background.secondary;
-                          e.currentTarget.style.color = colors.text.primary;
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.backgroundColor = 'transparent';
-                          e.currentTarget.style.color = colors.text.secondary;
-                        }}
+                        className="p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-800 rounded-md cursor-pointer transition-all duration-200 flex items-center justify-center"
                       >
                         <Pencil size={16} />
                       </button>
                       <button
                         onClick={() => deletePrompt(prompt.id)}
                         title="Delete prompt"
-                        style={{
-                          padding: '8px',
-                          backgroundColor: 'transparent',
-                          color: colors.text.secondary,
-                          border: 'none',
-                          borderRadius: '6px',
-                          cursor: 'pointer',
-                          transition: 'all 0.2s',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center'
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.backgroundColor = colors.background.secondary;
-                          e.currentTarget.style.color = colors.error;
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.backgroundColor = 'transparent';
-                          e.currentTarget.style.color = colors.text.secondary;
-                        }}
+                        className="p-2 text-gray-500 hover:bg-gray-100 hover:text-red-600 rounded-md cursor-pointer transition-all duration-200 flex items-center justify-center"
                       >
                         <Trash size={16} />
                       </button>
@@ -805,66 +531,26 @@ function OptionsPage() {
               ))}
             </div>
           )}
-        </div>
+        </Card>
 
         {/* Footer */}
-        <div style={{
-          marginTop: '48px',
-          padding: '24px',
-          textAlign: 'center',
-          color: colors.text.secondary,
-          fontSize: '14px',
-          borderTop: `1px solid ${colors.border.light}`
-        }}>
-          <p style={{ margin: 0 }}>
-            Golden Nugget Finder • Made with <Heart size={16} style={{ display: 'inline', margin: '0 4px' }} /> for better web content analysis
+        <div className="mt-12 pt-6 text-center text-gray-500 text-sm border-t border-gray-100">
+          <p className="m-0">
+            Golden Nugget Finder • Made with <Heart size={16} className="inline mx-1" /> for better web content analysis
           </p>
         </div>
       </div>
 
       {/* Prompt Editor Modal */}
       {isEditing && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          width: '100%',
-          height: '100%',
-          backgroundColor: colors.background.modalOverlay,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000,
-          padding: '20px',
-          boxSizing: 'border-box'
-        }}>
-          <div style={{
-            backgroundColor: colors.white,
-            padding: '32px',
-            borderRadius: '16px',
-            width: '100%',
-            maxWidth: '700px',
-            maxHeight: '90vh',
-            overflowY: 'auto',
-            boxShadow: shadows.modal
-          }}>
-            <h3 style={{
-              margin: '0 0 24px 0',
-              fontSize: '24px',
-              fontWeight: '700',
-              color: colors.text.primary
-            }}>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-5">
+          <div className="bg-white p-8 rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto shadow-2xl">
+            <h3 className="text-2xl font-bold text-gray-800 mb-6 m-0">
               {editingPrompt ? 'Edit Prompt' : 'Create New Prompt'}
             </h3>
             
-            <div style={{ marginBottom: '24px' }}>
-              <label style={{
-                display: 'block',
-                marginBottom: '8px',
-                color: colors.text.primary,
-                fontSize: '14px',
-                fontWeight: '600'
-              }}>
+            <div className="mb-6">
+              <label className="block mb-2 text-gray-800 text-sm font-semibold">
                 Prompt Name
               </label>
               <input
@@ -872,48 +558,19 @@ function OptionsPage() {
                 value={promptName}
                 onChange={(e) => setPromptName(e.target.value)}
                 placeholder="e.g., 'Find Learning Resources', 'Identify Tools', 'Extract Key Insights'"
-                style={{
-                  width: '100%',
-                  padding: '16px',
-                  border: `2px solid ${validationErrors.name ? colors.error : colors.border.light}`,
-                  borderRadius: '8px',
-                  boxSizing: 'border-box',
-                  fontSize: '16px',
-                  color: colors.text.primary,
-                  fontFamily: 'inherit',
-                  transition: 'border-color 0.2s',
-                  outline: 'none'
-                }}
-                onFocus={(e) => {
-                  if (!validationErrors.name) {
-                    e.target.style.borderColor = colors.text.accent;
-                  }
-                }}
-                onBlur={(e) => {
-                  if (!validationErrors.name) {
-                    e.target.style.borderColor = colors.border.light;
-                  }
-                }}
+                className={`w-full p-4 border-2 rounded-lg text-base text-gray-800 transition-colors outline-none ${
+                  validationErrors.name ? 'border-red-500' : 'border-gray-200 focus:border-gray-900'
+                }`}
               />
               {validationErrors.name && (
-                <p style={{
-                  margin: '8px 0 0 0',
-                  color: colors.error,
-                  fontSize: '14px'
-                }}>
+                <p className="mt-2 text-red-600 text-sm">
                   {validationErrors.name}
                 </p>
               )}
             </div>
             
-            <div style={{ marginBottom: '32px' }}>
-              <label style={{
-                display: 'block',
-                marginBottom: '8px',
-                color: colors.text.primary,
-                fontSize: '14px',
-                fontWeight: '600'
-              }}>
+            <div className="mb-8">
+              <label className="block mb-2 text-gray-800 text-sm font-semibold">
                 Prompt Instructions
               </label>
               <textarea
@@ -921,86 +578,27 @@ function OptionsPage() {
                 onChange={(e) => setPromptText(e.target.value)}
                 rows={12}
                 placeholder="Describe what you want the AI to look for when analyzing web content...\n\nExample:\n'I'm a software developer learning new technologies. Find practical tools, frameworks, libraries, and learning resources mentioned in this content. Focus on actionable items that can help me improve my skills.'"
-                style={{
-                  width: '100%',
-                  padding: '16px',
-                  border: `2px solid ${validationErrors.prompt ? colors.error : colors.border.light}`,
-                  borderRadius: '8px',
-                  boxSizing: 'border-box',
-                  resize: 'vertical',
-                  fontSize: '16px',
-                  color: colors.text.primary,
-                  fontFamily: 'inherit',
-                  lineHeight: '1.5',
-                  transition: 'border-color 0.2s',
-                  outline: 'none'
-                }}
-                onFocus={(e) => {
-                  if (!validationErrors.prompt) {
-                    e.target.style.borderColor = colors.text.accent;
-                  }
-                }}
-                onBlur={(e) => {
-                  if (!validationErrors.prompt) {
-                    e.target.style.borderColor = colors.border.light;
-                  }
-                }}
+                className={`w-full p-4 border-2 rounded-lg resize-y text-base text-gray-800 leading-relaxed transition-colors outline-none ${
+                  validationErrors.prompt ? 'border-red-500' : 'border-gray-200 focus:border-gray-900'
+                }`}
               />
               {validationErrors.prompt && (
-                <p style={{
-                  margin: '8px 0 0 0',
-                  color: colors.error,
-                  fontSize: '14px'
-                }}>
+                <p className="mt-2 text-red-600 text-sm">
                   {validationErrors.prompt}
                 </p>
               )}
             </div>
             
-            <div style={{
-              display: 'flex',
-              gap: '12px',
-              justifyContent: 'flex-end'
-            }}>
+            <div className="flex gap-3 justify-end">
               <button
                 onClick={() => setIsEditing(false)}
-                style={{
-                  padding: '12px 24px',
-                  backgroundColor: colors.background.secondary,
-                  color: colors.text.primary,
-                  border: `1px solid ${colors.border.light}`,
-                  borderRadius: '8px',
-                  cursor: 'pointer',
-                  fontSize: '14px',
-                  fontWeight: '500',
-                  transition: 'all 0.2s'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = colors.background.secondary;
-                  e.currentTarget.style.borderColor = colors.border.default;
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = colors.background.secondary;
-                  e.currentTarget.style.borderColor = colors.border.light;
-                }}
+                className="px-6 py-3 bg-gray-50 text-gray-800 border border-gray-200 rounded-lg cursor-pointer text-sm font-medium hover:bg-gray-100 hover:border-gray-300 transition-all duration-200"
               >
                 Cancel
               </button>
               <button
                 onClick={savePrompt}
-                style={{
-                  padding: '12px 24px',
-                  backgroundColor: colors.text.accent,
-                  color: colors.white,
-                  border: 'none',
-                  borderRadius: '8px',
-                  cursor: 'pointer',
-                  fontSize: '14px',
-                  fontWeight: '500',
-                  transition: 'background-color 0.2s'
-                }}
-                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = colors.text.accent}
-                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = colors.text.accent}
+                className="px-6 py-3 bg-gray-900 text-white rounded-lg cursor-pointer text-sm font-medium hover:bg-gray-800 transition-colors duration-200"
               >
                 {editingPrompt ? 'Save Changes' : 'Create Prompt'}
               </button>
