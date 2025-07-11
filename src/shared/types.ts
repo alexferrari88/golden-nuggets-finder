@@ -29,6 +29,7 @@ export interface NuggetDisplayState {
 export interface SidebarNuggetItem {
   nugget: GoldenNugget;
   status: 'highlighted' | 'not-found';
+  selected: boolean;
 }
 
 export interface AnalysisRequest {
@@ -47,6 +48,31 @@ export interface SelectedContentAnalysisRequest {
   promptId: string;
   url: string;
   selectedComments: string[];
+}
+
+export interface ExportData {
+  timestamp: string;
+  url: string;
+  promptName: string;
+  nuggets: Array<{
+    type: string;
+    content: string;
+    synthesis: string;
+    status: 'highlighted' | 'not-found';
+  }>;
+  metadata: {
+    totalNuggets: number;
+    highlightedCount: number;
+    analysisDate: string;
+  };
+}
+
+export type ExportFormat = 'json' | 'markdown';
+
+export interface ExportOptions {
+  format: ExportFormat;
+  scope: 'all' | 'selected';
+  includeMetadata: boolean;
 }
 
 export interface AnalysisResponse {

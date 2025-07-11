@@ -1,7 +1,7 @@
 import { SidebarNuggetItem } from '../../shared/types';
 import { UI_CONSTANTS } from '../../shared/constants';
 import { Highlighter } from './highlighter';
-import { colors, shadows, generateInlineStyles, borderRadius, spacing } from '../../shared/design-system';
+import { colors, shadows, generateInlineStyles, borderRadius, spacing, typography } from '../../shared/design-system';
 
 export class Sidebar {
   private sidebar: HTMLElement | null = null;
@@ -11,11 +11,18 @@ export class Sidebar {
   private allItems: SidebarNuggetItem[] = [];
   private isCollapsed = false;
   private highlighter: Highlighter | null = null;
+  private selectedItems: Set<number> = new Set();
+  private exportPanel: HTMLElement | null = null;
 
   show(nuggetItems: SidebarNuggetItem[], highlighter?: Highlighter): void {
     this.hide(); // Remove existing sidebar if any
     
-    this.allItems = nuggetItems;
+    // Initialize selection state for all nuggets
+    this.allItems = nuggetItems.map(item => ({
+      ...item,
+      selected: false
+    }));
+    this.selectedItems.clear();
     this.currentPage = 0;
     this.isCollapsed = false;
     this.highlighter = highlighter || null;
@@ -254,6 +261,10 @@ export class Sidebar {
     const nuggetList = this.createNuggetList();
     sidebar.appendChild(nuggetList);
     
+    // Create export panel
+    this.exportPanel = this.createExportPanel();
+    sidebar.appendChild(this.exportPanel);
+    
     return sidebar;
   }
   
@@ -477,6 +488,8 @@ export class Sidebar {
       box-shadow: ${generateInlineStyles.cardShadow()};
       cursor: ${item.status === 'highlighted' ? 'pointer' : 'default'};
       position: relative;
+      display: flex;
+      gap: ${spacing.md};
     `;
     
     // Add click handler for highlighted nuggets
@@ -513,6 +526,45 @@ export class Sidebar {
         }
       });
     }
+    
+    // Create checkbox container
+    const checkboxContainer = document.createElement('div');
+    checkboxContainer.style.cssText = `
+      display: flex;
+      align-items: flex-start;
+      padding-top: 2px;
+      flex-shrink: 0;
+    `;
+    
+    // Create checkbox
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.checked = item.selected;
+    checkbox.style.cssText = `
+      width: 16px;
+      height: 16px;
+      margin: 0;
+      accent-color: ${colors.text.accent};
+      border: 1px solid ${colors.border.medium};
+      border-radius: ${borderRadius.sm};
+      cursor: pointer;
+    `;
+    
+    // Add checkbox change handler
+    checkbox.addEventListener('change', (e) => {
+      e.stopPropagation();
+      const globalIndex = this.currentPage * this.itemsPerPage + index;
+      this.toggleItemSelection(globalIndex);
+    });
+    
+    checkboxContainer.appendChild(checkbox);
+    
+    // Create content container
+    const contentContainer = document.createElement('div');
+    contentContainer.style.cssText = `
+      flex: 1;
+      min-width: 0;
+    `;
     
     // Use DocumentFragment for efficient DOM construction
     const fragment = document.createDocumentFragment();
@@ -683,10 +735,14 @@ export class Sidebar {
       nuggetDiv.style.backgroundColor = colors.background.primary;
     });
     
-    // Assemble the element
-    nuggetDiv.appendChild(headerDiv);
-    nuggetDiv.appendChild(contentPreview);
-    nuggetDiv.appendChild(synthesis);
+    // Assemble the content container
+    contentContainer.appendChild(headerDiv);
+    contentContainer.appendChild(contentPreview);
+    contentContainer.appendChild(synthesis);
+    
+    // Assemble the main element
+    nuggetDiv.appendChild(checkboxContainer);
+    nuggetDiv.appendChild(contentContainer);
     
     return nuggetDiv;
   }
@@ -701,5 +757,349 @@ export class Sidebar {
       document.body.style.marginRight = '';
       document.body.style.transition = 'margin-right 0.3s ease';
     }
+  }
+
+  private toggleItemSelection(globalIndex: number): void {
+    if (globalIndex >= 0 && globalIndex < this.allItems.length) {
+      this.allItems[globalIndex].selected = !this.allItems[globalIndex].selected;
+      
+      if (this.allItems[globalIndex].selected) {
+        this.selectedItems.add(globalIndex);
+      } else {
+        this.selectedItems.delete(globalIndex);
+      }
+      
+      this.updateExportPanel();
+    }
+  }
+
+  private selectAllItems(): void {
+    this.allItems.forEach((item, index) => {
+      item.selected = true;
+      this.selectedItems.add(index);
+    });
+    this.updateExportPanel();
+    this.refreshCurrentPage();
+  }
+
+  private clearAllSelections(): void {
+    this.allItems.forEach((item, index) => {
+      item.selected = false;
+      this.selectedItems.delete(index);
+    });
+    this.updateExportPanel();
+    this.refreshCurrentPage();
+  }
+
+  private refreshCurrentPage(): void {
+    if (this.sidebar) {
+      const container = this.sidebar.querySelector('#nugget-list-container');
+      if (container) {
+        this.renderCurrentPage(container as HTMLElement);
+      }
+    }
+  }
+
+  private updateExportPanel(): void {
+    if (this.exportPanel) {
+      const selectedCountSpan = this.exportPanel.querySelector('.selected-count');
+      if (selectedCountSpan) {
+        selectedCountSpan.textContent = this.selectedItems.size.toString();
+      }
+    }
+  }
+
+  private createExportPanel(): HTMLElement {
+    const panel = document.createElement('div');
+    panel.style.cssText = `
+      border-top: 1px solid ${colors.border.light};
+      background: ${colors.background.primary};
+      padding: ${spacing.lg};
+      position: sticky;
+      bottom: 0;
+      z-index: 1;
+    `;
+
+    // Export title
+    const title = document.createElement('div');
+    title.textContent = 'Export';
+    title.style.cssText = `
+      font-size: ${typography.fontSize.sm};
+      font-weight: ${typography.fontWeight.medium};
+      color: ${colors.text.primary};
+      margin-bottom: ${spacing.sm};
+    `;
+
+    // Export options container
+    const optionsContainer = document.createElement('div');
+    optionsContainer.style.cssText = `
+      display: flex;
+      flex-direction: column;
+      gap: ${spacing.md};
+    `;
+
+    // Format selection
+    const formatRow = document.createElement('div');
+    formatRow.style.cssText = `
+      display: flex;
+      gap: ${spacing.sm};
+      align-items: center;
+    `;
+
+    const formatLabel = document.createElement('span');
+    formatLabel.textContent = 'Format:';
+    formatLabel.style.cssText = `
+      font-size: ${typography.fontSize.sm};
+      color: ${colors.text.secondary};
+      min-width: 60px;
+    `;
+
+    const markdownBtn = this.createFormatButton('markdown', '□ Markdown');
+    const jsonBtn = this.createFormatButton('json', '{ } JSON');
+
+    formatRow.appendChild(formatLabel);
+    formatRow.appendChild(markdownBtn);
+    formatRow.appendChild(jsonBtn);
+
+    // Scope selection
+    const scopeRow = document.createElement('div');
+    scopeRow.style.cssText = `
+      display: flex;
+      gap: ${spacing.sm};
+      align-items: center;
+    `;
+
+    const scopeLabel = document.createElement('span');
+    scopeLabel.textContent = 'Scope:';
+    scopeLabel.style.cssText = `
+      font-size: ${typography.fontSize.sm};
+      color: ${colors.text.secondary};
+      min-width: 60px;
+    `;
+
+    const allBtn = this.createScopeButton('all', `⊞ All (${this.allItems.length})`);
+    const selectedBtn = this.createScopeButton('selected', `☑ Selected (<span class="selected-count">0</span>)`);
+
+    scopeRow.appendChild(scopeLabel);
+    scopeRow.appendChild(allBtn);
+    scopeRow.appendChild(selectedBtn);
+
+    // Action buttons
+    const actionsRow = document.createElement('div');
+    actionsRow.style.cssText = `
+      display: flex;
+      gap: ${spacing.sm};
+      justify-content: center;
+    `;
+
+    const exportBtn = this.createActionButton('Export', () => this.handleExport());
+    const selectAllBtn = this.createActionButton('Select All', () => this.selectAllItems());
+    const clearBtn = this.createActionButton('Clear All', () => this.clearAllSelections());
+
+    actionsRow.appendChild(exportBtn);
+    actionsRow.appendChild(selectAllBtn);
+    actionsRow.appendChild(clearBtn);
+
+    optionsContainer.appendChild(formatRow);
+    optionsContainer.appendChild(scopeRow);
+    optionsContainer.appendChild(actionsRow);
+
+    panel.appendChild(title);
+    panel.appendChild(optionsContainer);
+
+    return panel;
+  }
+
+  private createFormatButton(format: string, label: string): HTMLElement {
+    const button = document.createElement('button');
+    button.textContent = label;
+    button.dataset.format = format;
+    button.style.cssText = `
+      padding: ${spacing.sm} ${spacing.md};
+      border: 1px solid ${colors.border.default};
+      border-radius: ${borderRadius.md};
+      background: ${colors.background.primary};
+      color: ${colors.text.secondary};
+      cursor: pointer;
+      font-size: ${typography.fontSize.sm};
+      transition: all 0.2s ease;
+      ${format === 'markdown' ? `background: ${colors.background.secondary}; color: ${colors.text.primary};` : ''}
+    `;
+
+    button.addEventListener('click', () => {
+      // Update active state
+      const allFormatButtons = this.exportPanel?.querySelectorAll('[data-format]');
+      allFormatButtons?.forEach(btn => {
+        (btn as HTMLElement).style.background = colors.background.primary;
+        (btn as HTMLElement).style.color = colors.text.secondary;
+      });
+      
+      button.style.background = colors.background.secondary;
+      button.style.color = colors.text.primary;
+    });
+
+    return button;
+  }
+
+  private createScopeButton(scope: string, label: string): HTMLElement {
+    const button = document.createElement('button');
+    button.innerHTML = label;
+    button.dataset.scope = scope;
+    button.style.cssText = `
+      padding: ${spacing.sm} ${spacing.md};
+      border: 1px solid ${colors.border.default};
+      border-radius: ${borderRadius.md};
+      background: ${colors.background.primary};
+      color: ${colors.text.secondary};
+      cursor: pointer;
+      font-size: ${typography.fontSize.sm};
+      transition: all 0.2s ease;
+      ${scope === 'all' ? `background: ${colors.background.secondary}; color: ${colors.text.primary};` : ''}
+    `;
+
+    button.addEventListener('click', () => {
+      // Update active state
+      const allScopeButtons = this.exportPanel?.querySelectorAll('[data-scope]');
+      allScopeButtons?.forEach(btn => {
+        (btn as HTMLElement).style.background = colors.background.primary;
+        (btn as HTMLElement).style.color = colors.text.secondary;
+      });
+      
+      button.style.background = colors.background.secondary;
+      button.style.color = colors.text.primary;
+    });
+
+    return button;
+  }
+
+  private createActionButton(label: string, onClick: () => void): HTMLElement {
+    const button = document.createElement('button');
+    button.textContent = label;
+    button.style.cssText = `
+      padding: ${spacing.sm} ${spacing.md};
+      border: 1px solid ${colors.border.default};
+      border-radius: ${borderRadius.md};
+      background: ${colors.background.primary};
+      color: ${colors.text.primary};
+      cursor: pointer;
+      font-size: ${typography.fontSize.sm};
+      font-weight: ${typography.fontWeight.medium};
+      transition: all 0.2s ease;
+    `;
+
+    button.addEventListener('click', onClick);
+
+    button.addEventListener('mouseenter', () => {
+      button.style.background = colors.background.secondary;
+    });
+
+    button.addEventListener('mouseleave', () => {
+      button.style.background = colors.background.primary;
+    });
+
+    return button;
+  }
+
+  private handleExport(): void {
+    const selectedFormat = this.exportPanel?.querySelector('[data-format][style*="background: rgb(252, 252, 252)"]') as HTMLElement;
+    const selectedScope = this.exportPanel?.querySelector('[data-scope][style*="background: rgb(252, 252, 252)"]') as HTMLElement;
+    
+    const format = selectedFormat?.dataset.format || 'markdown';
+    const scope = selectedScope?.dataset.scope || 'all';
+    
+    const nuggets = scope === 'all' ? this.allItems : this.allItems.filter(item => item.selected);
+    
+    if (scope === 'selected' && nuggets.length === 0) {
+      alert('Please select at least one nugget to export.');
+      return;
+    }
+    
+    this.exportNuggets(nuggets, format as 'markdown' | 'json');
+  }
+
+  private exportNuggets(nuggets: SidebarNuggetItem[], format: 'markdown' | 'json'): void {
+    const url = window.location.href;
+    const timestamp = new Date().toISOString();
+    const analysisDate = new Date().toLocaleDateString();
+    
+    const exportData = {
+      timestamp,
+      url,
+      promptName: 'Analysis Results', // TODO: Get actual prompt name
+      nuggets: nuggets.map(item => ({
+        type: item.nugget.type,
+        content: item.nugget.content,
+        synthesis: item.nugget.synthesis,
+        status: item.status
+      })),
+      metadata: {
+        totalNuggets: nuggets.length,
+        highlightedCount: nuggets.filter(n => n.status === 'highlighted').length,
+        analysisDate
+      }
+    };
+    
+    let content: string;
+    let filename: string;
+    
+    if (format === 'json') {
+      content = JSON.stringify(exportData, null, 2);
+      filename = `golden-nuggets-${this.getDomainFromUrl(url)}-${new Date().toISOString().split('T')[0]}.json`;
+    } else {
+      content = this.generateMarkdownContent(exportData);
+      filename = `golden-nuggets-${this.getDomainFromUrl(url)}-${new Date().toISOString().split('T')[0]}.md`;
+    }
+    
+    this.downloadFile(content, filename);
+  }
+
+  private generateMarkdownContent(data: any): string {
+    const domain = this.getDomainFromUrl(data.url);
+    
+    return `# Golden Nuggets from ${domain}
+
+**URL:** ${data.url}  
+**Analysis Date:** ${data.metadata.analysisDate}  
+**Total Nuggets:** ${data.metadata.totalNuggets}  
+**Highlighted:** ${data.metadata.highlightedCount}  
+
+---
+
+${data.nuggets.map((nugget: any, index: number) => `
+## ${index + 1}. ${nugget.type.toUpperCase()}
+
+**Content:**
+${nugget.content}
+
+**Why this matters:**
+${nugget.synthesis}
+
+**Status:** ${nugget.status === 'highlighted' ? '✅ Found on page' : '❌ Not found on page'}
+
+---
+`).join('\n')}
+
+*Generated on ${data.timestamp}*
+`;
+  }
+
+  private getDomainFromUrl(url: string): string {
+    try {
+      return new URL(url).hostname.replace('www.', '');
+    } catch {
+      return 'unknown-site';
+    }
+  }
+
+  private downloadFile(content: string, filename: string): void {
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   }
 }
