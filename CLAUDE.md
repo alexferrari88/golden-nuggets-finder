@@ -32,6 +32,48 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **This warning exists because this mistake was made and caused significant UX problems.** The extension works perfectly with dynamic injection - do not try to "fix" it by changing the matches pattern.
 
+### NEVER Use Hardcoded Design Values - Always Use Design System
+
+**ABSOLUTELY NEVER** use hardcoded color values, shadows, spacing, or other design tokens directly in code.
+
+**Why this is critical:**
+- Hardcoded values create inconsistent visual design across the extension
+- Makes it impossible to maintain a cohesive design system
+- Prevents easy theming and design updates
+- Breaks the Notion-inspired aesthetic we've carefully crafted
+- Creates maintenance nightmares when design changes are needed
+
+**ALWAYS use the design system instead:**
+- **Colors**: Use `colors.text.primary`, `colors.background.secondary`, etc. from `src/shared/design-system.ts`
+- **Shadows**: Use `shadows.md`, `generateInlineStyles.cardShadow()`, etc.
+- **Spacing**: Use `spacing.md`, `spacing.lg`, etc.
+- **Typography**: Use `typography.fontSize.sm`, `typography.fontWeight.medium`, etc.
+- **Z-Index**: Use `zIndex.modal`, `zIndex.notification`, etc.
+
+**Examples of FORBIDDEN hardcoded values:**
+```typescript
+// ❌ NEVER DO THIS
+backgroundColor: 'rgba(0, 0, 0, 0.5)'
+color: '#1A1A1A'
+boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
+fontSize: '14px'
+```
+
+**Examples of CORRECT design system usage:**
+```typescript
+// ✅ ALWAYS DO THIS
+backgroundColor: colors.background.modalOverlay
+color: colors.text.accent
+boxShadow: shadows.md
+fontSize: typography.fontSize.sm
+```
+
+**For dynamic styling in content scripts:**
+- Use `generateInlineStyles.cardShadow()`, `generateInlineStyles.highlightStyle()`, etc.
+- Import design system variables: `import { colors, shadows, spacing } from '../../shared/design-system'`
+
+**The design system (`src/shared/design-system.ts`) is the single source of truth for all design decisions.**
+
 ## Common Development Commands
 
 ### Development and Build

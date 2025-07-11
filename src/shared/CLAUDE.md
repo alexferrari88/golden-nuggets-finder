@@ -40,7 +40,7 @@ TypeScript interfaces for all data structures:
 
 ### Design System (`design-system.ts`)
 Comprehensive Notion-inspired design system with consistent styling:
-- **Color Palette**: Gray-based neutral palette with strategic blue accents
+- **Color Palette**: Ultra-minimal monochromatic gray palette (no colors, only neutral tones)
 - **Typography**: System font stack with defined sizes and weights
 - **Spacing**: Consistent spacing scale from 4px to 64px
 - **Components**: Pre-built styles for buttons, cards, inputs, badges
@@ -48,10 +48,10 @@ Comprehensive Notion-inspired design system with consistent styling:
 
 ### Design Tokens
 - **Colors**: 
-  - Primary grays (50-900 scale) for neutral elements
-  - Accent colors (blue, green, amber, red) for interactive states
-  - Semantic colors for text, backgrounds, and borders
-  - Subtle highlight colors replacing bright yellow
+  - Ultra-minimal gray scale (25-900) for all elements
+  - No color accents - only neutral grays for sophisticated aesthetic
+  - Semantic colors using different gray shades for hierarchy
+  - Incredibly subtle highlight colors using minimal opacity overlays
 - **Typography**: System font stack with 7 size variants (xs to 3xl)
 - **Spacing**: 8-step scale for consistent layouts
 - **Shadows**: 4 shadow variants for depth and hierarchy
@@ -68,6 +68,51 @@ Comprehensive Notion-inspired design system with consistent styling:
 - Subtle visual feedback over bright, attention-grabbing elements
 - Consistent spacing and typography for professional appearance
 - Accessibility-focused with proper contrast ratios
+
+### ⚠️ CRITICAL: Design System Usage Rules
+
+**NEVER use hardcoded design values anywhere in the codebase. ALWAYS reference the design system.**
+
+**Forbidden patterns:**
+```typescript
+// ❌ NEVER DO THIS
+style.color = '#1A1A1A'
+style.backgroundColor = 'rgba(0, 0, 0, 0.5)'
+style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.1)'
+style.fontSize = '14px'
+style.padding = '12px'
+```
+
+**Required patterns:**
+```typescript
+// ✅ ALWAYS DO THIS
+import { colors, shadows, typography, spacing } from '../design-system'
+
+style.color = colors.text.accent
+style.backgroundColor = colors.background.modalOverlay
+style.boxShadow = shadows.md
+style.fontSize = typography.fontSize.sm
+style.padding = spacing.md
+```
+
+**For content scripts and dynamic styling:**
+```typescript
+import { generateInlineStyles } from '../design-system'
+
+element.style.cssText = `
+  color: ${colors.text.primary};
+  box-shadow: ${generateInlineStyles.cardShadow()};
+`
+```
+
+**Why this rule exists:**
+- Maintains visual consistency across the entire extension
+- Enables easy design updates by changing values in one place
+- Preserves the carefully crafted Notion-inspired aesthetic
+- Prevents design drift and inconsistencies
+- Makes the codebase maintainable and scalable
+
+**The design system is the single source of truth for all visual design decisions.**
 
 ## Constants and Configuration
 

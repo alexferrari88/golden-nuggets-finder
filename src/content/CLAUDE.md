@@ -62,10 +62,10 @@ Orchestrates all UI interactions and coordinates between components:
 
 ### Highlighter (`ui/highlighter.ts`)
 Handles text highlighting on pages with minimalistic design:
-- **Subtle Highlighting**: Uses subtle yellow background (rgba(250, 204, 21, 0.12)) instead of bright colors
-- **Minimal Indicators**: Small, unobtrusive indicators with hover states
-- **Consistent Styling**: Follows design system with 3px border radius and smooth transitions
-- **Accessibility**: Maintains proper contrast while being visually minimal
+- **Ultra-Subtle Highlighting**: Uses design system's minimal gray overlays for sophisticated highlighting
+- **Minimal Indicators**: Small, unobtrusive indicators with hover states using design system colors
+- **Consistent Styling**: Follows design system with consistent border radius and smooth transitions
+- **Accessibility**: Maintains proper contrast while being visually minimal using neutral grays
 
 ### Sidebar (`ui/sidebar.ts`)
 Displays results in right sidebar with Notion-inspired design:
@@ -83,12 +83,60 @@ Shows progress and status banners with minimalistic approach:
 
 ### Design System Integration
 Content script UI components follow the shared design system:
-- **Color Consistency**: All components use the same gray-based palette
+- **Color Consistency**: All components use the same ultra-minimal gray palette
 - **Typography**: System font stack for consistent reading experience
 - **Spacing**: 8-step spacing scale for proper visual hierarchy
 - **Shadows**: Subtle shadows for depth without visual noise
 - **Animations**: Smooth transitions and animations for professional feel
 - **Z-Index Management**: Proper layering with defined z-index values
+
+### ⚠️ CRITICAL: Never Use Hardcoded Design Values in Content Scripts
+
+**ABSOLUTELY NEVER use hardcoded colors, shadows, spacing, or any design values in content script UI components.**
+
+**All styling MUST reference the design system:**
+
+```typescript
+// ✅ CORRECT - Always import and use design system
+import { colors, shadows, spacing, generateInlineStyles } from '../../shared/design-system'
+
+// For dynamic styling in content scripts
+element.style.cssText = `
+  background: ${colors.background.primary};
+  color: ${colors.text.primary};
+  box-shadow: ${generateInlineStyles.cardShadow()};
+  padding: ${spacing.md};
+`
+
+// For hover effects
+element.addEventListener('mouseover', () => {
+  element.style.boxShadow = generateInlineStyles.cardShadowHover()
+  element.style.borderColor = colors.border.medium
+})
+```
+
+**FORBIDDEN patterns in content scripts:**
+```typescript
+// ❌ NEVER DO THIS
+element.style.backgroundColor = 'rgba(0, 0, 0, 0.5)'
+element.style.color = '#1A1A1A'
+element.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.1)'
+```
+
+**Why this is critical for content scripts:**
+- Content scripts inject UI into arbitrary websites
+- Hardcoded values break visual consistency across different sites
+- Design system ensures our Notion-inspired aesthetic is preserved
+- Makes UI components maintainable and themeable
+- Prevents style conflicts with host website styles
+
+**Content script components that MUST use design system:**
+- `ui/highlighter.ts` - All highlighting and indicator styles
+- `ui/sidebar.ts` - All sidebar and card styles  
+- `ui/notifications.ts` - All banner and notification styles
+- `ui/ui-manager.ts` - Any dynamic styling
+
+**Remember: The design system (`../../shared/design-system.ts`) is the single source of truth.**
 
 ## Site-Specific Behavior
 
