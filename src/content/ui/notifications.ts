@@ -49,6 +49,10 @@ export class NotificationManager {
     }
   }
 
+  hide(): void {
+    this.hideBanner();
+  }
+
   private createBanner(message: string, type: 'progress' | 'error' | 'info'): HTMLElement {
     const banner = document.createElement('div');
     banner.className = `nugget-notification-banner nugget-banner-${type}`;

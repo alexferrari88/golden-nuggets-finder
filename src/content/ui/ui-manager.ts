@@ -90,7 +90,7 @@ export class UIManager {
 
   exitSelectionMode(): void {
     this.commentSelector.exitSelectionMode();
-    this.notifications.hideProgress();
+    this.notifications.hide();
   }
 
   isSelectionModeActive(): boolean {
