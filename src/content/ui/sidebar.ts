@@ -848,8 +848,8 @@ export class Sidebar {
       min-width: 50px;
     `;
 
-    const markdownBtn = this.createFormatButton('markdown', '□ Markdown');
-    const jsonBtn = this.createFormatButton('json', '{ } JSON');
+    const markdownBtn = this.createFormatButton('markdown', '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 6px;"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg>Markdown');
+    const jsonBtn = this.createFormatButton('json', '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 6px;"><path d="M4 22h14a2 2 0 0 0 2-2V7l-5-5H6a2 2 0 0 0-2 2v4"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M4 12a1 1 0 0 0-1 1v1a1 1 0 0 1-1 1 1 1 0 0 1 1 1v1a1 1 0 0 0 1 1"/><path d="M8 18a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1 1 1 0 0 1-1-1v-1a1 1 0 0 0-1-1"/></svg>JSON');
 
     formatRow.appendChild(formatLabel);
     formatRow.appendChild(markdownBtn);
@@ -918,7 +918,7 @@ export class Sidebar {
 
   private createFormatButton(format: string, label: string): HTMLElement {
     const button = document.createElement('button');
-    button.textContent = label;
+    button.innerHTML = label;
     button.dataset.format = format;
     button.style.cssText = `
       padding: ${spacing.xs} ${spacing.sm};
@@ -929,6 +929,10 @@ export class Sidebar {
       cursor: pointer;
       font-size: ${typography.fontSize.xs};
       transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0;
       ${format === 'markdown' ? `background: ${colors.background.secondary}; color: ${colors.text.primary};` : ''}
     `;
 
