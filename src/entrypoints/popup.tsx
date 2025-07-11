@@ -40,7 +40,7 @@ const useStepProgression = (isTypingComplete: boolean) => {
     if (!isTypingComplete) return;
 
     const progressSteps = async () => {
-      const delays = [1200, 900, 1400, 700];
+      const delays = [3000, 4000, 6000]; // Only first 3 steps, final step stays in progress
       
       // First, make steps visible with staggered animation
       for (let i = 0; i < 4; i++) {
@@ -48,13 +48,17 @@ const useStepProgression = (isTypingComplete: boolean) => {
         setVisibleSteps(prev => [...prev, i]);
       }
       
-      // Then animate step progression
-      for (let i = 0; i < 4; i++) {
+      // Then animate step progression for first 3 steps
+      for (let i = 0; i < 3; i++) {
         setCurrentStep(i);
         await new Promise(resolve => setTimeout(resolve, delays[i]));
         setCompletedSteps(prev => [...prev, i]);
         setCurrentStep(-1);
       }
+      
+      // Start final step in progress and keep it there
+      setCurrentStep(3);
+      // Final step stays in progress until real API completes
     };
 
     progressSteps();
@@ -76,7 +80,7 @@ function IndexPopup() {
     { id: 'extract', text: 'Extracting key insights' },
     { id: 'patterns', text: 'Identifying patterns' },
     { id: 'generate', text: 'Generating golden nuggets' },
-    { id: 'prepare', text: 'Preparing results' }
+    { id: 'finalize', text: 'Finalizing analysis' }
   ];
 
   // Use custom hooks for loading animation
@@ -85,6 +89,21 @@ function IndexPopup() {
 
   useEffect(() => {
     loadPrompts();
+    
+    // Add message listener for analysis completion
+    const messageListener = (message: any) => {
+      if (message.type === MESSAGE_TYPES.ANALYSIS_COMPLETE) {
+        setAnalyzing(null); // Clear analyzing state
+      } else if (message.type === MESSAGE_TYPES.ANALYSIS_ERROR) {
+        setAnalyzing(null); // Clear analyzing state
+      }
+    };
+    
+    chrome.runtime.onMessage.addListener(messageListener);
+    
+    return () => {
+      chrome.runtime.onMessage.removeListener(messageListener);
+    };
   }, []);
 
   const loadPrompts = async () => {

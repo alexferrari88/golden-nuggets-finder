@@ -1,5 +1,5 @@
 import { colors, typography, spacing, borderRadius, shadows } from '../../shared/design-system';
-import { SavedPrompt } from '../../shared/types';
+import { SavedPrompt, MESSAGE_TYPES } from '../../shared/types';
 import { storage } from '../../shared/storage';
 import { SITE_SELECTORS } from '../../shared/constants';
 
@@ -27,16 +27,18 @@ export class CommentSelector {
   private onExitCallback: (() => void) | null = null;
   private typingTimer: NodeJS.Timeout | null = null;
   private stepTimers: NodeJS.Timeout[] = [];
+  private messageListener: ((message: any, sender: any, sendResponse: any) => void) | null = null;
   private analysisSteps: AnalysisStep[] = [
     { id: 'extract', text: 'Extracting key insights', status: 'pending' },
     { id: 'patterns', text: 'Identifying patterns', status: 'pending' },
     { id: 'generate', text: 'Generating golden nuggets', status: 'pending' },
-    { id: 'prepare', text: 'Preparing results', status: 'pending' }
+    { id: 'finalize', text: 'Finalizing analysis', status: 'pending' }
   ];
 
   constructor() {
     this.loadPrompts();
     this.keydownHandler = this.handleKeydown.bind(this);
+    this.messageListener = this.handleMessage.bind(this);
   }
 
   private async loadPrompts(): Promise<void> {
@@ -45,6 +47,34 @@ export class CommentSelector {
     } catch (error) {
       console.error('Failed to load prompts:', error);
     }
+  }
+
+  private handleMessage(message: any, sender: any, sendResponse: any): void {
+    if (message.type === MESSAGE_TYPES.ANALYSIS_COMPLETE) {
+      this.handleAnalysisComplete();
+    } else if (message.type === MESSAGE_TYPES.ANALYSIS_ERROR) {
+      this.handleAnalysisError(message.error);
+    }
+  }
+
+  private handleAnalysisComplete(): void {
+    // Complete the final step and exit
+    const finalStep = this.analysisSteps.find(s => s.id === 'finalize');
+    if (finalStep) {
+      finalStep.status = 'completed';
+      this.updateStepVisual(finalStep);
+    }
+    
+    // Exit selection mode after a brief delay to show completion
+    setTimeout(() => {
+      this.exitSelectionMode();
+    }, 800);
+  }
+
+  private handleAnalysisError(error: string): void {
+    // Handle error - maybe show error state in UI
+    console.error('Analysis error:', error);
+    this.exitSelectionMode();
   }
 
   setOnExitCallback(callback: () => void): void {
@@ -71,6 +101,11 @@ export class CommentSelector {
     
     // Add keyboard event listener
     document.addEventListener('keydown', this.keydownHandler);
+    
+    // Add message listener for analysis completion
+    if (this.messageListener) {
+      chrome.runtime.onMessage.addListener(this.messageListener);
+    }
     
     // Extract comments from the page
     await this.extractComments();
@@ -803,10 +838,19 @@ export class CommentSelector {
       }
 
       // Step 3: Progressive step completion with realistic timing
-      await this.animateStep('extract', 1200);
-      await this.animateStep('patterns', 900);
-      await this.animateStep('generate', 1400);
-      await this.animateStep('prepare', 700);
+      // These timings match real-world LLM processing expectations
+      await this.animateStep('extract', 3000);  // 3 seconds - content extraction
+      await this.animateStep('patterns', 4000); // 4 seconds - pattern analysis  
+      await this.animateStep('generate', 6000); // 6 seconds - AI generation
+      
+      // Start final step but keep it in progress until real API completes
+      const finalStep = this.analysisSteps.find(s => s.id === 'finalize');
+      if (finalStep) {
+        finalStep.status = 'in_progress';
+        this.updateStepVisual(finalStep);
+      }
+      
+      // Final step stays in progress until handleAnalysisComplete() is called
       
     } catch (error) {
       console.error('Loading animation error:', error);
@@ -830,6 +874,11 @@ export class CommentSelector {
     
     // Remove keyboard event listener
     document.removeEventListener('keydown', this.keydownHandler);
+    
+    // Remove message listener
+    if (this.messageListener) {
+      chrome.runtime.onMessage.removeListener(this.messageListener);
+    }
     
     // Remove checkboxes
     this.comments.forEach(comment => {
