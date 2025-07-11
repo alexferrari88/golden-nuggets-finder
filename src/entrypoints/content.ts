@@ -232,11 +232,10 @@ export default defineContentScript({
         
         if (!content || content.trim().length === 0) {
           uiManager.showErrorBanner('No content selected for analysis.');
+          // Exit selection mode on error
+          uiManager.exitSelectionMode();
           return;
         }
-
-        // Exit selection mode
-        uiManager.exitSelectionMode();
 
         // Send analysis request to background script
         const analysisRequest: AnalysisRequest = {
@@ -251,16 +250,22 @@ export default defineContentScript({
         
         if (response.success && response.data) {
           await measureDOMOperation('display_results', () => handleAnalysisResults(response.data));
+          // Exit selection mode after results are displayed
+          uiManager.exitSelectionMode();
           // Notify popup of successful completion
           chrome.runtime.sendMessage({ type: MESSAGE_TYPES.ANALYSIS_COMPLETE });
         } else {
           uiManager.showErrorBanner(response.error || 'Analysis failed. Please try again.');
+          // Exit selection mode after error is shown
+          uiManager.exitSelectionMode();
           // Notify popup of error
           chrome.runtime.sendMessage({ type: MESSAGE_TYPES.ANALYSIS_ERROR });
         }
       } catch (error) {
         console.error('Analysis failed:', error);
         uiManager.showErrorBanner('Analysis failed. Please try again.');
+        // Exit selection mode after error is shown
+        uiManager.exitSelectionMode();
         // Notify popup of error
         chrome.runtime.sendMessage({ type: MESSAGE_TYPES.ANALYSIS_ERROR });
       } finally {
