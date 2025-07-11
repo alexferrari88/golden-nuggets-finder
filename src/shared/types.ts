@@ -37,6 +37,18 @@ export interface AnalysisRequest {
   url: string;
 }
 
+export interface CommentSelectionRequest {
+  promptId: string;
+  url: string;
+}
+
+export interface SelectedContentAnalysisRequest {
+  content: string;
+  promptId: string;
+  url: string;
+  selectedComments: string[];
+}
+
 export interface AnalysisResponse {
   success: boolean;
   data?: GeminiResponse;
@@ -63,6 +75,8 @@ export interface MessageTypes {
   GET_CONFIG: 'GET_CONFIG';
   SAVE_CONFIG: 'SAVE_CONFIG';
   DEBUG_LOG: 'DEBUG_LOG';
+  ENTER_SELECTION_MODE: 'ENTER_SELECTION_MODE';
+  ANALYZE_SELECTED_CONTENT: 'ANALYZE_SELECTED_CONTENT';
 }
 
 export const MESSAGE_TYPES: MessageTypes = {
@@ -78,5 +92,7 @@ export const MESSAGE_TYPES: MessageTypes = {
   SET_DEFAULT_PROMPT: 'SET_DEFAULT_PROMPT',
   GET_CONFIG: 'GET_CONFIG',
   SAVE_CONFIG: 'SAVE_CONFIG',
-  DEBUG_LOG: 'DEBUG_LOG'
+  DEBUG_LOG: 'DEBUG_LOG',
+  ENTER_SELECTION_MODE: 'ENTER_SELECTION_MODE',
+  ANALYZE_SELECTED_CONTENT: 'ANALYZE_SELECTED_CONTENT'
 };

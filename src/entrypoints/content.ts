@@ -110,6 +110,18 @@ export default defineContentScript({
             sendResponse({ success: true });
             break;
 
+          case MESSAGE_TYPES.ENTER_SELECTION_MODE:
+            initialize(); // Initialize when needed
+            await enterSelectionMode(request.promptId);
+            sendResponse({ success: true });
+            break;
+
+          case MESSAGE_TYPES.ANALYZE_SELECTED_CONTENT:
+            initialize(); // Initialize when needed
+            await analyzeSelectedContent(request);
+            sendResponse({ success: true });
+            break;
+
           case MESSAGE_TYPES.SHOW_ERROR:
             // No need to initialize for error display
             uiManager.showErrorBanner(request.message);
@@ -155,6 +167,62 @@ export default defineContentScript({
           uiManager.showErrorBanner('No content found on this page.');
           return;
         }
+
+        // Send analysis request to background script
+        const analysisRequest: AnalysisRequest = {
+          content: content,
+          promptId: promptId,
+          url: window.location.href
+        };
+
+        performanceMonitor.startTimer('api_request');
+        const response = await sendMessageToBackground(MESSAGE_TYPES.ANALYZE_CONTENT, analysisRequest);
+        performanceMonitor.logTimer('api_request', 'Background API call');
+        
+        if (response.success && response.data) {
+          await measureDOMOperation('display_results', () => handleAnalysisResults(response.data));
+          // Notify popup of successful completion
+          chrome.runtime.sendMessage({ type: MESSAGE_TYPES.ANALYSIS_COMPLETE });
+        } else {
+          uiManager.showErrorBanner(response.error || 'Analysis failed. Please try again.');
+          // Notify popup of error
+          chrome.runtime.sendMessage({ type: MESSAGE_TYPES.ANALYSIS_ERROR });
+        }
+      } catch (error) {
+        console.error('Analysis failed:', error);
+        uiManager.showErrorBanner('Analysis failed. Please try again.');
+        // Notify popup of error
+        chrome.runtime.sendMessage({ type: MESSAGE_TYPES.ANALYSIS_ERROR });
+      } finally {
+        performanceMonitor.logTimer('total_analysis', 'Complete analysis workflow');
+        performanceMonitor.measureMemory();
+      }
+    }
+
+    async function enterSelectionMode(promptId?: string): Promise<void> {
+      try {
+        // Enter selection mode through UI manager
+        await uiManager.enterSelectionMode(promptId);
+      } catch (error) {
+        console.error('Failed to enter selection mode:', error);
+        uiManager.showErrorBanner('Failed to enter selection mode. Please try again.');
+      }
+    }
+
+    async function analyzeSelectedContent(request: any): Promise<void> {
+      try {
+        performanceMonitor.startTimer('total_analysis');
+        
+        const content = request.content;
+        const promptId = request.promptId;
+        
+        if (!content || content.trim().length === 0) {
+          uiManager.showErrorBanner('No content selected for analysis.');
+          return;
+        }
+
+        // Exit selection mode
+        uiManager.exitSelectionMode();
 
         // Send analysis request to background script
         const analysisRequest: AnalysisRequest = {

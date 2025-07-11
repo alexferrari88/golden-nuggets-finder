@@ -10,6 +10,7 @@ function IndexPopup() {
   const [error, setError] = useState<string | null>(null);
   const [noApiKey, setNoApiKey] = useState(false);
   const [analyzing, setAnalyzing] = useState<string | null>(null);
+  const [selectionMode, setSelectionMode] = useState<'quick' | 'custom'>('quick');
 
   useEffect(() => {
     loadPrompts();
@@ -85,6 +86,40 @@ function IndexPopup() {
       console.error('Failed to start analysis:', err);
       setAnalyzing(null);
       setError('Failed to start analysis. Please try again.');
+    }
+  };
+
+  const enterSelectionMode = async (promptId: string) => {
+    try {
+      // Find the prompt name for better UX
+      const prompt = prompts.find(p => p.id === promptId);
+      const promptName = prompt?.name || 'Unknown';
+      
+      // Show immediate feedback
+      setAnalyzing(promptName);
+      
+      // Get the current active tab
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      
+      if (!tab.id) {
+        throw new Error('No active tab found');
+      }
+
+      // Inject content script dynamically
+      await injectContentScript(tab.id);
+      
+      // Send message to content script to enter selection mode
+      await chrome.tabs.sendMessage(tab.id, {
+        type: MESSAGE_TYPES.ENTER_SELECTION_MODE,
+        promptId: promptId
+      });
+      
+      // Close popup immediately since user needs to interact with page
+      window.close();
+    } catch (err) {
+      console.error('Failed to enter selection mode:', err);
+      setAnalyzing(null);
+      setError('Failed to enter selection mode. Please try again.');
     }
   };
 
@@ -320,10 +355,57 @@ function IndexPopup() {
           margin: 0, 
           fontSize: typography.fontSize.lg,
           fontWeight: typography.fontWeight.semibold,
-          color: colors.text.primary
+          color: colors.text.primary,
+          marginBottom: spacing.md
         }}>
           Golden Nugget Finder
         </h1>
+        
+        {/* Mode Toggle */}
+        <div style={{
+          display: 'flex',
+          backgroundColor: colors.background.secondary,
+          borderRadius: borderRadius.md,
+          padding: spacing.xs,
+          gap: spacing.xs
+        }}>
+          <button
+            onClick={() => setSelectionMode('quick')}
+            style={{
+              flex: 1,
+              padding: `${spacing.sm} ${spacing.md}`,
+              backgroundColor: selectionMode === 'quick' ? colors.background.primary : 'transparent',
+              color: selectionMode === 'quick' ? colors.text.primary : colors.text.secondary,
+              border: 'none',
+              borderRadius: borderRadius.sm,
+              fontSize: typography.fontSize.sm,
+              fontWeight: typography.fontWeight.medium,
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+              boxShadow: selectionMode === 'quick' ? shadows.sm : 'none'
+            }}
+          >
+            Quick Analysis
+          </button>
+          <button
+            onClick={() => setSelectionMode('custom')}
+            style={{
+              flex: 1,
+              padding: `${spacing.sm} ${spacing.md}`,
+              backgroundColor: selectionMode === 'custom' ? colors.background.primary : 'transparent',
+              color: selectionMode === 'custom' ? colors.text.primary : colors.text.secondary,
+              border: 'none',
+              borderRadius: borderRadius.sm,
+              fontSize: typography.fontSize.sm,
+              fontWeight: typography.fontWeight.medium,
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+              boxShadow: selectionMode === 'custom' ? shadows.sm : 'none'
+            }}
+          >
+            Custom Selection
+          </button>
+        </div>
       </div>
       
       <div style={{ 
@@ -341,7 +423,7 @@ function IndexPopup() {
           {prompts.map(prompt => (
             <div 
               key={prompt.id}
-              onClick={() => analyzeWithPrompt(prompt.id)}
+              onClick={() => selectionMode === 'quick' ? analyzeWithPrompt(prompt.id) : enterSelectionMode(prompt.id)}
               style={{
                 padding: spacing.lg,
                 backgroundColor: prompt.isDefault ? colors.background.secondary : colors.background.secondary,
@@ -367,12 +449,23 @@ function IndexPopup() {
                 e.currentTarget.style.boxShadow = 'none';
               }}
             >
-              <span style={{ 
-                fontWeight: typography.fontWeight.medium,
-                color: colors.text.primary
-              }}>
-                {prompt.name}
-              </span>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: spacing.xs }}>
+                <span style={{ 
+                  fontWeight: typography.fontWeight.medium,
+                  color: colors.text.primary
+                }}>
+                  {prompt.name}
+                </span>
+                {selectionMode === 'custom' && (
+                  <span style={{ 
+                    fontSize: typography.fontSize.xs,
+                    color: colors.text.secondary,
+                    fontWeight: typography.fontWeight.normal
+                  }}>
+                    Select & Analyze
+                  </span>
+                )}
+              </div>
               {prompt.isDefault && (
                 <span style={{ 
                   backgroundColor: colors.blueSubtle,

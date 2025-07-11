@@ -27,9 +27,13 @@ export default defineBackground(() => {
 
   // Handle context menu clicks
   chrome.contextMenus.onClicked.addListener((info, tab) => {
-    if (info.menuItemId && typeof info.menuItemId === 'string' && info.menuItemId.startsWith('prompt-')) {
-      const promptId = info.menuItemId.replace('prompt-', '');
-      handleContextMenuClick(promptId, tab);
+    if (info.menuItemId && typeof info.menuItemId === 'string') {
+      if (info.menuItemId.startsWith('prompt-')) {
+        const promptId = info.menuItemId.replace('prompt-', '');
+        handleContextMenuClick(promptId, tab);
+      } else if (info.menuItemId === 'select-comments') {
+        handleCommentSelectionClick(tab);
+      }
     }
   });
 
@@ -56,6 +60,22 @@ export default defineBackground(() => {
           title: prompt.isDefault ? `★ ${prompt.name}` : prompt.name,
           contexts: ['page', 'selection']
         });
+      });
+
+      // Add separator
+      chrome.contextMenus.create({
+        id: 'separator',
+        parentId: 'golden-nugget-finder',
+        type: 'separator',
+        contexts: ['page', 'selection']
+      });
+
+      // Add "Select Comments to Analyze" option
+      chrome.contextMenus.create({
+        id: 'select-comments',
+        parentId: 'golden-nugget-finder',
+        title: 'Select Comments to Analyze',
+        contexts: ['page', 'selection']
       });
     } catch (error) {
       console.error('Failed to setup context menu:', error);
@@ -102,6 +122,45 @@ export default defineBackground(() => {
       });
     } catch (error) {
       console.error('[Background] Failed to handle context menu click:', error);
+    }
+  }
+
+  async function handleCommentSelectionClick(tab?: chrome.tabs.Tab): Promise<void> {
+    if (!tab?.id) return;
+
+    try {
+      // Inject content script dynamically first
+      await injectContentScript(tab.id);
+      
+      // Check if API key is configured before proceeding
+      let apiKey: string;
+      try {
+        apiKey = await storage.getApiKey({ source: 'background', action: 'read', timestamp: Date.now() });
+      } catch (apiKeyError) {
+        console.error('[Background] API key retrieval failed:', apiKeyError);
+        await new Promise(resolve => setTimeout(resolve, 100));
+        await chrome.tabs.sendMessage(tab.id, {
+          type: MESSAGE_TYPES.SHOW_API_KEY_ERROR
+        });
+        return;
+      }
+      
+      if (!apiKey) {
+        console.log('[Background] No API key found - showing error message');
+        await new Promise(resolve => setTimeout(resolve, 100));
+        await chrome.tabs.sendMessage(tab.id, {
+          type: MESSAGE_TYPES.SHOW_API_KEY_ERROR
+        });
+        return;
+      }
+      
+      console.log('[Background] API key found - entering selection mode');
+      // Send message to content script to enter selection mode
+      await chrome.tabs.sendMessage(tab.id, {
+        type: MESSAGE_TYPES.ENTER_SELECTION_MODE
+      });
+    } catch (error) {
+      console.error('[Background] Failed to handle comment selection click:', error);
     }
   }
 
