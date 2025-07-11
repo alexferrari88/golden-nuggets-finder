@@ -1,6 +1,7 @@
 import { colors, typography, spacing, borderRadius, shadows } from '../../shared/design-system';
 import { SavedPrompt } from '../../shared/types';
 import { storage } from '../../shared/storage';
+import { SITE_SELECTORS } from '../../shared/constants';
 
 export interface CommentItem {
   element: HTMLElement;
@@ -57,12 +58,12 @@ export class CommentSelector {
     let commentSelectors: string[] = [];
 
     if (url.includes('reddit.com')) {
-      commentSelectors = ['[slot="comment"]', '.Comment'];
+      commentSelectors = [SITE_SELECTORS.REDDIT.COMMENTS];
     } else if (url.includes('news.ycombinator.com')) {
-      // Try multiple selectors for HackerNews to find the right one
-      commentSelectors = ['.commtext', '.comtext', '.comment .commtext'];
+      commentSelectors = [SITE_SELECTORS.HACKER_NEWS.COMMENTS];
     } else if (url.includes('twitter.com') || url.includes('x.com')) {
-      commentSelectors = ['[data-testid="tweet"]', '[data-testid="tweetText"]'];
+      // Use only TWEET_ARTICLE to avoid double-selection
+      commentSelectors = [SITE_SELECTORS.TWITTER.TWEET_ARTICLE];
     } else {
       // Generic comment selectors for other sites
       commentSelectors = ['[class*="comment"]', '[class*="reply"]', '[class*="post"]'];
