@@ -23,19 +23,19 @@
   opacity: 0.6;
   user-select: none;
   transition: opacity 0.2s ease;
-  color: #787774;
+  color: #525252;
   font-weight: 500;
 }
 
 .nugget-indicator:hover {
   opacity: 0.9;
-  color: #373530;
+  color: #171717;
 }
 
 .nugget-synthesis-popup {
   position: absolute;
   background: #FFFFFF;
-  border: 1px solid #F1F1EF;
+  border: 1px solid #F4F4F4;
   padding: 16px;
   border-radius: 8px;
   box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
@@ -44,7 +44,7 @@
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   font-size: 14px;
   line-height: 1.5;
-  color: #373530;
+  color: #171717;
   backdrop-filter: blur(8px);
 }
 
@@ -55,7 +55,7 @@
   width: 360px;
   height: 100vh;
   background: #FFFFFF;
-  border-left: 1px solid #F1F1EF;
+  border-left: 1px solid #F4F4F4;
   overflow-y: auto;
   z-index: 10000;
   box-shadow: -4px 0 12px -2px rgba(0, 0, 0, 0.08);
@@ -111,24 +111,24 @@
 }
 
 .nugget-banner-progress {
-  background: #548164;
+  background: #404040;
   color: #FFFFFF;
 }
 
 .nugget-banner-error {
-  background: #C4554D;
+  background: #262626;
   color: #FFFFFF;
 }
 
 .nugget-banner-info {
-  background: #487CA5;
+  background: #000000;
   color: #FFFFFF;
 }
 
 .nugget-item {
   margin-bottom: 16px;
   padding: 20px;
-  border: 1px solid #F1F1EF;
+  border: 1px solid #F4F4F4;
   border-radius: 8px;
   background: #FFFFFF;
   transition: all 0.2s ease;
@@ -142,19 +142,19 @@
 }
 
 .nugget-item.highlighted {
-  border-color: #487CA5;
+  border-color: #000000;
   cursor: pointer;
 }
 
 .nugget-item.highlighted:hover {
-  background-color: #F1F1EF;
-  border-color: #487CA5;
+  background-color: #F4F4F4;
+  border-color: #000000;
 }
 
 .nugget-type-badge {
   display: inline-block;
-  background: #F1F1EF;
-  color: #787774;
+  background: #F4F4F4;
+  color: #525252;
   padding: 4px 8px;
   border-radius: 6px;
   font-size: 11px;
@@ -168,14 +168,14 @@
   margin-bottom: 12px;
   font-size: 14px;
   line-height: 1.5;
-  color: #373530;
+  color: #171717;
   max-height: 80px;
   overflow: hidden;
   position: relative;
 }
 
 .nugget-content .truncation-indicator {
-  color: #487CA5;
+  color: #000000;
   cursor: pointer;
   font-weight: 500;
   font-size: 13px;
@@ -191,7 +191,7 @@
 .nugget-content .truncation-indicator:hover {
   background: rgba(120, 119, 116, 0.12);
   border-color: rgba(120, 119, 116, 0.2);
-  color: #487CA5;
+  color: #000000;
 }
 
 .nugget-content .fade-overlay {
@@ -212,15 +212,15 @@
 .nugget-synthesis {
   font-size: 13px;
   line-height: 1.5;
-  color: #787774;
+  color: #525252;
   font-style: normal;
   border-left: 2px solid rgba(120, 119, 116, 0.2);
   padding-left: 12px;
   margin-top: 12px;
-  background: #F1F1EF;
+  background: #F4F4F4;
   padding: 12px;
   border-radius: 6px;
-  border: 1px solid #F1F1EF;
+  border: 1px solid #F4F4F4;
 }
 
 /* Hide scrollbar for sidebar content when not needed */
@@ -244,8 +244,8 @@ body.nugget-sidebar-open {
   width: 40px !important;
   height: 80px !important;
   background: #FFFFFF !important;
-  color: #787774 !important;
-  border: 1px solid #F1F1EF !important;
+  color: #525252 !important;
+  border: 1px solid #F4F4F4 !important;
   border-right: none !important;
   border-radius: 8px 0 0 8px !important;
   cursor: pointer !important;
@@ -269,14 +269,14 @@ body.nugget-sidebar-open {
 .nugget-toggle-button:hover {
   transform: translateY(-50%) translateX(0) !important;
   background: #FFFFFF !important;
-  color: #373530 !important;
+  color: #171717 !important;
   box-shadow: -6px 0 12px -2px rgba(0, 0, 0, 0.1) !important;
   opacity: 1 !important;
   border-color: rgba(120, 119, 116, 0.2) !important;
 }
 
 .nugget-toggle-button:focus {
-  outline: 2px solid #487CA5 !important;
+  outline: 2px solid #000000 !important;
   outline-offset: 2px !important;
 }
 
@@ -289,7 +289,7 @@ body.nugget-sidebar-open {
 .nugget-toggle-button span {
   font-size: 10px !important;
   font-weight: 600 !important;
-  color: #787774 !important;
+  color: #525252 !important;
   margin-top: 4px !important;
   writing-mode: vertical-lr !important;
   text-orientation: mixed !important;
@@ -297,7 +297,7 @@ body.nugget-sidebar-open {
 }
 
 .nugget-toggle-button:hover span {
-  color: #373530 !important;
+  color: #171717 !important;
 }
 
 /* Subtle pulse animation for discoverability */
@@ -399,6 +399,6 @@ body.nugget-sidebar-open {
   opacity: 0.6 !important;
   user-select: none !important;
   display: inline !important;
-  color: #787774 !important;
+  color: #525252 !important;
   font-weight: 500 !important;
 }

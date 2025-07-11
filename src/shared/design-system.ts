@@ -2,44 +2,58 @@
 // This file contains the core design tokens for the Golden Nugget Finder extension
 
 export const colors = {
-  // Ultra-minimal palette inspired by Notion
-  // Only 5 core colors - everything else is derived
+  // Ultra-minimal monochromatic palette - pure black, white, and grays only
+  // Inspired by Notion's latest minimalist design philosophy
   
-  // Core colors (Notion-inspired)
+  // Core monochromatic colors
+  black: '#000000',           // Pure black
   white: '#FFFFFF',           // Pure white
-  grayLight: '#F1F1EF',       // Notion's gray background
-  grayMedium: '#787774',      // Notion's gray text
-  grayDark: '#373530',        // Notion's default text
-  blueSubtle: '#487CA5',      // Notion's blue (only color accent)
+  gray: {
+    50: '#FAFAFA',           // Lightest gray (almost white)
+    100: '#F4F4F4',          // Very light gray
+    200: '#E4E4E4',          // Light gray
+    300: '#D1D1D1',          // Medium-light gray
+    400: '#A3A3A3',          // Medium gray
+    500: '#737373',          // True medium gray
+    600: '#525252',          // Medium-dark gray
+    700: '#404040',          // Dark gray
+    800: '#262626',          // Very dark gray
+    900: '#171717',          // Almost black
+  },
 
-  // Semantic colors (ultra-minimal)
+  // Semantic colors (monochromatic only)
   text: {
-    primary: '#373530',       // Notion's default text
-    secondary: '#787774',     // Notion's gray text
-    accent: '#487CA5',        // Notion's blue for links/actions
+    primary: '#171717',       // Almost black for primary text
+    secondary: '#525252',     // Medium-dark gray for secondary text
+    tertiary: '#737373',      // Medium gray for tertiary text
+    accent: '#000000',        // Pure black for emphasis/links
   },
 
   background: {
     primary: '#FFFFFF',       // Pure white
-    secondary: '#F1F1EF',     // Notion's gray background
-    overlay: 'rgba(55, 53, 48, 0.1)', // Ultra-subtle overlay
+    secondary: '#FAFAFA',     // Lightest gray
+    tertiary: '#F4F4F4',      // Very light gray
+    overlay: 'rgba(0, 0, 0, 0.05)', // Ultra-subtle black overlay
   },
 
   border: {
-    light: '#F1F1EF',         // Notion's gray background as border
-    default: 'rgba(120, 119, 116, 0.2)', // Ultra-subtle border
+    light: '#F4F4F4',         // Very light gray border
+    default: '#E4E4E4',       // Light gray border
+    medium: '#D1D1D1',        // Medium-light gray border
+    dark: '#A3A3A3',          // Medium gray border
   },
 
-  // Highlight colors - extremely subtle
+  // Highlight colors - extremely subtle grays
   highlight: {
-    background: 'rgba(120, 119, 116, 0.08)', // Ultra-subtle highlight
-    border: 'rgba(120, 119, 116, 0.15)',     // Barely visible border
-    hover: 'rgba(120, 119, 116, 0.12)',      // Slightly more visible on hover
+    background: 'rgba(0, 0, 0, 0.03)', // Ultra-subtle highlight
+    border: 'rgba(0, 0, 0, 0.08)',     // Barely visible border
+    hover: 'rgba(0, 0, 0, 0.05)',      // Slightly more visible on hover
   },
 
-  // States (only when absolutely necessary)
-  success: '#548164',         // Notion's green (very muted)
-  error: '#C4554D',           // Notion's red (very muted)
+  // States (monochromatic alternatives)
+  success: '#404040',         // Dark gray for success states
+  error: '#262626',           // Very dark gray for error states
+  warning: '#525252',         // Medium-dark gray for warnings
 };
 
 export const typography = {
@@ -113,7 +127,7 @@ export const zIndex = {
 export const components = {
   button: {
     primary: {
-      backgroundColor: colors.blueSubtle,
+      backgroundColor: colors.black,
       color: colors.white,
       borderRadius: borderRadius.md,
       padding: `${spacing.md} ${spacing.xl}`,
@@ -175,7 +189,7 @@ export const components = {
       fontFamily: typography.fontFamily.sans,
     },
     focus: {
-      borderColor: colors.blueSubtle,
+      borderColor: colors.gray[600],
       outline: 'none',
       boxShadow: `0 0 0 3px ${colors.background.secondary}`,
     },
@@ -193,8 +207,8 @@ export const components = {
       letterSpacing: '0.5px',
     },
     accent: {
-      backgroundColor: colors.background.secondary,
-      color: colors.blueSubtle,
+      backgroundColor: colors.gray[100],
+      color: colors.text.accent,
     },
   },
 };

@@ -149,8 +149,8 @@ export class CommentSelector {
 
     const updateCheckboxState = () => {
       if (comment.selected) {
-        checkbox.style.backgroundColor = colors.blueSubtle;
-        checkbox.style.borderColor = colors.blueSubtle;
+        checkbox.style.backgroundColor = colors.text.accent;
+        checkbox.style.borderColor = colors.text.accent;
         checkbox.innerHTML = '✓';
         checkbox.style.color = colors.background.primary;
         checkbox.style.fontSize = '12px';
@@ -170,7 +170,7 @@ export class CommentSelector {
     });
 
     checkbox.addEventListener('mouseenter', () => {
-      checkbox.style.borderColor = colors.blueSubtle;
+      checkbox.style.borderColor = colors.text.accent;
       checkbox.style.boxShadow = shadows.md;
     });
 
@@ -303,7 +303,7 @@ export class CommentSelector {
     analyzeBtn.style.cssText = `
       width: 100%;
       padding: ${spacing.md};
-      background-color: ${colors.blueSubtle};
+      background-color: ${colors.text.accent};
       color: ${colors.background.primary};
       border: none;
       border-radius: ${borderRadius.md};
@@ -319,12 +319,12 @@ export class CommentSelector {
     });
 
     analyzeBtn.addEventListener('mouseenter', () => {
-      analyzeBtn.style.backgroundColor = colors.blueSubtle;
+      analyzeBtn.style.backgroundColor = colors.text.accent;
       analyzeBtn.style.boxShadow = shadows.md;
     });
 
     analyzeBtn.addEventListener('mouseleave', () => {
-      analyzeBtn.style.backgroundColor = colors.blueSubtle;
+      analyzeBtn.style.backgroundColor = colors.text.accent;
       analyzeBtn.style.boxShadow = 'none';
     });
 
@@ -411,8 +411,8 @@ export class CommentSelector {
     if (!comment.checkbox) return;
 
     if (comment.selected) {
-      comment.checkbox.style.backgroundColor = colors.blueSubtle;
-      comment.checkbox.style.borderColor = colors.blueSubtle;
+      comment.checkbox.style.backgroundColor = colors.text.accent;
+      comment.checkbox.style.borderColor = colors.text.accent;
       comment.checkbox.innerHTML = '✓';
       comment.checkbox.style.color = colors.background.primary;
     } else {
@@ -525,7 +525,7 @@ export class CommentSelector {
         width: 6px;
         height: 6px;
         border-radius: 50%;
-        background-color: ${colors.blueSubtle};
+        background-color: ${colors.text.accent};
         animation: pulse 1.5s ease-in-out infinite ${i * 0.2}s;
       `;
       dotsContainer.appendChild(dot);

@@ -176,21 +176,21 @@ function IndexPopup() {
             width: '6px',
             height: '6px',
             borderRadius: '50%',
-            backgroundColor: colors.grayMedium,
+            backgroundColor: colors.text.secondary,
             animation: 'pulse 1.5s ease-in-out infinite'
           }}></div>
           <div style={{
             width: '6px',
             height: '6px',
             borderRadius: '50%',
-            backgroundColor: colors.grayMedium,
+            backgroundColor: colors.text.secondary,
             animation: 'pulse 1.5s ease-in-out infinite 0.2s'
           }}></div>
           <div style={{
             width: '6px',
             height: '6px',
             borderRadius: '50%',
-            backgroundColor: colors.grayMedium,
+            backgroundColor: colors.text.secondary,
             animation: 'pulse 1.5s ease-in-out infinite 0.4s'
           }}></div>
         </div>
@@ -240,7 +240,7 @@ function IndexPopup() {
           textAlign: 'center', 
           color: colors.text.primary,
           backgroundColor: colors.background.secondary,
-          border: `1px solid ${colors.grayMedium}33`,
+          border: `1px solid ${colors.text.secondary}33`,
           borderRadius: borderRadius.md,
           padding: spacing['2xl'],
           fontSize: typography.fontSize.sm,
@@ -307,21 +307,21 @@ function IndexPopup() {
             width: '6px',
             height: '6px',
             borderRadius: '50%',
-            backgroundColor: colors.blueSubtle,
+            backgroundColor: colors.text.accent,
             animation: 'pulse 1.5s ease-in-out infinite'
           }}></div>
           <div style={{
             width: '6px',
             height: '6px',
             borderRadius: '50%',
-            backgroundColor: colors.blueSubtle,
+            backgroundColor: colors.text.accent,
             animation: 'pulse 1.5s ease-in-out infinite 0.2s'
           }}></div>
           <div style={{
             width: '6px',
             height: '6px',
             borderRadius: '50%',
-            backgroundColor: colors.blueSubtle,
+            backgroundColor: colors.text.accent,
             animation: 'pulse 1.5s ease-in-out infinite 0.4s'
           }}></div>
         </div>
@@ -427,7 +427,7 @@ function IndexPopup() {
               style={{
                 padding: spacing.lg,
                 backgroundColor: prompt.isDefault ? colors.background.secondary : colors.background.secondary,
-                border: `1px solid ${prompt.isDefault ? colors.blueSubtle + '33' : colors.border.light}`,
+                border: `1px solid ${prompt.isDefault ? colors.text.accent + '33' : colors.border.light}`,
                 borderRadius: borderRadius.md,
                 cursor: 'pointer',
                 transition: 'all 0.2s ease',
@@ -445,7 +445,7 @@ function IndexPopup() {
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.backgroundColor = prompt.isDefault ? colors.background.secondary : colors.background.secondary;
-                e.currentTarget.style.borderColor = prompt.isDefault ? colors.blueSubtle + '33' : colors.border.light;
+                e.currentTarget.style.borderColor = prompt.isDefault ? colors.text.accent + '33' : colors.border.light;
                 e.currentTarget.style.boxShadow = 'none';
               }}
             >
@@ -468,7 +468,7 @@ function IndexPopup() {
               </div>
               {prompt.isDefault && (
                 <span style={{ 
-                  backgroundColor: colors.blueSubtle,
+                  backgroundColor: colors.text.accent,
                   color: colors.background.primary,
                   padding: `${spacing.xs} ${spacing.sm}`,
                   borderRadius: borderRadius.sm,

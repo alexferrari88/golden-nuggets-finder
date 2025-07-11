@@ -89,7 +89,7 @@ export class NotificationManager {
         break;
       case 'info':
         typeStyles = `
-          background: ${colors.blueSubtle};
+          background: ${colors.text.accent};
           color: white;
         `;
         break;

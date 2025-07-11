@@ -194,7 +194,7 @@ export class Sidebar {
     });
     
     button.addEventListener('focus', () => {
-      button.style.outline = '2px solid ${colors.blueSubtle}';
+      button.style.outline = '2px solid ${colors.text.accent}';
       button.style.outlineOffset = '2px';
     });
     
@@ -434,7 +434,7 @@ export class Sidebar {
     const button = document.createElement('button');
     button.textContent = text;
     button.style.cssText = `
-      background: ${colors.blueSubtle};
+      background: ${colors.text.accent};
       color: white;
       border: none;
       padding: 8px 16px;
@@ -447,10 +447,10 @@ export class Sidebar {
     
     button.addEventListener('click', onClick);
     button.addEventListener('mouseover', () => {
-      button.style.backgroundColor = '${colors.blueSubtle}';
+      button.style.backgroundColor = '${colors.text.accent}';
     });
     button.addEventListener('mouseout', () => {
-      button.style.backgroundColor = '${colors.blueSubtle}';
+      button.style.backgroundColor = '${colors.text.accent}';
     });
     
     return button;
@@ -470,7 +470,7 @@ export class Sidebar {
     nuggetDiv.style.cssText = `
       margin-bottom: 16px;
       padding: 20px;
-      border: 1px solid ${item.status === 'highlighted' ? colors.blueSubtle : colors.border.light};
+      border: 1px solid ${item.status === 'highlighted' ? colors.text.accent : colors.border.light};
       border-radius: 12px;
       background: white;
       transition: all 0.2s;
@@ -489,7 +489,7 @@ export class Sidebar {
         right: 16px;
         width: 8px;
         height: 8px;
-        background: ${colors.blueSubtle};
+        background: ${colors.text.accent};
         border-radius: 50%;
         opacity: 0.6;
       `;
@@ -532,7 +532,7 @@ export class Sidebar {
     typeBadge.textContent = item.nugget.type;
     typeBadge.style.cssText = `
       display: inline-block;
-      background: ${colors.blueSubtle};
+      background: ${colors.text.accent};
       color: white;
       padding: 4px 8px;
       border-radius: 6px;
@@ -549,7 +549,7 @@ export class Sidebar {
       align-items: center;
       width: 20px;
       height: 20px;
-      color: ${item.status === 'highlighted' ? colors.success : colors.grayMedium};
+      color: ${item.status === 'highlighted' ? colors.success : colors.text.secondary};
     `;
     
     // Add appropriate icon based on status
@@ -602,7 +602,7 @@ export class Sidebar {
       const expandButton = document.createElement('span');
       expandButton.textContent = ' show more';
       expandButton.style.cssText = `
-        color: ${colors.blueSubtle};
+        color: ${colors.text.accent};
         cursor: pointer;
         font-weight: 500;
         font-size: 13px;
@@ -657,7 +657,7 @@ export class Sidebar {
       line-height: 1.5;
       color: ${colors.text.secondary};
       font-style: italic;
-      border-left: 3px solid ${colors.blueSubtle};
+      border-left: 3px solid ${colors.text.accent};
       padding-left: 12px;
       margin-top: 8px;
     `;
@@ -668,7 +668,7 @@ export class Sidebar {
     nuggetDiv.addEventListener('mouseover', () => {
       clearTimeout(hoverTimeout);
       hoverTimeout = setTimeout(() => {
-        nuggetDiv.style.borderColor = '${colors.blueSubtle}';
+        nuggetDiv.style.borderColor = '${colors.text.accent}';
         nuggetDiv.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)';
         if (item.status === 'highlighted') {
           nuggetDiv.style.backgroundColor = '${colors.background.secondary}';
@@ -678,7 +678,7 @@ export class Sidebar {
     
     nuggetDiv.addEventListener('mouseout', () => {
       clearTimeout(hoverTimeout);
-      nuggetDiv.style.borderColor = item.status === 'highlighted' ? '${colors.blueSubtle}' : '${colors.border.light}';
+      nuggetDiv.style.borderColor = item.status === 'highlighted' ? '${colors.text.accent}' : '${colors.border.light}';
       nuggetDiv.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.1)';
       nuggetDiv.style.backgroundColor = 'white';
     });
