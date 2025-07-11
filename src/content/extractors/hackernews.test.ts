@@ -46,7 +46,7 @@ describe('HackerNewsExtractor', () => {
 
     it('should extract comments', async () => {
       document.body.innerHTML = `
-        <div class="comment" style="width: 100px; height: 100px;">
+        <div class="commtext" style="width: 100px; height: 100px;">
           This is a comment with sufficient length to pass the filter test
         </div>
       `;
@@ -57,10 +57,10 @@ describe('HackerNewsExtractor', () => {
 
     it('should filter out short comments', async () => {
       document.body.innerHTML = `
-        <div class="comment" style="width: 100px; height: 100px;">
+        <div class="commtext" style="width: 100px; height: 100px;">
           Short
         </div>
-        <div class="comment" style="width: 100px; height: 100px;">
+        <div class="commtext" style="width: 100px; height: 100px;">
           This is a longer comment that should be included in the results
         </div>
       `;
@@ -75,10 +75,10 @@ describe('HackerNewsExtractor', () => {
         <div class="toptext" style="width: 100px; height: 100px;">
           Hacker News post content
         </div>
-        <div class="comment" style="width: 100px; height: 100px;">
+        <div class="commtext" style="width: 100px; height: 100px;">
           This is a comment with sufficient length for extraction
         </div>
-        <div class="comment" style="width: 100px; height: 100px;">
+        <div class="commtext" style="width: 100px; height: 100px;">
           Another comment with enough text to be included
         </div>
       `;
@@ -97,10 +97,10 @@ describe('HackerNewsExtractor', () => {
         <div class="toptext" style="width: 100px; height: 100px;">
           Visible post content
         </div>
-        <div class="comment" style="visibility: hidden;">
+        <div class="commtext" style="visibility: hidden;">
           Hidden comment content that is long enough
         </div>
-        <div class="comment" style="width: 100px; height: 100px;">
+        <div class="commtext" style="width: 100px; height: 100px;">
           Visible comment with sufficient length for extraction
         </div>
       `;
@@ -117,7 +117,7 @@ describe('HackerNewsExtractor', () => {
         <div class="titleline">
           <a href="https://example.com">Example Article Title</a>
         </div>
-        <div class="comment" style="width: 100px; height: 100px;">
+        <div class="commtext" style="width: 100px; height: 100px;">
           This is a comment with sufficient length to be included
         </div>
       `;
@@ -135,7 +135,7 @@ describe('HackerNewsExtractor', () => {
         <div class="titleline">
           <a href="https://example.com">Example Article Title</a>
         </div>
-        <div class="comment" style="width: 100px; height: 100px;">
+        <div class="commtext" style="width: 100px; height: 100px;">
           This is a comment with sufficient length to be included
         </div>
       `;
@@ -150,7 +150,7 @@ describe('HackerNewsExtractor', () => {
         <div class="titleline">
           <a>Example Article Title</a>
         </div>
-        <div class="comment" style="width: 100px; height: 100px;">
+        <div class="commtext" style="width: 100px; height: 100px;">
           This is a comment with sufficient length to be included
         </div>
       `;
@@ -162,7 +162,7 @@ describe('HackerNewsExtractor', () => {
     it('should handle elements with no text content', async () => {
       document.body.innerHTML = `
         <div class="toptext" style="width: 100px; height: 100px;"></div>
-        <div class="comment" style="width: 100px; height: 100px;"></div>
+        <div class="commtext" style="width: 100px; height: 100px;"></div>
       `;
 
       const result = await extractor.extractContent();
@@ -206,13 +206,13 @@ describe('HackerNewsExtractor', () => {
 
     it('should number comments correctly', async () => {
       document.body.innerHTML = `
-        <div class="comment" style="width: 100px; height: 100px;">
+        <div class="commtext" style="width: 100px; height: 100px;">
           First comment with enough text to be included
         </div>
-        <div class="comment" style="width: 100px; height: 100px;">
+        <div class="commtext" style="width: 100px; height: 100px;">
           Second comment with enough text to be included
         </div>
-        <div class="comment" style="width: 100px; height: 100px;">
+        <div class="commtext" style="width: 100px; height: 100px;">
           Third comment with enough text to be included
         </div>
       `;

@@ -317,7 +317,7 @@ describe('Highlighter', () => {
       indicator.click();
 
       const popup = document.querySelector('.nugget-synthesis-popup') as HTMLElement;
-      expect(popup.style.position).toBe('absolute');
+      expect(popup.classList.contains('absolute')).toBe(true);
       expect(popup.style.top).toBeTruthy();
       expect(popup.style.left).toBeTruthy();
     });
