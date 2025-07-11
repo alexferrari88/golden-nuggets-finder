@@ -442,6 +442,9 @@ export class CommentSelector {
 
     console.log(`Analyzing ${selectedComments.length} selected comments`);
 
+    // Show loading state immediately
+    this.showLoadingState();
+
     // Send message to background script
     chrome.runtime.sendMessage({
       type: 'ANALYZE_SELECTED_CONTENT',
@@ -451,8 +454,97 @@ export class CommentSelector {
       selectedComments: selectedComments.map(c => c.content)
     });
 
-    // Clean up selection mode
-    this.exitSelectionMode();
+    // Note: exitSelectionMode will be called when analysis completes or errors
+  }
+
+  private showLoadingState(): void {
+    if (!this.controlPanel) return;
+
+    // Get the prompt name for display
+    const selectedPrompt = this.prompts.find(p => p.id === this.selectedPromptId);
+    const promptName = selectedPrompt?.name || 'Unknown';
+
+    // Clear existing content and transform to loading state
+    this.controlPanel.innerHTML = '';
+    this.controlPanel.style.cssText = `
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      width: 320px;
+      min-height: 200px;
+      background: ${colors.background.primary};
+      border: 1px solid ${colors.border.light};
+      border-radius: ${borderRadius.lg};
+      box-shadow: ${shadows.lg};
+      z-index: 10001;
+      font-family: ${typography.fontFamily.sans};
+      padding: ${spacing['2xl']};
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      opacity: 1;
+      transform: translateY(0);
+      transition: all 0.3s ease;
+    `;
+
+    // Main text
+    const mainText = document.createElement('div');
+    mainText.style.cssText = `
+      color: ${colors.text.primary};
+      font-size: ${typography.fontSize.sm};
+      font-weight: ${typography.fontWeight.medium};
+      margin-bottom: ${spacing.md};
+    `;
+    mainText.textContent = 'Starting analysis with';
+
+    // Prompt name
+    const promptNameDiv = document.createElement('div');
+    promptNameDiv.style.cssText = `
+      color: ${colors.text.accent};
+      font-size: ${typography.fontSize.base};
+      font-weight: ${typography.fontWeight.semibold};
+      margin-bottom: ${spacing.lg};
+    `;
+    promptNameDiv.textContent = promptName;
+
+    // Animated dots container
+    const dotsContainer = document.createElement('div');
+    dotsContainer.style.cssText = `
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: ${spacing.xs};
+    `;
+
+    // Create three animated dots
+    for (let i = 0; i < 3; i++) {
+      const dot = document.createElement('div');
+      dot.style.cssText = `
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background-color: ${colors.blueSubtle};
+        animation: pulse 1.5s ease-in-out infinite ${i * 0.2}s;
+      `;
+      dotsContainer.appendChild(dot);
+    }
+
+    // Add CSS animation keyframes
+    const style = document.createElement('style');
+    style.textContent = `
+      @keyframes pulse {
+        0%, 100% { opacity: 0.3; transform: scale(0.8); }
+        50% { opacity: 1; transform: scale(1.2); }
+      }
+    `;
+
+    // Assemble loading state
+    this.controlPanel.appendChild(mainText);
+    this.controlPanel.appendChild(promptNameDiv);
+    this.controlPanel.appendChild(dotsContainer);
+    this.controlPanel.appendChild(style);
   }
 
   exitSelectionMode(): void {
