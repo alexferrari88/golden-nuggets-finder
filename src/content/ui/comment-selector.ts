@@ -31,11 +31,19 @@ export class CommentSelector {
   async enterSelectionMode(promptId?: string): Promise<void> {
     if (this.isActive) return;
 
+    console.log('Entering selection mode...', { promptId, url: window.location.href });
     this.isActive = true;
     this.selectedPromptId = promptId || null;
     
     // Extract comments from the page
     await this.extractComments();
+    
+    if (this.comments.length === 0) {
+      console.warn('No comments found for selection mode');
+      // Still show control panel with a message
+      this.showControlPanel();
+      return;
+    }
     
     // Add checkboxes to comments
     this.addCheckboxesToComments();
@@ -51,7 +59,8 @@ export class CommentSelector {
     if (url.includes('reddit.com')) {
       commentSelectors = ['[slot="comment"]', '.Comment'];
     } else if (url.includes('news.ycombinator.com')) {
-      commentSelectors = ['.comment', '.comtext'];
+      // Try multiple selectors for HackerNews to find the right one
+      commentSelectors = ['.commtext', '.comtext', '.comment .commtext'];
     } else if (url.includes('twitter.com') || url.includes('x.com')) {
       commentSelectors = ['[data-testid="tweet"]', '[data-testid="tweetText"]'];
     } else {
@@ -63,10 +72,11 @@ export class CommentSelector {
     
     for (const selector of commentSelectors) {
       const elements = document.querySelectorAll(selector) as NodeListOf<HTMLElement>;
+      console.log(`Selector "${selector}" found ${elements.length} elements`);
       
       for (const element of elements) {
         const content = element.textContent?.trim();
-        if (content && content.length > 10) { // Filter out very short comments
+        if (content && content.length > 20) { // Filter out very short comments (same as extractor)
           this.comments.push({
             element,
             content,
@@ -76,7 +86,7 @@ export class CommentSelector {
       }
     }
 
-    console.log(`Found ${this.comments.length} comments for selection`);
+    console.log(`Found ${this.comments.length} comments for selection on ${url}`);
   }
 
   private addCheckboxesToComments(): void {
@@ -84,15 +94,38 @@ export class CommentSelector {
       const checkbox = this.createCheckbox(comment, index);
       comment.checkbox = checkbox;
       
-      // Position checkbox at top-left of comment
-      const rect = comment.element.getBoundingClientRect();
-      checkbox.style.position = 'absolute';
-      checkbox.style.top = `${rect.top + window.scrollY - 5}px`;
-      checkbox.style.left = `${rect.left + window.scrollX - 30}px`;
-      checkbox.style.zIndex = '10000';
+      // Position checkbox at top-left of comment with better positioning for different sites
+      this.positionCheckbox(checkbox, comment.element);
       
       document.body.appendChild(checkbox);
     });
+  }
+
+  private positionCheckbox(checkbox: HTMLElement, element: HTMLElement): void {
+    const rect = element.getBoundingClientRect();
+    const url = window.location.href;
+    
+    checkbox.style.position = 'absolute';
+    checkbox.style.zIndex = '10000';
+    
+    if (url.includes('news.ycombinator.com')) {
+      // For HackerNews, position relative to the comment text element
+      // Add a bit more offset to avoid overlapping with indentation
+      checkbox.style.top = `${rect.top + window.scrollY - 2}px`;
+      checkbox.style.left = `${Math.max(10, rect.left + window.scrollX - 25)}px`;
+    } else if (url.includes('reddit.com')) {
+      // For Reddit, position at the top-left corner
+      checkbox.style.top = `${rect.top + window.scrollY - 5}px`;
+      checkbox.style.left = `${rect.left + window.scrollX - 30}px`;
+    } else if (url.includes('twitter.com') || url.includes('x.com')) {
+      // For Twitter, position at the top-left corner
+      checkbox.style.top = `${rect.top + window.scrollY - 5}px`;
+      checkbox.style.left = `${rect.left + window.scrollX - 30}px`;
+    } else {
+      // Generic positioning
+      checkbox.style.top = `${rect.top + window.scrollY - 5}px`;
+      checkbox.style.left = `${Math.max(10, rect.left + window.scrollX - 30)}px`;
+    }
   }
 
   private createCheckbox(comment: CommentItem, index: number): HTMLElement {
@@ -154,6 +187,8 @@ export class CommentSelector {
       this.controlPanel.remove();
     }
 
+    console.log(`Creating control panel for ${this.comments.length} comments`);
+
     this.controlPanel = document.createElement('div');
     this.controlPanel.className = 'nugget-control-panel';
     this.controlPanel.style.cssText = `
@@ -181,7 +216,7 @@ export class CommentSelector {
       color: ${colors.text.primary};
       margin-bottom: ${spacing.md};
     `;
-    header.textContent = 'Select Comments to Analyze';
+    header.textContent = this.comments.length > 0 ? 'Select Comments to Analyze' : 'No Comments Found';
 
     const counter = document.createElement('div');
     counter.className = 'comment-counter';
@@ -338,7 +373,11 @@ export class CommentSelector {
 
     const counter = this.controlPanel.querySelector('.comment-counter');
     if (counter) {
-      counter.textContent = `${selectedCount} of ${totalCount} comments selected`;
+      if (totalCount === 0) {
+        counter.textContent = 'No comments detected on this page. This may be due to page structure changes.';
+      } else {
+        counter.textContent = `${selectedCount} of ${totalCount} comments selected`;
+      }
     }
   }
 
@@ -374,6 +413,11 @@ export class CommentSelector {
   }
 
   private analyzeSelectedComments(): void {
+    if (this.comments.length === 0) {
+      alert('No comments found on this page. The page structure may have changed or comments may not be loaded yet.');
+      return;
+    }
+
     const selectedComments = this.comments.filter(c => c.selected);
     
     if (selectedComments.length === 0) {
@@ -385,6 +429,8 @@ export class CommentSelector {
       alert('Please select a prompt for analysis.');
       return;
     }
+
+    console.log(`Analyzing ${selectedComments.length} selected comments`);
 
     // Send message to background script
     chrome.runtime.sendMessage({
