@@ -13,6 +13,22 @@ export class Sidebar {
   private selectedItems: Set<number> = new Set();
   private exportPanel: HTMLElement | null = null;
   private exportPanelExpanded: boolean = false;
+  private restEndpointPanel: HTMLElement | null = null;
+  private restEndpointExpanded: boolean = false;
+  private restEndpointConfig = {
+    url: '',
+    method: 'POST',
+    contentType: 'application/json',
+    headers: [] as Array<{ key: string; value: string }>,
+    includeUrl: true,
+    includeTimestamp: true,
+    includeNuggets: true,
+    nuggetParts: {
+      type: true,
+      content: true,
+      synthesis: true
+    }
+  };
 
   show(nuggetItems: SidebarNuggetItem[], highlighter?: Highlighter): void {
     this.hide(); // Remove existing sidebar if any
@@ -26,6 +42,7 @@ export class Sidebar {
     this.currentPage = 0;
     this.isCollapsed = false;
     this.exportPanelExpanded = false;
+    this.restEndpointExpanded = false;
     this.highlighter = highlighter || null;
     this.sidebar = this.createSidebar();
     document.body.appendChild(this.sidebar);
@@ -213,6 +230,10 @@ export class Sidebar {
     // Create export panel
     this.exportPanel = this.createExportPanel();
     sidebar.appendChild(this.exportPanel);
+    
+    // Create REST endpoint panel
+    this.restEndpointPanel = this.createRestEndpointPanel();
+    sidebar.appendChild(this.restEndpointPanel);
     
     return sidebar;
   }
@@ -712,6 +733,13 @@ export class Sidebar {
         selectedCountSpan.textContent = this.selectedItems.size.toString();
       }
     }
+    
+    if (this.restEndpointPanel) {
+      const selectedCountSpan = this.restEndpointPanel.querySelector('.selected-count');
+      if (selectedCountSpan) {
+        selectedCountSpan.textContent = this.selectedItems.size.toString();
+      }
+    }
   }
 
   private createExportPanel(): HTMLElement {
@@ -1036,5 +1064,715 @@ ${nugget.synthesis}
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+  }
+
+  private createRestEndpointPanel(): HTMLElement {
+    const panel = document.createElement('div');
+    panel.style.cssText = `
+      border-top: 1px solid ${colors.border.light};
+      background: ${colors.background.primary};
+      position: sticky;
+      bottom: 0;
+      z-index: 1;
+    `;
+
+    // REST endpoint title (clickable header)
+    const titleContainer = document.createElement('div');
+    titleContainer.style.cssText = `
+      padding: ${spacing.md} ${spacing.lg};
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: ${spacing.xs};
+      user-select: none;
+      transition: background-color 0.2s ease;
+    `;
+
+    const titleText = document.createElement('span');
+    titleText.textContent = 'Send to Endpoint';
+    titleText.style.cssText = `
+      font-size: ${typography.fontSize.sm};
+      font-weight: ${typography.fontWeight.medium};
+      color: ${colors.text.primary};
+    `;
+
+    const toggleIcon = document.createElement('span');
+    toggleIcon.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>';
+    toggleIcon.style.cssText = `
+      font-size: ${typography.fontSize.xs};
+      color: ${colors.text.secondary};
+      transition: transform 0.2s ease;
+    `;
+
+    titleContainer.appendChild(titleText);
+    titleContainer.appendChild(toggleIcon);
+
+    // REST endpoint options container (initially hidden)
+    const optionsContainer = document.createElement('div');
+    optionsContainer.style.cssText = `
+      display: none;
+      flex-direction: column;
+      gap: ${spacing.sm};
+      padding: 0 ${spacing.lg} ${spacing.lg} ${spacing.lg};
+      transition: all 0.2s ease;
+    `;
+
+    // Add click handler for collapse/expand
+    titleContainer.addEventListener('click', () => {
+      this.toggleRestEndpointPanel(optionsContainer, toggleIcon);
+    });
+
+    // Hover effect for title
+    titleContainer.addEventListener('mouseenter', () => {
+      titleContainer.style.backgroundColor = colors.background.secondary;
+    });
+
+    titleContainer.addEventListener('mouseleave', () => {
+      titleContainer.style.backgroundColor = 'transparent';
+    });
+
+    // URL input
+    const urlRow = document.createElement('div');
+    urlRow.style.cssText = `
+      display: flex;
+      flex-direction: column;
+      gap: ${spacing.xs};
+    `;
+
+    const urlLabel = document.createElement('label');
+    urlLabel.textContent = 'URL:';
+    urlLabel.style.cssText = `
+      font-size: ${typography.fontSize.xs};
+      color: ${colors.text.secondary};
+      font-weight: ${typography.fontWeight.medium};
+    `;
+
+    const urlInput = document.createElement('input');
+    urlInput.type = 'url';
+    urlInput.placeholder = 'https://api.example.com/nuggets';
+    urlInput.style.cssText = `
+      padding: ${spacing.xs} ${spacing.sm};
+      border: 1px solid ${colors.border.light};
+      border-radius: ${borderRadius.sm};
+      font-size: ${typography.fontSize.sm};
+      background: ${colors.background.primary};
+      color: ${colors.text.primary};
+      outline: none;
+      transition: border-color 0.2s ease;
+    `;
+
+    urlInput.addEventListener('focus', () => {
+      urlInput.style.borderColor = colors.border.medium;
+    });
+
+    urlInput.addEventListener('blur', () => {
+      urlInput.style.borderColor = colors.border.light;
+    });
+
+    urlInput.addEventListener('input', (e) => {
+      this.restEndpointConfig.url = (e.target as HTMLInputElement).value;
+    });
+
+    urlRow.appendChild(urlLabel);
+    urlRow.appendChild(urlInput);
+
+    // Method and Content-Type row
+    const methodContentRow = document.createElement('div');
+    methodContentRow.style.cssText = `
+      display: flex;
+      gap: ${spacing.sm};
+    `;
+
+    const methodContainer = document.createElement('div');
+    methodContainer.style.cssText = `
+      display: flex;
+      flex-direction: column;
+      gap: ${spacing.xs};
+      flex: 1;
+    `;
+
+    const methodLabel = document.createElement('label');
+    methodLabel.textContent = 'Method:';
+    methodLabel.style.cssText = `
+      font-size: ${typography.fontSize.xs};
+      color: ${colors.text.secondary};
+      font-weight: ${typography.fontWeight.medium};
+    `;
+
+    const methodSelect = document.createElement('select');
+    methodSelect.style.cssText = `
+      padding: ${spacing.xs} ${spacing.sm};
+      border: 1px solid ${colors.border.light};
+      border-radius: ${borderRadius.sm};
+      font-size: ${typography.fontSize.sm};
+      background: ${colors.background.primary};
+      color: ${colors.text.primary};
+      outline: none;
+      cursor: pointer;
+    `;
+
+    const methodOptions = ['POST', 'PUT', 'PATCH'];
+    methodOptions.forEach(method => {
+      const option = document.createElement('option');
+      option.value = method;
+      option.textContent = method;
+      methodSelect.appendChild(option);
+    });
+
+    methodSelect.addEventListener('change', (e) => {
+      this.restEndpointConfig.method = (e.target as HTMLSelectElement).value;
+    });
+
+    methodContainer.appendChild(methodLabel);
+    methodContainer.appendChild(methodSelect);
+
+    const contentTypeContainer = document.createElement('div');
+    contentTypeContainer.style.cssText = `
+      display: flex;
+      flex-direction: column;
+      gap: ${spacing.xs};
+      flex: 1;
+    `;
+
+    const contentTypeLabel = document.createElement('label');
+    contentTypeLabel.textContent = 'Content-Type:';
+    contentTypeLabel.style.cssText = `
+      font-size: ${typography.fontSize.xs};
+      color: ${colors.text.secondary};
+      font-weight: ${typography.fontWeight.medium};
+    `;
+
+    const contentTypeSelect = document.createElement('select');
+    contentTypeSelect.style.cssText = `
+      padding: ${spacing.xs} ${spacing.sm};
+      border: 1px solid ${colors.border.light};
+      border-radius: ${borderRadius.sm};
+      font-size: ${typography.fontSize.sm};
+      background: ${colors.background.primary};
+      color: ${colors.text.primary};
+      outline: none;
+      cursor: pointer;
+    `;
+
+    const contentTypeOptions = ['application/json', 'application/xml', 'application/x-www-form-urlencoded'];
+    contentTypeOptions.forEach(contentType => {
+      const option = document.createElement('option');
+      option.value = contentType;
+      option.textContent = contentType;
+      contentTypeSelect.appendChild(option);
+    });
+
+    contentTypeSelect.addEventListener('change', (e) => {
+      this.restEndpointConfig.contentType = (e.target as HTMLSelectElement).value;
+    });
+
+    contentTypeContainer.appendChild(contentTypeLabel);
+    contentTypeContainer.appendChild(contentTypeSelect);
+
+    methodContentRow.appendChild(methodContainer);
+    methodContentRow.appendChild(contentTypeContainer);
+
+    // Headers section
+    const headersRow = document.createElement('div');
+    headersRow.style.cssText = `
+      display: flex;
+      flex-direction: column;
+      gap: ${spacing.xs};
+    `;
+
+    const headersLabel = document.createElement('label');
+    headersLabel.textContent = 'Headers:';
+    headersLabel.style.cssText = `
+      font-size: ${typography.fontSize.xs};
+      color: ${colors.text.secondary};
+      font-weight: ${typography.fontWeight.medium};
+    `;
+
+    const headersContainer = document.createElement('div');
+    headersContainer.style.cssText = `
+      display: flex;
+      flex-direction: column;
+      gap: ${spacing.xs};
+    `;
+
+    const addHeaderBtn = document.createElement('button');
+    addHeaderBtn.textContent = '+ Add Header';
+    addHeaderBtn.style.cssText = `
+      padding: ${spacing.xs} ${spacing.sm};
+      border: 1px solid ${colors.border.light};
+      border-radius: ${borderRadius.sm};
+      background: ${colors.background.secondary};
+      color: ${colors.text.primary};
+      font-size: ${typography.fontSize.xs};
+      cursor: pointer;
+      transition: all 0.2s ease;
+    `;
+
+    addHeaderBtn.addEventListener('mouseenter', () => {
+      addHeaderBtn.style.backgroundColor = colors.background.tertiary;
+    });
+
+    addHeaderBtn.addEventListener('mouseleave', () => {
+      addHeaderBtn.style.backgroundColor = colors.background.secondary;
+    });
+
+    addHeaderBtn.addEventListener('click', () => {
+      this.addHeaderRow(headersContainer);
+    });
+
+    headersRow.appendChild(headersLabel);
+    headersRow.appendChild(headersContainer);
+    headersRow.appendChild(addHeaderBtn);
+
+    // Scope selection
+    const scopeRow = document.createElement('div');
+    scopeRow.style.cssText = `
+      display: flex;
+      gap: ${spacing.sm};
+      align-items: center;
+    `;
+
+    const scopeLabel = document.createElement('span');
+    scopeLabel.textContent = 'Scope:';
+    scopeLabel.style.cssText = `
+      font-size: ${typography.fontSize.xs};
+      color: ${colors.text.secondary};
+      min-width: 50px;
+    `;
+
+    const allBtn = this.createRestScopeButton('all', `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg> All (${this.allItems.length})`);
+    const selectedBtn = this.createRestScopeButton('selected', `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg> Selected (<span class="selected-count">0</span>)`);
+
+    scopeRow.appendChild(scopeLabel);
+    scopeRow.appendChild(allBtn);
+    scopeRow.appendChild(selectedBtn);
+
+    // Include section
+    const includeSection = document.createElement('div');
+    includeSection.style.cssText = `
+      display: flex;
+      flex-direction: column;
+      gap: ${spacing.xs};
+    `;
+
+    const includeLabel = document.createElement('label');
+    includeLabel.textContent = 'Include in Request Body:';
+    includeLabel.style.cssText = `
+      font-size: ${typography.fontSize.xs};
+      color: ${colors.text.secondary};
+      font-weight: ${typography.fontWeight.medium};
+    `;
+
+    const includeOptions = document.createElement('div');
+    includeOptions.style.cssText = `
+      display: flex;
+      flex-direction: column;
+      gap: ${spacing.xs};
+      padding-left: ${spacing.sm};
+    `;
+
+    // URL checkbox
+    const urlCheckbox = this.createCheckbox('includeUrl', 'URL', this.restEndpointConfig.includeUrl);
+    urlCheckbox.addEventListener('change', (e) => {
+      this.restEndpointConfig.includeUrl = (e.target as HTMLInputElement).checked;
+    });
+
+    // Timestamp checkbox
+    const timestampCheckbox = this.createCheckbox('includeTimestamp', 'Timestamp', this.restEndpointConfig.includeTimestamp);
+    timestampCheckbox.addEventListener('change', (e) => {
+      this.restEndpointConfig.includeTimestamp = (e.target as HTMLInputElement).checked;
+    });
+
+    // Nuggets checkbox with sub-options
+    const nuggetContainer = document.createElement('div');
+    nuggetContainer.style.cssText = `
+      display: flex;
+      flex-direction: column;
+      gap: ${spacing.xs};
+    `;
+
+    const nuggetCheckbox = this.createCheckbox('includeNuggets', 'Nuggets:', this.restEndpointConfig.includeNuggets);
+    nuggetCheckbox.addEventListener('change', (e) => {
+      const checked = (e.target as HTMLInputElement).checked;
+      this.restEndpointConfig.includeNuggets = checked;
+      this.toggleNuggetSubOptions(nuggetSubOptions, checked);
+    });
+
+    const nuggetSubOptions = document.createElement('div');
+    nuggetSubOptions.style.cssText = `
+      display: flex;
+      flex-direction: column;
+      gap: ${spacing.xs};
+      padding-left: ${spacing.lg};
+    `;
+
+    const typeCheckbox = this.createCheckbox('nuggetType', 'Type (tool, media...)', this.restEndpointConfig.nuggetParts.type);
+    typeCheckbox.addEventListener('change', (e) => {
+      this.restEndpointConfig.nuggetParts.type = (e.target as HTMLInputElement).checked;
+    });
+
+    const contentCheckbox = this.createCheckbox('nuggetContent', 'Content (original text)', this.restEndpointConfig.nuggetParts.content);
+    contentCheckbox.addEventListener('change', (e) => {
+      this.restEndpointConfig.nuggetParts.content = (e.target as HTMLInputElement).checked;
+    });
+
+    const synthesisCheckbox = this.createCheckbox('nuggetSynthesis', 'Synthesis (relevance note)', this.restEndpointConfig.nuggetParts.synthesis);
+    synthesisCheckbox.addEventListener('change', (e) => {
+      this.restEndpointConfig.nuggetParts.synthesis = (e.target as HTMLInputElement).checked;
+    });
+
+    nuggetSubOptions.appendChild(typeCheckbox);
+    nuggetSubOptions.appendChild(contentCheckbox);
+    nuggetSubOptions.appendChild(synthesisCheckbox);
+
+    nuggetContainer.appendChild(nuggetCheckbox);
+    nuggetContainer.appendChild(nuggetSubOptions);
+
+    includeOptions.appendChild(urlCheckbox);
+    includeOptions.appendChild(timestampCheckbox);
+    includeOptions.appendChild(nuggetContainer);
+
+    includeSection.appendChild(includeLabel);
+    includeSection.appendChild(includeOptions);
+
+    // Action buttons
+    const actionsRow = document.createElement('div');
+    actionsRow.style.cssText = `
+      display: flex;
+      gap: ${spacing.sm};
+      justify-content: center;
+    `;
+
+    const sendBtn = this.createActionButton('Send', () => this.handleRestEndpointSend());
+    const testBtn = this.createActionButton('Test Connection', () => this.handleTestConnection());
+
+    actionsRow.appendChild(sendBtn);
+    actionsRow.appendChild(testBtn);
+
+    optionsContainer.appendChild(urlRow);
+    optionsContainer.appendChild(methodContentRow);
+    optionsContainer.appendChild(headersRow);
+    optionsContainer.appendChild(scopeRow);
+    optionsContainer.appendChild(includeSection);
+    optionsContainer.appendChild(actionsRow);
+
+    panel.appendChild(titleContainer);
+    panel.appendChild(optionsContainer);
+
+    return panel;
+  }
+
+  private toggleRestEndpointPanel(optionsContainer: HTMLElement, toggleIcon: HTMLElement): void {
+    this.restEndpointExpanded = !this.restEndpointExpanded;
+    
+    if (this.restEndpointExpanded) {
+      optionsContainer.style.display = 'flex';
+      toggleIcon.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>';
+    } else {
+      optionsContainer.style.display = 'none';
+      toggleIcon.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>';
+    }
+  }
+
+  private createRestScopeButton(scope: string, label: string): HTMLElement {
+    const button = document.createElement('button');
+    button.dataset.scope = scope;
+    button.innerHTML = label;
+    button.style.cssText = `
+      padding: ${spacing.xs} ${spacing.sm};
+      border: 1px solid ${colors.border.light};
+      border-radius: ${borderRadius.sm};
+      background: ${colors.background.primary};
+      color: ${colors.text.primary};
+      font-size: ${typography.fontSize.xs};
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      gap: ${spacing.xs};
+    `;
+
+    if (scope === 'all') {
+      button.style.background = colors.background.secondary;
+    }
+
+    button.addEventListener('mouseenter', () => {
+      button.style.backgroundColor = colors.background.secondary;
+    });
+
+    button.addEventListener('mouseleave', () => {
+      if (scope === 'all') {
+        button.style.backgroundColor = colors.background.secondary;
+      } else {
+        button.style.backgroundColor = colors.background.primary;
+      }
+    });
+
+    button.addEventListener('click', () => {
+      this.handleRestScopeSelection(scope);
+    });
+
+    return button;
+  }
+
+  private handleRestScopeSelection(scope: string): void {
+    const allButtons = this.restEndpointPanel?.querySelectorAll('[data-scope]');
+    allButtons?.forEach((btn) => {
+      const button = btn as HTMLElement;
+      if (button.dataset.scope === scope) {
+        button.style.background = colors.background.secondary;
+      } else {
+        button.style.background = colors.background.primary;
+      }
+    });
+  }
+
+  private createCheckbox(id: string, label: string, checked: boolean): HTMLElement {
+    const container = document.createElement('div');
+    container.style.cssText = `
+      display: flex;
+      align-items: center;
+      gap: ${spacing.xs};
+    `;
+
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.id = id;
+    checkbox.checked = checked;
+    checkbox.style.cssText = `
+      width: 16px;
+      height: 16px;
+      cursor: pointer;
+    `;
+
+    const labelElement = document.createElement('label');
+    labelElement.htmlFor = id;
+    labelElement.textContent = label;
+    labelElement.style.cssText = `
+      font-size: ${typography.fontSize.xs};
+      color: ${colors.text.primary};
+      cursor: pointer;
+    `;
+
+    container.appendChild(checkbox);
+    container.appendChild(labelElement);
+
+    return container;
+  }
+
+  private toggleNuggetSubOptions(subOptions: HTMLElement, show: boolean): void {
+    subOptions.style.display = show ? 'flex' : 'none';
+    const checkboxes = subOptions.querySelectorAll('input[type="checkbox"]');
+    checkboxes.forEach(checkbox => {
+      (checkbox as HTMLInputElement).disabled = !show;
+    });
+  }
+
+  private addHeaderRow(container: HTMLElement): void {
+    const headerRow = document.createElement('div');
+    headerRow.style.cssText = `
+      display: flex;
+      gap: ${spacing.xs};
+      align-items: center;
+    `;
+
+    const keyInput = document.createElement('input');
+    keyInput.type = 'text';
+    keyInput.placeholder = 'Header name';
+    keyInput.style.cssText = `
+      padding: ${spacing.xs} ${spacing.sm};
+      border: 1px solid ${colors.border.light};
+      border-radius: ${borderRadius.sm};
+      font-size: ${typography.fontSize.xs};
+      background: ${colors.background.primary};
+      color: ${colors.text.primary};
+      outline: none;
+      flex: 1;
+    `;
+
+    const valueInput = document.createElement('input');
+    valueInput.type = 'text';
+    valueInput.placeholder = 'Header value';
+    valueInput.style.cssText = `
+      padding: ${spacing.xs} ${spacing.sm};
+      border: 1px solid ${colors.border.light};
+      border-radius: ${borderRadius.sm};
+      font-size: ${typography.fontSize.xs};
+      background: ${colors.background.primary};
+      color: ${colors.text.primary};
+      outline: none;
+      flex: 2;
+    `;
+
+    const removeBtn = document.createElement('button');
+    removeBtn.textContent = '×';
+    removeBtn.style.cssText = `
+      padding: ${spacing.xs};
+      border: 1px solid ${colors.border.light};
+      border-radius: ${borderRadius.sm};
+      background: ${colors.background.primary};
+      color: ${colors.text.secondary};
+      font-size: ${typography.fontSize.sm};
+      cursor: pointer;
+      width: 24px;
+      height: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    `;
+
+    removeBtn.addEventListener('click', () => {
+      container.removeChild(headerRow);
+      this.updateRestEndpointHeaders();
+    });
+
+    const updateHeaders = () => {
+      this.updateRestEndpointHeaders();
+    };
+
+    keyInput.addEventListener('input', updateHeaders);
+    valueInput.addEventListener('input', updateHeaders);
+
+    headerRow.appendChild(keyInput);
+    headerRow.appendChild(valueInput);
+    headerRow.appendChild(removeBtn);
+
+    container.appendChild(headerRow);
+    this.updateRestEndpointHeaders();
+  }
+
+  private updateRestEndpointHeaders(): void {
+    const headerRows = this.restEndpointPanel?.querySelectorAll('div[style*="display: flex"][style*="gap"]');
+    this.restEndpointConfig.headers = [];
+    
+    headerRows?.forEach(row => {
+      const inputs = row.querySelectorAll('input[type="text"]');
+      if (inputs.length === 2) {
+        const key = (inputs[0] as HTMLInputElement).value.trim();
+        const value = (inputs[1] as HTMLInputElement).value.trim();
+        if (key && value) {
+          this.restEndpointConfig.headers.push({ key, value });
+        }
+      }
+    });
+  }
+
+  private async handleRestEndpointSend(): Promise<void> {
+    if (!this.restEndpointConfig.url) {
+      alert('Please enter a URL');
+      return;
+    }
+
+    const selectedScope = this.restEndpointPanel?.querySelector('[data-scope][style*="background: rgb(252, 252, 252)"]') as HTMLElement;
+    const scope = selectedScope?.dataset.scope || 'all';
+    
+    const nuggets = scope === 'all' ? this.allItems : this.allItems.filter(item => item.selected);
+    
+    if (scope === 'selected' && nuggets.length === 0) {
+      alert('Please select at least one nugget to send.');
+      return;
+    }
+
+    try {
+      const payload = this.buildRestPayload(nuggets);
+      const response = await this.sendToRestEndpoint(payload);
+      
+      if (response.ok) {
+        alert(`Successfully sent to ${this.restEndpointConfig.url}`);
+      } else {
+        alert(`Failed to send: ${response.status} ${response.statusText}`);
+      }
+    } catch (error) {
+      console.error('REST endpoint error:', error);
+      alert(`Error sending to endpoint: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  private async handleTestConnection(): Promise<void> {
+    if (!this.restEndpointConfig.url) {
+      alert('Please enter a URL');
+      return;
+    }
+
+    try {
+      const response = await fetch(this.restEndpointConfig.url, {
+        method: 'OPTIONS',
+        headers: {
+          'Content-Type': this.restEndpointConfig.contentType,
+          ...this.restEndpointConfig.headers.reduce((acc, header) => ({
+            ...acc,
+            [header.key]: header.value
+          }), {})
+        }
+      });
+
+      if (response.ok) {
+        alert('Connection test successful!');
+      } else {
+        alert(`Connection test failed: ${response.status} ${response.statusText}`);
+      }
+    } catch (error) {
+      console.error('Connection test error:', error);
+      alert(`Connection test failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  private buildRestPayload(nuggets: SidebarNuggetItem[]): any {
+    const payload: any = {};
+
+    if (this.restEndpointConfig.includeUrl) {
+      payload.url = window.location.href;
+    }
+
+    if (this.restEndpointConfig.includeTimestamp) {
+      payload.timestamp = new Date().toISOString();
+    }
+
+    if (this.restEndpointConfig.includeNuggets) {
+      payload.nuggets = nuggets.map(item => {
+        const nugget: any = {};
+        
+        if (this.restEndpointConfig.nuggetParts.type) {
+          nugget.type = item.nugget.type;
+        }
+        
+        if (this.restEndpointConfig.nuggetParts.content) {
+          nugget.content = item.nugget.content;
+        }
+        
+        if (this.restEndpointConfig.nuggetParts.synthesis) {
+          nugget.synthesis = item.nugget.synthesis;
+        }
+        
+        return nugget;
+      });
+    }
+
+    return payload;
+  }
+
+  private async sendToRestEndpoint(payload: any): Promise<Response> {
+    const headers: Record<string, string> = {
+      'Content-Type': this.restEndpointConfig.contentType
+    };
+
+    this.restEndpointConfig.headers.forEach(header => {
+      headers[header.key] = header.value;
+    });
+
+    let body: string;
+    if (this.restEndpointConfig.contentType === 'application/json') {
+      body = JSON.stringify(payload);
+    } else if (this.restEndpointConfig.contentType === 'application/x-www-form-urlencoded') {
+      body = new URLSearchParams(payload).toString();
+    } else {
+      body = JSON.stringify(payload);
+    }
+
+    return fetch(this.restEndpointConfig.url, {
+      method: this.restEndpointConfig.method,
+      headers,
+      body
+    });
   }
 }
