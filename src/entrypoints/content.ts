@@ -1,9 +1,9 @@
 import { MESSAGE_TYPES, AnalysisRequest, AnalysisResponse, DebugLogMessage } from '../shared/types';
-import { ContentScraper, Content } from '../../packages/web-scraper-js/dist/index';
+import { ContentScraper, Content, CheckboxStyling } from '../../packages/web-scraper-js/dist/index';
 import { UIManager } from '../content/ui/ui-manager';
 import { performanceMonitor, measureContentExtraction, measureDOMOperation } from '../shared/performance';
 import { isDevMode } from '../shared/debug';
-import { generateCSSCustomProperties } from '../shared/design-system';
+import { generateCSSCustomProperties, colors, shadows, spacing, borderRadius, zIndex } from '../shared/design-system';
 
 export default defineContentScript({
   matches: ['https://example.com/*'], // Restrictive match to prevent auto-injection
@@ -15,9 +15,59 @@ export default defineContentScript({
     const uiManager = new UIManager();
 
     function createContentScraper(): ContentScraper {
+      // Create design-system-compliant styling functions for the library
+      const checkboxStyling: CheckboxStyling = {
+        getDefaultStyles: () => `
+          position: absolute;
+          width: 18px;
+          height: 18px;
+          border: 1px solid ${colors.border.default};
+          border-radius: ${borderRadius.sm};
+          background: ${colors.background.primary};
+          cursor: pointer;
+          z-index: ${zIndex.toggle};
+          box-shadow: ${shadows.sm};
+          transition: all 0.2s ease;
+        `,
+        getSelectedStyles: () => `
+          position: absolute;
+          width: 18px;
+          height: 18px;
+          border: 1px solid ${colors.text.accent};
+          border-radius: ${borderRadius.sm};
+          background: ${colors.text.accent};
+          color: ${colors.white};
+          cursor: pointer;
+          z-index: ${zIndex.toggle};
+          box-shadow: ${shadows.md};
+          transition: all 0.2s ease;
+        `,
+        getHoverStyles: () => `
+          position: absolute;
+          width: 18px;
+          height: 18px;
+          border: 1px solid ${colors.border.medium};
+          border-radius: ${borderRadius.sm};
+          background: ${colors.background.secondary};
+          cursor: pointer;
+          z-index: ${zIndex.toggle};
+          box-shadow: ${shadows.md};
+          transition: all 0.2s ease;
+        `,
+        getPositioningStyles: (targetRect: DOMRect) => {
+          const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+          const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
+          return {
+            top: `${targetRect.top + scrollTop - 5}px`,
+            left: `${targetRect.left + scrollLeft - 25}px`
+          };
+        }
+      };
+
       // The ContentScraper automatically detects the site type
       return new ContentScraper({
-        includeHtml: true // Include HTML content for better extraction
+        includeHtml: true, // Include HTML content for better extraction
+        checkboxStyling: checkboxStyling // Provide design-system-compliant styling
       });
     }
 
@@ -252,8 +302,11 @@ export default defineContentScript({
 
     async function enterSelectionMode(promptId?: string): Promise<void> {
       try {
-        // Enter selection mode through UI manager
-        await uiManager.enterSelectionMode(promptId);
+        // Create a separate ContentScraper instance for selection mode
+        const selectionScraper = createContentScraper();
+        
+        // Enter selection mode through UI manager with the scraper
+        await uiManager.enterSelectionMode(promptId, selectionScraper);
       } catch (error) {
         console.error('Failed to enter selection mode:', error);
         uiManager.showErrorBanner('Failed to enter selection mode. Please try again.');
@@ -264,11 +317,44 @@ export default defineContentScript({
       try {
         performanceMonitor.startTimer('total_analysis');
         
-        const content = request.content;
+        // Get selected content from UI manager
+        const selectedContent = uiManager.getSelectedContent();
         const promptId = request.promptId;
         
-        if (!content || content.trim().length === 0) {
+        if (!selectedContent || !selectedContent.items || selectedContent.items.length === 0) {
           uiManager.showErrorBanner('No content selected for analysis.');
+          // Exit selection mode on error
+          uiManager.exitSelectionMode();
+          return;
+        }
+        
+        // Filter only selected items and convert to text
+        const selectedItems = selectedContent.items.filter(item => item.selected);
+        if (selectedItems.length === 0) {
+          uiManager.showErrorBanner('No content selected for analysis.');
+          // Exit selection mode on error
+          uiManager.exitSelectionMode();
+          return;
+        }
+        
+        // Convert selected items to text
+        const contentParts = [selectedContent.title];
+        selectedItems.forEach(item => {
+          if (item.textContent) {
+            contentParts.push(item.textContent);
+          } else if (item.htmlContent) {
+            // Strip HTML tags for text-only analysis
+            const textContent = item.htmlContent.replace(/<[^>]*>/g, '').trim();
+            if (textContent) {
+              contentParts.push(textContent);
+            }
+          }
+        });
+        
+        const content = contentParts.filter(part => part && part.trim()).join('\n\n');
+        
+        if (!content || content.trim().length === 0) {
+          uiManager.showErrorBanner('Selected content is empty.');
           // Exit selection mode on error
           uiManager.exitSelectionMode();
           return;

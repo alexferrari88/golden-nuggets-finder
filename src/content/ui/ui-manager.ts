@@ -2,25 +2,20 @@ import { GoldenNugget, SidebarNuggetItem } from '../../shared/types';
 import { Highlighter } from './highlighter';
 import { Sidebar } from './sidebar';
 import { NotificationManager } from './notifications';
-import { CommentSelector } from './comment-selector';
 import { performanceMonitor, measureHighlighting, measureDOMOperation } from '../../shared/performance';
+import { ContentScraper, Content } from '../../../packages/web-scraper-js/dist/index';
 
 export class UIManager {
   private highlighter: Highlighter;
   private sidebar: Sidebar;
   private notifications: NotificationManager;
-  private commentSelector: CommentSelector;
+  private selectionScraper?: ContentScraper;
+  private selectionModeActive = false;
 
   constructor() {
     this.highlighter = new Highlighter();
     this.sidebar = new Sidebar();
     this.notifications = new NotificationManager();
-    this.commentSelector = new CommentSelector();
-    
-    // Set callback so CommentSelector can notify UIManager when manually exiting
-    this.commentSelector.setOnExitCallback(() => {
-      this.exitSelectionMode();
-    });
   }
 
   showProgressBanner(): void {
@@ -81,33 +76,44 @@ export class UIManager {
     this.sidebar.expand();
   }
 
-  async enterSelectionMode(promptId?: string): Promise<void> {
+  async enterSelectionMode(promptId?: string, contentScraper?: ContentScraper): Promise<void> {
     // Clear any existing results first
     this.clearResults();
     
-    // Enter comment selection mode
-    await this.commentSelector.enterSelectionMode(promptId);
+    if (contentScraper) {
+      this.selectionScraper = contentScraper;
+      // Run the content scraper to display checkboxes for selection
+      await this.selectionScraper.run();
+      this.selectionModeActive = true;
+    }
     
     // Show info banner
-    this.notifications.showInfo('Select comments to analyze, then click "Analyze Selected Comments"');
+    this.notifications.showInfo('Select content to analyze using the checkboxes, then click "Analyze Selected Content"');
   }
 
   exitSelectionMode(): void {
-    this.commentSelector.exitSelectionMode();
+    if (this.selectionScraper) {
+      this.selectionScraper.destroy();
+      this.selectionScraper = undefined;
+    }
+    this.selectionModeActive = false;
     this.notifications.hide();
   }
 
   isSelectionModeActive(): boolean {
-    return this.commentSelector.isSelectionModeActive();
+    return this.selectionModeActive;
   }
 
-  getSelectedComments(): string[] {
-    return this.commentSelector.getSelectedComments();
+  getSelectedContent(): Content | null {
+    if (this.selectionScraper) {
+      return this.selectionScraper.getContent();
+    }
+    return null;
   }
 
   cleanup(): void {
     this.clearResults();
     this.notifications.cleanup();
-    this.commentSelector.exitSelectionMode();
+    this.exitSelectionMode();
   }
 }

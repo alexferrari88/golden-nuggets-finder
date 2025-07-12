@@ -1,15 +1,13 @@
-import { ContentItem } from './types';
-
-export interface CheckboxStyles {
-  selected?: string;
-  deselected?: string;
-}
+import { ContentItem, CheckboxStyling } from './types';
 
 export class UIManager {
   private checkboxes = new Map<HTMLElement, { item: ContentItem, checkboxEl: HTMLElement }>();
   private eventEmitter = new EventTarget();
+  private styling?: CheckboxStyling;
 
-  constructor(private styles: CheckboxStyles = {}) {}
+  constructor(styling?: CheckboxStyling) {
+    this.styling = styling;
+  }
 
   public displayCheckboxes(items: ContentItem[]): void {
     // Clean up existing checkboxes first
@@ -30,29 +28,42 @@ export class UIManager {
   private createCheckbox(item: ContentItem): HTMLElement {
     const checkbox = document.createElement('div');
     
-    // Apply basic styles
-    checkbox.style.cssText = `
-      position: absolute;
-      width: 18px;
-      height: 18px;
-      border: 2px solid #ccc;
-      border-radius: 3px;
-      background: white;
-      cursor: pointer;
-      z-index: 9999;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-      transition: all 0.2s ease;
-    `;
-
-    // Apply custom styles if provided
-    if (item.selected && this.styles.selected) {
-      checkbox.classList.add(this.styles.selected);
-    } else if (!item.selected && this.styles.deselected) {
-      checkbox.classList.add(this.styles.deselected);
+    // Apply styles from styling function or fallback to minimal defaults
+    if (this.styling) {
+      checkbox.style.cssText = this.styling.getDefaultStyles();
+    } else {
+      // Minimal fallback styles (no hardcoded colors)
+      checkbox.style.cssText = `
+        position: absolute;
+        width: 18px;
+        height: 18px;
+        border: 1px solid currentColor;
+        border-radius: 3px;
+        background: transparent;
+        cursor: pointer;
+        z-index: 9999;
+        transition: all 0.2s ease;
+        opacity: 0.5;
+      `;
     }
 
     // Update visual state
     this.updateCheckboxVisual(checkbox, item.selected);
+
+    // Add hover effects if styling function provides them
+    if (this.styling) {
+      checkbox.addEventListener('mouseenter', () => {
+        checkbox.style.cssText = this.styling!.getHoverStyles();
+        this.updateCheckboxVisual(checkbox, item.selected);
+      });
+      
+      checkbox.addEventListener('mouseleave', () => {
+        checkbox.style.cssText = item.selected 
+          ? this.styling!.getSelectedStyles()
+          : this.styling!.getDefaultStyles();
+        this.updateCheckboxVisual(checkbox, item.selected);
+      });
+    }
 
     return checkbox;
   }
@@ -60,28 +71,37 @@ export class UIManager {
   private positionCheckbox(checkbox: HTMLElement, targetElement: HTMLElement): void {
     // Position the checkbox relative to the target element
     const rect = targetElement.getBoundingClientRect();
-    const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-    const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
-
-    checkbox.style.top = `${rect.top + scrollTop - 5}px`;
-    checkbox.style.left = `${rect.left + scrollLeft - 25}px`;
+    
+    if (this.styling) {
+      // Use positioning function from styling
+      const position = this.styling.getPositioningStyles(rect);
+      checkbox.style.top = position.top;
+      checkbox.style.left = position.left;
+    } else {
+      // Fallback positioning
+      const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+      const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
+      checkbox.style.top = `${rect.top + scrollTop - 5}px`;
+      checkbox.style.left = `${rect.left + scrollLeft - 25}px`;
+    }
 
     document.body.appendChild(checkbox);
   }
 
   private updateCheckboxVisual(checkbox: HTMLElement, selected: boolean): void {
     if (selected) {
-      checkbox.style.backgroundColor = '#007bff';
-      checkbox.style.borderColor = '#007bff';
+      if (this.styling) {
+        checkbox.style.cssText = this.styling.getSelectedStyles();
+      }
       checkbox.innerHTML = '✓';
-      checkbox.style.color = 'white';
       checkbox.style.fontSize = '12px';
       checkbox.style.display = 'flex';
       checkbox.style.alignItems = 'center';
       checkbox.style.justifyContent = 'center';
     } else {
-      checkbox.style.backgroundColor = 'white';
-      checkbox.style.borderColor = '#ccc';
+      if (this.styling) {
+        checkbox.style.cssText = this.styling.getDefaultStyles();
+      }
       checkbox.innerHTML = '';
     }
   }
@@ -89,9 +109,14 @@ export class UIManager {
   private toggleSelection(item: ContentItem): void {
     item.selected = !item.selected;
     
-    // Update checkbox visual
+    // Update checkbox visual and styles
     const checkboxData = this.checkboxes.get(item.element);
     if (checkboxData) {
+      if (this.styling) {
+        checkboxData.checkboxEl.style.cssText = item.selected
+          ? this.styling.getSelectedStyles()
+          : this.styling.getDefaultStyles();
+      }
       this.updateCheckboxVisual(checkboxData.checkboxEl, item.selected);
     }
 

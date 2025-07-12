@@ -26,8 +26,8 @@ export class ContentScraper {
       this.extractor = new GenericExtractor(options.includeHtml || false);
     }
 
-    // Instantiate the UIManager with custom styles from options
-    this.uiManager = new UIManager(options.checkboxStyles);
+    // Instantiate the UIManager with custom styling from options
+    this.uiManager = new UIManager(options.checkboxStyling);
     
     // Set up UI event listeners
     this.uiManager.on('selectionChanged', (selectedItems) => {

@@ -14,10 +14,18 @@ export interface Content {
   items: ContentItem[];
 }
 
+export interface CheckboxStyling {
+  // Function that returns CSS styles for default checkbox state
+  getDefaultStyles: () => string;
+  // Function that returns CSS styles for selected checkbox state
+  getSelectedStyles: () => string;
+  // Function that returns CSS styles for hover state
+  getHoverStyles: () => string;
+  // Function that returns positioning styles
+  getPositioningStyles: (targetRect: DOMRect) => { top: string; left: string };
+}
+
 export interface ScraperOptions {
   includeHtml?: boolean;
-  checkboxStyles?: {
-    selected?: string; // CSS class for selected state
-    deselected?: string; // CSS class for deselected state
-  };
+  checkboxStyling?: CheckboxStyling;
 }
