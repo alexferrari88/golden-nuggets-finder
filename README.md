@@ -36,19 +36,19 @@ cd golden-nugget-finder
 
 2. Install dependencies:
 ```bash
-npm install
+pnpm install
 ```
 
 3. Build the extension:
 ```bash
-npm run build
+pnpm build
 ```
 
 4. Load the extension in Chrome:
    - Open Chrome and go to `chrome://extensions/`
    - Enable "Developer mode"
    - Click "Load unpacked"
-   - Select the `build` directory
+   - Select the `dist/chrome-mv3-prod` directory
 
 ## Usage
 
@@ -91,18 +91,20 @@ After analysis, you'll see:
 
 ### Tech Stack
 
-- **Framework**: Plasmo
+- **Framework**: WXT (Web Extension Toolkit)
 - **Language**: TypeScript
+- **UI Framework**: React (for popup and options pages)
 - **AI Integration**: Google Gemini API (`gemini-2.5-flash`)
-- **Content Extraction**: Readability.js for generic pages
+- **Content Extraction**: Specialized extractors for Reddit, Hacker News, and generic pages
 - **Storage**: Chrome Storage Sync API
+- **Testing**: Vitest (unit), Playwright (E2E)
 
 ### Components
 
-- **Content Script**: Injected into webpages for DOM manipulation and content extraction
-- **Background Script**: Service worker handling API calls to Google Gemini
-- **Options Page**: Configuration interface for API keys and prompt management
-- **Popup**: Extension toolbar interface for prompt selection
+- **Content Script**: Injected dynamically into webpages for DOM manipulation and content extraction
+- **Background Script**: Service worker handling API calls to Google Gemini and dynamic content script injection
+- **Options Page**: React-based configuration interface for API keys and prompt management
+- **Popup**: React-based extension toolbar interface for prompt selection
 
 ### Data Flow
 
@@ -118,33 +120,37 @@ After analysis, you'll see:
 
 ```bash
 # Install dependencies
-npm install
+pnpm install
 
 # Start development server
-npm run dev
+pnpm dev
 
 # Build for production
-npm run build
+pnpm build
 
-# Run tests
-npm test
+# Run unit tests
+pnpm test
 
-# Run linting
-npm run lint
+# Run E2E tests
+pnpm test:e2e
+
+# Run with coverage
+pnpm test:coverage
 ```
 
 ### Project Structure
 
 ```
 src/
-├── background/          # Service worker scripts
-├── content/            # Content scripts
-├── options/            # Options page
-├── popup/              # Extension popup
+├── entrypoints/        # WXT entry points (background, content, popup, options)
+├── content/            # Content script logic and UI components
+├── background/         # Background script services
+├── shared/             # Common utilities, types, and design system
 ├── components/         # Shared React components
-├── lib/                # Utility functions
-├── types/              # TypeScript type definitions
-└── manifest.json       # Extension manifest
+tests/
+├── e2e/                # Playwright E2E tests
+├── fixtures/           # Test data and mocks
+└── manual-testing-checklist.md
 ```
 
 ### API Response Schema
@@ -200,7 +206,9 @@ Find golden nuggets that would interest a pragmatic synthesizer with ADHD who lo
 
 - Follow TypeScript best practices
 - Use conventional commits
-- Add tests for new features
+- Add tests for new features (Vitest for unit, Playwright for E2E)
+- Always use the design system - never hardcode design values
+- Test with `pnpm test && pnpm test:e2e` before committing
 - Update documentation as needed
 
 ## License
