@@ -177,7 +177,7 @@ export default defineBackground(() => {
       // Inject the content script dynamically using the built file
       await chrome.scripting.executeScript({
         target: { tabId },
-        files: ['content-injector.js']
+        files: ['content.js']
       });
 
       // Give the content script a moment to initialize

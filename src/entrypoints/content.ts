@@ -1,9 +1,5 @@
 import { MESSAGE_TYPES, AnalysisRequest, AnalysisResponse, DebugLogMessage } from '../shared/types';
-import { ContentExtractor } from '../content/extractors/base';
-import { RedditExtractor } from '../content/extractors/reddit';
-import { HackerNewsExtractor } from '../content/extractors/hackernews';
-import { TwitterExtractor } from '../content/extractors/twitter';
-import { GenericExtractor } from '../content/extractors/generic';
+import { ContentScraper, Content } from '../../packages/web-scraper-js/dist/index';
 import { UIManager } from '../content/ui/ui-manager';
 import { performanceMonitor, measureContentExtraction, measureDOMOperation } from '../shared/performance';
 import { isDevMode } from '../shared/debug';
@@ -15,21 +11,37 @@ export default defineContentScript({
   main() {
     // Only initialize when explicitly activated to avoid auto-running on all pages
     let isActivated = false;
-    let extractor: ContentExtractor;
+    let contentScraper: ContentScraper;
     const uiManager = new UIManager();
 
-    function createExtractor(): ContentExtractor {
-      const url = window.location.href;
-      
-      if (url.includes('reddit.com')) {
-        return new RedditExtractor();
-      } else if (url.includes('news.ycombinator.com')) {
-        return new HackerNewsExtractor();
-      } else if (url.includes('twitter.com') || url.includes('x.com')) {
-        return new TwitterExtractor();
-      } else {
-        return new GenericExtractor();
+    function createContentScraper(): ContentScraper {
+      // The ContentScraper automatically detects the site type
+      return new ContentScraper({
+        includeHtml: true // Include HTML content for better extraction
+      });
+    }
+
+    function convertContentToText(content: Content | null): string {
+      if (!content || !content.items || content.items.length === 0) {
+        return '';
       }
+      
+      // Combine all content items into a single text string
+      const contentParts = [content.title];
+      
+      content.items.forEach(item => {
+        if (item.textContent) {
+          contentParts.push(item.textContent);
+        } else if (item.htmlContent) {
+          // Strip HTML tags for text-only analysis
+          const textContent = item.htmlContent.replace(/<[^>]*>/g, '').trim();
+          if (textContent) {
+            contentParts.push(textContent);
+          }
+        }
+      });
+      
+      return contentParts.filter(part => part && part.trim()).join('\n\n');
     }
 
     function injectDesignSystemVariables(): void {
@@ -45,7 +57,7 @@ export default defineContentScript({
 
     function initialize(): void {
       if (!isActivated) {
-        extractor = createExtractor();
+        contentScraper = createContentScraper();
         injectDesignSystemVariables();
         isActivated = true;
       }
@@ -190,8 +202,14 @@ export default defineContentScript({
         // Show progress banner
         uiManager.showProgressBanner();
         
-        // Extract content from the page
-        const content = await measureContentExtraction('page_content', () => extractor.extractContent());
+        // Extract content from the page using the new library
+        const structuredContent = await measureContentExtraction('page_content', async () => {
+          await contentScraper.run();
+          return contentScraper.getContent();
+        });
+        
+        // Convert structured content to text for AI analysis
+        const content = convertContentToText(structuredContent);
         
         if (!content || content.trim().length === 0) {
           uiManager.hideProgressBanner();

@@ -7,7 +7,6 @@ declare module "wxt/browser" {
     | "/"
     | "/Readability.js"
     | "/background.js"
-    | "/content-injector.js"
     | "/content-scripts/content.js"
     | "/options.html"
     | "/options.js"

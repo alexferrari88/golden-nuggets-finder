@@ -105,7 +105,7 @@ test.describe('Final Workflow Test - Complete Integration', () => {
         // Inject content script
         await chrome.scripting.executeScript({
           target: { tabId },
-          files: ['content-injector.js']
+          files: ['content.js']
         });
         
         // Wait for initialization

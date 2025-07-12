@@ -281,7 +281,7 @@ function IndexPopup() {
       // Inject the content script
       await chrome.scripting.executeScript({
         target: { tabId },
-        files: ['content-injector.js']
+        files: ['content.js']
       });
       
       // Wait for content script to be ready with retries
