@@ -767,147 +767,122 @@ export class Sidebar {
     // This is now much simpler without complex panels
   }
 
-  private createExportPanel(): HTMLElement {
-    const panel = document.createElement('div');
-    panel.style.cssText = `
-      border-top: 1px solid ${colors.border.light};
-      background: ${colors.background.primary};
-      position: sticky;
-      bottom: 0;
-      z-index: 1;
-    `;
-
-    // Export title (clickable header)
-    const titleContainer = document.createElement('div');
-    titleContainer.style.cssText = `
-      padding: ${spacing.md} ${spacing.lg};
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      gap: ${spacing.xs};
-      user-select: none;
-      transition: background-color 0.2s ease;
-    `;
-
-    const titleText = document.createElement('span');
-    titleText.textContent = 'Export';
-    titleText.style.cssText = `
-      font-size: ${typography.fontSize.sm};
-      font-weight: ${typography.fontWeight.medium};
-      color: ${colors.text.primary};
-    `;
-
-    const toggleIcon = document.createElement('span');
-    toggleIcon.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>';
-    toggleIcon.style.cssText = `
-      font-size: ${typography.fontSize.xs};
-      color: ${colors.text.secondary};
-      transition: transform 0.2s ease;
-    `;
-
-    titleContainer.appendChild(titleText);
-    titleContainer.appendChild(toggleIcon);
-
-    // Export options container (initially hidden)
-    const optionsContainer = document.createElement('div');
-    optionsContainer.style.cssText = `
+  private createActionMenu(): HTMLElement {
+    const menu = document.createElement('div');
+    menu.style.cssText = `
+      position: fixed;
+      top: 80px;
+      right: 340px;
+      background: ${colors.white};
+      border: 1px solid ${colors.border.light};
+      border-radius: ${borderRadius.lg};
+      box-shadow: ${shadows.lg};
+      padding: ${spacing.sm};
+      z-index: ${zIndex.modal};
       display: none;
       flex-direction: column;
-      gap: ${spacing.sm};
-      padding: 0 ${spacing.lg} ${spacing.lg} ${spacing.lg};
-      transition: all 0.2s ease;
+      gap: ${spacing.xs};
+      min-width: 200px;
     `;
-
-    // Add click handler for collapse/expand
-    titleContainer.addEventListener('click', () => {
-      this.toggleExportPanel(optionsContainer, toggleIcon);
+    
+    // Create menu items
+    const menuItems = [
+      {
+        icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>',
+        label: 'Select All',
+        action: () => this.selectAllItems()
+      },
+      {
+        icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18"/><path d="M6 6l12 12"/></svg>',
+        label: 'Clear Selection',
+        action: () => this.clearAllSelections()
+      },
+      {
+        icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>',
+        label: 'Export as Markdown',
+        action: () => this.exportNuggets(this.getExportItems(), 'markdown')
+      },
+      {
+        icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>',
+        label: 'Export as JSON',
+        action: () => this.exportNuggets(this.getExportItems(), 'json')
+      }
+    ];
+    
+    menuItems.forEach(item => {
+      const menuItem = document.createElement('button');
+      menuItem.innerHTML = `${item.icon} <span>${item.label}</span>`;
+      menuItem.style.cssText = `
+        display: flex;
+        align-items: center;
+        gap: ${spacing.sm};
+        padding: ${spacing.sm} ${spacing.md};
+        border: none;
+        background: none;
+        border-radius: ${borderRadius.md};
+        cursor: pointer;
+        font-size: ${typography.fontSize.sm};
+        color: ${colors.text.primary};
+        text-align: left;
+        transition: background-color 0.15s ease;
+        width: 100%;
+      `;
+      
+      menuItem.addEventListener('click', () => {
+        item.action();
+        this.hideActionMenu();
+      });
+      
+      menuItem.addEventListener('mouseenter', () => {
+        menuItem.style.backgroundColor = colors.background.secondary;
+      });
+      
+      menuItem.addEventListener('mouseleave', () => {
+        menuItem.style.backgroundColor = 'transparent';
+      });
+      
+      menu.appendChild(menuItem);
     });
-
-    // Hover effect for title
-    titleContainer.addEventListener('mouseenter', () => {
-      titleContainer.style.backgroundColor = colors.background.secondary;
+    
+    // Close menu when clicking outside
+    document.addEventListener('click', (e) => {
+      if (!menu.contains(e.target as Node) && this.actionMenuVisible) {
+        this.hideActionMenu();
+      }
     });
-
-    titleContainer.addEventListener('mouseleave', () => {
-      titleContainer.style.backgroundColor = 'transparent';
-    });
-
-    // Format selection
-    const formatRow = document.createElement('div');
-    formatRow.style.cssText = `
-      display: flex;
-      gap: ${spacing.sm};
-      align-items: center;
-    `;
-
-    const formatLabel = document.createElement('span');
-    formatLabel.textContent = 'Format:';
-    formatLabel.style.cssText = `
-      font-size: ${typography.fontSize.xs};
-      color: ${colors.text.secondary};
-      min-width: 50px;
-    `;
-
-    const markdownBtn = this.createFormatButton('markdown', '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 6px;"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg>Markdown');
-    const jsonBtn = this.createFormatButton('json', '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 6px;"><path d="M4 22h14a2 2 0 0 0 2-2V7l-5-5H6a2 2 0 0 0-2 2v4"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M4 12a1 1 0 0 0-1 1v1a1 1 0 0 1-1 1 1 1 0 0 1 1 1v1a1 1 0 0 0 1 1"/><path d="M8 18a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1 1 1 0 0 1-1-1v-1a1 1 0 0 0-1-1"/></svg>JSON');
-
-    formatRow.appendChild(formatLabel);
-    formatRow.appendChild(markdownBtn);
-    formatRow.appendChild(jsonBtn);
-
-    // Scope selection
-    const scopeRow = document.createElement('div');
-    scopeRow.style.cssText = `
-      display: flex;
-      gap: ${spacing.sm};
-      align-items: center;
-    `;
-
-    const scopeLabel = document.createElement('span');
-    scopeLabel.textContent = 'Scope:';
-    scopeLabel.style.cssText = `
-      font-size: ${typography.fontSize.xs};
-      color: ${colors.text.secondary};
-      min-width: 50px;
-    `;
-
-    const allBtn = this.createScopeButton('all', `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg> All (${this.allItems.length})`);
-    const selectedBtn = this.createScopeButton('selected', `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg> Selected (<span class="selected-count">0</span>)`);
-
-    scopeRow.appendChild(scopeLabel);
-    scopeRow.appendChild(allBtn);
-    scopeRow.appendChild(selectedBtn);
-
-    // Action buttons
-    const actionsRow = document.createElement('div');
-    actionsRow.style.cssText = `
-      display: flex;
-      gap: ${spacing.sm};
-      justify-content: center;
-    `;
-
-    const exportBtn = this.createActionButton('Export', () => this.handleExport());
-    const selectAllBtn = this.createActionButton('Select All', () => this.selectAllItems());
-    const clearBtn = this.createActionButton('Clear All', () => this.clearAllSelections());
-
-    actionsRow.appendChild(exportBtn);
-    actionsRow.appendChild(selectAllBtn);
-    actionsRow.appendChild(clearBtn);
-
-    optionsContainer.appendChild(formatRow);
-    optionsContainer.appendChild(scopeRow);
-    optionsContainer.appendChild(actionsRow);
-
-    panel.appendChild(titleContainer);
-    panel.appendChild(optionsContainer);
-
-    return panel;
+    
+    return menu;
   }
-
-
-
-
-
+  
+  private toggleActionMenu(): void {
+    if (this.actionMenuVisible) {
+      this.hideActionMenu();
+    } else {
+      this.showActionMenu();
+    }
+  }
+  
+  private showActionMenu(): void {
+    if (this.actionMenu) {
+      this.actionMenu.style.display = 'flex';
+      this.actionMenuVisible = true;
+    }
+  }
+  
+  private hideActionMenu(): void {
+    if (this.actionMenu) {
+      this.actionMenu.style.display = 'none';
+      this.actionMenuVisible = false;
+    }
+  }
+  
+  private getExportItems(): SidebarNuggetItem[] {
+    const selectedCount = this.selectedItems.size;
+    if (selectedCount > 0) {
+      return this.allItems.filter(item => item.selected);
+    }
+    return this.allItems;
+  }
 
   private exportNuggets(nuggets: SidebarNuggetItem[], format: 'markdown' | 'json'): void {
     const url = window.location.href;
