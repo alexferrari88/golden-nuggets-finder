@@ -28,6 +28,9 @@ export default defineContentScript({
           z-index: ${zIndex.toggle};
           box-shadow: ${shadows.sm};
           transition: all 0.2s ease;
+          display: flex;
+          align-items: center;
+          justify-content: center;
         `,
         getSelectedStyles: () => `
           position: absolute;
@@ -41,6 +44,9 @@ export default defineContentScript({
           z-index: ${zIndex.toggle};
           box-shadow: ${shadows.md};
           transition: all 0.2s ease;
+          display: flex;
+          align-items: center;
+          justify-content: center;
         `,
         getHoverStyles: () => `
           position: absolute;
@@ -53,6 +59,9 @@ export default defineContentScript({
           z-index: ${zIndex.toggle};
           box-shadow: ${shadows.md};
           transition: all 0.2s ease;
+          display: flex;
+          align-items: center;
+          justify-content: center;
         `,
         getPositioningStyles: (targetRect: DOMRect) => {
           const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
@@ -67,7 +76,8 @@ export default defineContentScript({
       // The ContentScraper automatically detects the site type
       return new ContentScraper({
         includeHtml: true, // Include HTML content for better extraction
-        checkboxStyling: checkboxStyling // Provide design-system-compliant styling
+        checkboxStyling: checkboxStyling, // Provide design-system-compliant styling
+        showCheckboxes: false // Don't show checkboxes automatically during regular analysis
       });
     }
 
@@ -304,6 +314,12 @@ export default defineContentScript({
       try {
         // Create a separate ContentScraper instance for selection mode
         const selectionScraper = createContentScraper();
+        
+        // Extract content first
+        await selectionScraper.run();
+        
+        // Then explicitly display checkboxes for selection
+        selectionScraper.displayCheckboxes();
         
         // Enter selection mode through UI manager with the scraper
         await uiManager.enterSelectionMode(promptId, selectionScraper);

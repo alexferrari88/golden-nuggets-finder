@@ -82,8 +82,6 @@ export class UIManager {
     
     if (contentScraper) {
       this.selectionScraper = contentScraper;
-      // Run the content scraper to display checkboxes for selection
-      await this.selectionScraper.run();
       this.selectionModeActive = true;
     }
     

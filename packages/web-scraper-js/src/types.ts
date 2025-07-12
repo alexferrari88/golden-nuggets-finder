@@ -28,4 +28,5 @@ export interface CheckboxStyling {
 export interface ScraperOptions {
   includeHtml?: boolean;
   checkboxStyling?: CheckboxStyling;
+  showCheckboxes?: boolean; // Controls whether checkboxes are displayed automatically
 }

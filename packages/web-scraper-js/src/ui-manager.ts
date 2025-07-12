@@ -30,7 +30,7 @@ export class UIManager {
     
     // Apply styles from styling function or fallback to minimal defaults
     if (this.styling) {
-      checkbox.style.cssText = this.styling.getDefaultStyles();
+      this.applyStylesPreservingLayout(checkbox, this.styling.getDefaultStyles());
     } else {
       // Minimal fallback styles (no hardcoded colors)
       checkbox.style.cssText = `
@@ -45,6 +45,10 @@ export class UIManager {
         transition: all 0.2s ease;
         opacity: 0.5;
       `;
+      // Force essential layout properties
+      checkbox.style.setProperty('display', 'flex', 'important');
+      checkbox.style.setProperty('align-items', 'center', 'important');
+      checkbox.style.setProperty('justify-content', 'center', 'important');
     }
 
     // Update visual state
@@ -53,14 +57,17 @@ export class UIManager {
     // Add hover effects if styling function provides them
     if (this.styling) {
       checkbox.addEventListener('mouseenter', () => {
-        checkbox.style.cssText = this.styling!.getHoverStyles();
+        // Apply hover styles but preserve essential display properties
+        this.applyStylesPreservingLayout(checkbox, this.styling!.getHoverStyles());
         this.updateCheckboxVisual(checkbox, item.selected);
       });
       
       checkbox.addEventListener('mouseleave', () => {
-        checkbox.style.cssText = item.selected 
+        // Apply appropriate styles but preserve essential display properties
+        const styles = item.selected 
           ? this.styling!.getSelectedStyles()
           : this.styling!.getDefaultStyles();
+        this.applyStylesPreservingLayout(checkbox, styles);
         this.updateCheckboxVisual(checkbox, item.selected);
       });
     }
@@ -88,20 +95,31 @@ export class UIManager {
     document.body.appendChild(checkbox);
   }
 
+  private applyStylesPreservingLayout(checkbox: HTMLElement, cssText: string): void {
+    // Save positioning properties before applying new styles
+    const savedTop = checkbox.style.top;
+    const savedLeft = checkbox.style.left;
+    
+    // Apply the CSS styles from styling function
+    checkbox.style.cssText = cssText;
+    
+    // Restore positioning properties
+    if (savedTop) checkbox.style.top = savedTop;
+    if (savedLeft) checkbox.style.left = savedLeft;
+    
+    // Force essential layout properties with !important (can't be done via style.property)
+    checkbox.style.setProperty('display', 'flex', 'important');
+    checkbox.style.setProperty('align-items', 'center', 'important');
+    checkbox.style.setProperty('justify-content', 'center', 'important');
+    checkbox.style.setProperty('visibility', 'visible', 'important');
+    checkbox.style.setProperty('opacity', '1', 'important');
+  }
+
   private updateCheckboxVisual(checkbox: HTMLElement, selected: boolean): void {
     if (selected) {
-      if (this.styling) {
-        checkbox.style.cssText = this.styling.getSelectedStyles();
-      }
       checkbox.innerHTML = '✓';
       checkbox.style.fontSize = '12px';
-      checkbox.style.display = 'flex';
-      checkbox.style.alignItems = 'center';
-      checkbox.style.justifyContent = 'center';
     } else {
-      if (this.styling) {
-        checkbox.style.cssText = this.styling.getDefaultStyles();
-      }
       checkbox.innerHTML = '';
     }
   }
@@ -112,11 +130,14 @@ export class UIManager {
     // Update checkbox visual and styles
     const checkboxData = this.checkboxes.get(item.element);
     if (checkboxData) {
+      // Update styles based on selection state, preserving layout
       if (this.styling) {
-        checkboxData.checkboxEl.style.cssText = item.selected
+        const styles = item.selected
           ? this.styling.getSelectedStyles()
           : this.styling.getDefaultStyles();
+        this.applyStylesPreservingLayout(checkboxData.checkboxEl, styles);
       }
+      // Update visual content (checkmark)
       this.updateCheckboxVisual(checkboxData.checkboxEl, item.selected);
     }
 

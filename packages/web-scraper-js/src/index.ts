@@ -11,8 +11,10 @@ export class ContentScraper {
   private uiManager: UIManager;
   private content: Content | null = null;
   private eventEmitter = new EventTarget();
+  private options: ScraperOptions;
 
   constructor(options: ScraperOptions = {}) {
+    this.options = options;
     // Detect the current site from window.location.href
     const url = window.location.href;
     
@@ -50,13 +52,20 @@ export class ContentScraper {
       // Call extractor to get the initial content
       this.content = await this.extractor.extract();
       
-      // If content has items, display checkboxes
-      if (this.content && this.content.items.length > 0) {
+      // If content has items and showCheckboxes is enabled, display checkboxes
+      if (this.content && this.content.items.length > 0 && this.options.showCheckboxes) {
         this.uiManager.displayCheckboxes(this.content.items);
       }
     } catch (error) {
       console.error('ContentScraper error:', error);
       throw error;
+    }
+  }
+
+  public displayCheckboxes(): void {
+    // Public method to display checkboxes regardless of the showCheckboxes option
+    if (this.content && this.content.items.length > 0) {
+      this.uiManager.displayCheckboxes(this.content.items);
     }
   }
 
