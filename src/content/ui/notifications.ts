@@ -1,4 +1,4 @@
-import { colors, generateInlineStyles, zIndex, ui } from '../../shared/design-system';
+import { colors, generateInlineStyles, zIndex, ui, components } from '../../shared/design-system';
 
 export class NotificationManager {
   private currentBanner: HTMLElement | null = null;
@@ -32,15 +32,17 @@ export class NotificationManager {
     }, ui.notificationTimeout);
   }
 
-  showInfo(message: string): void {
+  showInfo(message: string, options?: { showButton?: boolean; buttonText?: string; onButtonClick?: () => void }): void {
     this.hideBanner();
-    this.currentBanner = this.createBanner(message, 'info');
+    this.currentBanner = this.createBanner(message, 'info', options);
     document.body.appendChild(this.currentBanner);
     
-    // Auto-hide info after timeout
-    this.autoHideTimeout = setTimeout(() => {
-      this.hideBanner();
-    }, ui.notificationTimeout);
+    // Don't auto-hide if there's a button (user needs to take action)
+    if (!options?.showButton) {
+      this.autoHideTimeout = setTimeout(() => {
+        this.hideBanner();
+      }, ui.notificationTimeout);
+    }
   }
 
   hideProgress(): void {
@@ -53,7 +55,7 @@ export class NotificationManager {
     this.hideBanner();
   }
 
-  private createBanner(message: string, type: 'progress' | 'error' | 'info'): HTMLElement {
+  private createBanner(message: string, type: 'progress' | 'error' | 'info', options?: { showButton?: boolean; buttonText?: string; onButtonClick?: () => void }): HTMLElement {
     const banner = document.createElement('div');
     banner.className = `nugget-notification-banner nugget-banner-${type}`;
     
@@ -104,6 +106,8 @@ export class NotificationManager {
     // Add dynamic content based on type
     if (type === 'progress') {
       this.addProgressAnimation(banner, message);
+    } else if (options?.showButton) {
+      this.addTextWithButton(banner, message, options);
     } else {
       banner.textContent = message;
     }
@@ -151,6 +155,44 @@ export class NotificationManager {
         }
       `;
       document.head.appendChild(style);
+    }
+  }
+
+  private addTextWithButton(banner: HTMLElement, message: string, options: { buttonText?: string; onButtonClick?: () => void }): void {
+    // Add text element
+    const textElement = document.createElement('span');
+    textElement.textContent = message;
+    banner.appendChild(textElement);
+    
+    // Add button if provided
+    if (options.buttonText && options.onButtonClick) {
+      const button = document.createElement('button');
+      button.textContent = options.buttonText;
+      
+      // Apply design system button styles
+      const buttonStyles = Object.entries(components.button.primary)
+        .map(([key, value]) => `${key.replace(/([A-Z])/g, '-$1').toLowerCase()}: ${value}`)
+        .join('; ');
+      
+      button.style.cssText = `
+        ${buttonStyles};
+        margin-left: 12px;
+        white-space: nowrap;
+      `;
+      
+      // Add hover effects
+      button.addEventListener('mouseenter', () => {
+        button.style.transform = 'translateY(-1px)';
+        button.style.boxShadow = generateInlineStyles.cardShadowHover();
+      });
+      
+      button.addEventListener('mouseleave', () => {
+        button.style.transform = 'translateY(0)';
+        button.style.boxShadow = components.button.primary.boxShadow;
+      });
+      
+      button.addEventListener('click', options.onButtonClick);
+      banner.appendChild(button);
     }
   }
 

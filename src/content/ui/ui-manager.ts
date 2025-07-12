@@ -1,4 +1,4 @@
-import { GoldenNugget, SidebarNuggetItem } from '../../shared/types';
+import { GoldenNugget, SidebarNuggetItem, MESSAGE_TYPES } from '../../shared/types';
 import { Highlighter } from './highlighter';
 import { Sidebar } from './sidebar';
 import { NotificationManager } from './notifications';
@@ -11,6 +11,7 @@ export class UIManager {
   private notifications: NotificationManager;
   private selectionScraper?: ContentScraper;
   private selectionModeActive = false;
+  private currentPromptId?: string;
 
   constructor() {
     this.highlighter = new Highlighter();
@@ -80,13 +81,20 @@ export class UIManager {
     // Clear any existing results first
     this.clearResults();
     
+    // Store the prompt ID for use when analyzing
+    this.currentPromptId = promptId;
+    
     if (contentScraper) {
       this.selectionScraper = contentScraper;
       this.selectionModeActive = true;
     }
     
-    // Show info banner
-    this.notifications.showInfo('Select content to analyze using the checkboxes, then click "Analyze Selected Content"');
+    // Show info banner with action button
+    this.notifications.showInfo('Select content to analyze using the checkboxes', {
+      showButton: true,
+      buttonText: 'Analyze Selected Content',
+      onButtonClick: () => this.analyzeSelectedContent()
+    });
   }
 
   exitSelectionMode(): void {
@@ -95,7 +103,21 @@ export class UIManager {
       this.selectionScraper = undefined;
     }
     this.selectionModeActive = false;
+    this.currentPromptId = undefined;
     this.notifications.hide();
+  }
+
+  private analyzeSelectedContent(): void {
+    if (!this.currentPromptId) {
+      this.notifications.showError('No prompt selected for analysis.');
+      return;
+    }
+
+    // Send message to trigger analysis
+    chrome.runtime.sendMessage({
+      type: MESSAGE_TYPES.ANALYZE_SELECTED_CONTENT,
+      promptId: this.currentPromptId
+    });
   }
 
   isSelectionModeActive(): boolean {
