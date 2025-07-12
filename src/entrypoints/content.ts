@@ -207,12 +207,20 @@ export default defineContentScript({
             if (request.data) {
               await measureDOMOperation('display_results', () => handleAnalysisResults(request.data));
             }
+            // Exit selection mode if it was active (for selected content analysis)
+            if (uiManager.isSelectionModeActive()) {
+              uiManager.exitSelectionMode();
+            }
             sendResponse({ success: true });
             break;
 
           case MESSAGE_TYPES.ANALYSIS_ERROR:
             initialize(); // Initialize when needed
             uiManager.showErrorBanner(request.error || 'Analysis failed. Please try again.');
+            // Exit selection mode if it was active (for selected content analysis)
+            if (uiManager.isSelectionModeActive()) {
+              uiManager.exitSelectionMode();
+            }
             sendResponse({ success: true });
             break;
 
