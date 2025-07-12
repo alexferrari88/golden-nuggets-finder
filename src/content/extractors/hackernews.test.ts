@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { HackerNewsExtractor } from './hackernews';
+import { SITE_SELECTORS } from '../../shared/constants';
 
 describe('HackerNewsExtractor', () => {
   let extractor: HackerNewsExtractor;
@@ -20,7 +21,7 @@ describe('HackerNewsExtractor', () => {
   describe('extractContent', () => {
     it('should extract post content', async () => {
       document.body.innerHTML = `
-        <div class="toptext" style="width: 100px; height: 100px;">
+        <div class="${SITE_SELECTORS.HACKER_NEWS.POST.substring(1)}" style="width: 100px; height: 100px;">
           This is a Hacker News post content
         </div>
       `;
@@ -31,10 +32,10 @@ describe('HackerNewsExtractor', () => {
 
     it('should extract multiple posts', async () => {
       document.body.innerHTML = `
-        <div class="toptext" style="width: 100px; height: 100px;">
+        <div class="${SITE_SELECTORS.HACKER_NEWS.POST.substring(1)}" style="width: 100px; height: 100px;">
           First post content
         </div>
-        <div class="toptext" style="width: 100px; height: 100px;">
+        <div class="${SITE_SELECTORS.HACKER_NEWS.POST.substring(1)}" style="width: 100px; height: 100px;">
           Second post content
         </div>
       `;
@@ -46,7 +47,7 @@ describe('HackerNewsExtractor', () => {
 
     it('should extract comments', async () => {
       document.body.innerHTML = `
-        <div class="comment" style="width: 100px; height: 100px;">
+        <div class="${SITE_SELECTORS.HACKER_NEWS.COMMENTS.substring(1)}" style="width: 100px; height: 100px;">
           This is a comment with sufficient length to pass the filter test
         </div>
       `;
@@ -57,10 +58,10 @@ describe('HackerNewsExtractor', () => {
 
     it('should filter out short comments', async () => {
       document.body.innerHTML = `
-        <div class="comment" style="width: 100px; height: 100px;">
+        <div class="${SITE_SELECTORS.HACKER_NEWS.COMMENTS.substring(1)}" style="width: 100px; height: 100px;">
           Short
         </div>
-        <div class="comment" style="width: 100px; height: 100px;">
+        <div class="${SITE_SELECTORS.HACKER_NEWS.COMMENTS.substring(1)}" style="width: 100px; height: 100px;">
           This is a longer comment that should be included in the results
         </div>
       `;
@@ -72,13 +73,13 @@ describe('HackerNewsExtractor', () => {
 
     it('should extract both posts and comments', async () => {
       document.body.innerHTML = `
-        <div class="toptext" style="width: 100px; height: 100px;">
+        <div class="${SITE_SELECTORS.HACKER_NEWS.POST.substring(1)}" style="width: 100px; height: 100px;">
           Hacker News post content
         </div>
-        <div class="comment" style="width: 100px; height: 100px;">
+        <div class="${SITE_SELECTORS.HACKER_NEWS.COMMENTS.substring(1)}" style="width: 100px; height: 100px;">
           This is a comment with sufficient length for extraction
         </div>
-        <div class="comment" style="width: 100px; height: 100px;">
+        <div class="${SITE_SELECTORS.HACKER_NEWS.COMMENTS.substring(1)}" style="width: 100px; height: 100px;">
           Another comment with enough text to be included
         </div>
       `;
@@ -94,13 +95,13 @@ describe('HackerNewsExtractor', () => {
         <div class="toptext" style="display: none;">
           Hidden post content
         </div>
-        <div class="toptext" style="width: 100px; height: 100px;">
+        <div class="${SITE_SELECTORS.HACKER_NEWS.POST.substring(1)}" style="width: 100px; height: 100px;">
           Visible post content
         </div>
         <div class="comment" style="visibility: hidden;">
           Hidden comment content that is long enough
         </div>
-        <div class="comment" style="width: 100px; height: 100px;">
+        <div class="${SITE_SELECTORS.HACKER_NEWS.COMMENTS.substring(1)}" style="width: 100px; height: 100px;">
           Visible comment with sufficient length for extraction
         </div>
       `;
@@ -117,7 +118,7 @@ describe('HackerNewsExtractor', () => {
         <div class="titleline">
           <a href="https://example.com">Example Article Title</a>
         </div>
-        <div class="comment" style="width: 100px; height: 100px;">
+        <div class="${SITE_SELECTORS.HACKER_NEWS.COMMENTS.substring(1)}" style="width: 100px; height: 100px;">
           This is a comment with sufficient length to be included
         </div>
       `;
@@ -129,13 +130,13 @@ describe('HackerNewsExtractor', () => {
 
     it('should not add title if post content already exists', async () => {
       document.body.innerHTML = `
-        <div class="toptext" style="width: 100px; height: 100px;">
+        <div class="${SITE_SELECTORS.HACKER_NEWS.POST.substring(1)}" style="width: 100px; height: 100px;">
           Existing post content
         </div>
         <div class="titleline">
           <a href="https://example.com">Example Article Title</a>
         </div>
-        <div class="comment" style="width: 100px; height: 100px;">
+        <div class="${SITE_SELECTORS.HACKER_NEWS.COMMENTS.substring(1)}" style="width: 100px; height: 100px;">
           This is a comment with sufficient length to be included
         </div>
       `;
@@ -150,7 +151,7 @@ describe('HackerNewsExtractor', () => {
         <div class="titleline">
           <a>Example Article Title</a>
         </div>
-        <div class="comment" style="width: 100px; height: 100px;">
+        <div class="${SITE_SELECTORS.HACKER_NEWS.COMMENTS.substring(1)}" style="width: 100px; height: 100px;">
           This is a comment with sufficient length to be included
         </div>
       `;
@@ -161,8 +162,8 @@ describe('HackerNewsExtractor', () => {
 
     it('should handle elements with no text content', async () => {
       document.body.innerHTML = `
-        <div class="toptext" style="width: 100px; height: 100px;"></div>
-        <div class="comment" style="width: 100px; height: 100px;"></div>
+        <div class="${SITE_SELECTORS.HACKER_NEWS.POST.substring(1)}" style="width: 100px; height: 100px;"></div>
+        <div class="${SITE_SELECTORS.HACKER_NEWS.COMMENTS.substring(1)}" style="width: 100px; height: 100px;"></div>
       `;
 
       const result = await extractor.extractContent();
@@ -171,7 +172,7 @@ describe('HackerNewsExtractor', () => {
 
     it('should clean text content', async () => {
       document.body.innerHTML = `
-        <div class="toptext" style="width: 100px; height: 100px;">
+        <div class="${SITE_SELECTORS.HACKER_NEWS.POST.substring(1)}" style="width: 100px; height: 100px;">
           Post with    multiple   spaces
           and  line breaks
         </div>
@@ -183,7 +184,7 @@ describe('HackerNewsExtractor', () => {
 
     it('should handle mixed content with scripts and styles', async () => {
       document.body.innerHTML = `
-        <div class="toptext" style="width: 100px; height: 100px;">
+        <div class="${SITE_SELECTORS.HACKER_NEWS.POST.substring(1)}" style="width: 100px; height: 100px;">
           Post content
           <script>console.log("test");</script>
           <style>.test { color: red; }</style>
@@ -206,13 +207,13 @@ describe('HackerNewsExtractor', () => {
 
     it('should number comments correctly', async () => {
       document.body.innerHTML = `
-        <div class="comment" style="width: 100px; height: 100px;">
+        <div class="${SITE_SELECTORS.HACKER_NEWS.COMMENTS.substring(1)}" style="width: 100px; height: 100px;">
           First comment with enough text to be included
         </div>
-        <div class="comment" style="width: 100px; height: 100px;">
+        <div class="${SITE_SELECTORS.HACKER_NEWS.COMMENTS.substring(1)}" style="width: 100px; height: 100px;">
           Second comment with enough text to be included
         </div>
-        <div class="comment" style="width: 100px; height: 100px;">
+        <div class="${SITE_SELECTORS.HACKER_NEWS.COMMENTS.substring(1)}" style="width: 100px; height: 100px;">
           Third comment with enough text to be included
         </div>
       `;
