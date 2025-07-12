@@ -1,5 +1,5 @@
 import { MESSAGE_TYPES, AnalysisRequest, AnalysisResponse, DebugLogMessage } from '../shared/types';
-import { ContentScraper, Content, CheckboxStyling } from '../../packages/web-scraper-js/dist/index';
+import { ContentScraper, Content, CheckboxStyling } from 'web-scraper-js';
 import { UIManager } from '../content/ui/ui-manager';
 import { performanceMonitor, measureContentExtraction, measureDOMOperation } from '../shared/performance';
 import { isDevMode } from '../shared/debug';
