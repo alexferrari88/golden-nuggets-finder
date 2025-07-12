@@ -187,10 +187,14 @@ export default defineContentScript({
       try {
         performanceMonitor.startTimer('total_analysis');
         
+        // Show progress banner
+        uiManager.showProgressBanner();
+        
         // Extract content from the page
         const content = await measureContentExtraction('page_content', () => extractor.extractContent());
         
         if (!content || content.trim().length === 0) {
+          uiManager.hideProgressBanner();
           uiManager.showErrorBanner('No content found on this page.');
           return;
         }
@@ -211,12 +215,14 @@ export default defineContentScript({
           // Notify popup of successful completion
           chrome.runtime.sendMessage({ type: MESSAGE_TYPES.ANALYSIS_COMPLETE });
         } else {
+          uiManager.hideProgressBanner();
           uiManager.showErrorBanner(response.error || 'Analysis failed. Please try again.');
           // Notify popup of error
           chrome.runtime.sendMessage({ type: MESSAGE_TYPES.ANALYSIS_ERROR });
         }
       } catch (error) {
         console.error('Analysis failed:', error);
+        uiManager.hideProgressBanner();
         uiManager.showErrorBanner('Analysis failed. Please try again.');
         // Notify popup of error
         chrome.runtime.sendMessage({ type: MESSAGE_TYPES.ANALYSIS_ERROR });
@@ -289,6 +295,9 @@ export default defineContentScript({
 
     async function handleAnalysisResults(results: any): Promise<void> {
       const nuggets = results.golden_nuggets || [];
+      
+      // Hide the progress banner now that we have results
+      uiManager.hideProgressBanner();
       
       if (nuggets.length === 0) {
         uiManager.showNoResultsBanner();

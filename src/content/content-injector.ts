@@ -147,12 +147,14 @@ export class ContentInjector {
         // Notify popup of successful completion
         chrome.runtime.sendMessage({ type: MESSAGE_TYPES.ANALYSIS_COMPLETE });
       } else {
+        this.uiManager.hideProgressBanner();
         this.uiManager.showErrorBanner(response.error || 'Analysis failed. Please try again.');
         // Notify popup of error
         chrome.runtime.sendMessage({ type: MESSAGE_TYPES.ANALYSIS_ERROR });
       }
     } catch (error) {
       console.error('Analysis failed:', error);
+      this.uiManager.hideProgressBanner();
       this.uiManager.showErrorBanner('Analysis failed. Please try again.');
       // Notify popup of error
       chrome.runtime.sendMessage({ type: MESSAGE_TYPES.ANALYSIS_ERROR });
@@ -244,6 +246,9 @@ export class ContentInjector {
 
   private async handleAnalysisResults(results: any): Promise<void> {
     const nuggets = results.golden_nuggets || [];
+    
+    // Hide the progress banner now that we have results
+    this.uiManager.hideProgressBanner();
     
     if (nuggets.length === 0) {
       this.uiManager.showNoResultsBanner();
