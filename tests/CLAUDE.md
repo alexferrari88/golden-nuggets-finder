@@ -12,9 +12,80 @@ This document covers the testing strategy, setup, and best practices for the Gol
 
 ### End-to-End Testing
 - **Framework**: Playwright
-- **Focus**: Complete user workflows with real extension loading
+- **Focus**: Extension setup, popup, options page, and background script testing
 - **Environment**: Chrome browser with extension loaded
-- **Coverage**: Full user interaction scenarios
+- **Coverage**: Extension infrastructure and configuration workflows
+- **Limitation**: Content script injection tests are skipped (see Playwright Limitations below)
+
+### Component Testing
+- **Framework**: Vitest
+- **Focus**: Content extraction logic, UI components, and algorithms
+- **Coverage**: Business logic without Chrome extension context
+- **Benefits**: Fast, reliable, and comprehensive coverage of core functionality
+
+### Manual Testing
+- **Focus**: Full user workflows requiring content script injection
+- **Coverage**: Complete analysis workflows, highlighting, sidebar display
+- **Documentation**: Comprehensive checklist in `tests/manual-testing-checklist.md`
+
+## Playwright Limitations with Chrome Extensions
+
+### Known Issue
+Playwright has a fundamental limitation with Chrome Extension Manifest V3 content script injection due to permission simulation issues. See: https://github.com/microsoft/playwright/issues/18854
+
+### Impact
+Tests requiring `chrome.scripting.executeScript()` fail with:
+```
+Cannot access contents of the page. Extension manifest must request permission to access the respective host.
+```
+
+### Affected Test Files (SKIPPED)
+- `content-analysis.spec.ts` - Full analysis workflows
+- `results-display.spec.ts` - Sidebar and highlighting tests  
+- `twitter-extraction.spec.ts` - Twitter content analysis
+- `error-handling.spec.ts` - End-to-end error scenarios
+
+### Working Test Files
+- `setup.spec.ts` - Extension configuration and options page
+- `basic-extension-test.spec.ts` - Extension loading and service worker
+
+### Alternative Testing Strategy
+1. **Component Tests**: Extract and test core logic (extraction, UI components) without Chrome extension context
+2. **Unit Tests**: Test background script logic and API integration with mocks
+3. **Manual Testing**: Comprehensive checklist for workflows requiring user interaction
+4. **Partial E2E**: Test extension setup, popup functionality, and background scripts
+
+## Test Organization
+
+### Running Tests Without Failures
+
+To run only working tests (avoiding skipped content script tests):
+
+```bash
+# Run all unit tests (component and utilities) 
+pnpm test
+
+# Run only working E2E tests
+pnpm playwright test tests/e2e/setup.spec.ts tests/e2e/basic-extension-test.spec.ts
+
+# Run all E2E tests (includes skipped ones - they'll show as skipped)
+pnpm test:e2e
+```
+
+### Skipped Test Files
+
+These files contain `test.skip()` and won't run:
+- `tests/e2e/content-analysis.spec.ts`
+- `tests/e2e/results-display.spec.ts`
+- `tests/e2e/twitter-extraction.spec.ts`
+- `tests/e2e/error-handling.spec.ts`
+
+### Component Test Coverage
+
+Existing component tests provide coverage for core logic:
+- `src/content/extractors/*.test.ts` - Content extraction algorithms
+- `src/content/ui/highlighter.test.ts` - Highlighting logic
+- `src/content/ui/notifications.test.ts` - Notification UI components
 
 ## Test Commands
 

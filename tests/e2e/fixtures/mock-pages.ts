@@ -2,7 +2,7 @@ import { Page } from '@playwright/test';
 import { MOCK_REDDIT_THREAD, MOCK_HACKERNEWS_THREAD, MOCK_BLOG_POST, MOCK_TWITTER_THREAD } from './test-data';
 
 export async function createMockRedditPage(page: Page) {
-  await page.route('**/reddit.com/**', async (route) => {
+  await page.route('https://www.reddit.com/**', async (route) => {
     const html = `
       <!DOCTYPE html>
       <html>
@@ -35,7 +35,7 @@ export async function createMockRedditPage(page: Page) {
 }
 
 export async function createMockHackerNewsPage(page: Page) {
-  await page.route('**/news.ycombinator.com/**', async (route) => {
+  await page.route('https://news.ycombinator.com/**', async (route) => {
     const html = `
       <!DOCTYPE html>
       <html>
@@ -74,7 +74,7 @@ export async function createMockHackerNewsPage(page: Page) {
 }
 
 export async function createMockBlogPage(page: Page) {
-  await page.route('**/example.com/**', async (route) => {
+  await page.route('https://example.com/**', async (route) => {
     const html = `
       <!DOCTYPE html>
       <html>
@@ -96,7 +96,7 @@ export async function createMockBlogPage(page: Page) {
 }
 
 export async function createMockTwitterPage(page: Page) {
-  await page.route('**/twitter.com/**', async (route) => {
+  await page.route('https://twitter.com/**', async (route) => {
     const html = `
       <!DOCTYPE html>
       <html>
@@ -164,7 +164,7 @@ export async function createMockTwitterPage(page: Page) {
   });
   
   // Also handle x.com URLs
-  await page.route('**/x.com/**', async (route) => {
+  await page.route('https://x.com/**', async (route) => {
     // Redirect x.com to twitter.com for consistency
     await route.fulfill({ 
       status: 302, 
