@@ -611,19 +611,30 @@ export class Sidebar {
       }
     });
     
-    // Main container with checkbox and content
-    const mainContainer = document.createElement('div');
-    mainContainer.style.cssText = `
+    // Content structure
+    const contentContainer = document.createElement('div');
+    contentContainer.style.cssText = `
       display: flex;
-      gap: ${spacing.md};
-      align-items: flex-start;
+      flex-direction: column;
+      gap: ${spacing.sm};
+      flex: 1;
+      min-width: 0;
     `;
     
-    // Checkbox container
-    const checkboxContainer = document.createElement('div');
-    checkboxContainer.style.cssText = `
-      padding-top: 2px;
-      flex-shrink: 0;
+    // Header with checkbox, type badge and selection indicator
+    const headerDiv = document.createElement('div');
+    headerDiv.style.cssText = `
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    `;
+    
+    // Left side container for checkbox and type badge
+    const leftContainer = document.createElement('div');
+    leftContainer.style.cssText = `
+      display: flex;
+      align-items: center;
+      gap: ${spacing.sm};
     `;
     
     // Checkbox for multi-selection
@@ -637,6 +648,7 @@ export class Sidebar {
       accent-color: ${colors.text.accent};
       cursor: pointer;
       border-radius: ${borderRadius.sm};
+      flex-shrink: 0;
     `;
     
     // Checkbox click handler
@@ -644,26 +656,6 @@ export class Sidebar {
       e.stopPropagation();
       this.toggleItemSelection(globalIndex);
     });
-    
-    checkboxContainer.appendChild(checkbox);
-    
-    // Content structure
-    const contentContainer = document.createElement('div');
-    contentContainer.style.cssText = `
-      display: flex;
-      flex-direction: column;
-      gap: ${spacing.sm};
-      flex: 1;
-      min-width: 0;
-    `;
-    
-    // Header with type badge and selection indicator
-    const headerDiv = document.createElement('div');
-    headerDiv.style.cssText = `
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    `;
     
     // Type badge - more subtle
     const typeBadge = document.createElement('span');
@@ -678,6 +670,9 @@ export class Sidebar {
       text-transform: uppercase;
       letter-spacing: 0.5px;
     `;
+    
+    leftContainer.appendChild(checkbox);
+    leftContainer.appendChild(typeBadge);
     
     // Selection indicator and status
     const statusContainer = document.createElement('div');
@@ -701,19 +696,8 @@ export class Sidebar {
       statusContainer.appendChild(highlightIndicator);
     }
     
-    // Selection checkmark
-    if (isSelected) {
-      const checkmark = document.createElement('div');
-      checkmark.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>';
-      checkmark.style.cssText = `
-        color: ${colors.text.accent};
-        display: flex;
-        align-items: center;
-      `;
-      statusContainer.appendChild(checkmark);
-    }
     
-    headerDiv.appendChild(typeBadge);
+    headerDiv.appendChild(leftContainer);
     headerDiv.appendChild(statusContainer);
     
     // Content preview - cleaner presentation
@@ -786,11 +770,7 @@ export class Sidebar {
     contentContainer.appendChild(contentPreview);
     contentContainer.appendChild(synthesis);
     
-    // Assemble main container
-    mainContainer.appendChild(checkboxContainer);
-    mainContainer.appendChild(contentContainer);
-    
-    nuggetDiv.appendChild(mainContainer);
+    nuggetDiv.appendChild(contentContainer);
     
     return nuggetDiv;
   }
