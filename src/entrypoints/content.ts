@@ -191,7 +191,7 @@ export default defineContentScript({
         switch (request.type) {
           case MESSAGE_TYPES.ANALYZE_CONTENT:
             initialize(); // Initialize when needed
-            await analyzeContent(request.promptId);
+            await analyzeContent(request.promptId, request.source);
             sendResponse({ success: true });
             break;
 
@@ -262,12 +262,14 @@ export default defineContentScript({
       }
     }
 
-    async function analyzeContent(promptId: string): Promise<void> {
+    async function analyzeContent(promptId: string, source?: string): Promise<void> {
       try {
         performanceMonitor.startTimer('total_analysis');
         
-        // Show progress banner
-        uiManager.showProgressBanner();
+        // Only show progress banner if not triggered from popup (popup shows its own loading modal)
+        if (source !== 'popup') {
+          uiManager.showProgressBanner();
+        }
         
         // Extract content from the page using the new library
         const structuredContent = await measureContentExtraction('page_content', async () => {
@@ -279,7 +281,9 @@ export default defineContentScript({
         const content = convertContentToText(structuredContent);
         
         if (!content || content.trim().length === 0) {
-          uiManager.hideProgressBanner();
+          if (source !== 'popup') {
+            uiManager.hideProgressBanner();
+          }
           uiManager.showErrorBanner('No content found on this page.');
           return;
         }
@@ -296,18 +300,22 @@ export default defineContentScript({
         performanceMonitor.logTimer('api_request', 'Background API call');
         
         if (response.success && response.data) {
-          await measureDOMOperation('display_results', () => handleAnalysisResults(response.data));
+          await measureDOMOperation('display_results', () => handleAnalysisResults(response.data, source));
           // Notify popup of successful completion
           chrome.runtime.sendMessage({ type: MESSAGE_TYPES.ANALYSIS_COMPLETE });
         } else {
-          uiManager.hideProgressBanner();
+          if (source !== 'popup') {
+            uiManager.hideProgressBanner();
+          }
           uiManager.showErrorBanner(response.error || 'Analysis failed. Please try again.');
           // Notify popup of error
           chrome.runtime.sendMessage({ type: MESSAGE_TYPES.ANALYSIS_ERROR });
         }
       } catch (error) {
         console.error('Analysis failed:', error);
-        uiManager.hideProgressBanner();
+        if (source !== 'popup') {
+          uiManager.hideProgressBanner();
+        }
         uiManager.showErrorBanner('Analysis failed. Please try again.');
         // Notify popup of error
         chrome.runtime.sendMessage({ type: MESSAGE_TYPES.ANALYSIS_ERROR });
@@ -337,11 +345,13 @@ export default defineContentScript({
     }
 
 
-    async function handleAnalysisResults(results: any): Promise<void> {
+    async function handleAnalysisResults(results: any, source?: string): Promise<void> {
       const nuggets = results.golden_nuggets || [];
       
-      // Hide the progress banner now that we have results
-      uiManager.hideProgressBanner();
+      // Hide the progress banner now that we have results (only if not triggered from popup)
+      if (source !== 'popup') {
+        uiManager.hideProgressBanner();
+      }
       
       if (nuggets.length === 0) {
         uiManager.showNoResultsBanner();

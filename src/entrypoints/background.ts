@@ -118,7 +118,8 @@ export default defineBackground(() => {
       // Send message to content script to start analysis
       await chrome.tabs.sendMessage(tab.id, {
         type: MESSAGE_TYPES.ANALYZE_CONTENT,
-        promptId: promptId
+        promptId: promptId,
+        source: 'context_menu'
       });
     } catch (error) {
       console.error('[Background] Failed to handle context menu click:', error);

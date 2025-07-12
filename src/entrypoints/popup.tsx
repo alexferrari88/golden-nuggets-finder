@@ -216,7 +216,8 @@ function IndexPopup() {
       // Send message to content script
       await chrome.tabs.sendMessage(tab.id, {
         type: MESSAGE_TYPES.ANALYZE_CONTENT,
-        promptId: promptId
+        promptId: promptId,
+        source: 'popup'
       });
       
       // Listen for analysis completion
