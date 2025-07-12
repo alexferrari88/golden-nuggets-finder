@@ -104,15 +104,18 @@ export class UIManager {
     // Save positioning properties before applying new styles
     const savedTop = checkbox.style.top;
     const savedLeft = checkbox.style.left;
+    const savedPosition = checkbox.style.position;
     
     // Apply the CSS styles from styling function
     checkbox.style.cssText = cssText;
     
-    // Restore positioning properties
+    // Restore critical positioning properties
     if (savedTop) checkbox.style.top = savedTop;
     if (savedLeft) checkbox.style.left = savedLeft;
+    if (savedPosition) checkbox.style.position = savedPosition;
     
     // Force essential layout properties with !important (can't be done via style.property)
+    checkbox.style.setProperty('position', 'absolute', 'important');
     checkbox.style.setProperty('display', 'flex', 'important');
     checkbox.style.setProperty('align-items', 'center', 'important');
     checkbox.style.setProperty('justify-content', 'center', 'important');

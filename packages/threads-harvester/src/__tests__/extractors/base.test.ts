@@ -38,16 +38,33 @@ describe('BaseExtractor', () => {
     // Reset DOM
     document.body.innerHTML = '';
     
-    // Mock DOM APIs for visibility checking
-    Element.prototype.getBoundingClientRect = vi.fn(() => ({
-      width: 100, height: 50, top: 0, left: 0, right: 100, bottom: 50, x: 0, y: 0, toJSON: () => {}
-    }));
-    Object.defineProperty(HTMLElement.prototype, 'offsetParent', {
-      get() { return document.body; }, configurable: true
+    // Mock DOM APIs for visibility checking - more dynamic approach
+    Element.prototype.getBoundingClientRect = vi.fn(function(this: HTMLElement) {
+      // Return zero dimensions if element has display:none or visibility:hidden
+      if (this.style.display === 'none' || this.style.visibility === 'hidden' || 
+          this.style.width === '0px' || this.style.height === '0px') {
+        return { width: 0, height: 0, top: 0, left: 0, right: 0, bottom: 0, x: 0, y: 0, toJSON: () => {} };
+      }
+      return { width: 100, height: 50, top: 0, left: 0, right: 100, bottom: 50, x: 0, y: 0, toJSON: () => {} };
     });
-    window.getComputedStyle = vi.fn(() => ({
-      display: 'block', visibility: 'visible'
-    } as CSSStyleDeclaration));
+    
+    Object.defineProperty(HTMLElement.prototype, 'offsetParent', {
+      get() { 
+        // Return null if element has display:none
+        if (this.style.display === 'none') return null;
+        return document.body; 
+      }, 
+      configurable: true
+    });
+    
+    window.getComputedStyle = vi.fn((element: Element) => {
+      const htmlElement = element as HTMLElement;
+      // Return actual style values based on inline styles when possible
+      return {
+        display: htmlElement.style.display || 'block',
+        visibility: htmlElement.style.visibility || 'visible'
+      } as CSSStyleDeclaration;
+    });
   });
 
   describe('constructor', () => {

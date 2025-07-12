@@ -40,8 +40,8 @@ describe('UIManager', () => {
       }
     ];
 
-    // Mock getBoundingClientRect for elements
-    Element.prototype.getBoundingClientRect = vi.fn(() => ({
+    // Mock getBoundingClientRect for elements - use function that returns proper values
+    const mockGetBoundingClientRect = vi.fn(() => ({
       width: 100,
       height: 50,
       top: 10,
@@ -52,6 +52,9 @@ describe('UIManager', () => {
       y: 10,
       toJSON: () => {}
     }));
+    
+    // Apply the mock to all elements
+    Element.prototype.getBoundingClientRect = mockGetBoundingClientRect;
 
     // Mock scroll offsets
     Object.defineProperty(window, 'pageYOffset', { value: 0, writable: true });
