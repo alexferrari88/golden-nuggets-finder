@@ -29,6 +29,7 @@ export class Sidebar {
       synthesis: true
     }
   };
+  private keyboardHandler: ((e: KeyboardEvent) => void) | null = null;
 
   show(nuggetItems: SidebarNuggetItem[], highlighter?: Highlighter): void {
     this.hide(); // Remove existing sidebar if any
@@ -51,6 +52,15 @@ export class Sidebar {
     this.collapsedTab = this.createCollapsedTab();
     document.body.appendChild(this.collapsedTab);
     
+    // Add keyboard event listener for Esc key
+    this.keyboardHandler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !this.isCollapsed) {
+        e.preventDefault();
+        this.collapse();
+      }
+    };
+    document.addEventListener('keydown', this.keyboardHandler);
+    
     // Adjust page margin to account for sidebar
     this.adjustPageLayout(true);
   }
@@ -64,6 +74,11 @@ export class Sidebar {
     if (this.collapsedTab) {
       this.collapsedTab.remove();
       this.collapsedTab = null;
+    }
+    // Remove keyboard event listener
+    if (this.keyboardHandler) {
+      document.removeEventListener('keydown', this.keyboardHandler);
+      this.keyboardHandler = null;
     }
   }
 
