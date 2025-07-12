@@ -227,7 +227,8 @@ export class UIManager {
     }
 
     const selectedContent = this.getSelectedContent();
-    const totalItems = selectedContent?.items?.length || 0;
+    const allContent = this.selectionScraper?.getContent();
+    const totalItems = allContent?.items?.length || 0;
 
     this.controlPanel = document.createElement('div');
     this.controlPanel.className = 'nugget-control-panel';
