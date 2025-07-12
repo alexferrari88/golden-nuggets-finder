@@ -201,11 +201,6 @@ export default defineContentScript({
             sendResponse({ success: true });
             break;
 
-          case MESSAGE_TYPES.ANALYZE_SELECTED_CONTENT:
-            initialize(); // Initialize when needed
-            await analyzeSelectedContent(request);
-            sendResponse({ success: true });
-            break;
 
           case MESSAGE_TYPES.ANALYSIS_COMPLETE:
             initialize(); // Initialize when needed
@@ -312,110 +307,23 @@ export default defineContentScript({
 
     async function enterSelectionMode(promptId?: string): Promise<void> {
       try {
-        console.log('[Selection Debug] Entering selection mode...');
-        
         // Create a separate ContentScraper instance for selection mode
         const selectionScraper = createContentScraper();
         
         // Extract content first
-        console.log('[Selection Debug] Running content extraction...');
         await selectionScraper.run();
         
-        // Check if content was extracted
-        const extractedContent = selectionScraper.getContent();
-        console.log(`[Selection Debug] Extracted ${extractedContent?.items?.length || 0} items`);
-        
         // Then explicitly display checkboxes for selection
-        console.log('[Selection Debug] Displaying checkboxes...');
         selectionScraper.displayCheckboxes();
         
         // Enter selection mode through UI manager with the scraper
-        console.log('[Selection Debug] Setting up UI manager...');
         await uiManager.enterSelectionMode(promptId, selectionScraper);
-        
-        console.log('[Selection Debug] Selection mode setup complete');
       } catch (error) {
         console.error('Failed to enter selection mode:', error);
         uiManager.showErrorBanner('Failed to enter selection mode. Please try again.');
       }
     }
 
-    async function analyzeSelectedContent(request: any): Promise<void> {
-      try {
-        performanceMonitor.startTimer('total_analysis');
-        
-        // Get selected content from UI manager
-        const selectedContent = uiManager.getSelectedContent();
-        const promptId = request.promptId;
-        
-        if (!selectedContent || !selectedContent.items || selectedContent.items.length === 0) {
-          uiManager.showErrorBanner('No content selected for analysis.');
-          // Exit selection mode on error
-          uiManager.exitSelectionMode();
-          return;
-        }
-        
-        // selectedContent.items already contains only selected items from getSelectedContent()
-        
-        // Convert selected items to text
-        const contentParts = [selectedContent.title];
-        selectedContent.items.forEach(item => {
-          if (item.textContent) {
-            contentParts.push(item.textContent);
-          } else if (item.htmlContent) {
-            // Strip HTML tags for text-only analysis
-            const textContent = item.htmlContent.replace(/<[^>]*>/g, '').trim();
-            if (textContent) {
-              contentParts.push(textContent);
-            }
-          }
-        });
-        
-        const content = contentParts.filter(part => part && part.trim()).join('\n\n');
-        
-        if (!content || content.trim().length === 0) {
-          uiManager.showErrorBanner('Selected content is empty.');
-          // Exit selection mode on error
-          uiManager.exitSelectionMode();
-          return;
-        }
-
-        // Send analysis request to background script
-        const analysisRequest: AnalysisRequest = {
-          content: content,
-          promptId: promptId,
-          url: window.location.href
-        };
-
-        performanceMonitor.startTimer('api_request');
-        const response = await sendMessageToBackground(MESSAGE_TYPES.ANALYZE_CONTENT, analysisRequest);
-        performanceMonitor.logTimer('api_request', 'Background API call');
-        
-        if (response.success && response.data) {
-          await measureDOMOperation('display_results', () => handleAnalysisResults(response.data));
-          // Exit selection mode after results are displayed
-          uiManager.exitSelectionMode();
-          // Notify popup of successful completion
-          chrome.runtime.sendMessage({ type: MESSAGE_TYPES.ANALYSIS_COMPLETE });
-        } else {
-          uiManager.showErrorBanner(response.error || 'Analysis failed. Please try again.');
-          // Exit selection mode after error is shown
-          uiManager.exitSelectionMode();
-          // Notify popup of error
-          chrome.runtime.sendMessage({ type: MESSAGE_TYPES.ANALYSIS_ERROR });
-        }
-      } catch (error) {
-        console.error('Analysis failed:', error);
-        uiManager.showErrorBanner('Analysis failed. Please try again.');
-        // Exit selection mode after error is shown
-        uiManager.exitSelectionMode();
-        // Notify popup of error
-        chrome.runtime.sendMessage({ type: MESSAGE_TYPES.ANALYSIS_ERROR });
-      } finally {
-        performanceMonitor.logTimer('total_analysis', 'Complete analysis workflow');
-        performanceMonitor.measureMemory();
-      }
-    }
 
     async function handleAnalysisResults(results: any): Promise<void> {
       const nuggets = results.golden_nuggets || [];

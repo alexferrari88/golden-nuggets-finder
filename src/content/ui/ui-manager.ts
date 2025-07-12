@@ -108,21 +108,49 @@ export class UIManager {
   }
 
   private analyzeSelectedContent(): void {
-    console.log('[Selection Debug] Analyze button clicked');
-    
     if (!this.currentPromptId) {
-      console.log('[Selection Debug] No prompt ID available');
       this.notifications.showError('No prompt selected for analysis.');
       return;
     }
 
-    console.log(`[Selection Debug] Sending analysis message with promptId: ${this.currentPromptId}`);
+    // Get selected content
+    const selectedContent = this.getSelectedContent();
+    if (!selectedContent || !selectedContent.items || selectedContent.items.length === 0) {
+      this.notifications.showError('No content selected for analysis.');
+      return;
+    }
+
+    // Convert selected content to text (same logic as in original CommentSelector)
+    const contentParts = [selectedContent.title];
+    selectedContent.items.forEach(item => {
+      if (item.textContent) {
+        contentParts.push(item.textContent);
+      } else if (item.htmlContent) {
+        // Strip HTML tags for text-only analysis
+        const textContent = item.htmlContent.replace(/<[^>]*>/g, '').trim();
+        if (textContent) {
+          contentParts.push(textContent);
+        }
+      }
+    });
     
-    // Send message to trigger analysis
+    const content = contentParts.filter(part => part && part.trim()).join('\n\n');
+    
+    if (!content || content.trim().length === 0) {
+      this.notifications.showError('Selected content is empty.');
+      return;
+    }
+
+    // Send message directly to background script (like original implementation)
     chrome.runtime.sendMessage({
       type: MESSAGE_TYPES.ANALYZE_SELECTED_CONTENT,
-      promptId: this.currentPromptId
+      content: content,
+      promptId: this.currentPromptId,
+      url: window.location.href
     });
+    
+    // Exit selection mode immediately (analysis will complete asynchronously)
+    this.exitSelectionMode();
   }
 
   isSelectionModeActive(): boolean {
@@ -132,19 +160,10 @@ export class UIManager {
   getSelectedContent(): Content | null {
     if (this.selectionScraper) {
       const allContent = this.selectionScraper.getContent();
-      if (!allContent) {
-        console.log('[Selection Debug] No content available from scraper');
-        return null;
-      }
+      if (!allContent) return null;
       
       // Filter to only selected items
       const selectedItems = allContent.items.filter(item => item.selected);
-      console.log(`[Selection Debug] Total items: ${allContent.items.length}, Selected items: ${selectedItems.length}`);
-      
-      // Log selection state for debugging
-      allContent.items.forEach((item, index) => {
-        console.log(`[Selection Debug] Item ${index}: selected=${item.selected}, text="${item.textContent?.substring(0, 50)}..."`);
-      });
       
       // Return content with only selected items
       return {
@@ -152,7 +171,6 @@ export class UIManager {
         items: selectedItems
       };
     }
-    console.log('[Selection Debug] No selection scraper available');
     return null;
   }
 
