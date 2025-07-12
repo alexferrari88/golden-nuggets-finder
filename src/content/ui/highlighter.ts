@@ -1,5 +1,6 @@
 import { GoldenNugget } from '../../shared/types';
 import { colors, generateInlineStyles, zIndex } from '../../shared/design-system';
+import { SITE_SELECTORS } from '../../shared/constants';
 
 export class Highlighter {
   private highlights: HTMLElement[] = [];
@@ -423,7 +424,7 @@ export class Highlighter {
     // Look for common comment container selectors
     const commentSelectors = [
       '.comment',     // HackerNews
-      '.commtext',    // HackerNews comment text
+      SITE_SELECTORS.HACKER_NEWS.COMMENTS,    // HackerNews comment text
       '.thing',       // Reddit
       '.Comment',     // Reddit modern
       '[class*="comment"]',  // Generic comment classes
@@ -473,7 +474,7 @@ export class Highlighter {
     
     // Look for specific comment containers that might have fragmented content
     const containers = document.querySelectorAll(
-      '.commtext, .comment, .usertext-body, .md, [class*="comment"], [class*="text"]'
+      `${SITE_SELECTORS.HACKER_NEWS.COMMENTS}, .comment, .usertext-body, .md, [class*="comment"], [class*="text"]`
     );
     
     for (const container of containers) {

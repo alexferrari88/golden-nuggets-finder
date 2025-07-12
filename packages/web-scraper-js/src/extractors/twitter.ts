@@ -1,5 +1,6 @@
 import { BaseExtractor } from './base';
 import { Content, ContentItem } from '../types';
+import { SITE_SELECTORS } from '../constants';
 
 export class TwitterExtractor extends BaseExtractor {
   public async extract(): Promise<Content> {
@@ -11,8 +12,8 @@ export class TwitterExtractor extends BaseExtractor {
 
     // Twitter/X uses dynamic selectors, try common patterns
     const tweetSelectors = [
-      '[data-testid="tweet"]',
-      '[data-testid="tweetText"]',
+      SITE_SELECTORS.TWITTER.TWEET_ARTICLE,
+      SITE_SELECTORS.TWITTER.TWEET,
       'article[role="article"]',
       '.tweet-text',
       '.twitter-tweet'
@@ -31,7 +32,7 @@ export class TwitterExtractor extends BaseExtractor {
     tweetElements.forEach((tweetEl) => {
       if (this.isElementVisible(tweetEl)) {
         // Try to find the text content within the tweet
-        let textElement = tweetEl.querySelector('[data-testid="tweetText"]') || 
+        let textElement = tweetEl.querySelector(SITE_SELECTORS.TWITTER.TWEET) || 
                          tweetEl.querySelector('.tweet-text') ||
                          tweetEl;
 

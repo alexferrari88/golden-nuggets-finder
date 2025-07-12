@@ -97,6 +97,7 @@ export class ContentScraper {
   }
 }
 
-// Export types for consumers
+// Export types and constants for consumers
 export * from './types';
 export * from './extractors/base';
+export * from './constants';

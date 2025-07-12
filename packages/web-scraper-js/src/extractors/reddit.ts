@@ -1,5 +1,6 @@
 import { BaseExtractor } from './base';
 import { Content, ContentItem } from '../types';
+import { SITE_SELECTORS } from '../constants';
 
 export class RedditExtractor extends BaseExtractor {
   public async extract(): Promise<Content> {
@@ -10,11 +11,11 @@ export class RedditExtractor extends BaseExtractor {
     };
 
     // Try modern Reddit selectors first
-    let commentElements = document.querySelectorAll('[data-testid="comment"]') as NodeListOf<HTMLElement>;
+    let commentElements = document.querySelectorAll(SITE_SELECTORS.REDDIT.COMMENT_DATA_TESTID) as NodeListOf<HTMLElement>;
     
     // Fallback to old Reddit selectors
     if (commentElements.length === 0) {
-      commentElements = document.querySelectorAll('.comment .usertext-body') as NodeListOf<HTMLElement>;
+      commentElements = document.querySelectorAll(SITE_SELECTORS.REDDIT.COMMENT_TEXT) as NodeListOf<HTMLElement>;
     }
 
     commentElements.forEach((commentEl) => {
@@ -37,11 +38,11 @@ export class RedditExtractor extends BaseExtractor {
 
     // If no comments, try to extract posts
     if (content.items.length === 0) {
-      let postElements = document.querySelectorAll('[data-testid="post-content"]') as NodeListOf<HTMLElement>;
+      let postElements = document.querySelectorAll(SITE_SELECTORS.REDDIT.POST_CONTENT) as NodeListOf<HTMLElement>;
       
       // Fallback to old Reddit post selectors
       if (postElements.length === 0) {
-        postElements = document.querySelectorAll('.thing .usertext-body') as NodeListOf<HTMLElement>;
+        postElements = document.querySelectorAll(SITE_SELECTORS.REDDIT.THING_TEXT) as NodeListOf<HTMLElement>;
       }
 
       postElements.forEach((postEl) => {

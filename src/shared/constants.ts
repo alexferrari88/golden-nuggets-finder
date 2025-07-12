@@ -3,23 +3,8 @@ export const STORAGE_KEYS = {
   PROMPTS: 'userPrompts'
 } as const;
 
-export const SITE_SELECTORS = {
-  REDDIT: {
-    POST: '[slot="text-body"]',
-    COMMENTS: '[slot="comment"]'
-  },
-  HACKER_NEWS: {
-    POST: '.toptext',
-    COMMENTS: '.commtext'
-  },
-  TWITTER: {
-    TWEET: '[data-testid="tweetText"]',
-    TWEET_ARTICLE: 'article[data-testid="tweet"]',
-    SHOW_MORE_BUTTON: 'button[data-testid="tweet-text-show-more-link"]',
-    USER_NAME: 'div[data-testid="User-Name"] a[href^="/"]',
-    SPAM_BUTTON: 'button:has(span:contains("Show probable spam"))'
-  }
-} as const;
+// Import site selectors from the web-scraper-js library to maintain single source of truth
+export { SITE_SELECTORS } from '../../packages/web-scraper-js/src/constants';
 
 export const GEMINI_CONFIG = {
   MODEL: 'gemini-2.5-flash',
