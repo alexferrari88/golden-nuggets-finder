@@ -1,11 +1,12 @@
-# WebScraper.js
+# Threads Harvester
 
-A TypeScript library for extracting structured content from web pages with site-specific optimizations and interactive selection UI.
+A TypeScript library for extracting threaded content from discussion platforms like Reddit, Twitter, and Hacker News with interactive selection UI and site-specific optimizations.
 
 ## Features
 
-- 🎯 **Site-specific extractors** for popular websites (HackerNews, Reddit, Twitter/X)
-- 🔧 **Generic extractor** for any website
+- 🧵 **Threaded content extraction** from popular discussion platforms
+- 🎯 **Site-specific extractors** for HackerNews, Reddit, Twitter/X  
+- 🔧 **Generic extractor** for any website with discussion content
 - ✅ **Interactive checkbox UI** for content selection
 - 🎨 **Customizable styling** with TypeScript-first approach
 - 📦 **Zero dependencies** - pure TypeScript/JavaScript
@@ -15,13 +16,13 @@ A TypeScript library for extracting structured content from web pages with site-
 ## Installation
 
 ```bash
-npm install web-scraper-js
+npm install threads-harvester
 ```
 
 ## Quick Start
 
 ```typescript
-import { ContentScraper } from 'web-scraper-js';
+import { ContentScraper } from 'threads-harvester';
 
 // Create and run the scraper
 const scraper = new ContentScraper();
@@ -44,7 +45,7 @@ scraper.destroy();
 
 ### ContentScraper
 
-The main class for content extraction and UI management.
+The main class for threaded content extraction and UI management.
 
 #### Constructor
 
@@ -56,11 +57,21 @@ new ContentScraper(options?: ScraperOptions)
 
 ##### `run(): Promise<void>`
 
-Extracts content from the current page and displays selection checkboxes.
+Extracts threaded content from the current page and optionally displays selection checkboxes.
 
 ```typescript
 const scraper = new ContentScraper();
 await scraper.run();
+```
+
+##### `displayCheckboxes(): void`
+
+Manually display checkboxes for content selection (useful when `showCheckboxes` option is disabled).
+
+```typescript
+const scraper = new ContentScraper({ showCheckboxes: false });
+await scraper.run();
+scraper.displayCheckboxes(); // Show checkboxes on demand
 ```
 
 ##### `getContent(): Content | null`
@@ -100,6 +111,7 @@ scraper.destroy();
 ```typescript
 interface ScraperOptions {
   includeHtml?: boolean;           // Include HTML content in extraction
+  showCheckboxes?: boolean;        // Auto-display checkboxes after extraction
   checkboxStyling?: CheckboxStyling; // Custom styling for checkboxes
 }
 ```
@@ -109,7 +121,7 @@ interface ScraperOptions {
 You can customize the checkbox appearance with the `CheckboxStyling` interface:
 
 ```typescript
-import { ContentScraper, CheckboxStyling } from 'web-scraper-js';
+import { ContentScraper, CheckboxStyling } from 'threads-harvester';
 
 const customStyling: CheckboxStyling = {
   getDefaultStyles: () => `
@@ -156,6 +168,7 @@ const customStyling: CheckboxStyling = {
 
 const scraper = new ContentScraper({ 
   includeHtml: true,
+  showCheckboxes: true,
   checkboxStyling: customStyling 
 });
 ```
@@ -186,18 +199,18 @@ interface ContentItem {
 }
 ```
 
-## Site Support
+## Supported Platforms
 
-### Supported Sites
+### Thread-Aware Extractors
 
-- **HackerNews** (`news.ycombinator.com`) - Extracts posts and comments
-- **Reddit** (`reddit.com`) - Extracts posts and comments  
-- **Twitter/X** (`twitter.com`, `x.com`) - Extracts tweets and replies
+- **HackerNews** (`news.ycombinator.com`) - Extracts posts and threaded comments
+- **Reddit** (`reddit.com`) - Extracts posts and nested comment threads  
+- **Twitter/X** (`twitter.com`, `x.com`) - Extracts tweets and reply threads
 - **Generic** - Fallback extractor for any website using article/paragraph detection
 
-### Automatic Detection
+### Automatic Platform Detection
 
-The library automatically detects the current site and uses the appropriate extractor:
+The library automatically detects the current platform and uses the appropriate extractor:
 
 ```typescript
 // On news.ycombinator.com - uses HackerNewsExtractor
@@ -211,12 +224,12 @@ await scraper.run(); // Automatically uses the right extractor
 
 ## Usage Examples
 
-### Basic Content Extraction
+### Basic Thread Extraction
 
 ```typescript
-import { ContentScraper } from 'web-scraper-js';
+import { ContentScraper } from 'threads-harvester';
 
-async function extractContent() {
+async function extractThreads() {
   const scraper = new ContentScraper();
   
   try {
@@ -226,12 +239,14 @@ async function extractContent() {
     if (content) {
       console.log(`Extracted ${content.items.length} items from ${content.title}`);
       
-      content.items.forEach(item => {
-        console.log(`${item.type}: ${item.textContent?.substring(0, 100)}...`);
-      });
+      // Separate posts from comments
+      const posts = content.items.filter(item => item.type === 'post');
+      const comments = content.items.filter(item => item.type === 'comment');
+      
+      console.log(`Posts: ${posts.length}, Comments: ${comments.length}`);
     }
   } catch (error) {
-    console.error('Extraction failed:', error);
+    console.error('Thread extraction failed:', error);
   } finally {
     scraper.destroy();
   }
@@ -241,28 +256,28 @@ async function extractContent() {
 ### Real-time Selection Handling
 
 ```typescript
-import { ContentScraper } from 'web-scraper-js';
+import { ContentScraper } from 'threads-harvester';
 
-const scraper = new ContentScraper();
+const scraper = new ContentScraper({ showCheckboxes: true });
 
 // Set up event listener before running
 scraper.on('selectionChanged', (content) => {
   const selected = content.items.filter(item => item.selected);
   
   if (selected.length > 0) {
-    console.log('Selected content:');
+    console.log('Selected thread content:');
     selected.forEach(item => {
       console.log(`- ${item.type}: ${item.textContent}`);
     });
     
     // Send to your backend, display in UI, etc.
-    processSelectedContent(selected);
+    processSelectedThreads(selected);
   }
 });
 
 await scraper.run();
 
-function processSelectedContent(items) {
+function processSelectedThreads(items) {
   // Your custom logic here
   const payload = items.map(item => ({
     type: item.type,
@@ -270,7 +285,7 @@ function processSelectedContent(items) {
     url: item.URL
   }));
   
-  fetch('/api/process-content', {
+  fetch('/api/process-threads', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload)
@@ -282,16 +297,16 @@ function processSelectedContent(items) {
 
 ```typescript
 // content-script.ts
-import { ContentScraper } from 'web-scraper-js';
+import { ContentScraper } from 'threads-harvester';
 
 let scraper: ContentScraper | null = null;
 
 // Listen for messages from background script
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message.action === 'startScraping') {
-    startScraping();
+  if (message.action === 'startHarvesting') {
+    startHarvesting();
     sendResponse({ success: true });
-  } else if (message.action === 'getContent') {
+  } else if (message.action === 'getThreads') {
     const content = scraper?.getContent();
     sendResponse({ content });
   } else if (message.action === 'cleanup') {
@@ -300,21 +315,24 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 });
 
-async function startScraping() {
+async function startHarvesting() {
   try {
-    scraper = new ContentScraper({ includeHtml: true });
+    scraper = new ContentScraper({ 
+      includeHtml: true,
+      showCheckboxes: true 
+    });
     
     scraper.on('selectionChanged', (content) => {
       // Send selection updates to background script
       chrome.runtime.sendMessage({
-        action: 'selectionChanged',
+        action: 'threadsSelected',
         content: content
       });
     });
     
     await scraper.run();
   } catch (error) {
-    console.error('Scraping failed:', error);
+    console.error('Thread harvesting failed:', error);
   }
 }
 
@@ -341,11 +359,12 @@ window.addEventListener('beforeunload', cleanup);
 This library is written in TypeScript and includes full type definitions. No additional `@types` packages needed.
 
 ```typescript
-import { ContentScraper, Content, ContentItem, ScraperOptions } from 'web-scraper-js';
+import { ContentScraper, Content, ContentItem, ScraperOptions } from 'threads-harvester';
 
 // All types are available and fully typed
 const options: ScraperOptions = {
-  includeHtml: true
+  includeHtml: true,
+  showCheckboxes: true
 };
 
 const scraper: ContentScraper = new ContentScraper(options);
@@ -354,19 +373,19 @@ const scraper: ContentScraper = new ContentScraper(options);
 ## Contributing
 
 1. Fork the repository
-2. Create a feature branch: `git checkout -b feature/new-site-extractor`
+2. Create a feature branch: `git checkout -b feature/new-platform-extractor`
 3. Make your changes and add tests
-4. Commit using conventional commits: `git commit -m "feat: add LinkedIn extractor"`
+4. Commit using conventional commits: `git commit -m "feat: add LinkedIn discussion extractor"`
 5. Push and create a Pull Request
 
-### Adding New Site Extractors
+### Adding New Platform Extractors
 
-To add support for a new website:
+To add support for a new discussion platform:
 
 1. Create a new extractor class extending `BaseExtractor`
-2. Implement the `extract()` method
-3. Add site detection logic to `ContentScraper` constructor
-4. Add tests for the new extractor
+2. Implement the `extract()` method with platform-specific logic
+3. Add platform detection logic to `ContentScraper` constructor
+4. Add comprehensive tests for the new extractor
 
 ```typescript
 // src/extractors/linkedin.ts
@@ -375,11 +394,11 @@ import { Content, ContentItem } from '../types';
 
 export class LinkedInExtractor extends BaseExtractor {
   public async extract(): Promise<Content> {
-    // Implementation here
+    // Implementation for LinkedIn discussion threads
     return {
       pageURL: window.location.href,
       title: document.title,
-      items: [] // Your extracted items
+      items: [] // Your extracted posts and comments
     };
   }
 }
@@ -387,4 +406,4 @@ export class LinkedInExtractor extends BaseExtractor {
 
 ## License
 
-ISC License - see LICENSE file for details.
+MIT License - see LICENSE file for details.
