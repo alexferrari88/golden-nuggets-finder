@@ -562,19 +562,29 @@ export class Sidebar {
       border-radius: ${borderRadius.lg};
       background: ${isSelected ? colors.background.secondary : colors.white};
       transition: all 0.15s ease;
-      cursor: pointer;
+      cursor: ${item.status === 'highlighted' ? 'pointer' : 'default'};
       position: relative;
       ${isSelected ? `box-shadow: 0 0 0 3px ${colors.background.secondary};` : ''}
     `;
     
-    // Click handler for selection and highlighting
+    // Add tooltip for highlighted items
+    if (item.status === 'highlighted') {
+      nuggetDiv.title = 'Click to scroll to this content on the page';
+    }
+    
+    // Click handler for scrolling to highlight (not selection)
     nuggetDiv.addEventListener('click', (e) => {
-      // Toggle selection
-      this.toggleItemSelection(globalIndex);
-      
-      // If highlighted, also scroll to highlight
-      if (item.status === 'highlighted' && this.highlighter) {
-        this.highlighter.scrollToHighlight(item.nugget);
+      // Only handle highlighting if not clicking on checkbox
+      if ((e.target as Element).tagName !== 'INPUT') {
+        // If highlighted, scroll to highlight and remove the dot
+        if (item.status === 'highlighted' && this.highlighter) {
+          this.highlighter.scrollToHighlight(item.nugget);
+          // Remove the highlight indicator
+          const highlightIndicator = nuggetDiv.querySelector('.highlight-indicator');
+          if (highlightIndicator) {
+            highlightIndicator.remove();
+          }
+        }
       }
     });
     
@@ -595,12 +605,50 @@ export class Sidebar {
       }
     });
     
+    // Main container with checkbox and content
+    const mainContainer = document.createElement('div');
+    mainContainer.style.cssText = `
+      display: flex;
+      gap: ${spacing.md};
+      align-items: flex-start;
+    `;
+    
+    // Checkbox container
+    const checkboxContainer = document.createElement('div');
+    checkboxContainer.style.cssText = `
+      padding-top: 2px;
+      flex-shrink: 0;
+    `;
+    
+    // Checkbox for multi-selection
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.checked = isSelected;
+    checkbox.style.cssText = `
+      width: 16px;
+      height: 16px;
+      margin: 0;
+      accent-color: ${colors.text.accent};
+      cursor: pointer;
+      border-radius: ${borderRadius.sm};
+    `;
+    
+    // Checkbox click handler
+    checkbox.addEventListener('change', (e) => {
+      e.stopPropagation();
+      this.toggleItemSelection(globalIndex);
+    });
+    
+    checkboxContainer.appendChild(checkbox);
+    
     // Content structure
     const contentContainer = document.createElement('div');
     contentContainer.style.cssText = `
       display: flex;
       flex-direction: column;
       gap: ${spacing.sm};
+      flex: 1;
+      min-width: 0;
     `;
     
     // Header with type badge and selection indicator
@@ -633,9 +681,10 @@ export class Sidebar {
       gap: ${spacing.xs};
     `;
     
-    // Highlighted indicator
+    // Highlighted indicator (yellow dot)
     if (item.status === 'highlighted') {
       const highlightIndicator = document.createElement('div');
+      highlightIndicator.className = 'highlight-indicator';
       highlightIndicator.style.cssText = `
         width: 6px;
         height: 6px;
@@ -731,7 +780,11 @@ export class Sidebar {
     contentContainer.appendChild(contentPreview);
     contentContainer.appendChild(synthesis);
     
-    nuggetDiv.appendChild(contentContainer);
+    // Assemble main container
+    mainContainer.appendChild(checkboxContainer);
+    mainContainer.appendChild(contentContainer);
+    
+    nuggetDiv.appendChild(mainContainer);
     
     return nuggetDiv;
   }
@@ -834,6 +887,11 @@ export class Sidebar {
         icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>',
         label: 'Export as JSON',
         action: () => this.exportNuggets(this.getExportItems(), 'json')
+      },
+      {
+        icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M13 12H3"/></svg>',
+        label: 'Send to Endpoint',
+        action: () => this.showRestModal()
       }
     ];
     
