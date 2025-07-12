@@ -11,7 +11,7 @@
 ### Main post
 .toptext (but also main post can be missing)
 ### Comments
-.comment
+.commtext
 </doc>
 <doc>
 Generating JSON

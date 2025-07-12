@@ -38,12 +38,10 @@ Abstract interface that defines the contract for all content extractors.
 ### Specialized Extractors
 
 #### RedditExtractor
-- Uses `[slot='text-body']` and `[slot='comment']` selectors
 - Designed for modern Reddit's shadow DOM structure
 - Handles both posts and comments efficiently
 
 #### HackerNewsExtractor
-- Uses `.toptext` and `.comment` selectors
 - Optimized for Hacker News' classic HTML structure
 - Extracts both article content and discussion threads
 
