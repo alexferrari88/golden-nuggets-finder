@@ -237,13 +237,6 @@ function IndexPopup() {
 
   const enterSelectionMode = async (promptId: string) => {
     try {
-      // Find the prompt name for better UX
-      const prompt = prompts.find(p => p.id === promptId);
-      const promptName = prompt?.name || 'Unknown';
-      
-      // Show immediate feedback
-      setAnalyzing(promptName);
-      
       // Get the current active tab
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
       
@@ -264,7 +257,6 @@ function IndexPopup() {
       window.close();
     } catch (err) {
       console.error('Failed to enter selection mode:', err);
-      setAnalyzing(null);
       setError('Failed to enter selection mode. Please try again.');
     }
   };
