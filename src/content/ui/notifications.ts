@@ -159,6 +159,10 @@ export class NotificationManager {
   }
 
   private addTextWithButton(banner: HTMLElement, message: string, options: { buttonText?: string; onButtonClick?: () => void }): void {
+    // Change banner layout to column for button underneath text
+    banner.style.flexDirection = 'column';
+    banner.style.gap = '12px';
+    
     // Add text element
     const textElement = document.createElement('span');
     textElement.textContent = message;
@@ -169,15 +173,15 @@ export class NotificationManager {
       const button = document.createElement('button');
       button.textContent = options.buttonText;
       
-      // Apply design system button styles
-      const buttonStyles = Object.entries(components.button.primary)
+      // Apply design system secondary button styles for better contrast on dark background
+      const buttonStyles = Object.entries(components.button.secondary)
         .map(([key, value]) => `${key.replace(/([A-Z])/g, '-$1').toLowerCase()}: ${value}`)
         .join('; ');
       
       button.style.cssText = `
         ${buttonStyles};
-        margin-left: 12px;
         white-space: nowrap;
+        align-self: center;
       `;
       
       // Add hover effects
@@ -188,7 +192,7 @@ export class NotificationManager {
       
       button.addEventListener('mouseleave', () => {
         button.style.transform = 'translateY(0)';
-        button.style.boxShadow = components.button.primary.boxShadow;
+        button.style.boxShadow = components.button.secondary.boxShadow;
       });
       
       button.addEventListener('click', options.onButtonClick);

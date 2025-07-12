@@ -108,11 +108,16 @@ export class UIManager {
   }
 
   private analyzeSelectedContent(): void {
+    console.log('[Selection Debug] Analyze button clicked');
+    
     if (!this.currentPromptId) {
+      console.log('[Selection Debug] No prompt ID available');
       this.notifications.showError('No prompt selected for analysis.');
       return;
     }
 
+    console.log(`[Selection Debug] Sending analysis message with promptId: ${this.currentPromptId}`);
+    
     // Send message to trigger analysis
     chrome.runtime.sendMessage({
       type: MESSAGE_TYPES.ANALYZE_SELECTED_CONTENT,
@@ -126,8 +131,28 @@ export class UIManager {
 
   getSelectedContent(): Content | null {
     if (this.selectionScraper) {
-      return this.selectionScraper.getContent();
+      const allContent = this.selectionScraper.getContent();
+      if (!allContent) {
+        console.log('[Selection Debug] No content available from scraper');
+        return null;
+      }
+      
+      // Filter to only selected items
+      const selectedItems = allContent.items.filter(item => item.selected);
+      console.log(`[Selection Debug] Total items: ${allContent.items.length}, Selected items: ${selectedItems.length}`);
+      
+      // Log selection state for debugging
+      allContent.items.forEach((item, index) => {
+        console.log(`[Selection Debug] Item ${index}: selected=${item.selected}, text="${item.textContent?.substring(0, 50)}..."`);
+      });
+      
+      // Return content with only selected items
+      return {
+        ...allContent,
+        items: selectedItems
+      };
     }
+    console.log('[Selection Debug] No selection scraper available');
     return null;
   }
 

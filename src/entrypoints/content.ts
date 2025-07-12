@@ -312,17 +312,28 @@ export default defineContentScript({
 
     async function enterSelectionMode(promptId?: string): Promise<void> {
       try {
+        console.log('[Selection Debug] Entering selection mode...');
+        
         // Create a separate ContentScraper instance for selection mode
         const selectionScraper = createContentScraper();
         
         // Extract content first
+        console.log('[Selection Debug] Running content extraction...');
         await selectionScraper.run();
         
+        // Check if content was extracted
+        const extractedContent = selectionScraper.getContent();
+        console.log(`[Selection Debug] Extracted ${extractedContent?.items?.length || 0} items`);
+        
         // Then explicitly display checkboxes for selection
+        console.log('[Selection Debug] Displaying checkboxes...');
         selectionScraper.displayCheckboxes();
         
         // Enter selection mode through UI manager with the scraper
+        console.log('[Selection Debug] Setting up UI manager...');
         await uiManager.enterSelectionMode(promptId, selectionScraper);
+        
+        console.log('[Selection Debug] Selection mode setup complete');
       } catch (error) {
         console.error('Failed to enter selection mode:', error);
         uiManager.showErrorBanner('Failed to enter selection mode. Please try again.');
@@ -344,18 +355,11 @@ export default defineContentScript({
           return;
         }
         
-        // Filter only selected items and convert to text
-        const selectedItems = selectedContent.items.filter(item => item.selected);
-        if (selectedItems.length === 0) {
-          uiManager.showErrorBanner('No content selected for analysis.');
-          // Exit selection mode on error
-          uiManager.exitSelectionMode();
-          return;
-        }
+        // selectedContent.items already contains only selected items from getSelectedContent()
         
         // Convert selected items to text
         const contentParts = [selectedContent.title];
-        selectedItems.forEach(item => {
+        selectedContent.items.forEach(item => {
           if (item.textContent) {
             contentParts.push(item.textContent);
           } else if (item.htmlContent) {
