@@ -211,6 +211,8 @@ export default defineContentScript({
             if (uiManager.isSelectionModeActive()) {
               uiManager.exitSelectionMode();
             }
+            // Also ensure analysis modal is properly completed/closed
+            uiManager.restoreSelectionMode();
             sendResponse({ success: true });
             break;
 
@@ -221,6 +223,8 @@ export default defineContentScript({
             if (uiManager.isSelectionModeActive()) {
               uiManager.exitSelectionMode();
             }
+            // Also ensure analysis modal is properly completed/closed
+            uiManager.restoreSelectionMode();
             sendResponse({ success: true });
             break;
 

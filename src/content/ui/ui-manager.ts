@@ -17,6 +17,13 @@ export class UIManager {
   private controlPanel: HTMLElement | null = null;
   private prompts: SavedPrompt[] = [];
   private keyboardListener?: (event: KeyboardEvent) => void;
+  private originalPanelContent?: HTMLElement;
+  private analysisState = {
+    currentStep: -1,
+    completedSteps: [] as number[],
+    visibleSteps: [] as number[],
+    timers: [] as NodeJS.Timeout[]
+  };
 
   constructor() {
     this.highlighter = new Highlighter();
@@ -178,7 +185,7 @@ export class UIManager {
       return;
     }
 
-    // Show loading screen and hide the control panel during analysis
+    // Show loading modal and hide the control panel during analysis
     this.showAnalysisInProgress();
 
     // Send message directly to background script (like original implementation)
@@ -542,28 +549,331 @@ export class UIManager {
   }
 
   private showAnalysisInProgress(): void {
-    // Hide the control panel temporarily
-    if (this.controlPanel) {
-      this.controlPanel.style.opacity = '0.3';
-      this.controlPanel.style.pointerEvents = 'none';
-    }
+    if (!this.controlPanel) return;
     
-    // Show loading notification
-    this.notifications.showProgress('Analyzing selected content...');
+    // Hide simple notification if it's showing
+    this.notifications.hideProgress();
+    
+    // Store original content
+    this.originalPanelContent = this.controlPanel.cloneNode(true) as HTMLElement;
+    
+    // Find the current prompt name
+    const currentPrompt = this.prompts.find(p => p.id === this.currentPromptId);
+    const promptName = currentPrompt?.name || 'Unknown';
+    
+    // Replace control panel content with analysis UI
+    this.replaceControlPanelWithAnalysis(promptName);
   }
 
   // Method to restore control panel after analysis (called from content.ts)
   restoreSelectionMode(): void {
-    if (this.controlPanel && this.selectionModeActive) {
-      this.controlPanel.style.opacity = '1';
-      this.controlPanel.style.pointerEvents = 'auto';
-    }
     this.notifications.hideProgress();
+    
+    // Complete analysis and close the control panel
+    if (this.controlPanel && this.isAnalysisInProgress()) {
+      this.completeAnalysisInPanel();
+      
+      // Close the panel after showing completion briefly
+      setTimeout(() => {
+        this.exitSelectionMode();
+      }, 1000);
+    }
   }
 
   cleanup(): void {
     this.clearResults();
     this.notifications.cleanup();
     this.exitSelectionMode();
+    
+    // Clean up analysis state
+    this.cleanupAnalysisState();
+  }
+
+  private replaceControlPanelWithAnalysis(promptName: string): void {
+    if (!this.controlPanel) return;
+
+    // Clear current content
+    this.controlPanel.innerHTML = '';
+
+    // Reset analysis state
+    this.analysisState = {
+      currentStep: -1,
+      completedSteps: [],
+      visibleSteps: [],
+      timers: []
+    };
+
+    const analysisSteps = [
+      { id: 'extract', text: 'Extracting key insights' },
+      { id: 'patterns', text: 'Identifying patterns' },
+      { id: 'generate', text: 'Generating golden nuggets' },
+      { id: 'finalize', text: 'Finalizing analysis' }
+    ];
+
+    // Header with AI avatar and typing text
+    const header = document.createElement('div');
+    header.style.cssText = `
+      display: flex;
+      align-items: center;
+      gap: ${spacing.xs};
+      margin-bottom: ${spacing.md};
+    `;
+
+    // AI Avatar
+    const avatar = document.createElement('div');
+    avatar.style.cssText = `
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: ${colors.text.accent};
+      box-shadow: 0 0 8px ${colors.text.accent}40;
+      flex-shrink: 0;
+    `;
+
+    // Typing text container
+    const typingContainer = document.createElement('div');
+    typingContainer.className = 'typing-text';
+    typingContainer.style.cssText = `
+      color: ${colors.text.primary};
+      font-size: ${typography.fontSize.sm};
+      font-weight: ${typography.fontWeight.medium};
+      flex: 1;
+      min-height: 20px;
+    `;
+
+    header.appendChild(avatar);
+    header.appendChild(typingContainer);
+
+    // Analysis steps container
+    const stepsContainer = document.createElement('div');
+    stepsContainer.className = 'analysis-steps';
+    stepsContainer.style.cssText = `
+      display: flex;
+      flex-direction: column;
+      gap: ${spacing.xs};
+      margin-bottom: ${spacing.md};
+    `;
+
+    // Create step elements
+    analysisSteps.forEach((step, index) => {
+      const stepElement = document.createElement('div');
+      stepElement.className = `step-${index}`;
+      stepElement.style.cssText = `
+        display: flex;
+        align-items: center;
+        gap: ${spacing.sm};
+        opacity: 0;
+        transform: translateY(10px);
+        transition: all 0.3s ease;
+      `;
+
+      const indicator = document.createElement('div');
+      indicator.className = 'step-indicator';
+      indicator.style.cssText = `
+        font-size: ${typography.fontSize.sm};
+        font-weight: ${typography.fontWeight.medium};
+        color: ${colors.text.tertiary};
+        width: 16px;
+        text-align: center;
+        flex-shrink: 0;
+      `;
+      indicator.textContent = '○';
+
+      const text = document.createElement('div');
+      text.style.cssText = `
+        font-size: ${typography.fontSize.sm};
+        color: ${colors.text.tertiary};
+        font-weight: ${typography.fontWeight.normal};
+      `;
+      text.textContent = step.text;
+
+      stepElement.appendChild(indicator);
+      stepElement.appendChild(text);
+      stepsContainer.appendChild(stepElement);
+    });
+
+    // Prompt display
+    const promptDisplay = document.createElement('div');
+    promptDisplay.style.cssText = `
+      text-align: center;
+      padding-top: ${spacing.md};
+      border-top: 1px solid ${colors.border.light};
+    `;
+
+    const promptLabel = document.createElement('div');
+    promptLabel.style.cssText = `
+      color: ${colors.text.tertiary};
+      font-size: ${typography.fontSize.xs};
+      font-weight: ${typography.fontWeight.normal};
+      margin-bottom: ${spacing.xs};
+    `;
+    promptLabel.textContent = 'Using:';
+
+    const promptNameElement = document.createElement('div');
+    promptNameElement.style.cssText = `
+      color: ${colors.text.accent};
+      font-size: ${typography.fontSize.sm};
+      font-weight: ${typography.fontWeight.semibold};
+    `;
+    promptNameElement.textContent = promptName;
+
+    promptDisplay.appendChild(promptLabel);
+    promptDisplay.appendChild(promptNameElement);
+
+    // Assemble content
+    this.controlPanel.appendChild(header);
+    this.controlPanel.appendChild(stepsContainer);
+    this.controlPanel.appendChild(promptDisplay);
+
+    // Add CSS for animations
+    if (!document.getElementById('analysis-animations')) {
+      const style = document.createElement('style');
+      style.id = 'analysis-animations';
+      style.textContent = `
+        @keyframes pulse {
+          0%, 100% { opacity: 0.3; transform: scale(0.8); }
+          50% { opacity: 1; transform: scale(1.2); }
+        }
+        .step-indicator.pulsing {
+          animation: pulse 1s ease-in-out infinite;
+        }
+      `;
+      document.head.appendChild(style);
+    }
+
+    // Start animations
+    setTimeout(() => {
+      this.startTypingAnimation();
+    }, 300);
+  }
+
+  private startTypingAnimation(): void {
+    const typingContainer = this.controlPanel?.querySelector('.typing-text') as HTMLElement;
+    if (!typingContainer) return;
+
+    const text = 'Analyzing your content...';
+    let index = 0;
+    typingContainer.textContent = '';
+
+    const typeChar = () => {
+      if (index < text.length) {
+        typingContainer.textContent = text.substring(0, index + 1);
+        index++;
+        const timer = setTimeout(typeChar, 80);
+        this.analysisState.timers.push(timer);
+      } else {
+        // Show cursor briefly
+        typingContainer.innerHTML = text + '<span style="opacity: 0.7; margin-left: 2px;">|</span>';
+        
+        const timer = setTimeout(() => {
+          typingContainer.textContent = text;
+          this.startStepProgression();
+        }, 500);
+        this.analysisState.timers.push(timer);
+      }
+    };
+
+    typeChar();
+  }
+
+  private async startStepProgression(): Promise<void> {
+    // First, make steps visible with staggered animation
+    for (let i = 0; i < 4; i++) {
+      await new Promise(resolve => setTimeout(resolve, 300));
+      this.analysisState.visibleSteps.push(i);
+      this.updateStepsDisplay();
+    }
+    
+    // Start step animations with staggered delays
+    this.startStep(0, 0, 4000);     // Extract: start immediately, run 4s
+    this.startStep(1, 2000, 4000);  // Patterns: start after 2s, run 4s
+    this.startStep(2, 4000, 4000);  // Generate: start after 4s, run 4s
+    this.startStep(3, 6000, 8000);  // Finalize: start after 6s, run 8s (will be interrupted)
+  }
+
+  private startStep(stepIndex: number, delay: number, duration: number): void {
+    const timer = setTimeout(() => {
+      this.analysisState.currentStep = stepIndex;
+      this.updateStepsDisplay();
+      
+      const completeTimer = setTimeout(() => {
+        if (!this.analysisState.completedSteps.includes(stepIndex)) {
+          this.analysisState.completedSteps.push(stepIndex);
+        }
+        if (stepIndex < 3) {
+          this.analysisState.currentStep = -1;
+        }
+        this.updateStepsDisplay();
+      }, duration);
+      this.analysisState.timers.push(completeTimer);
+    }, delay);
+    this.analysisState.timers.push(timer);
+  }
+
+  private updateStepsDisplay(): void {
+    if (!this.controlPanel) return;
+
+    const analysisSteps = [
+      { id: 'extract', text: 'Extracting key insights' },
+      { id: 'patterns', text: 'Identifying patterns' },
+      { id: 'generate', text: 'Generating golden nuggets' },
+      { id: 'finalize', text: 'Finalizing analysis' }
+    ];
+
+    analysisSteps.forEach((step, index) => {
+      const stepElement = this.controlPanel!.querySelector(`.step-${index}`) as HTMLElement;
+      const indicator = stepElement?.querySelector('.step-indicator') as HTMLElement;
+      const text = stepElement?.querySelector('div:last-child') as HTMLElement;
+      
+      if (!stepElement || !indicator || !text) return;
+
+      const isVisible = this.analysisState.visibleSteps.includes(index);
+      const isInProgress = this.analysisState.currentStep === index;
+      const isCompleted = this.analysisState.completedSteps.includes(index);
+      
+      // Update visibility
+      if (isVisible) {
+        stepElement.style.opacity = '1';
+        stepElement.style.transform = 'translateY(0)';
+      }
+
+      // Update indicator and colors
+      if (isCompleted) {
+        indicator.innerHTML = '✓';
+        indicator.style.color = colors.text.accent;
+        indicator.className = 'step-indicator';
+        text.style.color = colors.text.primary;
+      } else if (isInProgress) {
+        indicator.textContent = '●';
+        indicator.style.color = colors.text.accent;
+        indicator.className = 'step-indicator pulsing';
+        text.style.color = colors.text.secondary;
+      } else {
+        indicator.textContent = '○';
+        indicator.style.color = colors.text.tertiary;
+        indicator.className = 'step-indicator';
+        text.style.color = colors.text.tertiary;
+      }
+    });
+  }
+
+  private completeAnalysisInPanel(): void {
+    // Complete all remaining steps immediately
+    this.cleanupAnalysisState();
+    
+    // Complete all steps immediately
+    this.analysisState.completedSteps = [0, 1, 2, 3];
+    this.analysisState.currentStep = -1;
+    this.updateStepsDisplay();
+  }
+
+  private cleanupAnalysisState(): void {
+    // Clear all timers
+    this.analysisState.timers.forEach(timer => clearTimeout(timer));
+    this.analysisState.timers = [];
+  }
+
+  private isAnalysisInProgress(): boolean {
+    return this.controlPanel?.querySelector('.analysis-steps') !== null;
   }
 }
