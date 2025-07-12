@@ -37,7 +37,8 @@ export class Sidebar {
     // Initialize selection state for all nuggets
     this.allItems = nuggetItems.map(item => ({
       ...item,
-      selected: false
+      selected: false,
+      highlightVisited: false // Track if highlighted item was clicked
     }));
     this.selectedItems.clear();
     this.currentPage = 0;
@@ -251,6 +252,10 @@ export class Sidebar {
     // Create floating action menu (initially hidden)
     this.actionMenu = this.createActionMenu();
     document.body.appendChild(this.actionMenu);
+    
+    // Create REST endpoint modal (initially hidden)
+    this.restModal = this.createRestModal();
+    document.body.appendChild(this.restModal);
     
     return sidebar;
   }
@@ -576,10 +581,12 @@ export class Sidebar {
     nuggetDiv.addEventListener('click', (e) => {
       // Only handle highlighting if not clicking on checkbox
       if ((e.target as Element).tagName !== 'INPUT') {
-        // If highlighted, scroll to highlight and remove the dot
+        // If highlighted, scroll to highlight and mark as visited
         if (item.status === 'highlighted' && this.highlighter) {
           this.highlighter.scrollToHighlight(item.nugget);
-          // Remove the highlight indicator
+          // Mark this highlighted item as visited
+          this.allItems[globalIndex].highlightVisited = true;
+          // Remove the highlight indicator immediately
           const highlightIndicator = nuggetDiv.querySelector('.highlight-indicator');
           if (highlightIndicator) {
             highlightIndicator.remove();
@@ -681,8 +688,8 @@ export class Sidebar {
       gap: ${spacing.xs};
     `;
     
-    // Highlighted indicator (yellow dot)
-    if (item.status === 'highlighted') {
+    // Highlighted indicator (yellow dot) - only show if not visited
+    if (item.status === 'highlighted' && !item.highlightVisited) {
       const highlightIndicator = document.createElement('div');
       highlightIndicator.className = 'highlight-indicator';
       highlightIndicator.style.cssText = `
