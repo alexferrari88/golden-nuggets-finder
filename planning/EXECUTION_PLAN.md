@@ -1,6 +1,10 @@
 # Execution Plan: WebScraper.js (Monorepo Approach)
 
 This document outlines the step-by-step process to create the WebScraper.js library as a local package within the existing project and then refactor the host application.
+Files for context:
+- planning/PROJECT_PLAN.md
+- planning/TECHNICAL_SPEC.md
+
 
 ## Phase 1: Project Setup & Scaffolding
 
@@ -10,7 +14,7 @@ This document outlines the step-by-step process to create the WebScraper.js libr
 2.  **Initialize Node Project:** Run `npm init -y` inside the new `packages/web-scraper-js` directory. This will create a dedicated `package.json` for the library.
 3.  **Install TypeScript:** In the `packages/web-scraper-js` directory, run `npm install typescript --save-dev`.
 4.  **Configure TypeScript:** Create a `tsconfig.json` file inside `packages/web-scraper-js`. This file will configure how the library code is compiled, ensuring it generates the necessary JavaScript and `.d.ts` declaration files into a `dist` folder.
-5.  **Create File Structure:** Create the library's source directory structure inside `packages/web-scraper-js/src` as defined in `TECHNICAL_SPEC.md`.
+5.  **Create File Structure:** Create the library's source directory structure inside `packages/web-scraper-js/src` as defined in `planning/TECHNICAL_SPEC.md`.
 
 ## Phase 2: Core Implementation
 

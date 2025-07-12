@@ -1,0 +1,22 @@
+{
+  "name": "web-scraper-js",
+  "version": "1.0.0",
+  "description": "A TypeScript library for extracting content from web pages with site-specific optimizations",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist",
+    "prepublishOnly": "npm run clean && npm run build",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": ["web-scraping", "content-extraction", "typescript", "dom"],
+  "author": "",
+  "license": "ISC",
+  "files": [
+    "dist/**/*"
+  ],
+  "devDependencies": {
+    "typescript": "^5.8.3"
+  }
+}
