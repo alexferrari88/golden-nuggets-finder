@@ -10,13 +10,8 @@ export class RedditExtractor extends BaseExtractor {
       items: []
     };
 
-    // Try modern Reddit selectors first
-    let commentElements = document.querySelectorAll(SITE_SELECTORS.REDDIT.COMMENT_DATA_TESTID) as NodeListOf<HTMLElement>;
-    
-    // Fallback to old Reddit selectors
-    if (commentElements.length === 0) {
-      commentElements = document.querySelectorAll(SITE_SELECTORS.REDDIT.COMMENT_TEXT) as NodeListOf<HTMLElement>;
-    }
+    // Use the correct Reddit comment selector from constants
+    let commentElements = document.querySelectorAll(SITE_SELECTORS.REDDIT.COMMENTS) as NodeListOf<HTMLElement>;
 
     commentElements.forEach((commentEl) => {
       if (this.isElementVisible(commentEl)) {
@@ -36,33 +31,26 @@ export class RedditExtractor extends BaseExtractor {
       }
     });
 
-    // If no comments, try to extract posts
-    if (content.items.length === 0) {
-      let postElements = document.querySelectorAll(SITE_SELECTORS.REDDIT.POST_CONTENT) as NodeListOf<HTMLElement>;
-      
-      // Fallback to old Reddit post selectors
-      if (postElements.length === 0) {
-        postElements = document.querySelectorAll(SITE_SELECTORS.REDDIT.THING_TEXT) as NodeListOf<HTMLElement>;
-      }
+    // Also extract posts (both posts and comments should be available for selection)
+    let postElements = document.querySelectorAll(SITE_SELECTORS.REDDIT.POST) as NodeListOf<HTMLElement>;
 
-      postElements.forEach((postEl) => {
-        if (this.isElementVisible(postEl)) {
-          const textContent = this.extractTextFromElement(postEl);
-          
-          if (textContent && textContent.length > 10) {
-            const item: ContentItem = {
-              id: this.generateId(textContent),
-              element: postEl,
-              textContent,
-              htmlContent: this.includeHtml ? postEl.innerHTML : undefined,
-              type: 'post',
-              selected: false
-            };
-            content.items.push(item);
-          }
+    postElements.forEach((postEl) => {
+      if (this.isElementVisible(postEl)) {
+        const textContent = this.extractTextFromElement(postEl);
+        
+        if (textContent && textContent.length > 10) {
+          const item: ContentItem = {
+            id: this.generateId(textContent),
+            element: postEl,
+            textContent,
+            htmlContent: this.includeHtml ? postEl.innerHTML : undefined,
+            type: 'post',
+            selected: false
+          };
+          content.items.push(item);
         }
-      });
-    }
+      }
+    });
 
     return content;
   }
