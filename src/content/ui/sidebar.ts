@@ -11,24 +11,8 @@ export class Sidebar {
   private isCollapsed = false;
   private highlighter: Highlighter | null = null;
   private selectedItems: Set<number> = new Set();
-  private exportPanel: HTMLElement | null = null;
-  private exportPanelExpanded: boolean = false;
-  private restEndpointPanel: HTMLElement | null = null;
-  private restEndpointExpanded: boolean = false;
-  private restEndpointConfig = {
-    url: '',
-    method: 'POST',
-    contentType: 'application/json',
-    headers: [] as Array<{ key: string; value: string }>,
-    includeUrl: true,
-    includeTimestamp: true,
-    includeNuggets: true,
-    nuggetParts: {
-      type: true,
-      content: true,
-      synthesis: true
-    }
-  };
+  private actionMenu: HTMLElement | null = null;
+  private actionMenuVisible: boolean = false;
   private keyboardHandler: ((e: KeyboardEvent) => void) | null = null;
 
   show(nuggetItems: SidebarNuggetItem[], highlighter?: Highlighter): void {
@@ -42,8 +26,6 @@ export class Sidebar {
     this.selectedItems.clear();
     this.currentPage = 0;
     this.isCollapsed = false;
-    this.exportPanelExpanded = false;
-    this.restEndpointExpanded = false;
     this.highlighter = highlighter || null;
     this.sidebar = this.createSidebar();
     document.body.appendChild(this.sidebar);
@@ -242,13 +224,9 @@ export class Sidebar {
     const nuggetList = this.createNuggetList();
     sidebar.appendChild(nuggetList);
     
-    // Create export panel
-    this.exportPanel = this.createExportPanel();
-    sidebar.appendChild(this.exportPanel);
-    
-    // Create REST endpoint panel
-    this.restEndpointPanel = this.createRestEndpointPanel();
-    sidebar.appendChild(this.restEndpointPanel);
+    // Create floating action menu (initially hidden)
+    this.actionMenu = this.createActionMenu();
+    document.body.appendChild(this.actionMenu);
     
     return sidebar;
   }
@@ -256,62 +234,118 @@ export class Sidebar {
   private createOptimizedHeader(): HTMLElement {
     const header = document.createElement('div');
     header.style.cssText = `
-      padding: 24px;
+      padding: ${spacing['2xl']} ${spacing['2xl']} ${spacing.lg} ${spacing['2xl']};
       border-bottom: 1px solid ${colors.border.light};
-      background: white;
+      background: ${colors.white};
       display: flex;
       justify-content: space-between;
       align-items: center;
-      font-weight: 600;
       position: sticky;
       top: 0;
-      z-index: 1;
-      border-radius: 0;
+      z-index: 2;
     `;
     
-    const title = document.createElement('h3');
-    title.textContent = `Golden Nuggets (${this.allItems.length})`;
+    const titleContainer = document.createElement('div');
+    titleContainer.style.cssText = `
+      display: flex;
+      flex-direction: column;
+      gap: ${spacing.xs};
+    `;
+    
+    const title = document.createElement('h2');
+    title.textContent = 'Golden Nuggets';
     title.style.cssText = `
       margin: 0;
-      font-size: 18px;
+      font-size: ${typography.fontSize.lg};
       color: ${colors.text.primary};
-      font-weight: 600;
+      font-weight: ${typography.fontWeight.semibold};
+      line-height: ${typography.lineHeight.tight};
     `;
     
-    const closeBtn = document.createElement('button');
-    closeBtn.textContent = '×';
-    closeBtn.style.cssText = `
+    const count = document.createElement('span');
+    count.textContent = `${this.allItems.length} ${this.allItems.length === 1 ? 'nugget' : 'nuggets'}`;
+    count.style.cssText = `
+      font-size: ${typography.fontSize.xs};
+      color: ${colors.text.secondary};
+      font-weight: ${typography.fontWeight.normal};
+    `;
+    
+    titleContainer.appendChild(title);
+    titleContainer.appendChild(count);
+    
+    const actionsContainer = document.createElement('div');
+    actionsContainer.style.cssText = `
+      display: flex;
+      align-items: center;
+      gap: ${spacing.sm};
+    `;
+    
+    // Action menu button
+    const menuBtn = document.createElement('button');
+    menuBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>';
+    menuBtn.style.cssText = `
       background: none;
       border: none;
-      font-size: 20px;
+      padding: ${spacing.sm};
+      border-radius: ${borderRadius.md};
       cursor: pointer;
-      padding: 8px;
-      width: 32px;
-      height: 32px;
+      color: ${colors.text.secondary};
+      transition: all 0.2s ease;
       display: flex;
       align-items: center;
       justify-content: center;
-      border-radius: 8px;
-      transition: background-color 0.2s;
-      color: ${colors.text.secondary};
     `;
     
-    // Debounced collapse handler
-    let collapseTimeout: NodeJS.Timeout;
+    menuBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.toggleActionMenu();
+    });
+    
+    menuBtn.addEventListener('mouseenter', () => {
+      menuBtn.style.backgroundColor = colors.background.secondary;
+      menuBtn.style.color = colors.text.primary;
+    });
+    
+    menuBtn.addEventListener('mouseleave', () => {
+      menuBtn.style.backgroundColor = 'transparent';
+      menuBtn.style.color = colors.text.secondary;
+    });
+    
+    // Close button
+    const closeBtn = document.createElement('button');
+    closeBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18"/><path d="M6 6l12 12"/></svg>';
+    closeBtn.style.cssText = `
+      background: none;
+      border: none;
+      padding: ${spacing.sm};
+      border-radius: ${borderRadius.md};
+      cursor: pointer;
+      color: ${colors.text.secondary};
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    `;
+    
     closeBtn.addEventListener('click', () => {
-      clearTimeout(collapseTimeout);
-      collapseTimeout = setTimeout(() => this.collapse(), 100);
+      this.collapse();
     });
     
-    closeBtn.addEventListener('mouseover', () => {
-      closeBtn.style.backgroundColor = '${colors.background.secondary}';
+    closeBtn.addEventListener('mouseenter', () => {
+      closeBtn.style.backgroundColor = colors.background.secondary;
+      closeBtn.style.color = colors.text.primary;
     });
-    closeBtn.addEventListener('mouseout', () => {
+    
+    closeBtn.addEventListener('mouseleave', () => {
       closeBtn.style.backgroundColor = 'transparent';
+      closeBtn.style.color = colors.text.secondary;
     });
     
-    header.appendChild(title);
-    header.appendChild(closeBtn);
+    actionsContainer.appendChild(menuBtn);
+    actionsContainer.appendChild(closeBtn);
+    
+    header.appendChild(titleContainer);
+    header.appendChild(actionsContainer);
     
     return header;
   }
@@ -320,35 +354,13 @@ export class Sidebar {
     const nuggetList = document.createElement('div');
     nuggetList.id = 'nugget-list-container';
     nuggetList.style.cssText = `
-      padding: 24px;
+      padding: 0 ${spacing['2xl']} ${spacing['2xl']} ${spacing['2xl']};
+      flex: 1;
+      overflow-y: auto;
     `;
     
     if (this.allItems.length === 0) {
-      const emptyState = document.createElement('div');
-      emptyState.style.cssText = `
-        text-align: center;
-        padding: 48px 24px;
-        background: white;
-        border-radius: 12px;
-        border: 1px solid ${colors.border.light};
-      `;
-      
-      // Create content with icon, heading, and helpful text
-      emptyState.innerHTML = `
-        <div style="margin-bottom: 16px; opacity: 0.6;"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg></div>
-        <h3 style="margin: 0 0 12px 0; font-size: 18px; font-weight: 600; color: ${colors.text.primary};">
-          No Golden Nuggets Found
-        </h3>
-        <p style="margin: 0 0 16px 0; color: ${colors.text.secondary}; font-size: 14px; line-height: 1.5;">
-          The AI analyzed this page but didn't find any valuable insights, tools, or explanations that match your interests.
-        </p>
-        <div style="font-size: 13px; color: ${colors.text.secondary}; line-height: 1.4;">
-          <strong>Try:</strong><br>
-          • Using a different prompt or persona<br>
-          • Analyzing a different section of the page<br>
-          • Visiting content with more detailed information
-        </div>
-      `;
+      const emptyState = this.createEmptyState();
       nuggetList.appendChild(emptyState);
     } else {
       this.renderCurrentPage(nuggetList);
@@ -360,6 +372,59 @@ export class Sidebar {
     }
     
     return nuggetList;
+  }
+  
+  private createEmptyState(): HTMLElement {
+    const emptyState = document.createElement('div');
+    emptyState.style.cssText = `
+      text-align: center;
+      padding: ${spacing['5xl']} ${spacing['2xl']};
+      color: ${colors.text.secondary};
+    `;
+    
+    const icon = document.createElement('div');
+    icon.innerHTML = '<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>';
+    icon.style.cssText = `
+      margin-bottom: ${spacing.lg};
+      opacity: 0.4;
+      display: flex;
+      justify-content: center;
+    `;
+    
+    const title = document.createElement('h3');
+    title.textContent = 'No golden nuggets found';
+    title.style.cssText = `
+      margin: 0 0 ${spacing.sm} 0;
+      font-size: ${typography.fontSize.base};
+      font-weight: ${typography.fontWeight.medium};
+      color: ${colors.text.primary};
+    `;
+    
+    const description = document.createElement('p');
+    description.textContent = 'The AI didn\'t find any valuable insights on this page that match your interests.';
+    description.style.cssText = `
+      margin: 0 0 ${spacing.lg} 0;
+      font-size: ${typography.fontSize.sm};
+      line-height: ${typography.lineHeight.normal};
+      color: ${colors.text.secondary};
+      max-width: 280px;
+      margin-left: auto;
+      margin-right: auto;
+    `;
+    
+    const suggestions = document.createElement('div');
+    suggestions.innerHTML = `
+      <div style="font-size: ${typography.fontSize.xs}; color: ${colors.text.tertiary}; line-height: ${typography.lineHeight.normal};">
+        Try using a different prompt or analyzing different content
+      </div>
+    `;
+    
+    emptyState.appendChild(icon);
+    emptyState.appendChild(title);
+    emptyState.appendChild(description);
+    emptyState.appendChild(suggestions);
+    
+    return emptyState;
   }
   
   private renderCurrentPage(container: HTMLElement): void {
@@ -463,160 +528,143 @@ export class Sidebar {
   private createNuggetElement(item: SidebarNuggetItem, index: number): HTMLElement {
     const nuggetDiv = document.createElement('div');
     nuggetDiv.className = 'nugget-item';
+    const globalIndex = this.currentPage * this.itemsPerPage + index;
+    const isSelected = item.selected;
+    
     nuggetDiv.style.cssText = `
-      margin-bottom: 16px;
-      padding: 20px;
-      border: 1px solid ${item.status === 'highlighted' ? colors.text.accent : colors.border.light};
-      border-radius: 12px;
-      background: white;
-      transition: all 0.2s;
-      box-shadow: ${generateInlineStyles.cardShadow()};
-      cursor: ${item.status === 'highlighted' ? 'pointer' : 'default'};
-      position: relative;
-      display: flex;
-      gap: ${spacing.md};
-    `;
-    
-    // Add click handler for highlighted nuggets
-    if (item.status === 'highlighted' && this.highlighter) {
-      // Add visual indicator for clickable items
-      const clickIndicator = document.createElement('div');
-      clickIndicator.style.cssText = `
-        position: absolute;
-        top: 16px;
-        right: 16px;
-        width: 8px;
-        height: 8px;
-        background: ${colors.text.accent};
-        border-radius: 50%;
-        opacity: 0.6;
-      `;
-      nuggetDiv.appendChild(clickIndicator);
-      
-      nuggetDiv.addEventListener('click', () => {
-        this.highlighter?.scrollToHighlight(item.nugget);
-        // Remove the dot indicator after clicking
-        clickIndicator.remove();
-      });
-    }
-    
-    // Create checkbox container
-    const checkboxContainer = document.createElement('div');
-    checkboxContainer.style.cssText = `
-      display: flex;
-      align-items: flex-start;
-      padding-top: 2px;
-      flex-shrink: 0;
-    `;
-    
-    // Create checkbox
-    const checkbox = document.createElement('input');
-    checkbox.type = 'checkbox';
-    checkbox.checked = item.selected;
-    checkbox.style.cssText = `
-      width: 16px;
-      height: 16px;
-      margin: 0;
-      accent-color: ${colors.text.accent};
-      border: 1px solid ${colors.border.medium};
-      border-radius: ${borderRadius.sm};
+      margin-bottom: ${spacing.lg};
+      padding: ${spacing.lg};
+      border: 1px solid ${isSelected ? colors.border.medium : colors.border.light};
+      border-radius: ${borderRadius.lg};
+      background: ${isSelected ? colors.background.secondary : colors.white};
+      transition: all 0.15s ease;
       cursor: pointer;
+      position: relative;
     `;
     
-    // Add checkbox change handler
-    checkbox.addEventListener('change', (e) => {
-      e.stopPropagation();
-      const globalIndex = this.currentPage * this.itemsPerPage + index;
+    // Click handler for selection and highlighting
+    nuggetDiv.addEventListener('click', (e) => {
+      // Toggle selection
       this.toggleItemSelection(globalIndex);
+      
+      // If highlighted, also scroll to highlight
+      if (item.status === 'highlighted' && this.highlighter) {
+        this.highlighter.scrollToHighlight(item.nugget);
+      }
     });
     
-    checkboxContainer.appendChild(checkbox);
+    // Hover effects
+    nuggetDiv.addEventListener('mouseenter', () => {
+      if (!isSelected) {
+        nuggetDiv.style.backgroundColor = colors.background.secondary;
+        nuggetDiv.style.borderColor = colors.border.default;
+      }
+    });
     
-    // Create content container
+    nuggetDiv.addEventListener('mouseleave', () => {
+      if (!isSelected) {
+        nuggetDiv.style.backgroundColor = colors.white;
+        nuggetDiv.style.borderColor = colors.border.light;
+      }
+    });
+    
+    // Content structure
     const contentContainer = document.createElement('div');
     contentContainer.style.cssText = `
-      flex: 1;
-      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: ${spacing.sm};
     `;
     
-    // Use DocumentFragment for efficient DOM construction
-    const fragment = document.createDocumentFragment();
-    
-    // Header with type badge and status
+    // Header with type badge and selection indicator
     const headerDiv = document.createElement('div');
     headerDiv.style.cssText = `
       display: flex;
       justify-content: space-between;
-      align-items: flex-start;
-      margin-bottom: 8px;
+      align-items: center;
     `;
     
-    // Type badge
+    // Type badge - more subtle
     const typeBadge = document.createElement('span');
-    typeBadge.className = 'nugget-type-badge';
     typeBadge.textContent = item.nugget.type;
     typeBadge.style.cssText = `
-      display: inline-block;
-      background: ${colors.text.accent};
-      color: white;
-      padding: 4px 8px;
-      border-radius: 6px;
-      font-size: 12px;
-      font-weight: 500;
+      background: ${colors.background.tertiary};
+      color: ${colors.text.secondary};
+      padding: ${spacing.xs} ${spacing.sm};
+      border-radius: ${borderRadius.sm};
+      font-size: ${typography.fontSize.xs};
+      font-weight: ${typography.fontWeight.medium};
       text-transform: uppercase;
+      letter-spacing: 0.5px;
     `;
+    
+    // Selection indicator and status
+    const statusContainer = document.createElement('div');
+    statusContainer.style.cssText = `
+      display: flex;
+      align-items: center;
+      gap: ${spacing.xs};
+    `;
+    
+    // Highlighted indicator
+    if (item.status === 'highlighted') {
+      const highlightIndicator = document.createElement('div');
+      highlightIndicator.style.cssText = `
+        width: 6px;
+        height: 6px;
+        background: ${colors.highlight.border};
+        border-radius: 50%;
+        opacity: 0.8;
+      `;
+      statusContainer.appendChild(highlightIndicator);
+    }
+    
+    // Selection checkmark
+    if (isSelected) {
+      const checkmark = document.createElement('div');
+      checkmark.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>';
+      checkmark.style.cssText = `
+        color: ${colors.text.accent};
+        display: flex;
+        align-items: center;
+      `;
+      statusContainer.appendChild(checkmark);
+    }
     
     headerDiv.appendChild(typeBadge);
+    headerDiv.appendChild(statusContainer);
     
-    // Content preview with lazy loading
+    // Content preview - cleaner presentation
     const contentPreview = document.createElement('div');
-    contentPreview.className = 'nugget-content';
     contentPreview.style.cssText = `
-      margin-bottom: 12px;
-      font-size: 14px;
-      line-height: 1.5;
+      font-size: ${typography.fontSize.sm};
+      line-height: ${typography.lineHeight.normal};
       color: ${colors.text.primary};
-      max-height: 80px;
-      overflow: hidden;
-      position: relative;
     `;
     
-    const maxLength = 150;
+    const maxLength = 200;
     const isTruncated = item.nugget.content.length > maxLength;
     
     if (isTruncated) {
       const truncatedContent = item.nugget.content.substring(0, maxLength);
       
-      // Create text span with ellipsis
       const textSpan = document.createElement('span');
       textSpan.textContent = truncatedContent + '…';
       
-      // Add expand button
-      const expandButton = document.createElement('span');
-      expandButton.textContent = ' show more';
+      const expandButton = document.createElement('button');
+      expandButton.textContent = 'Show more';
       expandButton.style.cssText = `
+        background: none;
+        border: none;
         color: ${colors.text.accent};
         cursor: pointer;
-        font-weight: 500;
-        font-size: 13px;
-        margin-left: 4px;
-        padding: 2px 6px;
-        border-radius: 4px;
-        background: ${colors.highlight.background};
-        border: 1px solid ${colors.highlight.border};
-        transition: all 0.2s ease;
-        display: inline-block;
+        font-size: ${typography.fontSize.xs};
+        font-weight: ${typography.fontWeight.medium};
+        margin-left: ${spacing.xs};
+        padding: 0;
+        text-decoration: underline;
+        text-underline-offset: 2px;
       `;
-      
-      expandButton.addEventListener('mouseenter', () => {
-        expandButton.style.background = '${colors.highlight.hover}';
-        expandButton.style.borderColor = '${colors.border.default}';
-      });
-      
-      expandButton.addEventListener('mouseleave', () => {
-        expandButton.style.background = '${colors.highlight.background}';
-        expandButton.style.borderColor = '${colors.highlight.border}';
-      });
       
       let isExpanded = false;
       expandButton.addEventListener('click', (e) => {
@@ -625,14 +673,10 @@ export class Sidebar {
         
         if (isExpanded) {
           textSpan.textContent = item.nugget.content;
-          expandButton.textContent = ' show less';
-          contentPreview.style.maxHeight = 'none';
-          contentPreview.style.overflow = 'visible';
+          expandButton.textContent = 'Show less';
         } else {
           textSpan.textContent = truncatedContent + '…';
-          expandButton.textContent = ' show more';
-          contentPreview.style.maxHeight = '80px';
-          contentPreview.style.overflow = 'hidden';
+          expandButton.textContent = 'Show more';
         }
       });
       
@@ -642,47 +686,24 @@ export class Sidebar {
       contentPreview.textContent = item.nugget.content;
     }
     
-    // Synthesis
+    // Synthesis - more subtle presentation
     const synthesis = document.createElement('div');
-    synthesis.className = 'nugget-synthesis';
     synthesis.style.cssText = `
-      font-size: 13px;
-      line-height: 1.5;
+      font-size: ${typography.fontSize.xs};
+      line-height: ${typography.lineHeight.normal};
       color: ${colors.text.secondary};
-      font-style: italic;
-      border-left: 3px solid ${colors.text.accent};
-      padding-left: 12px;
-      margin-top: 8px;
+      padding: ${spacing.sm};
+      background: ${colors.background.tertiary};
+      border-radius: ${borderRadius.sm};
+      border-left: 2px solid ${colors.border.default};
     `;
     synthesis.textContent = item.nugget.synthesis;
     
-    // Debounced hover effects for better performance
-    let hoverTimeout: NodeJS.Timeout;
-    nuggetDiv.addEventListener('mouseover', () => {
-      clearTimeout(hoverTimeout);
-      hoverTimeout = setTimeout(() => {
-        nuggetDiv.style.borderColor = colors.text.accent;
-        nuggetDiv.style.boxShadow = generateInlineStyles.cardShadowHover();
-        if (item.status === 'highlighted') {
-          nuggetDiv.style.backgroundColor = colors.background.secondary;
-        }
-      }, 50);
-    });
-    
-    nuggetDiv.addEventListener('mouseout', () => {
-      clearTimeout(hoverTimeout);
-      nuggetDiv.style.borderColor = item.status === 'highlighted' ? colors.text.accent : colors.border.light;
-      nuggetDiv.style.boxShadow = generateInlineStyles.cardShadow();
-      nuggetDiv.style.backgroundColor = colors.background.primary;
-    });
-    
-    // Assemble the content container
+    // Assemble the content
     contentContainer.appendChild(headerDiv);
     contentContainer.appendChild(contentPreview);
     contentContainer.appendChild(synthesis);
     
-    // Assemble the main element
-    nuggetDiv.appendChild(checkboxContainer);
     nuggetDiv.appendChild(contentContainer);
     
     return nuggetDiv;
@@ -710,7 +731,7 @@ export class Sidebar {
         this.selectedItems.delete(globalIndex);
       }
       
-      this.updateExportPanel();
+      this.updateSelectedCount();
     }
   }
 
@@ -719,7 +740,7 @@ export class Sidebar {
       item.selected = true;
       this.selectedItems.add(index);
     });
-    this.updateExportPanel();
+    this.updateSelectedCount();
     this.refreshCurrentPage();
   }
 
@@ -728,7 +749,7 @@ export class Sidebar {
       item.selected = false;
       this.selectedItems.delete(index);
     });
-    this.updateExportPanel();
+    this.updateSelectedCount();
     this.refreshCurrentPage();
   }
 
@@ -741,20 +762,9 @@ export class Sidebar {
     }
   }
 
-  private updateExportPanel(): void {
-    if (this.exportPanel) {
-      const selectedCountSpan = this.exportPanel.querySelector('.selected-count');
-      if (selectedCountSpan) {
-        selectedCountSpan.textContent = this.selectedItems.size.toString();
-      }
-    }
-    
-    if (this.restEndpointPanel) {
-      const selectedCountSpan = this.restEndpointPanel.querySelector('.selected-count');
-      if (selectedCountSpan) {
-        selectedCountSpan.textContent = this.selectedItems.size.toString();
-      }
-    }
+  private updateSelectedCount(): void {
+    // Update any UI elements that show selected count
+    // This is now much simpler without complex panels
   }
 
   private createExportPanel(): HTMLElement {
@@ -894,128 +904,10 @@ export class Sidebar {
     return panel;
   }
 
-  private toggleExportPanel(optionsContainer: HTMLElement, toggleIcon: HTMLElement): void {
-    this.exportPanelExpanded = !this.exportPanelExpanded;
-    
-    if (this.exportPanelExpanded) {
-      optionsContainer.style.display = 'flex';
-      toggleIcon.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>';
-    } else {
-      optionsContainer.style.display = 'none';
-      toggleIcon.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>';
-    }
-  }
 
-  private createFormatButton(format: string, label: string): HTMLElement {
-    const button = document.createElement('button');
-    button.innerHTML = label;
-    button.dataset.format = format;
-    button.style.cssText = `
-      padding: ${spacing.xs} ${spacing.sm};
-      border: 1px solid ${colors.border.default};
-      border-radius: ${borderRadius.sm};
-      background: ${colors.background.primary};
-      color: ${colors.text.secondary};
-      cursor: pointer;
-      font-size: ${typography.fontSize.xs};
-      transition: all 0.2s ease;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 0;
-      ${format === 'markdown' ? `background: ${colors.background.secondary}; color: ${colors.text.primary};` : ''}
-    `;
 
-    button.addEventListener('click', () => {
-      // Update active state
-      const allFormatButtons = this.exportPanel?.querySelectorAll('[data-format]');
-      allFormatButtons?.forEach(btn => {
-        (btn as HTMLElement).style.background = colors.background.primary;
-        (btn as HTMLElement).style.color = colors.text.secondary;
-      });
-      
-      button.style.background = colors.background.secondary;
-      button.style.color = colors.text.primary;
-    });
 
-    return button;
-  }
 
-  private createScopeButton(scope: string, label: string): HTMLElement {
-    const button = document.createElement('button');
-    button.innerHTML = label;
-    button.dataset.scope = scope;
-    button.style.cssText = `
-      padding: ${spacing.xs} ${spacing.sm};
-      border: 1px solid ${colors.border.default};
-      border-radius: ${borderRadius.sm};
-      background: ${colors.background.primary};
-      color: ${colors.text.secondary};
-      cursor: pointer;
-      font-size: ${typography.fontSize.xs};
-      transition: all 0.2s ease;
-      ${scope === 'all' ? `background: ${colors.background.secondary}; color: ${colors.text.primary};` : ''}
-    `;
-
-    button.addEventListener('click', () => {
-      // Update active state
-      const allScopeButtons = this.exportPanel?.querySelectorAll('[data-scope]');
-      allScopeButtons?.forEach(btn => {
-        (btn as HTMLElement).style.background = colors.background.primary;
-        (btn as HTMLElement).style.color = colors.text.secondary;
-      });
-      
-      button.style.background = colors.background.secondary;
-      button.style.color = colors.text.primary;
-    });
-
-    return button;
-  }
-
-  private createActionButton(label: string, onClick: () => void): HTMLElement {
-    const button = document.createElement('button');
-    button.textContent = label;
-    button.style.cssText = `
-      padding: ${spacing.xs} ${spacing.sm};
-      border: 1px solid ${colors.border.default};
-      border-radius: ${borderRadius.sm};
-      background: ${colors.background.primary};
-      color: ${colors.text.primary};
-      cursor: pointer;
-      font-size: ${typography.fontSize.xs};
-      font-weight: ${typography.fontWeight.medium};
-      transition: all 0.2s ease;
-    `;
-
-    button.addEventListener('click', onClick);
-
-    button.addEventListener('mouseenter', () => {
-      button.style.background = colors.background.secondary;
-    });
-
-    button.addEventListener('mouseleave', () => {
-      button.style.background = colors.background.primary;
-    });
-
-    return button;
-  }
-
-  private handleExport(): void {
-    const selectedFormat = this.exportPanel?.querySelector('[data-format][style*="background: rgb(252, 252, 252)"]') as HTMLElement;
-    const selectedScope = this.exportPanel?.querySelector('[data-scope][style*="background: rgb(252, 252, 252)"]') as HTMLElement;
-    
-    const format = selectedFormat?.dataset.format || 'markdown';
-    const scope = selectedScope?.dataset.scope || 'all';
-    
-    const nuggets = scope === 'all' ? this.allItems : this.allItems.filter(item => item.selected);
-    
-    if (scope === 'selected' && nuggets.length === 0) {
-      alert('Please select at least one nugget to export.');
-      return;
-    }
-    
-    this.exportNuggets(nuggets, format as 'markdown' | 'json');
-  }
 
   private exportNuggets(nuggets: SidebarNuggetItem[], format: 'markdown' | 'json'): void {
     const url = window.location.href;
@@ -1079,715 +971,5 @@ ${nugget.synthesis}
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-  }
-
-  private createRestEndpointPanel(): HTMLElement {
-    const panel = document.createElement('div');
-    panel.style.cssText = `
-      border-top: 1px solid ${colors.border.light};
-      background: ${colors.background.primary};
-      position: sticky;
-      bottom: 0;
-      z-index: 1;
-    `;
-
-    // REST endpoint title (clickable header)
-    const titleContainer = document.createElement('div');
-    titleContainer.style.cssText = `
-      padding: ${spacing.md} ${spacing.lg};
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      gap: ${spacing.xs};
-      user-select: none;
-      transition: background-color 0.2s ease;
-    `;
-
-    const titleText = document.createElement('span');
-    titleText.textContent = 'Send to Endpoint';
-    titleText.style.cssText = `
-      font-size: ${typography.fontSize.sm};
-      font-weight: ${typography.fontWeight.medium};
-      color: ${colors.text.primary};
-    `;
-
-    const toggleIcon = document.createElement('span');
-    toggleIcon.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>';
-    toggleIcon.style.cssText = `
-      font-size: ${typography.fontSize.xs};
-      color: ${colors.text.secondary};
-      transition: transform 0.2s ease;
-    `;
-
-    titleContainer.appendChild(titleText);
-    titleContainer.appendChild(toggleIcon);
-
-    // REST endpoint options container (initially hidden)
-    const optionsContainer = document.createElement('div');
-    optionsContainer.style.cssText = `
-      display: none;
-      flex-direction: column;
-      gap: ${spacing.sm};
-      padding: 0 ${spacing.lg} ${spacing.lg} ${spacing.lg};
-      transition: all 0.2s ease;
-    `;
-
-    // Add click handler for collapse/expand
-    titleContainer.addEventListener('click', () => {
-      this.toggleRestEndpointPanel(optionsContainer, toggleIcon);
-    });
-
-    // Hover effect for title
-    titleContainer.addEventListener('mouseenter', () => {
-      titleContainer.style.backgroundColor = colors.background.secondary;
-    });
-
-    titleContainer.addEventListener('mouseleave', () => {
-      titleContainer.style.backgroundColor = 'transparent';
-    });
-
-    // URL input
-    const urlRow = document.createElement('div');
-    urlRow.style.cssText = `
-      display: flex;
-      flex-direction: column;
-      gap: ${spacing.xs};
-    `;
-
-    const urlLabel = document.createElement('label');
-    urlLabel.textContent = 'URL:';
-    urlLabel.style.cssText = `
-      font-size: ${typography.fontSize.xs};
-      color: ${colors.text.secondary};
-      font-weight: ${typography.fontWeight.medium};
-    `;
-
-    const urlInput = document.createElement('input');
-    urlInput.type = 'url';
-    urlInput.placeholder = 'https://api.example.com/nuggets';
-    urlInput.style.cssText = `
-      padding: ${spacing.xs} ${spacing.sm};
-      border: 1px solid ${colors.border.light};
-      border-radius: ${borderRadius.sm};
-      font-size: ${typography.fontSize.sm};
-      background: ${colors.background.primary};
-      color: ${colors.text.primary};
-      outline: none;
-      transition: border-color 0.2s ease;
-    `;
-
-    urlInput.addEventListener('focus', () => {
-      urlInput.style.borderColor = colors.border.medium;
-    });
-
-    urlInput.addEventListener('blur', () => {
-      urlInput.style.borderColor = colors.border.light;
-    });
-
-    urlInput.addEventListener('input', (e) => {
-      this.restEndpointConfig.url = (e.target as HTMLInputElement).value;
-    });
-
-    urlRow.appendChild(urlLabel);
-    urlRow.appendChild(urlInput);
-
-    // Method and Content-Type row
-    const methodContentRow = document.createElement('div');
-    methodContentRow.style.cssText = `
-      display: flex;
-      gap: ${spacing.sm};
-    `;
-
-    const methodContainer = document.createElement('div');
-    methodContainer.style.cssText = `
-      display: flex;
-      flex-direction: column;
-      gap: ${spacing.xs};
-      flex: 1;
-    `;
-
-    const methodLabel = document.createElement('label');
-    methodLabel.textContent = 'Method:';
-    methodLabel.style.cssText = `
-      font-size: ${typography.fontSize.xs};
-      color: ${colors.text.secondary};
-      font-weight: ${typography.fontWeight.medium};
-    `;
-
-    const methodSelect = document.createElement('select');
-    methodSelect.style.cssText = `
-      padding: ${spacing.xs} ${spacing.sm};
-      border: 1px solid ${colors.border.light};
-      border-radius: ${borderRadius.sm};
-      font-size: ${typography.fontSize.sm};
-      background: ${colors.background.primary};
-      color: ${colors.text.primary};
-      outline: none;
-      cursor: pointer;
-    `;
-
-    const methodOptions = ['POST', 'PUT', 'PATCH'];
-    methodOptions.forEach(method => {
-      const option = document.createElement('option');
-      option.value = method;
-      option.textContent = method;
-      methodSelect.appendChild(option);
-    });
-
-    methodSelect.addEventListener('change', (e) => {
-      this.restEndpointConfig.method = (e.target as HTMLSelectElement).value;
-    });
-
-    methodContainer.appendChild(methodLabel);
-    methodContainer.appendChild(methodSelect);
-
-    const contentTypeContainer = document.createElement('div');
-    contentTypeContainer.style.cssText = `
-      display: flex;
-      flex-direction: column;
-      gap: ${spacing.xs};
-      flex: 1;
-    `;
-
-    const contentTypeLabel = document.createElement('label');
-    contentTypeLabel.textContent = 'Content-Type:';
-    contentTypeLabel.style.cssText = `
-      font-size: ${typography.fontSize.xs};
-      color: ${colors.text.secondary};
-      font-weight: ${typography.fontWeight.medium};
-    `;
-
-    const contentTypeSelect = document.createElement('select');
-    contentTypeSelect.style.cssText = `
-      padding: ${spacing.xs} ${spacing.sm};
-      border: 1px solid ${colors.border.light};
-      border-radius: ${borderRadius.sm};
-      font-size: ${typography.fontSize.sm};
-      background: ${colors.background.primary};
-      color: ${colors.text.primary};
-      outline: none;
-      cursor: pointer;
-    `;
-
-    const contentTypeOptions = ['application/json', 'application/xml', 'application/x-www-form-urlencoded'];
-    contentTypeOptions.forEach(contentType => {
-      const option = document.createElement('option');
-      option.value = contentType;
-      option.textContent = contentType;
-      contentTypeSelect.appendChild(option);
-    });
-
-    contentTypeSelect.addEventListener('change', (e) => {
-      this.restEndpointConfig.contentType = (e.target as HTMLSelectElement).value;
-    });
-
-    contentTypeContainer.appendChild(contentTypeLabel);
-    contentTypeContainer.appendChild(contentTypeSelect);
-
-    methodContentRow.appendChild(methodContainer);
-    methodContentRow.appendChild(contentTypeContainer);
-
-    // Headers section
-    const headersRow = document.createElement('div');
-    headersRow.style.cssText = `
-      display: flex;
-      flex-direction: column;
-      gap: ${spacing.xs};
-    `;
-
-    const headersLabel = document.createElement('label');
-    headersLabel.textContent = 'Headers:';
-    headersLabel.style.cssText = `
-      font-size: ${typography.fontSize.xs};
-      color: ${colors.text.secondary};
-      font-weight: ${typography.fontWeight.medium};
-    `;
-
-    const headersContainer = document.createElement('div');
-    headersContainer.style.cssText = `
-      display: flex;
-      flex-direction: column;
-      gap: ${spacing.xs};
-    `;
-
-    const addHeaderBtn = document.createElement('button');
-    addHeaderBtn.textContent = '+ Add Header';
-    addHeaderBtn.style.cssText = `
-      padding: ${spacing.xs} ${spacing.sm};
-      border: 1px solid ${colors.border.light};
-      border-radius: ${borderRadius.sm};
-      background: ${colors.background.secondary};
-      color: ${colors.text.primary};
-      font-size: ${typography.fontSize.xs};
-      cursor: pointer;
-      transition: all 0.2s ease;
-    `;
-
-    addHeaderBtn.addEventListener('mouseenter', () => {
-      addHeaderBtn.style.backgroundColor = colors.background.tertiary;
-    });
-
-    addHeaderBtn.addEventListener('mouseleave', () => {
-      addHeaderBtn.style.backgroundColor = colors.background.secondary;
-    });
-
-    addHeaderBtn.addEventListener('click', () => {
-      this.addHeaderRow(headersContainer);
-    });
-
-    headersRow.appendChild(headersLabel);
-    headersRow.appendChild(headersContainer);
-    headersRow.appendChild(addHeaderBtn);
-
-    // Scope selection
-    const scopeRow = document.createElement('div');
-    scopeRow.style.cssText = `
-      display: flex;
-      gap: ${spacing.sm};
-      align-items: center;
-    `;
-
-    const scopeLabel = document.createElement('span');
-    scopeLabel.textContent = 'Scope:';
-    scopeLabel.style.cssText = `
-      font-size: ${typography.fontSize.xs};
-      color: ${colors.text.secondary};
-      min-width: 50px;
-    `;
-
-    const allBtn = this.createRestScopeButton('all', `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg> All (${this.allItems.length})`);
-    const selectedBtn = this.createRestScopeButton('selected', `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg> Selected (<span class="selected-count">0</span>)`);
-
-    scopeRow.appendChild(scopeLabel);
-    scopeRow.appendChild(allBtn);
-    scopeRow.appendChild(selectedBtn);
-
-    // Include section
-    const includeSection = document.createElement('div');
-    includeSection.style.cssText = `
-      display: flex;
-      flex-direction: column;
-      gap: ${spacing.xs};
-    `;
-
-    const includeLabel = document.createElement('label');
-    includeLabel.textContent = 'Include in Request Body:';
-    includeLabel.style.cssText = `
-      font-size: ${typography.fontSize.xs};
-      color: ${colors.text.secondary};
-      font-weight: ${typography.fontWeight.medium};
-    `;
-
-    const includeOptions = document.createElement('div');
-    includeOptions.style.cssText = `
-      display: flex;
-      flex-direction: column;
-      gap: ${spacing.xs};
-      padding-left: ${spacing.sm};
-    `;
-
-    // URL checkbox
-    const urlCheckbox = this.createCheckbox('includeUrl', 'URL', this.restEndpointConfig.includeUrl);
-    urlCheckbox.addEventListener('change', (e) => {
-      this.restEndpointConfig.includeUrl = (e.target as HTMLInputElement).checked;
-    });
-
-    // Timestamp checkbox
-    const timestampCheckbox = this.createCheckbox('includeTimestamp', 'Timestamp', this.restEndpointConfig.includeTimestamp);
-    timestampCheckbox.addEventListener('change', (e) => {
-      this.restEndpointConfig.includeTimestamp = (e.target as HTMLInputElement).checked;
-    });
-
-    // Nuggets checkbox with sub-options
-    const nuggetContainer = document.createElement('div');
-    nuggetContainer.style.cssText = `
-      display: flex;
-      flex-direction: column;
-      gap: ${spacing.xs};
-    `;
-
-    const nuggetCheckbox = this.createCheckbox('includeNuggets', 'Nuggets:', this.restEndpointConfig.includeNuggets);
-    nuggetCheckbox.addEventListener('change', (e) => {
-      const checked = (e.target as HTMLInputElement).checked;
-      this.restEndpointConfig.includeNuggets = checked;
-      this.toggleNuggetSubOptions(nuggetSubOptions, checked);
-    });
-
-    const nuggetSubOptions = document.createElement('div');
-    nuggetSubOptions.style.cssText = `
-      display: flex;
-      flex-direction: column;
-      gap: ${spacing.xs};
-      padding-left: ${spacing.lg};
-    `;
-
-    const typeCheckbox = this.createCheckbox('nuggetType', 'Type (tool, media...)', this.restEndpointConfig.nuggetParts.type);
-    typeCheckbox.addEventListener('change', (e) => {
-      this.restEndpointConfig.nuggetParts.type = (e.target as HTMLInputElement).checked;
-    });
-
-    const contentCheckbox = this.createCheckbox('nuggetContent', 'Content (original text)', this.restEndpointConfig.nuggetParts.content);
-    contentCheckbox.addEventListener('change', (e) => {
-      this.restEndpointConfig.nuggetParts.content = (e.target as HTMLInputElement).checked;
-    });
-
-    const synthesisCheckbox = this.createCheckbox('nuggetSynthesis', 'Synthesis (relevance note)', this.restEndpointConfig.nuggetParts.synthesis);
-    synthesisCheckbox.addEventListener('change', (e) => {
-      this.restEndpointConfig.nuggetParts.synthesis = (e.target as HTMLInputElement).checked;
-    });
-
-    nuggetSubOptions.appendChild(typeCheckbox);
-    nuggetSubOptions.appendChild(contentCheckbox);
-    nuggetSubOptions.appendChild(synthesisCheckbox);
-
-    nuggetContainer.appendChild(nuggetCheckbox);
-    nuggetContainer.appendChild(nuggetSubOptions);
-
-    includeOptions.appendChild(urlCheckbox);
-    includeOptions.appendChild(timestampCheckbox);
-    includeOptions.appendChild(nuggetContainer);
-
-    includeSection.appendChild(includeLabel);
-    includeSection.appendChild(includeOptions);
-
-    // Action buttons
-    const actionsRow = document.createElement('div');
-    actionsRow.style.cssText = `
-      display: flex;
-      gap: ${spacing.sm};
-      justify-content: center;
-    `;
-
-    const sendBtn = this.createActionButton('Send', () => this.handleRestEndpointSend());
-    const testBtn = this.createActionButton('Test Connection', () => this.handleTestConnection());
-
-    actionsRow.appendChild(sendBtn);
-    actionsRow.appendChild(testBtn);
-
-    optionsContainer.appendChild(urlRow);
-    optionsContainer.appendChild(methodContentRow);
-    optionsContainer.appendChild(headersRow);
-    optionsContainer.appendChild(scopeRow);
-    optionsContainer.appendChild(includeSection);
-    optionsContainer.appendChild(actionsRow);
-
-    panel.appendChild(titleContainer);
-    panel.appendChild(optionsContainer);
-
-    return panel;
-  }
-
-  private toggleRestEndpointPanel(optionsContainer: HTMLElement, toggleIcon: HTMLElement): void {
-    this.restEndpointExpanded = !this.restEndpointExpanded;
-    
-    if (this.restEndpointExpanded) {
-      optionsContainer.style.display = 'flex';
-      toggleIcon.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>';
-    } else {
-      optionsContainer.style.display = 'none';
-      toggleIcon.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>';
-    }
-  }
-
-  private createRestScopeButton(scope: string, label: string): HTMLElement {
-    const button = document.createElement('button');
-    button.dataset.scope = scope;
-    button.innerHTML = label;
-    button.style.cssText = `
-      padding: ${spacing.xs} ${spacing.sm};
-      border: 1px solid ${colors.border.light};
-      border-radius: ${borderRadius.sm};
-      background: ${colors.background.primary};
-      color: ${colors.text.primary};
-      font-size: ${typography.fontSize.xs};
-      cursor: pointer;
-      transition: all 0.2s ease;
-      display: flex;
-      align-items: center;
-      gap: ${spacing.xs};
-    `;
-
-    if (scope === 'all') {
-      button.style.background = colors.background.secondary;
-    }
-
-    button.addEventListener('mouseenter', () => {
-      button.style.backgroundColor = colors.background.secondary;
-    });
-
-    button.addEventListener('mouseleave', () => {
-      if (scope === 'all') {
-        button.style.backgroundColor = colors.background.secondary;
-      } else {
-        button.style.backgroundColor = colors.background.primary;
-      }
-    });
-
-    button.addEventListener('click', () => {
-      this.handleRestScopeSelection(scope);
-    });
-
-    return button;
-  }
-
-  private handleRestScopeSelection(scope: string): void {
-    const allButtons = this.restEndpointPanel?.querySelectorAll('[data-scope]');
-    allButtons?.forEach((btn) => {
-      const button = btn as HTMLElement;
-      if (button.dataset.scope === scope) {
-        button.style.background = colors.background.secondary;
-      } else {
-        button.style.background = colors.background.primary;
-      }
-    });
-  }
-
-  private createCheckbox(id: string, label: string, checked: boolean): HTMLElement {
-    const container = document.createElement('div');
-    container.style.cssText = `
-      display: flex;
-      align-items: center;
-      gap: ${spacing.xs};
-    `;
-
-    const checkbox = document.createElement('input');
-    checkbox.type = 'checkbox';
-    checkbox.id = id;
-    checkbox.checked = checked;
-    checkbox.style.cssText = `
-      width: 16px;
-      height: 16px;
-      cursor: pointer;
-    `;
-
-    const labelElement = document.createElement('label');
-    labelElement.htmlFor = id;
-    labelElement.textContent = label;
-    labelElement.style.cssText = `
-      font-size: ${typography.fontSize.xs};
-      color: ${colors.text.primary};
-      cursor: pointer;
-    `;
-
-    container.appendChild(checkbox);
-    container.appendChild(labelElement);
-
-    return container;
-  }
-
-  private toggleNuggetSubOptions(subOptions: HTMLElement, show: boolean): void {
-    subOptions.style.display = show ? 'flex' : 'none';
-    const checkboxes = subOptions.querySelectorAll('input[type="checkbox"]');
-    checkboxes.forEach(checkbox => {
-      (checkbox as HTMLInputElement).disabled = !show;
-    });
-  }
-
-  private addHeaderRow(container: HTMLElement): void {
-    const headerRow = document.createElement('div');
-    headerRow.style.cssText = `
-      display: flex;
-      gap: ${spacing.xs};
-      align-items: center;
-    `;
-
-    const keyInput = document.createElement('input');
-    keyInput.type = 'text';
-    keyInput.placeholder = 'Header name';
-    keyInput.style.cssText = `
-      padding: ${spacing.xs} ${spacing.sm};
-      border: 1px solid ${colors.border.light};
-      border-radius: ${borderRadius.sm};
-      font-size: ${typography.fontSize.xs};
-      background: ${colors.background.primary};
-      color: ${colors.text.primary};
-      outline: none;
-      flex: 1;
-    `;
-
-    const valueInput = document.createElement('input');
-    valueInput.type = 'text';
-    valueInput.placeholder = 'Header value';
-    valueInput.style.cssText = `
-      padding: ${spacing.xs} ${spacing.sm};
-      border: 1px solid ${colors.border.light};
-      border-radius: ${borderRadius.sm};
-      font-size: ${typography.fontSize.xs};
-      background: ${colors.background.primary};
-      color: ${colors.text.primary};
-      outline: none;
-      flex: 2;
-    `;
-
-    const removeBtn = document.createElement('button');
-    removeBtn.textContent = '×';
-    removeBtn.style.cssText = `
-      padding: ${spacing.xs};
-      border: 1px solid ${colors.border.light};
-      border-radius: ${borderRadius.sm};
-      background: ${colors.background.primary};
-      color: ${colors.text.secondary};
-      font-size: ${typography.fontSize.sm};
-      cursor: pointer;
-      width: 24px;
-      height: 24px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    `;
-
-    removeBtn.addEventListener('click', () => {
-      container.removeChild(headerRow);
-      this.updateRestEndpointHeaders();
-    });
-
-    const updateHeaders = () => {
-      this.updateRestEndpointHeaders();
-    };
-
-    keyInput.addEventListener('input', updateHeaders);
-    valueInput.addEventListener('input', updateHeaders);
-
-    headerRow.appendChild(keyInput);
-    headerRow.appendChild(valueInput);
-    headerRow.appendChild(removeBtn);
-
-    container.appendChild(headerRow);
-    this.updateRestEndpointHeaders();
-  }
-
-  private updateRestEndpointHeaders(): void {
-    const headerRows = this.restEndpointPanel?.querySelectorAll('div[style*="display: flex"][style*="gap"]');
-    this.restEndpointConfig.headers = [];
-    
-    headerRows?.forEach(row => {
-      const inputs = row.querySelectorAll('input[type="text"]');
-      if (inputs.length === 2) {
-        const key = (inputs[0] as HTMLInputElement).value.trim();
-        const value = (inputs[1] as HTMLInputElement).value.trim();
-        if (key && value) {
-          this.restEndpointConfig.headers.push({ key, value });
-        }
-      }
-    });
-  }
-
-  private async handleRestEndpointSend(): Promise<void> {
-    if (!this.restEndpointConfig.url) {
-      alert('Please enter a URL');
-      return;
-    }
-
-    const selectedScope = this.restEndpointPanel?.querySelector('[data-scope][style*="background: rgb(252, 252, 252)"]') as HTMLElement;
-    const scope = selectedScope?.dataset.scope || 'all';
-    
-    const nuggets = scope === 'all' ? this.allItems : this.allItems.filter(item => item.selected);
-    
-    if (scope === 'selected' && nuggets.length === 0) {
-      alert('Please select at least one nugget to send.');
-      return;
-    }
-
-    try {
-      const payload = this.buildRestPayload(nuggets);
-      const response = await this.sendToRestEndpoint(payload);
-      
-      if (response.ok) {
-        alert(`Successfully sent to ${this.restEndpointConfig.url}`);
-      } else {
-        alert(`Failed to send: ${response.status} ${response.statusText}`);
-      }
-    } catch (error) {
-      console.error('REST endpoint error:', error);
-      alert(`Error sending to endpoint: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
-  }
-
-  private async handleTestConnection(): Promise<void> {
-    if (!this.restEndpointConfig.url) {
-      alert('Please enter a URL');
-      return;
-    }
-
-    try {
-      const response = await fetch(this.restEndpointConfig.url, {
-        method: 'OPTIONS',
-        headers: {
-          'Content-Type': this.restEndpointConfig.contentType,
-          ...this.restEndpointConfig.headers.reduce((acc, header) => ({
-            ...acc,
-            [header.key]: header.value
-          }), {})
-        }
-      });
-
-      if (response.ok) {
-        alert('Connection test successful!');
-      } else {
-        alert(`Connection test failed: ${response.status} ${response.statusText}`);
-      }
-    } catch (error) {
-      console.error('Connection test error:', error);
-      alert(`Connection test failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
-  }
-
-  private buildRestPayload(nuggets: SidebarNuggetItem[]): any {
-    const payload: any = {};
-
-    if (this.restEndpointConfig.includeUrl) {
-      payload.url = window.location.href;
-    }
-
-    if (this.restEndpointConfig.includeTimestamp) {
-      payload.timestamp = new Date().toISOString();
-    }
-
-    if (this.restEndpointConfig.includeNuggets) {
-      payload.nuggets = nuggets.map(item => {
-        const nugget: any = {};
-        
-        if (this.restEndpointConfig.nuggetParts.type) {
-          nugget.type = item.nugget.type;
-        }
-        
-        if (this.restEndpointConfig.nuggetParts.content) {
-          nugget.content = item.nugget.content;
-        }
-        
-        if (this.restEndpointConfig.nuggetParts.synthesis) {
-          nugget.synthesis = item.nugget.synthesis;
-        }
-        
-        return nugget;
-      });
-    }
-
-    return payload;
-  }
-
-  private async sendToRestEndpoint(payload: any): Promise<Response> {
-    const headers: Record<string, string> = {
-      'Content-Type': this.restEndpointConfig.contentType
-    };
-
-    this.restEndpointConfig.headers.forEach(header => {
-      headers[header.key] = header.value;
-    });
-
-    let body: string;
-    if (this.restEndpointConfig.contentType === 'application/json') {
-      body = JSON.stringify(payload);
-    } else if (this.restEndpointConfig.contentType === 'application/x-www-form-urlencoded') {
-      body = new URLSearchParams(payload).toString();
-    } else {
-      body = JSON.stringify(payload);
-    }
-
-    return fetch(this.restEndpointConfig.url, {
-      method: this.restEndpointConfig.method,
-      headers,
-      body
-    });
   }
 }
