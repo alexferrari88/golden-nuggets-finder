@@ -13,6 +13,22 @@ export class Sidebar {
   private selectedItems: Set<number> = new Set();
   private actionMenu: HTMLElement | null = null;
   private actionMenuVisible: boolean = false;
+  private restModal: HTMLElement | null = null;
+  private restModalVisible: boolean = false;
+  private restEndpointConfig = {
+    url: '',
+    method: 'POST',
+    contentType: 'application/json',
+    headers: [] as Array<{ key: string; value: string }>,
+    includeUrl: true,
+    includeTimestamp: true,
+    includeNuggets: true,
+    nuggetParts: {
+      type: true,
+      content: true,
+      synthesis: true
+    }
+  };
   private keyboardHandler: ((e: KeyboardEvent) => void) | null = null;
 
   show(nuggetItems: SidebarNuggetItem[], highlighter?: Highlighter): void {
@@ -56,6 +72,14 @@ export class Sidebar {
     if (this.collapsedTab) {
       this.collapsedTab.remove();
       this.collapsedTab = null;
+    }
+    if (this.actionMenu) {
+      this.actionMenu.remove();
+      this.actionMenu = null;
+    }
+    if (this.restModal) {
+      this.restModal.remove();
+      this.restModal = null;
     }
     // Remove keyboard event listener
     if (this.keyboardHandler) {
@@ -534,12 +558,13 @@ export class Sidebar {
     nuggetDiv.style.cssText = `
       margin-bottom: ${spacing.lg};
       padding: ${spacing.lg};
-      border: 1px solid ${isSelected ? colors.border.medium : colors.border.light};
+      border: 2px solid ${isSelected ? colors.text.accent : colors.border.light};
       border-radius: ${borderRadius.lg};
       background: ${isSelected ? colors.background.secondary : colors.white};
       transition: all 0.15s ease;
       cursor: pointer;
       position: relative;
+      ${isSelected ? `box-shadow: 0 0 0 3px ${colors.background.secondary};` : ''}
     `;
     
     // Click handler for selection and highlighting
@@ -553,11 +578,12 @@ export class Sidebar {
       }
     });
     
-    // Hover effects
+    // Hover effects - show selection hint
     nuggetDiv.addEventListener('mouseenter', () => {
       if (!isSelected) {
         nuggetDiv.style.backgroundColor = colors.background.secondary;
-        nuggetDiv.style.borderColor = colors.border.default;
+        nuggetDiv.style.borderColor = colors.border.medium;
+        nuggetDiv.style.boxShadow = `0 0 0 1px ${colors.border.default}`;
       }
     });
     
@@ -565,6 +591,7 @@ export class Sidebar {
       if (!isSelected) {
         nuggetDiv.style.backgroundColor = colors.white;
         nuggetDiv.style.borderColor = colors.border.light;
+        nuggetDiv.style.boxShadow = 'none';
       }
     });
     
@@ -732,6 +759,7 @@ export class Sidebar {
       }
       
       this.updateSelectedCount();
+      this.refreshCurrentPage(); // Re-render to show visual changes
     }
   }
 
@@ -946,5 +974,310 @@ ${nugget.synthesis}
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+  }
+
+  private createRestModal(): HTMLElement {
+    const overlay = document.createElement('div');
+    overlay.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: ${colors.background.modalOverlay};
+      z-index: ${zIndex.modal + 10};
+      display: none;
+      align-items: center;
+      justify-content: center;
+    `;
+
+    const modal = document.createElement('div');
+    modal.style.cssText = `
+      background: ${colors.white};
+      border-radius: ${borderRadius.lg};
+      box-shadow: ${shadows.modal};
+      padding: ${spacing['3xl']};
+      max-width: 500px;
+      width: 90%;
+      max-height: 80vh;
+      overflow-y: auto;
+    `;
+
+    // Modal header
+    const header = document.createElement('div');
+    header.style.cssText = `
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: ${spacing['2xl']};
+    `;
+
+    const title = document.createElement('h2');
+    title.textContent = 'Send to REST Endpoint';
+    title.style.cssText = `
+      margin: 0;
+      font-size: ${typography.fontSize.xl};
+      font-weight: ${typography.fontWeight.semibold};
+      color: ${colors.text.primary};
+    `;
+
+    const closeBtn = document.createElement('button');
+    closeBtn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18"/><path d="M6 6l12 12"/></svg>';
+    closeBtn.style.cssText = `
+      background: none;
+      border: none;
+      padding: ${spacing.sm};
+      border-radius: ${borderRadius.md};
+      cursor: pointer;
+      color: ${colors.text.secondary};
+      transition: all 0.2s ease;
+    `;
+
+    closeBtn.addEventListener('click', () => this.hideRestModal());
+
+    header.appendChild(title);
+    header.appendChild(closeBtn);
+
+    // URL input
+    const urlGroup = document.createElement('div');
+    urlGroup.style.cssText = `margin-bottom: ${spacing.lg};`;
+
+    const urlLabel = document.createElement('label');
+    urlLabel.textContent = 'Endpoint URL';
+    urlLabel.style.cssText = `
+      display: block;
+      margin-bottom: ${spacing.sm};
+      font-size: ${typography.fontSize.sm};
+      font-weight: ${typography.fontWeight.medium};
+      color: ${colors.text.primary};
+    `;
+
+    const urlInput = document.createElement('input');
+    urlInput.type = 'url';
+    urlInput.placeholder = 'https://api.example.com/nuggets';
+    urlInput.value = this.restEndpointConfig.url;
+    urlInput.style.cssText = `
+      width: 100%;
+      padding: ${spacing.md};
+      border: 1px solid ${colors.border.light};
+      border-radius: ${borderRadius.md};
+      font-size: ${typography.fontSize.sm};
+      background: ${colors.white};
+      color: ${colors.text.primary};
+      outline: none;
+      transition: border-color 0.2s ease;
+      box-sizing: border-box;
+    `;
+
+    urlInput.addEventListener('input', (e) => {
+      this.restEndpointConfig.url = (e.target as HTMLInputElement).value;
+    });
+
+    urlGroup.appendChild(urlLabel);
+    urlGroup.appendChild(urlInput);
+
+    // Method selection
+    const methodGroup = document.createElement('div');
+    methodGroup.style.cssText = `margin-bottom: ${spacing.lg};`;
+
+    const methodLabel = document.createElement('label');
+    methodLabel.textContent = 'HTTP Method';
+    methodLabel.style.cssText = `
+      display: block;
+      margin-bottom: ${spacing.sm};
+      font-size: ${typography.fontSize.sm};
+      font-weight: ${typography.fontWeight.medium};
+      color: ${colors.text.primary};
+    `;
+
+    const methodSelect = document.createElement('select');
+    methodSelect.style.cssText = `
+      width: 100%;
+      padding: ${spacing.md};
+      border: 1px solid ${colors.border.light};
+      border-radius: ${borderRadius.md};
+      font-size: ${typography.fontSize.sm};
+      background: ${colors.white};
+      color: ${colors.text.primary};
+      outline: none;
+      cursor: pointer;
+      box-sizing: border-box;
+    `;
+
+    ['POST', 'PUT', 'PATCH'].forEach(method => {
+      const option = document.createElement('option');
+      option.value = method;
+      option.textContent = method;
+      option.selected = method === this.restEndpointConfig.method;
+      methodSelect.appendChild(option);
+    });
+
+    methodSelect.addEventListener('change', (e) => {
+      this.restEndpointConfig.method = (e.target as HTMLSelectElement).value;
+    });
+
+    methodGroup.appendChild(methodLabel);
+    methodGroup.appendChild(methodSelect);
+
+    // Action buttons
+    const buttonGroup = document.createElement('div');
+    buttonGroup.style.cssText = `
+      display: flex;
+      gap: ${spacing.md};
+      justify-content: flex-end;
+      margin-top: ${spacing['2xl']};
+    `;
+
+    const cancelBtn = document.createElement('button');
+    cancelBtn.textContent = 'Cancel';
+    cancelBtn.style.cssText = `
+      padding: ${spacing.md} ${spacing.xl};
+      border: 1px solid ${colors.border.default};
+      border-radius: ${borderRadius.md};
+      background: ${colors.white};
+      color: ${colors.text.primary};
+      font-size: ${typography.fontSize.sm};
+      font-weight: ${typography.fontWeight.medium};
+      cursor: pointer;
+      transition: all 0.2s ease;
+    `;
+
+    cancelBtn.addEventListener('click', () => this.hideRestModal());
+
+    const sendBtn = document.createElement('button');
+    sendBtn.textContent = 'Send Nuggets';
+    sendBtn.style.cssText = `
+      padding: ${spacing.md} ${spacing.xl};
+      border: none;
+      border-radius: ${borderRadius.md};
+      background: ${colors.text.accent};
+      color: ${colors.white};
+      font-size: ${typography.fontSize.sm};
+      font-weight: ${typography.fontWeight.medium};
+      cursor: pointer;
+      transition: all 0.2s ease;
+    `;
+
+    sendBtn.addEventListener('click', () => this.handleRestEndpointSend());
+
+    buttonGroup.appendChild(cancelBtn);
+    buttonGroup.appendChild(sendBtn);
+
+    modal.appendChild(header);
+    modal.appendChild(urlGroup);
+    modal.appendChild(methodGroup);
+    modal.appendChild(buttonGroup);
+
+    overlay.appendChild(modal);
+
+    // Close on overlay click
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) {
+        this.hideRestModal();
+      }
+    });
+
+    return overlay;
+  }
+
+  private showRestModal(): void {
+    if (this.restModal) {
+      this.restModal.style.display = 'flex';
+      this.restModalVisible = true;
+    }
+  }
+
+  private hideRestModal(): void {
+    if (this.restModal) {
+      this.restModal.style.display = 'none';
+      this.restModalVisible = false;
+    }
+  }
+
+  private async handleRestEndpointSend(): Promise<void> {
+    if (!this.restEndpointConfig.url) {
+      alert('Please enter a URL');
+      return;
+    }
+
+    const exportItems = this.getExportItems();
+    if (exportItems.length === 0) {
+      alert('No nuggets to send');
+      return;
+    }
+
+    try {
+      const payload = this.buildRestPayload(exportItems);
+      const response = await this.sendToRestEndpoint(payload);
+      
+      if (response.ok) {
+        alert(`Successfully sent ${exportItems.length} nuggets to ${this.restEndpointConfig.url}`);
+        this.hideRestModal();
+      } else {
+        alert(`Failed to send: ${response.status} ${response.statusText}`);
+      }
+    } catch (error) {
+      console.error('REST endpoint error:', error);
+      alert(`Error sending to endpoint: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  private buildRestPayload(nuggets: SidebarNuggetItem[]): any {
+    const payload: any = {};
+
+    if (this.restEndpointConfig.includeUrl) {
+      payload.url = window.location.href;
+    }
+
+    if (this.restEndpointConfig.includeTimestamp) {
+      payload.timestamp = new Date().toISOString();
+    }
+
+    if (this.restEndpointConfig.includeNuggets) {
+      payload.nuggets = nuggets.map(item => {
+        const nugget: any = {};
+        
+        if (this.restEndpointConfig.nuggetParts.type) {
+          nugget.type = item.nugget.type;
+        }
+        
+        if (this.restEndpointConfig.nuggetParts.content) {
+          nugget.content = item.nugget.content;
+        }
+        
+        if (this.restEndpointConfig.nuggetParts.synthesis) {
+          nugget.synthesis = item.nugget.synthesis;
+        }
+        
+        return nugget;
+      });
+    }
+
+    return payload;
+  }
+
+  private async sendToRestEndpoint(payload: any): Promise<Response> {
+    const headers: Record<string, string> = {
+      'Content-Type': this.restEndpointConfig.contentType
+    };
+
+    this.restEndpointConfig.headers.forEach(header => {
+      headers[header.key] = header.value;
+    });
+
+    let body: string;
+    if (this.restEndpointConfig.contentType === 'application/json') {
+      body = JSON.stringify(payload);
+    } else if (this.restEndpointConfig.contentType === 'application/x-www-form-urlencoded') {
+      body = new URLSearchParams(payload).toString();
+    } else {
+      body = JSON.stringify(payload);
+    }
+
+    return fetch(this.restEndpointConfig.url, {
+      method: this.restEndpointConfig.method,
+      headers,
+      body
+    });
   }
 }
