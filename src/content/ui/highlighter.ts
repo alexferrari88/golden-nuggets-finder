@@ -208,6 +208,21 @@ export class Highlighter {
       if (indicator) {
         indicator.remove();
       }
+      
+      // Restore original content margins
+      const allChildren = highlight.querySelectorAll('*');
+      allChildren.forEach(child => {
+        const childElement = child as HTMLElement;
+        childElement.style.marginRight = '';
+      });
+      
+      // Unwrap any text nodes we wrapped
+      const wrappedSpans = highlight.querySelectorAll('span[style*="margin-right: 60px"]');
+      wrappedSpans.forEach(span => {
+        if (span.parentNode) {
+          span.parentNode.replaceChild(document.createTextNode(span.textContent || ''), span);
+        }
+      });
     });
     
     this.highlights = [];
@@ -277,9 +292,10 @@ export class Highlighter {
       element.style.boxSizing = 'border-box';
       // Force border with !important to override Hacker News table styles
       element.style.setProperty('border-left', '4px solid rgba(255, 215, 0, 0.8)', 'important');
-      // Add minimum height to prevent indicator from overlapping text
-      element.style.minHeight = '28px';
     }
+    
+    // Create text-free zone for indicator by styling all content inside
+    this.createIndicatorSafeZone(element);
     
     // Add hover effects
     this.addCommentHoverEffects(element);
@@ -287,12 +303,6 @@ export class Highlighter {
     // Add corner indicator
     const indicator = this.createCornerIndicator(nugget);
     element.style.position = 'relative'; // Ensure positioning context for indicator
-    
-    // Ensure the element can contain the absolutely positioned indicator
-    if (this.siteType === 'hackernews') {
-      element.style.overflow = 'visible';
-    }
-    
     element.appendChild(indicator);
     
     // Track this highlight
@@ -358,30 +368,40 @@ export class Highlighter {
     }
   }
 
-  private getIndicatorPositioning(): { top: string; right: string; transform?: string } {
-    switch (this.siteType) {
-      case 'twitter':
-        return {
-          top: 'top: 6px',
-          right: 'right: 6px'
-        };
-      case 'reddit':
-        return {
-          top: 'top: 8px',
-          right: 'right: 8px'
-        };
-      case 'hackernews':
-        return {
-          top: 'top: 4px',
-          right: 'right: 2px', // Closer to avoid overlap but still visible
-          transform: 'transform: scale(0.9)' // Slightly smaller for HN's dense layout
-        };
-      default:
-        return {
-          top: 'top: 8px',
-          right: 'right: 8px'
-        };
+  private createIndicatorSafeZone(element: HTMLElement): void {
+    // Create a guaranteed text-free zone by styling all content inside the container
+    const allChildren = element.querySelectorAll('*');
+    const textNodes = this.getDirectTextNodes(element);
+    
+    // Style all child elements to respect the indicator space
+    allChildren.forEach(child => {
+      const childElement = child as HTMLElement;
+      const currentMarginRight = window.getComputedStyle(childElement).marginRight;
+      const currentMarginValue = parseInt(currentMarginRight) || 0;
+      childElement.style.marginRight = `${Math.max(currentMarginValue, 60)}px`;
+    });
+    
+    // For direct text nodes, wrap them in a span with margin
+    textNodes.forEach(textNode => {
+      if (textNode.textContent?.trim()) {
+        const wrapper = document.createElement('span');
+        wrapper.style.marginRight = '60px';
+        wrapper.style.display = 'inline-block';
+        wrapper.textContent = textNode.textContent;
+        textNode.parentNode?.replaceChild(wrapper, textNode);
+      }
+    });
+  }
+  
+  private getDirectTextNodes(element: HTMLElement): Node[] {
+    const textNodes: Node[] = [];
+    for (let i = 0; i < element.childNodes.length; i++) {
+      const node = element.childNodes[i];
+      if (node.nodeType === Node.TEXT_NODE && node.textContent?.trim()) {
+        textNodes.push(node);
+      }
     }
+    return textNodes;
   }
 
   private getCommentHighlightStyles(): Record<string, string> {
@@ -398,26 +418,29 @@ export class Highlighter {
           background: 'rgba(255, 215, 0, 0.025)',
           borderRadius: '2px 0 0 2px',
           boxShadow: 'inset 0 0 0 1px rgba(255, 215, 0, 0.1)',
-          paddingRight: '12px' // Space for corner indicator
+          paddingTop: '4px',
+          paddingBottom: '4px'
         };
       case 'reddit':
         return {
           ...baseStyles,
           background: 'rgba(255, 215, 0, 0.02)',
           borderRadius: '2px 0 0 2px',
-          paddingRight: '12px' // Space for corner indicator
+          paddingTop: '4px',
+          paddingBottom: '4px'
         };
       case 'hackernews':
         return {
           ...baseStyles,
           background: 'rgba(255, 215, 0, 0.015)',
-          paddingRight: '16px', // More space for HN due to tighter layout
-          marginRight: '4px' // Additional right margin for HN
+          paddingTop: '4px',
+          paddingBottom: '4px'
         };
       default:
         return {
           ...baseStyles,
-          paddingRight: '12px'
+          paddingTop: '4px',
+          paddingBottom: '4px'
         };
     }
   }
@@ -426,43 +449,41 @@ export class Highlighter {
     const indicator = document.createElement('div');
     indicator.className = 'nugget-corner-indicator';
     
-    // Site-specific positioning to avoid text overlap
-    const positioning = this.getIndicatorPositioning();
-    
+    // Consistent, clean design across all sites
     indicator.style.cssText = `
       position: absolute;
-      ${positioning.top};
-      ${positioning.right};
+      top: 8px;
+      right: 8px;
       background: ${colors.text.accent};
       color: ${colors.white};
       font-size: 11px;
       font-weight: 600;
-      padding: 2px 6px;
-      border-radius: 3px;
+      padding: 3px 6px;
+      border-radius: 4px;
       cursor: pointer;
       z-index: ${zIndex.tooltip};
       box-shadow: ${generateInlineStyles.cardShadow()};
       transition: all 0.2s ease;
       user-select: none;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      max-width: 60px;
-      text-align: center;
-      line-height: 1.2;
-      ${positioning.transform || ''};
+      line-height: 1;
+      white-space: nowrap;
     `;
     
-    // Set indicator content based on site type
-    indicator.textContent = `[${nugget.type}]`;
+    // Clean, consistent content
+    indicator.textContent = nugget.type;
     
     // Add hover effect
     indicator.addEventListener('mouseenter', () => {
       indicator.style.background = colors.text.primary;
       indicator.style.boxShadow = generateInlineStyles.cardShadowHover();
+      indicator.style.transform = 'scale(1.05)';
     });
     
     indicator.addEventListener('mouseleave', () => {
       indicator.style.background = colors.text.accent;
       indicator.style.boxShadow = generateInlineStyles.cardShadow();
+      indicator.style.transform = 'scale(1)';
     });
     
     // Add click handler to show synthesis popup

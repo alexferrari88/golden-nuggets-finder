@@ -100,7 +100,7 @@ describe('Highlighter - Comment Highlighting', () => {
       
       const cornerIndicator = document.querySelector('.nugget-corner-indicator');
       expect(cornerIndicator).toBeTruthy();
-      expect(cornerIndicator?.textContent).toBe('[analogy]');
+      expect(cornerIndicator?.textContent).toBe('analogy');
     });
 
     it('should apply site-specific styling to Reddit comments', async () => {
