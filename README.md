@@ -223,7 +223,7 @@ MIT License - see [LICENSE](LICENSE) file for details.
 
 ## Attribution
 
-[Icon by Nikita Golubev](https://www.freepik.com/icon/coin_16044153#fromView=search&page=1&position=52&uuid=e7b82852-a7c2-4c3b-aa98-c181cd979866)
+[Mine icons created by surang - Flaticon](https://www.flaticon.com/free-icons/mine)
 
 ---
 
