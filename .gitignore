@@ -9,21 +9,6 @@ pnpm-debug.log*
 build/
 dist/
 
-# Plasmo framework files
-.plasmo/
-*.zip
-
-# Plasmo generated files (root level only)
-/*.html
-/*.js
-/*.css
-/manifest.json
-/static/
-/build/
-*.plasmo.*.png
-*.plasmo.*.jpg
-*.plasmo.*.svg
-
 # Temporary test files
 test-*.js
 test-*.html
@@ -122,6 +107,3 @@ temp/
 # Test artifacts
 test-results/
 playwright-report/
-*.png
-*.jpeg
-*.jpg
