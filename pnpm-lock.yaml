@@ -20,9 +20,9 @@ importers:
       react-dom:
         specifier: ^18.3.1
         version: 18.3.1(react@18.3.1)
-      web-scraper-js:
-        specifier: link:packages/web-scraper-js
-        version: link:packages/web-scraper-js
+      threads-harvester:
+        specifier: ^1.0.0
+        version: 1.0.0
     devDependencies:
       '@playwright/test':
         specifier: ^1.53.2
@@ -2314,6 +2314,9 @@ packages:
 
   thread-stream@3.1.0:
     resolution: {integrity: sha512-OqyPZ9u96VohAyMfJykzmivOrY2wfMSf3C5TtFJVgN+Hm6aj+voFhlK+kZEIv2FBh1X6Xp3DlnCOfEQ3B2J86A==}
+
+  threads-harvester@1.0.0:
+    resolution: {integrity: sha512-sK3EtrXq8FKvRgEhuqOFZiSF04zGzYnXHhwniFFU16wocQvGMzoUW+Fi5Nl3C9QLnoDl2JKUnaodm6WhFZajeA==}
 
   through@2.3.8:
     resolution: {integrity: sha512-w89qg7PI8wAdvX60bMDP+bFoD5Dvhm9oLheFp5O4a2QF0cSBGsBX4qZmadPMvVqlLJBBci+WqGGOAPvcDeNSVg==}
@@ -4891,6 +4894,8 @@ snapshots:
   thread-stream@3.1.0:
     dependencies:
       real-require: 0.2.0
+
+  threads-harvester@1.0.0: {}
 
   through@2.3.8: {}
 

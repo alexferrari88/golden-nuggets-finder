@@ -4,7 +4,7 @@ export const STORAGE_KEYS = {
 } as const;
 
 // Import site selectors from the web-scraper-js library to maintain single source of truth
-export { SITE_SELECTORS } from '../../packages/web-scraper-js/src/constants';
+export { SITE_SELECTORS } from 'threads-harvester';
 
 export const GEMINI_CONFIG = {
   MODEL: 'gemini-2.5-flash',

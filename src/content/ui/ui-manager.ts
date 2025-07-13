@@ -3,7 +3,7 @@ import { Highlighter } from './highlighter';
 import { Sidebar } from './sidebar';
 import { NotificationManager } from './notifications';
 import { performanceMonitor, measureHighlighting, measureDOMOperation } from '../../shared/performance';
-import { ContentScraper, Content } from '../../../packages/web-scraper-js/dist/index';
+import { ContentScraper, Content } from 'threads-harvester';
 import { storage } from '../../shared/storage';
 import { colors, typography, spacing, borderRadius, shadows } from '../../shared/design-system';
 
