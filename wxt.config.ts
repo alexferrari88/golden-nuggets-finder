@@ -36,7 +36,15 @@ export default defineConfig({
     web_accessible_resources: [
       {
         resources: ['Readability.js'],
-        matches: ['<all_urls>']
+        matches: [
+          'https://www.reddit.com/*',
+          'https://old.reddit.com/*',
+          'https://news.ycombinator.com/*',
+          'https://twitter.com/*',
+          'https://x.com/*',
+          'https://*.medium.com/*',
+          'https://*.substack.com/*'
+        ]
       }
     ],
     action: {

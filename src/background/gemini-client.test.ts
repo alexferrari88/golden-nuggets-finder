@@ -357,11 +357,12 @@ describe('GeminiClient', () => {
       
       expect(result).toBe(true);
       expect(global.fetch).toHaveBeenCalledWith(
-        'https://generativelanguage.googleapis.com/v1beta/models?key=valid-api-key',
+        'https://generativelanguage.googleapis.com/v1beta/models',
         expect.objectContaining({
           method: 'GET',
           headers: {
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            'x-goog-api-key': 'valid-api-key'
           }
         })
       );
@@ -399,7 +400,7 @@ describe('GeminiClient', () => {
       expect(result).toBe(false);
     });
 
-    it('should use GET request with API key in URL', async () => {
+    it('should use GET request with API key in header', async () => {
       global.fetch = vi.fn().mockResolvedValueOnce({
         ok: true
       });
@@ -407,8 +408,9 @@ describe('GeminiClient', () => {
       await geminiClient.validateApiKey('test-api-key');
       
       const fetchCall = (global.fetch as any).mock.calls[0];
-      expect(fetchCall[0]).toBe('https://generativelanguage.googleapis.com/v1beta/models?key=test-api-key');
+      expect(fetchCall[0]).toBe('https://generativelanguage.googleapis.com/v1beta/models');
       expect(fetchCall[1].method).toBe('GET');
+      expect(fetchCall[1].headers['x-goog-api-key']).toBe('test-api-key');
       expect(fetchCall[1].body).toBeUndefined();
     });
   });

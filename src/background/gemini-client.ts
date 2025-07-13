@@ -247,12 +247,14 @@ export class GeminiClient {
       }
 
       // Test the API key with a GET request to list models (cheaper than generateContent)
-      const modelsUrl = `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(apiKey)}`;
+      // SECURITY FIX: Use header instead of URL parameter to prevent API key exposure
+      const modelsUrl = 'https://generativelanguage.googleapis.com/v1beta/models';
       
       const response = await fetch(modelsUrl, {
         method: 'GET',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'x-goog-api-key': apiKey
         }
       });
 
