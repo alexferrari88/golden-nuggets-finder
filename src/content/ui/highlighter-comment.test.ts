@@ -131,8 +131,8 @@ describe('Highlighter - Comment Highlighting', () => {
       const mouseEnterEvent = new MouseEvent('mouseenter');
       commentHighlight.dispatchEvent(mouseEnterEvent);
       
-      // Check hover styles are applied
-      expect(commentHighlight.style.borderLeft).toContain('5px solid rgba(255, 215, 0, 0.9)');
+      // Check hover styles are applied (consistent 4px width to prevent movement)
+      expect(commentHighlight.style.borderLeft).toContain('4px solid rgba(255, 215, 0, 0.9)');
     });
 
     it('should fallback to text highlighting if comment detection fails', async () => {
@@ -243,7 +243,7 @@ describe('Highlighter - Comment Highlighting', () => {
       
       highlighter.scrollToHighlight(nugget);
       
-      // Check that glow effect is applied
+      // Check that glow effect is applied (still uses 6px for temporary glow)
       expect(commentHighlight.style.borderLeft).toContain('6px solid rgba(255, 215, 0, 1)');
       expect(commentHighlight.style.boxShadow).toContain('rgba(255, 215, 0, 0.3)');
     });

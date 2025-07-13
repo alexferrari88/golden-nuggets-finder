@@ -277,6 +277,8 @@ export class Highlighter {
       element.style.boxSizing = 'border-box';
       // Force border with !important to override Hacker News table styles
       element.style.setProperty('border-left', '4px solid rgba(255, 215, 0, 0.8)', 'important');
+      // Add minimum height to prevent indicator from overlapping text
+      element.style.minHeight = '28px';
     }
     
     // Add hover effects
@@ -285,6 +287,12 @@ export class Highlighter {
     // Add corner indicator
     const indicator = this.createCornerIndicator(nugget);
     element.style.position = 'relative'; // Ensure positioning context for indicator
+    
+    // Ensure the element can contain the absolutely positioned indicator
+    if (this.siteType === 'hackernews') {
+      element.style.overflow = 'visible';
+    }
+    
     element.appendChild(indicator);
     
     // Track this highlight
@@ -302,9 +310,9 @@ export class Highlighter {
     
     element.addEventListener('mouseenter', () => {
       Object.assign(element.style, hoverStyles);
-      // Special handling for Hacker News hover border
+      // Special handling for Hacker News - keep border width consistent
       if (this.siteType === 'hackernews') {
-        element.style.setProperty('border-left', '5px solid rgba(255, 215, 0, 0.9)', 'important');
+        element.style.setProperty('border-left', '4px solid rgba(255, 215, 0, 0.9)', 'important');
       }
     });
     
@@ -319,7 +327,8 @@ export class Highlighter {
 
   private getCommentHoverStyles(): Record<string, string> {
     const baseStyles = {
-      borderLeft: `5px solid rgba(255, 215, 0, 0.9)`,
+      borderLeft: `4px solid rgba(255, 215, 0, 0.9)`,
+      borderLeftWidth: '4px', // Keep consistent width to prevent movement
     };
     
     switch (this.siteType) {
@@ -327,20 +336,51 @@ export class Highlighter {
         return {
           ...baseStyles,
           background: 'rgba(255, 215, 0, 0.04)',
-          boxShadow: 'inset 0 0 0 1px rgba(255, 215, 0, 0.15)'
+          boxShadow: 'inset 0 0 0 1px rgba(255, 215, 0, 0.15), 0 0 0 1px rgba(255, 215, 0, 0.2)'
         };
       case 'reddit':
         return {
           ...baseStyles,
-          background: 'rgba(255, 215, 0, 0.035)'
+          background: 'rgba(255, 215, 0, 0.035)',
+          boxShadow: '0 0 0 1px rgba(255, 215, 0, 0.15)'
         };
       case 'hackernews':
         return {
           ...baseStyles,
-          background: 'rgba(255, 215, 0, 0.025)'
+          background: 'rgba(255, 215, 0, 0.025)',
+          boxShadow: '0 0 0 1px rgba(255, 215, 0, 0.1)'
         };
       default:
-        return baseStyles;
+        return {
+          ...baseStyles,
+          boxShadow: '0 0 0 1px rgba(255, 215, 0, 0.15)'
+        };
+    }
+  }
+
+  private getIndicatorPositioning(): { top: string; right: string; transform?: string } {
+    switch (this.siteType) {
+      case 'twitter':
+        return {
+          top: 'top: 6px',
+          right: 'right: 6px'
+        };
+      case 'reddit':
+        return {
+          top: 'top: 8px',
+          right: 'right: 8px'
+        };
+      case 'hackernews':
+        return {
+          top: 'top: 4px',
+          right: 'right: 2px', // Closer to avoid overlap but still visible
+          transform: 'transform: scale(0.9)' // Slightly smaller for HN's dense layout
+        };
+      default:
+        return {
+          top: 'top: 8px',
+          right: 'right: 8px'
+        };
     }
   }
 
@@ -348,6 +388,7 @@ export class Highlighter {
     const baseStyles = {
       borderLeft: `4px solid rgba(255, 215, 0, 0.8)`,
       transition: 'all 0.2s ease',
+      boxSizing: 'border-box', // Prevent size changes on hover
     };
     
     switch (this.siteType) {
@@ -356,31 +397,42 @@ export class Highlighter {
           ...baseStyles,
           background: 'rgba(255, 215, 0, 0.025)',
           borderRadius: '2px 0 0 2px',
-          boxShadow: 'inset 0 0 0 1px rgba(255, 215, 0, 0.1)'
+          boxShadow: 'inset 0 0 0 1px rgba(255, 215, 0, 0.1)',
+          paddingRight: '12px' // Space for corner indicator
         };
       case 'reddit':
         return {
           ...baseStyles,
           background: 'rgba(255, 215, 0, 0.02)',
-          borderRadius: '2px 0 0 2px'
+          borderRadius: '2px 0 0 2px',
+          paddingRight: '12px' // Space for corner indicator
         };
       case 'hackernews':
         return {
           ...baseStyles,
-          background: 'rgba(255, 215, 0, 0.015)'
+          background: 'rgba(255, 215, 0, 0.015)',
+          paddingRight: '16px', // More space for HN due to tighter layout
+          marginRight: '4px' // Additional right margin for HN
         };
       default:
-        return baseStyles;
+        return {
+          ...baseStyles,
+          paddingRight: '12px'
+        };
     }
   }
 
   private createCornerIndicator(nugget: GoldenNugget): HTMLElement {
     const indicator = document.createElement('div');
     indicator.className = 'nugget-corner-indicator';
+    
+    // Site-specific positioning to avoid text overlap
+    const positioning = this.getIndicatorPositioning();
+    
     indicator.style.cssText = `
       position: absolute;
-      top: 8px;
-      right: 8px;
+      ${positioning.top};
+      ${positioning.right};
       background: ${colors.text.accent};
       color: ${colors.white};
       font-size: 11px;
@@ -393,6 +445,10 @@ export class Highlighter {
       transition: all 0.2s ease;
       user-select: none;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      max-width: 60px;
+      text-align: center;
+      line-height: 1.2;
+      ${positioning.transform || ''};
     `;
     
     // Set indicator content based on site type
