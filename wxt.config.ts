@@ -12,6 +12,11 @@ export default defineConfig({
     name: 'Golden Nugget Finder',
     description: 'Extract high-value insights from web content using AI',
     version: '1.0.0',
+    icons: {
+      16: 'assets/icon16.png',
+      32: 'assets/icon32.png',
+      128: 'assets/icon128.png'
+    },
     permissions: [
       'activeTab',
       'storage',
@@ -35,7 +40,11 @@ export default defineConfig({
       }
     ],
     action: {
-      default_popup: 'popup.html'
+      default_popup: 'popup.html',
+      default_icon: {
+        16: 'assets/icon16.png',
+        32: 'assets/icon32.png'
+      }
     },
     options_ui: {
       page: 'options.html',
