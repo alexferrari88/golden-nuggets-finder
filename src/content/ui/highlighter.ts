@@ -1,6 +1,6 @@
 import { GoldenNugget } from '../../shared/types';
 import { colors, generateInlineStyles, zIndex } from '../../shared/design-system';
-import { SITE_SELECTORS } from '../../shared/constants';
+import { SITE_SELECTORS } from 'threads-harvester';
 
 export class Highlighter {
   private highlights: HTMLElement[] = [];
