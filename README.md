@@ -221,6 +221,10 @@ MIT License - see [LICENSE](LICENSE) file for details.
 - **Discussions**: [GitHub Discussions](https://github.com/alexferrari88/golden-nugget-finder/discussions)
 - **API Costs**: Users are responsible for Google Gemini API usage costs
 
+## Attribution
+
+[Icon by Nikita Golubev](https://www.freepik.com/icon/coin_16044153#fromView=search&page=1&position=52&uuid=e7b82852-a7c2-4c3b-aa98-c181cd979866)
+
 ---
 
 *Built for the pragmatic synthesizer who values signal over noise.*
