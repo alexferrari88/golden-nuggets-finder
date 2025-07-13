@@ -98,7 +98,7 @@ export class Highlighter {
       case 'reddit':
         return [SITE_SELECTORS.REDDIT.COMMENTS, '.thing', '.Comment', '[class*="comment"]'];
       case 'hackernews':
-        return [SITE_SELECTORS.HACKER_NEWS.COMMENT_TREE, '.comment', '.comtr'];
+        return ['.comment', '.comtr', SITE_SELECTORS.HACKER_NEWS.COMMENTS];
       default:
         return [];
     }
@@ -268,6 +268,17 @@ export class Highlighter {
     const styles = this.getCommentHighlightStyles();
     Object.assign(element.style, styles);
     
+    // Special handling for Hacker News table layout (apply after base styles)
+    if (this.siteType === 'hackernews') {
+      // Ensure the element can display borders properly
+      element.style.setProperty('display', 'table-cell', 'important');
+      element.style.setProperty('border-collapse', 'separate', 'important');
+      element.style.borderSpacing = '0';
+      element.style.boxSizing = 'border-box';
+      // Force border with !important to override Hacker News table styles
+      element.style.setProperty('border-left', '4px solid rgba(255, 215, 0, 0.8)', 'important');
+    }
+    
     // Add hover effects
     this.addCommentHoverEffects(element);
     
@@ -291,10 +302,18 @@ export class Highlighter {
     
     element.addEventListener('mouseenter', () => {
       Object.assign(element.style, hoverStyles);
+      // Special handling for Hacker News hover border
+      if (this.siteType === 'hackernews') {
+        element.style.setProperty('border-left', '5px solid rgba(255, 215, 0, 0.9)', 'important');
+      }
     });
     
     element.addEventListener('mouseleave', () => {
       Object.assign(element.style, originalStyles);
+      // Restore Hacker News border
+      if (this.siteType === 'hackernews') {
+        element.style.setProperty('border-left', '4px solid rgba(255, 215, 0, 0.8)', 'important');
+      }
     });
   }
 
