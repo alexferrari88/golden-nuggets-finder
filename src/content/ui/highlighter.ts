@@ -2,20 +2,35 @@ import { GoldenNugget } from '../../shared/types';
 import { colors, generateInlineStyles, zIndex } from '../../shared/design-system';
 import { SITE_SELECTORS } from 'threads-harvester';
 
+type SiteType = 'twitter' | 'reddit' | 'hackernews' | 'generic';
+
 export class Highlighter {
   private highlights: HTMLElement[] = [];
   private popups: HTMLElement[] = [];
   private textCache = new Map<string, string>();
   private searchCache = new Map<string, Element[]>();
+  private siteType: SiteType;
+
+  constructor() {
+    this.siteType = this.detectSiteType();
+  }
 
   async highlightNugget(nugget: GoldenNugget): Promise<boolean> {
-    const found = this.findAndHighlightText(nugget);
-    return found;
+    // Use different highlighting strategies based on site type
+    if (this.isThreadedSite()) {
+      return this.highlightCommentContainer(nugget);
+    } else {
+      return this.findAndHighlightText(nugget);
+    }
   }
 
   getHighlightElement(nugget: GoldenNugget): HTMLElement | null {
     // Use the same matching strategy as highlighting to find the existing highlight
-    return this.findExistingHighlight(nugget);
+    if (this.isThreadedSite()) {
+      return this.findExistingCommentHighlight(nugget);
+    } else {
+      return this.findExistingHighlight(nugget);
+    }
   }
 
   scrollToHighlight(nugget: GoldenNugget): void {
@@ -28,12 +43,64 @@ export class Highlighter {
         inline: 'nearest'
       });
       
-      // Add temporary glow effect
-      const originalBoxShadow = element.style.boxShadow;
-      element.style.boxShadow = `0 0 0 3px ${colors.text.accent}30`;
-      setTimeout(() => {
-        element.style.boxShadow = originalBoxShadow;
-      }, 1500);
+      // Add temporary glow effect - different for comment vs text highlights
+      if (element.classList.contains('nugget-comment-highlight')) {
+        this.addTemporaryCommentGlow(element);
+      } else {
+        this.addTemporaryTextGlow(element);
+      }
+    }
+  }
+
+  private addTemporaryCommentGlow(element: HTMLElement): void {
+    const originalBorderLeft = element.style.borderLeft;
+    const originalBoxShadow = element.style.boxShadow || '';
+    
+    // Enhanced glow for comment highlights
+    element.style.borderLeft = `6px solid rgba(255, 215, 0, 1)`;
+    element.style.boxShadow = `${originalBoxShadow}, 0 0 0 2px rgba(255, 215, 0, 0.3)`;
+    
+    setTimeout(() => {
+      element.style.borderLeft = originalBorderLeft;
+      element.style.boxShadow = originalBoxShadow;
+    }, 1500);
+  }
+
+  private addTemporaryTextGlow(element: HTMLElement): void {
+    const originalBoxShadow = element.style.boxShadow || '';
+    element.style.boxShadow = `0 0 0 3px ${colors.text.accent}30`;
+    setTimeout(() => {
+      element.style.boxShadow = originalBoxShadow;
+    }, 1500);
+  }
+
+  private detectSiteType(): SiteType {
+    const url = window.location.href.toLowerCase();
+    if (url.includes('twitter.com') || url.includes('x.com')) {
+      return 'twitter';
+    } else if (url.includes('reddit.com')) {
+      return 'reddit';
+    } else if (url.includes('news.ycombinator.com')) {
+      return 'hackernews';
+    } else {
+      return 'generic';
+    }
+  }
+
+  private isThreadedSite(): boolean {
+    return this.siteType !== 'generic';
+  }
+
+  private getCommentSelectors(): string[] {
+    switch (this.siteType) {
+      case 'twitter':
+        return [SITE_SELECTORS.TWITTER.TWEET_ARTICLE];
+      case 'reddit':
+        return [SITE_SELECTORS.REDDIT.COMMENTS, '.thing', '.Comment', '[class*="comment"]'];
+      case 'hackernews':
+        return [SITE_SELECTORS.HACKER_NEWS.COMMENT_TREE, '.comment', '.comtr'];
+      default:
+        return [];
     }
   }
 
@@ -92,19 +159,57 @@ export class Highlighter {
     return null;
   }
 
+  private findExistingCommentHighlight(nugget: GoldenNugget): HTMLElement | null {
+    // Get all existing comment highlights
+    const existingHighlights = document.querySelectorAll('.nugget-comment-highlight');
+    
+    if (existingHighlights.length === 0) {
+      return null;
+    }
+    
+    const normalizedContent = this.normalizeText(nugget.content);
+    
+    // Find comment highlight that contains the nugget content
+    for (const highlight of existingHighlights) {
+      const commentText = highlight.textContent || '';
+      const normalizedComment = this.normalizeText(commentText);
+      
+      if (normalizedComment.includes(normalizedContent) || 
+          this.getOverlapScore(normalizedComment, normalizedContent) > 0.7) {
+        return highlight as HTMLElement;
+      }
+    }
+    
+    return null;
+  }
+
 
   clearHighlights(): void {
-    // Use DocumentFragment for batch DOM operations
-    const fragment = document.createDocumentFragment();
-    
-    // Remove all highlights
+    // Remove text highlights (for generic sites)
     this.highlights.forEach(highlight => {
       const parent = highlight.parentNode;
-      if (parent) {
+      if (parent && !highlight.classList.contains('nugget-comment-highlight')) {
         parent.replaceChild(document.createTextNode(highlight.textContent || ''), highlight);
         parent.normalize();
       }
     });
+    
+    // Remove comment highlights (for threaded sites)
+    const commentHighlights = document.querySelectorAll('.nugget-comment-highlight');
+    commentHighlights.forEach(highlight => {
+      highlight.classList.remove('nugget-comment-highlight');
+      highlight.style.borderLeft = '';
+      highlight.style.background = '';
+      highlight.style.borderRadius = '';
+      highlight.style.position = '';
+      
+      // Remove corner indicator
+      const indicator = highlight.querySelector('.nugget-corner-indicator');
+      if (indicator) {
+        indicator.remove();
+      }
+    });
+    
     this.highlights = [];
 
     // Remove all popups
@@ -114,6 +219,184 @@ export class Highlighter {
     // Clear caches
     this.textCache.clear();
     this.searchCache.clear();
+  }
+
+  private highlightCommentContainer(nugget: GoldenNugget): boolean {
+    const normalizedContent = this.normalizeText(nugget.content);
+    
+    // Early return if content is too short
+    if (normalizedContent.length < 5) {
+      return false;
+    }
+    
+    const commentSelectors = this.getCommentSelectors();
+    
+    // Find comment containers that contain the nugget content
+    for (const selector of commentSelectors) {
+      const containers = document.querySelectorAll(selector);
+      
+      for (const container of containers) {
+        // Skip already highlighted comments
+        if (container.classList.contains('nugget-comment-highlight')) {
+          continue;
+        }
+        
+        const containerText = container.textContent || '';
+        const normalizedContainer = this.normalizeText(containerText);
+        
+        // Check if this container contains the nugget content
+        if (normalizedContainer.includes(normalizedContent) || 
+            this.getOverlapScore(normalizedContainer, normalizedContent) > 0.7 ||
+            this.fuzzyMatch(normalizedContainer, normalizedContent)) {
+          
+          this.highlightCommentElement(container as HTMLElement, nugget);
+          return true;
+        }
+      }
+    }
+    
+    // Fallback to text highlighting if comment detection fails
+    return this.findAndHighlightText(nugget);
+  }
+
+  private highlightCommentElement(element: HTMLElement, nugget: GoldenNugget): void {
+    // Apply comment highlighting styles
+    element.classList.add('nugget-comment-highlight');
+    element.dataset.nuggetType = nugget.type;
+    
+    // Apply site-specific styling
+    const styles = this.getCommentHighlightStyles();
+    Object.assign(element.style, styles);
+    
+    // Add hover effects
+    this.addCommentHoverEffects(element);
+    
+    // Add corner indicator
+    const indicator = this.createCornerIndicator(nugget);
+    element.style.position = 'relative'; // Ensure positioning context for indicator
+    element.appendChild(indicator);
+    
+    // Track this highlight
+    this.highlights.push(element);
+  }
+
+  private addCommentHoverEffects(element: HTMLElement): void {
+    const originalStyles = {
+      borderLeft: element.style.borderLeft,
+      background: element.style.background,
+      boxShadow: element.style.boxShadow || ''
+    };
+    
+    const hoverStyles = this.getCommentHoverStyles();
+    
+    element.addEventListener('mouseenter', () => {
+      Object.assign(element.style, hoverStyles);
+    });
+    
+    element.addEventListener('mouseleave', () => {
+      Object.assign(element.style, originalStyles);
+    });
+  }
+
+  private getCommentHoverStyles(): Record<string, string> {
+    const baseStyles = {
+      borderLeft: `5px solid rgba(255, 215, 0, 0.9)`,
+    };
+    
+    switch (this.siteType) {
+      case 'twitter':
+        return {
+          ...baseStyles,
+          background: 'rgba(255, 215, 0, 0.04)',
+          boxShadow: 'inset 0 0 0 1px rgba(255, 215, 0, 0.15)'
+        };
+      case 'reddit':
+        return {
+          ...baseStyles,
+          background: 'rgba(255, 215, 0, 0.035)'
+        };
+      case 'hackernews':
+        return {
+          ...baseStyles,
+          background: 'rgba(255, 215, 0, 0.025)'
+        };
+      default:
+        return baseStyles;
+    }
+  }
+
+  private getCommentHighlightStyles(): Record<string, string> {
+    const baseStyles = {
+      borderLeft: `4px solid rgba(255, 215, 0, 0.8)`,
+      transition: 'all 0.2s ease',
+    };
+    
+    switch (this.siteType) {
+      case 'twitter':
+        return {
+          ...baseStyles,
+          background: 'rgba(255, 215, 0, 0.025)',
+          borderRadius: '2px 0 0 2px',
+          boxShadow: 'inset 0 0 0 1px rgba(255, 215, 0, 0.1)'
+        };
+      case 'reddit':
+        return {
+          ...baseStyles,
+          background: 'rgba(255, 215, 0, 0.02)',
+          borderRadius: '2px 0 0 2px'
+        };
+      case 'hackernews':
+        return {
+          ...baseStyles,
+          background: 'rgba(255, 215, 0, 0.015)'
+        };
+      default:
+        return baseStyles;
+    }
+  }
+
+  private createCornerIndicator(nugget: GoldenNugget): HTMLElement {
+    const indicator = document.createElement('div');
+    indicator.className = 'nugget-corner-indicator';
+    indicator.style.cssText = `
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      background: ${colors.text.accent};
+      color: ${colors.white};
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 6px;
+      border-radius: 3px;
+      cursor: pointer;
+      z-index: ${zIndex.tooltip};
+      box-shadow: ${generateInlineStyles.cardShadow()};
+      transition: all 0.2s ease;
+      user-select: none;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    `;
+    
+    // Set indicator content based on site type
+    indicator.textContent = `[${nugget.type}]`;
+    
+    // Add hover effect
+    indicator.addEventListener('mouseenter', () => {
+      indicator.style.background = colors.text.primary;
+      indicator.style.boxShadow = generateInlineStyles.cardShadowHover();
+    });
+    
+    indicator.addEventListener('mouseleave', () => {
+      indicator.style.background = colors.text.accent;
+      indicator.style.boxShadow = generateInlineStyles.cardShadow();
+    });
+    
+    // Add click handler to show synthesis popup
+    indicator.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.showSynthesisPopup(nugget, indicator);
+    });
+    
+    return indicator;
   }
 
   private findAndHighlightText(nugget: GoldenNugget): boolean {
@@ -142,8 +425,7 @@ export class Highlighter {
 
 
   private createClickableIndicator(nugget: GoldenNugget): HTMLElement {
-    const isDiscussionSite = window.location.href.includes('reddit.com') || 
-                           window.location.href.includes('news.ycombinator.com');
+    const isDiscussionSite = this.isThreadedSite();
     
     const indicator = document.createElement('span');
     indicator.className = 'nugget-indicator';
@@ -155,22 +437,12 @@ export class Highlighter {
       user-select: none;
     `;
     
-    if (isDiscussionSite) {
-      // For discussion sites, show [type] tag
-      indicator.textContent = `[${nugget.type}]`;
-      indicator.style.cssText += `
-        background: ${colors.background.overlay};
-        padding: 2px 4px;
-        border-radius: 2px;
-        font-weight: bold;
-      `;
-    } else {
-      // For generic pages, show sparkles icon
-      indicator.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.582a.5.5 0 0 1 0 .962L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/><path d="M20 3v4"/><path d="M22 5h-4"/><path d="M4 17v2"/><path d="M5 18H3"/></svg>';
-      indicator.style.cssText += `
-        font-size: 14px;
-      `;
-    }
+    // For generic sites (text highlighting), show sparkles icon
+    // For threaded sites, this indicator should not be used as we use corner indicators instead
+    indicator.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.582a.5.5 0 0 1 0 .962L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/><path d="M20 3v4"/><path d="M22 5h-4"/><path d="M4 17v2"/><path d="M5 18H3"/></svg>';
+    indicator.style.cssText += `
+      font-size: 14px;
+    `;
     
     // Add click handler to show synthesis popup
     indicator.addEventListener('click', (e) => {
@@ -256,9 +528,20 @@ export class Highlighter {
     let top = rect.bottom + window.scrollY + 5;
     let left = rect.left + window.scrollX;
     
+    // For corner indicators, position popup differently
+    if (targetElement.classList.contains('nugget-corner-indicator')) {
+      // Position popup below and to the left of the corner indicator
+      top = rect.bottom + window.scrollY + 8;
+      left = rect.right + window.scrollX - 300; // Align right edge of popup with indicator
+    }
+    
     // Adjust if popup would go off-screen
     if (left + 300 > window.innerWidth) {
       left = window.innerWidth - 300 - 20;
+    }
+    
+    if (left < 20) {
+      left = 20;
     }
     
     if (top + 200 > window.innerHeight + window.scrollY) {
