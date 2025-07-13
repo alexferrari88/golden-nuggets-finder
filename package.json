@@ -24,9 +24,22 @@
     "test:e2e:headed": "pnpm build:dev && playwright test --headed",
     "test:e2e:report": "playwright show-report"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": [
+    "browser-extension",
+    "chrome-extension",
+    "ai",
+    "content-analysis",
+    "web-extraction",
+    "insights",
+    "gemini",
+    "productivity"
+  ],
+  "author": "Alex Ferrari",
   "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/alexferrari88/golden-nugget-finder"
+  },
   "devDependencies": {
     "@playwright/test": "^1.54.1",
     "@types/chrome": "^0.1.0",
