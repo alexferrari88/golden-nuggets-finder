@@ -12,10 +12,10 @@ This document covers the testing strategy, setup, and best practices for the Gol
 
 ### End-to-End Testing
 - **Framework**: Playwright
-- **Focus**: Extension setup, popup, options page, and background script testing
-- **Environment**: Chrome browser with extension loaded
-- **Coverage**: Extension infrastructure and configuration workflows
-- **Limitation**: Content script injection tests are skipped (see Playwright Limitations below)
+- **Focus**: Extension infrastructure, popup, options page, and basic functionality
+- **Environment**: Chrome browser with extension loaded via official Playwright extension testing
+- **Coverage**: Extension loading, service worker, extension pages, basic UI smoke tests
+- **Architecture**: Simple fixtures following Playwright's official Chrome extension documentation
 
 ### Component Testing
 - **Framework**: Vitest
@@ -46,8 +46,9 @@ Cannot access contents of the page. Extension manifest must request permission t
 - `error-handling.spec.ts` - End-to-end error scenarios
 
 ### Working Test Files
-- `setup.spec.ts` - Extension configuration and options page
-- `basic-extension-test.spec.ts` - Extension loading and service worker
+- `extension-basics.spec.ts` - Extension loading, service worker, and page accessibility
+- `popup.spec.ts` - Popup page functionality and rendering
+- `options.spec.ts` - Options page functionality and rendering
 
 ### Alternative Testing Strategy
 1. **Component Tests**: Extract and test core logic (extraction, UI components) without Chrome extension context
