@@ -12,6 +12,7 @@
     "build:firefox": "wxt build -b firefox",
     "package": "wxt zip",
     "postinstall": "wxt prepare",
+    "icons": "node scripts/generate-icons.js",
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:run": "vitest run",
@@ -38,6 +39,7 @@
     "cross-env": "^7.0.3",
     "happy-dom": "^18.0.1",
     "jsdom": "^26.1.0",
+    "sharp": "^0.34.3",
     "typescript": "^5.8.3",
     "vitest": "^3.2.4",
     "wxt": "^0.20.7"
