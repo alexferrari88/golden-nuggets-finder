@@ -212,7 +212,7 @@ export default defineContentScript({
         switch (request.type) {
           case MESSAGE_TYPES.ANALYZE_CONTENT:
             initialize(); // Initialize when needed
-            await analyzeContent(request.promptId, request.source);
+            await analyzeContent(request.promptId, request.source, request.analysisId);
             sendResponse({ success: true });
             break;
 
@@ -283,12 +283,12 @@ export default defineContentScript({
       }
     }
 
-    async function analyzeContent(promptId: string, source?: string): Promise<void> {
+    async function analyzeContent(promptId: string, source?: string, providedAnalysisId?: string): Promise<void> {
       try {
         performanceMonitor.startTimer('total_analysis');
         
-        // Generate unique analysis ID for progress tracking
-        const analysisId = generateAnalysisId();
+        // Use provided analysis ID (from popup) or generate new one
+        const analysisId = providedAnalysisId || generateAnalysisId();
         
         // Start real-time progress tracking in UI manager
         uiManager.startRealTimeProgress(analysisId, source);
