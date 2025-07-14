@@ -1,5 +1,5 @@
 {
-  "name": "golden-nugget-finder",
+  "name": "golden-nuggets-finder",
   "version": "1.0.0",
   "main": "index.js",
   "displayName": "Golden Nugget Finder",
@@ -10,6 +10,7 @@
     "build": "wxt build",
     "build:dev": "wxt build --mode development",
     "build:firefox": "wxt build -b firefox",
+    "clean": "rm -rf dist",
     "package": "wxt zip",
     "postinstall": "wxt prepare",
     "icons": "node scripts/generate-icons.js",
@@ -38,7 +39,7 @@
   "license": "ISC",
   "repository": {
     "type": "git",
-    "url": "https://github.com/alexferrari88/golden-nugget-finder"
+    "url": "https://github.com/alexferrari88/golden-nuggets-finder"
   },
   "devDependencies": {
     "@playwright/test": "^1.54.1",

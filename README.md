@@ -30,8 +30,8 @@ Golden Nugget Finder is designed for the "Pragmatic Synthesizer" persona - someo
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/alexferrari88/golden-nugget-finder.git
-cd golden-nugget-finder
+git clone https://github.com/alexferrari88/golden-nuggets-finder.git
+cd golden-nuggets-finder
 ```
 
 2. Install dependencies:
@@ -217,13 +217,13 @@ MIT License - see [LICENSE](LICENSE) file for details.
 
 ## Support
 
-- **Issues**: [GitHub Issues](https://github.com/alexferrari88/golden-nugget-finder/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/alexferrari88/golden-nugget-finder/discussions)
+- **Issues**: [GitHub Issues](https://github.com/alexferrari88/golden-nuggets-finder/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/alexferrari88/golden-nuggets-finder/discussions)
 - **API Costs**: Users are responsible for Google Gemini API usage costs
 
 ## Attribution
 
-[Mine icons created by surang - Flaticon](https://www.flaticon.com/free-icons/mine)
+[Mineral icons created by Freepik - Flaticon](https://www.flaticon.com/free-icons/mineral)
 
 ---
 

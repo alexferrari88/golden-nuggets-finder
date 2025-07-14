@@ -47,7 +47,7 @@ export default defineBackground(() => {
 
       // Create parent menu item
       chrome.contextMenus.create({
-        id: 'golden-nugget-finder',
+        id: 'golden-nuggets-finder',
         title: 'Find Golden Nuggets',
         contexts: ['page', 'selection']
       });
@@ -56,7 +56,7 @@ export default defineBackground(() => {
       prompts.forEach(prompt => {
         chrome.contextMenus.create({
           id: `prompt-${prompt.id}`,
-          parentId: 'golden-nugget-finder',
+          parentId: 'golden-nuggets-finder',
           title: prompt.isDefault ? `⭐ ${prompt.name}` : prompt.name,
           contexts: ['page', 'selection']
         });
@@ -65,7 +65,7 @@ export default defineBackground(() => {
       // Add separator
       chrome.contextMenus.create({
         id: 'separator',
-        parentId: 'golden-nugget-finder',
+        parentId: 'golden-nuggets-finder',
         type: 'separator',
         contexts: ['page', 'selection']
       });
@@ -73,7 +73,7 @@ export default defineBackground(() => {
       // Add "Select Comments to Analyze" option
       chrome.contextMenus.create({
         id: 'select-comments',
-        parentId: 'golden-nugget-finder',
+        parentId: 'golden-nuggets-finder',
         title: 'Select Comments to Analyze',
         contexts: ['page', 'selection']
       });
