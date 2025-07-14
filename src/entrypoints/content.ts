@@ -1,4 +1,9 @@
-import { MESSAGE_TYPES, AnalysisRequest, AnalysisResponse, DebugLogMessage } from '../shared/types';
+import { MESSAGE_TYPES, AnalysisRequest, AnalysisResponse, DebugLogMessage, AnalysisProgressMessage } from '../shared/types';
+
+// Utility function to generate unique analysis IDs
+function generateAnalysisId(): string {
+  return `analysis_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+}
 import { ContentScraper, Content, CheckboxStyling } from 'threads-harvester';
 import { UIManager } from '../content/ui/ui-manager';
 import { performanceMonitor, measureContentExtraction, measureDOMOperation } from '../shared/performance';
@@ -170,8 +175,24 @@ export default defineContentScript({
       }
     }
 
+    function handleProgressMessage(progressMessage: AnalysisProgressMessage): void {
+      // Forward progress messages to UI manager for real-time animation updates
+      uiManager.handleProgressUpdate(progressMessage);
+    }
+
     // Always listen for messages from background script
     chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+      // Handle progress messages for real-time animation updates
+      if (request.type === MESSAGE_TYPES.ANALYSIS_CONTENT_EXTRACTED ||
+          request.type === MESSAGE_TYPES.ANALYSIS_CONTENT_OPTIMIZED ||
+          request.type === MESSAGE_TYPES.ANALYSIS_API_REQUEST_START ||
+          request.type === MESSAGE_TYPES.ANALYSIS_API_RESPONSE_RECEIVED ||
+          request.type === MESSAGE_TYPES.ANALYSIS_PROCESSING_RESULTS) {
+        handleProgressMessage(request as AnalysisProgressMessage);
+        sendResponse({ success: true });
+        return;
+      }
+      
       handleMessage(request, sender, sendResponse);
       return true; // Keep the message channel open for async responses
     });
@@ -266,6 +287,12 @@ export default defineContentScript({
       try {
         performanceMonitor.startTimer('total_analysis');
         
+        // Generate unique analysis ID for progress tracking
+        const analysisId = generateAnalysisId();
+        
+        // Start real-time progress tracking in UI manager
+        uiManager.startRealTimeProgress(analysisId, source);
+        
         // Only show progress banner if not triggered from popup (popup shows its own loading modal)
         if (source !== 'popup') {
           uiManager.showProgressBanner();
@@ -275,6 +302,16 @@ export default defineContentScript({
         const structuredContent = await measureContentExtraction('page_content', async () => {
           await contentScraper.run();
           return contentScraper.getContent();
+        });
+        
+        // Send step 1 progress: content extraction complete
+        chrome.runtime.sendMessage({
+          type: MESSAGE_TYPES.ANALYSIS_CONTENT_EXTRACTED,
+          step: 1,
+          message: 'Extracting key insights',
+          timestamp: Date.now(),
+          analysisId,
+          source
         });
         
         // Convert structured content to text for AI analysis
@@ -288,11 +325,13 @@ export default defineContentScript({
           return;
         }
 
-        // Send analysis request to background script
+        // Send analysis request to background script with progress tracking info
         const analysisRequest: AnalysisRequest = {
           content: content,
           promptId: promptId,
-          url: window.location.href
+          url: window.location.href,
+          analysisId: analysisId,
+          source: source as 'popup' | 'context-menu'
         };
 
         performanceMonitor.startTimer('api_request');

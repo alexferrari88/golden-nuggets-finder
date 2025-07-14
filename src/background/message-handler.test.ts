@@ -7,6 +7,16 @@ import { MESSAGE_TYPES } from '../shared/types';
 vi.mock('./gemini-client');
 vi.mock('../shared/storage');
 
+// Mock Chrome APIs
+global.chrome = {
+  runtime: {
+    sendMessage: vi.fn(),
+  },
+  tabs: {
+    sendMessage: vi.fn(),
+  },
+} as any;
+
 describe('MessageHandler', () => {
   let messageHandler: MessageHandler;
   let mockGeminiClient: any;
@@ -42,9 +52,22 @@ describe('MessageHandler', () => {
 
       await messageHandler.handleMessage(request, {} as any, mockSendResponse);
 
+      // Check if sendResponse was called with an error
+      if (mockSendResponse.mock.calls.length > 0) {
+        const responseCall = mockSendResponse.mock.calls[0][0];
+        if (!responseCall.success) {
+          console.error('Handler returned error:', responseCall.error);
+        }
+      }
+
       expect(mockGeminiClient.analyzeContent).toHaveBeenCalledWith(
         'Test content',
-        'Analyze this HackerNews thread for insights.'
+        'Analyze this HackerNews thread for insights.',
+        expect.objectContaining({
+          analysisId: expect.any(String),
+          source: 'context-menu',
+          onProgress: expect.any(Function)
+        })
       );
     });
 
@@ -60,7 +83,12 @@ describe('MessageHandler', () => {
 
       expect(mockGeminiClient.analyzeContent).toHaveBeenCalledWith(
         'Test content',
-        'Analyze this Reddit thread for insights.'
+        'Analyze this Reddit thread for insights.',
+        expect.objectContaining({
+          analysisId: expect.any(String),
+          source: 'context-menu',
+          onProgress: expect.any(Function)
+        })
       );
     });
 
@@ -76,7 +104,12 @@ describe('MessageHandler', () => {
 
       expect(mockGeminiClient.analyzeContent).toHaveBeenCalledWith(
         'Test content',
-        'Analyze this Twitter thread for insights.'
+        'Analyze this Twitter thread for insights.',
+        expect.objectContaining({
+          analysisId: expect.any(String),
+          source: 'context-menu',
+          onProgress: expect.any(Function)
+        })
       );
     });
 
@@ -92,7 +125,12 @@ describe('MessageHandler', () => {
 
       expect(mockGeminiClient.analyzeContent).toHaveBeenCalledWith(
         'Test content',
-        'Analyze this Twitter thread for insights.'
+        'Analyze this Twitter thread for insights.',
+        expect.objectContaining({
+          analysisId: expect.any(String),
+          source: 'context-menu',
+          onProgress: expect.any(Function)
+        })
       );
     });
 
@@ -108,7 +146,12 @@ describe('MessageHandler', () => {
 
       expect(mockGeminiClient.analyzeContent).toHaveBeenCalledWith(
         'Test content',
-        'Analyze this text for insights.'
+        'Analyze this text for insights.',
+        expect.objectContaining({
+          analysisId: expect.any(String),
+          source: 'context-menu',
+          onProgress: expect.any(Function)
+        })
       );
     });
 
@@ -133,7 +176,12 @@ describe('MessageHandler', () => {
 
       expect(mockGeminiClient.analyzeContent).toHaveBeenCalledWith(
         'Test content',
-        'First analyze this HackerNews thread and then review the HackerNews thread again.'
+        'First analyze this HackerNews thread and then review the HackerNews thread again.',
+        expect.objectContaining({
+          analysisId: expect.any(String),
+          source: 'context-menu',
+          onProgress: expect.any(Function)
+        })
       );
     });
 
@@ -158,7 +206,12 @@ describe('MessageHandler', () => {
 
       expect(mockGeminiClient.analyzeContent).toHaveBeenCalledWith(
         'Test content',
-        'Analyze this content for insights.'
+        'Analyze this content for insights.',
+        expect.objectContaining({
+          analysisId: expect.any(String),
+          source: 'context-menu',
+          onProgress: expect.any(Function)
+        })
       );
     });
 
@@ -183,7 +236,12 @@ describe('MessageHandler', () => {
 
       expect(mockGeminiClient.analyzeContent).toHaveBeenCalledWith(
         'Test content',
-        'Analyze this Reddit thread and this Reddit thread for insights.'
+        'Analyze this Reddit thread and this Reddit thread for insights.',
+        expect.objectContaining({
+          analysisId: expect.any(String),
+          source: 'context-menu',
+          onProgress: expect.any(Function)
+        })
       );
     });
   });

@@ -1,9 +1,45 @@
-import { MESSAGE_TYPES, AnalysisRequest, AnalysisResponse } from '../shared/types';
+import { MESSAGE_TYPES, AnalysisRequest, AnalysisResponse, AnalysisProgressMessage } from '../shared/types';
 import { storage } from '../shared/storage';
 import { GeminiClient } from './gemini-client';
 
+// Utility function to generate unique analysis IDs
+function generateAnalysisId(): string {
+  return `analysis_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+}
+
 export class MessageHandler {
   constructor(private geminiClient: GeminiClient) {}
+
+  // Helper to send progress messages to all listeners
+  private sendProgressMessage(
+    progressType: AnalysisProgressMessage['type'], 
+    step: 1 | 2 | 3 | 4,
+    message: string, 
+    analysisId: string, 
+    source?: 'popup' | 'context-menu',
+    tabId?: number
+  ): void {
+    const progressMessage: AnalysisProgressMessage = {
+      type: progressType,
+      step,
+      message,
+      timestamp: Date.now(),
+      analysisId,
+      source
+    };
+
+    // Send to all extension contexts (popup, content script, etc.)
+    chrome.runtime.sendMessage(progressMessage).catch(() => {
+      // Ignore errors - popup might not be open
+    });
+    
+    // Also send specifically to the tab if we have a tab ID
+    if (tabId) {
+      chrome.tabs.sendMessage(tabId, progressMessage).catch(() => {
+        // Ignore errors - content script might not be ready
+      });
+    }
+  }
 
   async handleMessage(
     request: any,
@@ -62,6 +98,10 @@ export class MessageHandler {
     sendResponse: (response: AnalysisResponse) => void
   ): Promise<void> {
     try {
+      // Generate analysis ID if not provided
+      const analysisId = request.analysisId || generateAnalysisId();
+      const source = request.source || 'context-menu';
+      
       const prompts = await storage.getPrompts();
       const prompt = prompts.find(p => p.id === request.promptId);
       
@@ -73,7 +113,26 @@ export class MessageHandler {
       // Replace {{ source }} placeholder with appropriate source type
       const processedPrompt = this.replaceSourcePlaceholder(prompt.prompt, request.url);
 
-      const result = await this.geminiClient.analyzeContent(request.content, processedPrompt);
+      // Send step 2 progress: content optimization
+      this.sendProgressMessage(
+        MESSAGE_TYPES.ANALYSIS_CONTENT_OPTIMIZED,
+        2,
+        'Identifying patterns',
+        analysisId,
+        source
+      );
+
+      const result = await this.geminiClient.analyzeContent(
+        request.content, 
+        processedPrompt,
+        {
+          analysisId,
+          source,
+          onProgress: (progressType, step, message) => {
+            this.sendProgressMessage(progressType, step, message, analysisId, source);
+          }
+        }
+      );
       sendResponse({ success: true, data: result });
     } catch (error) {
       console.error('Analysis failed:', error);
@@ -87,6 +146,10 @@ export class MessageHandler {
     sendResponse: (response: any) => void
   ): Promise<void> {
     try {
+      // Generate analysis ID if not provided
+      const analysisId = request.analysisId || generateAnalysisId();
+      const source = 'context-menu'; // Selected content is always from context menu
+      
       const prompts = await storage.getPrompts();
       const prompt = prompts.find(p => p.id === request.promptId);
       
@@ -98,7 +161,27 @@ export class MessageHandler {
       // Replace {{ source }} placeholder with appropriate source type
       const processedPrompt = this.replaceSourcePlaceholder(prompt.prompt, request.url);
 
-      const result = await this.geminiClient.analyzeContent(request.content, processedPrompt);
+      // Send step 2 progress: content optimization
+      this.sendProgressMessage(
+        MESSAGE_TYPES.ANALYSIS_CONTENT_OPTIMIZED,
+        2,
+        'Identifying patterns',
+        analysisId,
+        source,
+        sender.tab?.id
+      );
+
+      const result = await this.geminiClient.analyzeContent(
+        request.content, 
+        processedPrompt,
+        {
+          analysisId,
+          source,
+          onProgress: (progressType, step, message) => {
+            this.sendProgressMessage(progressType, step, message, analysisId, source, sender.tab?.id);
+          }
+        }
+      );
       
       // Send results to content script for display
       if (sender.tab?.id) {

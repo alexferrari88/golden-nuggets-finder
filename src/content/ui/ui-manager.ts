@@ -1,4 +1,4 @@
-import { GoldenNugget, SidebarNuggetItem, MESSAGE_TYPES, SavedPrompt } from '../../shared/types';
+import { GoldenNugget, SidebarNuggetItem, MESSAGE_TYPES, SavedPrompt, AnalysisProgressMessage } from '../../shared/types';
 import { Highlighter } from './highlighter';
 import { Sidebar } from './sidebar';
 import { NotificationManager } from './notifications';
@@ -23,6 +23,13 @@ export class UIManager {
     completedSteps: [] as number[],
     visibleSteps: [] as number[],
     timers: [] as NodeJS.Timeout[]
+  };
+  private realTimeProgress = {
+    isActive: false,
+    analysisId: '',
+    source: '',
+    useRealTiming: true,
+    fallbackTimeout: null as NodeJS.Timeout | null
   };
 
   constructor() {
@@ -581,13 +588,114 @@ export class UIManager {
     }
   }
 
+  // Start real-time progress tracking for a new analysis
+  startRealTimeProgress(analysisId: string, source?: string): void {
+    this.realTimeProgress = {
+      isActive: true,
+      analysisId,
+      source: source || '',
+      useRealTiming: true,
+      fallbackTimeout: null
+    };
+
+    // Reset analysis state for new analysis
+    this.analysisState = {
+      currentStep: -1,
+      completedSteps: [],
+      visibleSteps: [],
+      timers: []
+    };
+
+    // Set up fallback timing in case real progress messages are lost
+    this.setupFallbackTiming();
+  }
+
+  // Handle incoming real-time progress messages
+  handleProgressUpdate(progressMessage: AnalysisProgressMessage): void {
+    // Only process messages for the current analysis
+    if (!this.realTimeProgress.isActive || 
+        progressMessage.analysisId !== this.realTimeProgress.analysisId) {
+      return;
+    }
+
+    // Cancel fallback timing since we're getting real messages
+    if (this.realTimeProgress.fallbackTimeout) {
+      clearTimeout(this.realTimeProgress.fallbackTimeout);
+      this.realTimeProgress.fallbackTimeout = null;
+    }
+
+    // Update animation state based on real progress
+    this.processRealTimeStep(progressMessage);
+  }
+
+  private setupFallbackTiming(): void {
+    // If no real progress messages arrive within 2 seconds, fall back to fake timing
+    this.realTimeProgress.fallbackTimeout = setTimeout(() => {
+      if (this.realTimeProgress.isActive && this.realTimeProgress.useRealTiming) {
+        console.warn('[UIManager] Falling back to fake timing - no real progress messages received');
+        this.realTimeProgress.useRealTiming = false;
+        this.startFallbackAnimation();
+      }
+    }, 2000);
+  }
+
+  private processRealTimeStep(progressMessage: AnalysisProgressMessage): void {
+    const stepIndex = progressMessage.step - 1; // Convert to 0-based index
+
+    // Make sure step is visible first
+    if (!this.analysisState.visibleSteps.includes(stepIndex)) {
+      // Show all steps up to this one
+      for (let i = 0; i <= stepIndex; i++) {
+        if (!this.analysisState.visibleSteps.includes(i)) {
+          this.analysisState.visibleSteps.push(i);
+        }
+      }
+    }
+
+    // Set current step
+    this.analysisState.currentStep = stepIndex;
+
+    // For step completion messages, mark as completed
+    if (progressMessage.type === MESSAGE_TYPES.ANALYSIS_CONTENT_EXTRACTED ||
+        progressMessage.type === MESSAGE_TYPES.ANALYSIS_API_RESPONSE_RECEIVED) {
+      if (!this.analysisState.completedSteps.includes(stepIndex)) {
+        this.analysisState.completedSteps.push(stepIndex);
+      }
+      if (stepIndex < 3) {
+        this.analysisState.currentStep = -1;
+      }
+    }
+
+    // Update the visual display
+    this.updateStepsDisplay();
+  }
+
+  private startFallbackAnimation(): void {
+    // Use the original fake timing as fallback
+    this.startStepProgression();
+  }
+
   cleanup(): void {
     this.clearResults();
     this.notifications.cleanup();
     this.exitSelectionMode();
     
-    // Clean up analysis state
+    // Clean up analysis state and real-time progress
     this.cleanupAnalysisState();
+    this.cleanupRealTimeProgress();
+  }
+
+  private cleanupRealTimeProgress(): void {
+    if (this.realTimeProgress.fallbackTimeout) {
+      clearTimeout(this.realTimeProgress.fallbackTimeout);
+    }
+    this.realTimeProgress = {
+      isActive: false,
+      analysisId: '',
+      source: '',
+      useRealTiming: true,
+      fallbackTimeout: null
+    };
   }
 
   private replaceControlPanelWithAnalysis(promptName: string): void {

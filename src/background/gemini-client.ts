@@ -1,10 +1,20 @@
 import { GEMINI_CONFIG } from '../shared/constants';
 import { GOLDEN_NUGGET_SCHEMA } from '../shared/schemas';
-import { GeminiResponse } from '../shared/types';
+import { GeminiResponse, MESSAGE_TYPES, AnalysisProgressMessage } from '../shared/types';
 import { storage } from '../shared/storage';
 import { performanceMonitor, measureAPICall } from '../shared/performance';
 import { securityManager } from '../shared/security';
 import { debugLogger } from '../shared/debug';
+
+interface AnalysisProgressOptions {
+  analysisId: string;
+  source?: 'popup' | 'context-menu';
+  onProgress: (
+    progressType: AnalysisProgressMessage['type'], 
+    step: 1 | 2 | 3 | 4, 
+    message: string
+  ) => void;
+}
 
 export class GeminiClient {
   private apiKey: string | null = null;
@@ -39,7 +49,11 @@ export class GeminiClient {
     }
   }
 
-  async analyzeContent(content: string, userPrompt: string): Promise<GeminiResponse> {
+  async analyzeContent(
+    content: string, 
+    userPrompt: string, 
+    progressOptions?: AnalysisProgressOptions
+  ): Promise<GeminiResponse> {
     await this.initializeClient();
 
     if (!this.apiKey) {
@@ -77,6 +91,15 @@ export class GeminiClient {
         // Log request payload in development mode
         debugLogger.logLLMRequest(`${this.API_BASE_URL}/${GEMINI_CONFIG.MODEL}:generateContent`, requestBody);
 
+        // Send step 3 progress: API request start
+        if (progressOptions) {
+          progressOptions.onProgress(
+            MESSAGE_TYPES.ANALYSIS_API_REQUEST_START,
+            3,
+            'Generating golden nuggets'
+          );
+        }
+
         performanceMonitor.startTimer('gemini_request');
         const response = await fetch(`${this.API_BASE_URL}/${GEMINI_CONFIG.MODEL}:generateContent`, {
           method: 'POST',
@@ -88,6 +111,24 @@ export class GeminiClient {
         if (!response.ok) {
           const errorText = await response.text();
           throw new Error(`Gemini API error: ${response.status} ${response.statusText} - ${errorText}`);
+        }
+
+        // Send step 3 completion: API response received
+        if (progressOptions) {
+          progressOptions.onProgress(
+            MESSAGE_TYPES.ANALYSIS_API_RESPONSE_RECEIVED,
+            3,
+            'Generating golden nuggets'
+          );
+        }
+
+        // Send step 4 progress: processing results
+        if (progressOptions) {
+          progressOptions.onProgress(
+            MESSAGE_TYPES.ANALYSIS_PROCESSING_RESULTS,
+            4,
+            'Finalizing analysis'
+          );
         }
 
         performanceMonitor.startTimer('gemini_response_parse');

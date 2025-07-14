@@ -1,9 +1,14 @@
 import { useState, useEffect, useRef } from "react";
 import ReactDOM from "react-dom/client";
 import { storage } from "../shared/storage";
-import { SavedPrompt, MESSAGE_TYPES } from "../shared/types";
+import { SavedPrompt, MESSAGE_TYPES, AnalysisProgressMessage } from "../shared/types";
 import { colors, typography, spacing, borderRadius, shadows, components } from "../shared/design-system";
 import { Check, Star } from "lucide-react";
+
+// Utility function to generate unique analysis IDs
+function generateAnalysisId(): string {
+  return `analysis_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+}
 
 // Custom hook for typing effect
 const useTypingEffect = (text: string, speed: number = 80) => {
@@ -37,12 +42,14 @@ const useTypingEffect = (text: string, speed: number = 80) => {
   return { displayText, isComplete, showCursor };
 };
 
-// Custom hook for step progression
-const useStepProgression = (isTypingComplete: boolean) => {
+// Custom hook for step progression with real-time progress support
+const useStepProgression = (isTypingComplete: boolean, analysisId?: string) => {
   const [currentStep, setCurrentStep] = useState(-1);
   const [completedSteps, setCompletedSteps] = useState<number[]>([]);
   const [visibleSteps, setVisibleSteps] = useState<number[]>([]);
+  const [useRealTiming, setUseRealTiming] = useState(true);
   const timersRef = useRef<NodeJS.Timeout[]>([]);
+  const fallbackTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Function to complete all remaining steps immediately
   const completeAllSteps = () => {
@@ -50,16 +57,72 @@ const useStepProgression = (isTypingComplete: boolean) => {
     timersRef.current.forEach(timer => clearTimeout(timer));
     timersRef.current = [];
     
+    if (fallbackTimeoutRef.current) {
+      clearTimeout(fallbackTimeoutRef.current);
+      fallbackTimeoutRef.current = null;
+    }
+    
     // Complete all steps immediately
     setCompletedSteps([0, 1, 2, 3]);
     setCurrentStep(-1);
   };
 
-  // Listen for API completion messages
+  // Process real-time progress messages
+  const processRealTimeStep = (progressMessage: AnalysisProgressMessage) => {
+    const stepIndex = progressMessage.step - 1; // Convert to 0-based index
+
+    // Cancel fallback timing since we're getting real messages
+    if (fallbackTimeoutRef.current) {
+      clearTimeout(fallbackTimeoutRef.current);
+      fallbackTimeoutRef.current = null;
+    }
+
+    // Make sure step is visible first
+    setVisibleSteps(prev => {
+      const newVisible = [...prev];
+      for (let i = 0; i <= stepIndex; i++) {
+        if (!newVisible.includes(i)) {
+          newVisible.push(i);
+        }
+      }
+      return newVisible;
+    });
+
+    // Set current step
+    setCurrentStep(stepIndex);
+
+    // For step completion messages, mark as completed
+    if (progressMessage.type === MESSAGE_TYPES.ANALYSIS_CONTENT_EXTRACTED ||
+        progressMessage.type === MESSAGE_TYPES.ANALYSIS_API_RESPONSE_RECEIVED) {
+      setCompletedSteps(prev => {
+        if (!prev.includes(stepIndex)) {
+          return [...prev, stepIndex];
+        }
+        return prev;
+      });
+      if (stepIndex < 3) {
+        setCurrentStep(-1);
+      }
+    }
+  };
+
+  // Listen for progress and completion messages
   useEffect(() => {
     const messageListener = (message: any) => {
+      // Handle completion messages
       if (message.type === 'ANALYSIS_COMPLETE' || message.type === 'ANALYSIS_ERROR') {
         completeAllSteps();
+        return;
+      }
+
+      // Handle real-time progress messages (only for our analysis)
+      if (analysisId && message.analysisId === analysisId &&
+          (message.type === MESSAGE_TYPES.ANALYSIS_CONTENT_EXTRACTED ||
+           message.type === MESSAGE_TYPES.ANALYSIS_CONTENT_OPTIMIZED ||
+           message.type === MESSAGE_TYPES.ANALYSIS_API_REQUEST_START ||
+           message.type === MESSAGE_TYPES.ANALYSIS_API_RESPONSE_RECEIVED ||
+           message.type === MESSAGE_TYPES.ANALYSIS_PROCESSING_RESULTS)) {
+        processRealTimeStep(message as AnalysisProgressMessage);
       }
     };
     
@@ -69,52 +132,69 @@ const useStepProgression = (isTypingComplete: boolean) => {
       chrome.runtime.onMessage.removeListener(messageListener);
       // Clean up timers on unmount
       timersRef.current.forEach(timer => clearTimeout(timer));
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!isTypingComplete) return;
-
-    const progressSteps = async () => {
-      // Clear any existing timers
-      timersRef.current.forEach(timer => clearTimeout(timer));
-      timersRef.current = [];
-      
-      // First, make steps visible with staggered animation
-      for (let i = 0; i < 4; i++) {
-        await new Promise(resolve => setTimeout(resolve, 300));
-        setVisibleSteps(prev => [...prev, i]);
+      if (fallbackTimeoutRef.current) {
+        clearTimeout(fallbackTimeoutRef.current);
       }
-      
-      // Start step animations with staggered delays
-      const startStep = (stepIndex: number, delay: number, duration: number) => {
-        const timer = setTimeout(() => {
-          setCurrentStep(stepIndex);
-          const completeTimer = setTimeout(() => {
-            setCompletedSteps(prev => {
-              if (!prev.includes(stepIndex)) {
-                return [...prev, stepIndex];
-              }
-              return prev;
-            });
-            if (stepIndex < 3) {
-              setCurrentStep(-1);
-            }
-          }, duration);
-          timersRef.current.push(completeTimer);
-        }, delay);
-        timersRef.current.push(timer);
-      };
-      
-      // Start steps with realistic timing
-      startStep(0, 0, 4000);     // Extract: start immediately, run 4s
-      startStep(1, 2000, 4000);  // Patterns: start after 2s, run 4s
-      startStep(2, 4000, 4000);  // Generate: start after 4s, run 4s
-      startStep(3, 6000, 8000);  // Finalize: start after 6s, run 8s (will be interrupted)
     };
+  }, [analysisId]);
 
-    progressSteps();
-  }, [isTypingComplete]);
+  // Set up fallback timing if real messages don't arrive
+  useEffect(() => {
+    if (!isTypingComplete || !analysisId) return;
+
+    // Wait for real progress messages, fall back to fake timing if none arrive
+    fallbackTimeoutRef.current = setTimeout(() => {
+      if (useRealTiming) {
+        console.warn('[Popup] Falling back to fake timing - no real progress messages received');
+        setUseRealTiming(false);
+        startFallbackAnimation();
+      }
+    }, 2000);
+
+    return () => {
+      if (fallbackTimeoutRef.current) {
+        clearTimeout(fallbackTimeoutRef.current);
+      }
+    };
+  }, [isTypingComplete, analysisId, useRealTiming]);
+
+  const startFallbackAnimation = async () => {
+    // Clear any existing timers
+    timersRef.current.forEach(timer => clearTimeout(timer));
+    timersRef.current = [];
+    
+    // First, make steps visible with staggered animation
+    for (let i = 0; i < 4; i++) {
+      await new Promise(resolve => setTimeout(resolve, 300));
+      setVisibleSteps(prev => [...prev, i]);
+    }
+    
+    // Start step animations with staggered delays
+    const startStep = (stepIndex: number, delay: number, duration: number) => {
+      const timer = setTimeout(() => {
+        setCurrentStep(stepIndex);
+        const completeTimer = setTimeout(() => {
+          setCompletedSteps(prev => {
+            if (!prev.includes(stepIndex)) {
+              return [...prev, stepIndex];
+            }
+            return prev;
+          });
+          if (stepIndex < 3) {
+            setCurrentStep(-1);
+          }
+        }, duration);
+        timersRef.current.push(completeTimer);
+      }, delay);
+      timersRef.current.push(timer);
+    };
+    
+    // Start steps with realistic timing
+    startStep(0, 0, 4000);     // Extract: start immediately, run 4s
+    startStep(1, 2000, 4000);  // Patterns: start after 2s, run 4s
+    startStep(2, 4000, 4000);  // Generate: start after 4s, run 4s
+    startStep(3, 6000, 8000);  // Finalize: start after 6s, run 8s (will be interrupted)
+  };
 
   return { currentStep, completedSteps, visibleSteps };
 };
@@ -125,6 +205,7 @@ function IndexPopup() {
   const [error, setError] = useState<string | null>(null);
   const [noApiKey, setNoApiKey] = useState(false);
   const [analyzing, setAnalyzing] = useState<string | null>(null);
+  const [currentAnalysisId, setCurrentAnalysisId] = useState<string | null>(null);
   const [selectionMode, setSelectionMode] = useState<'quick' | 'custom'>('quick');
 
   // Analysis steps data
@@ -137,7 +218,7 @@ function IndexPopup() {
 
   // Use custom hooks for loading animation
   const { displayText, isComplete, showCursor } = useTypingEffect(analyzing ? 'Analyzing your content...' : '', 80);
-  const { currentStep, completedSteps, visibleSteps } = useStepProgression(isComplete);
+  const { currentStep, completedSteps, visibleSteps } = useStepProgression(isComplete, currentAnalysisId || undefined);
 
   useEffect(() => {
     loadPrompts();
@@ -148,9 +229,11 @@ function IndexPopup() {
         // Brief delay to show completion, then clear analyzing state
         setTimeout(() => {
           setAnalyzing(null);
+          setCurrentAnalysisId(null);
         }, 600);
       } else if (message.type === MESSAGE_TYPES.ANALYSIS_ERROR) {
         setAnalyzing(null); // Clear analyzing state immediately on error
+        setCurrentAnalysisId(null);
       }
     };
     
@@ -200,8 +283,12 @@ function IndexPopup() {
       const prompt = prompts.find(p => p.id === promptId);
       const promptName = prompt?.name || 'Unknown';
       
-      // Show immediate feedback
+      // Generate unique analysis ID for progress tracking
+      const analysisId = generateAnalysisId();
+      
+      // Show immediate feedback and set analysis ID
       setAnalyzing(promptName);
+      setCurrentAnalysisId(analysisId);
       
       // Get the current active tab
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -213,11 +300,12 @@ function IndexPopup() {
       // Inject content script dynamically
       await injectContentScript(tab.id);
       
-      // Send message to content script
+      // Send message to content script with analysis ID
       await chrome.tabs.sendMessage(tab.id, {
         type: MESSAGE_TYPES.ANALYZE_CONTENT,
         promptId: promptId,
-        source: 'popup'
+        source: 'popup',
+        analysisId: analysisId
       });
       
       // Listen for analysis completion
@@ -231,6 +319,7 @@ function IndexPopup() {
     } catch (err) {
       console.error('Failed to start analysis:', err);
       setAnalyzing(null);
+      setCurrentAnalysisId(null);
       setError('Failed to start analysis. Please try again.');
     }
   };
