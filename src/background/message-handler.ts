@@ -49,7 +49,7 @@ export class MessageHandler {
     try {
       switch (request.type) {
         case MESSAGE_TYPES.ANALYZE_CONTENT:
-          await this.handleAnalyzeContent(request, sendResponse);
+          await this.handleAnalyzeContent(request, sender, sendResponse);
           break;
 
         case MESSAGE_TYPES.ANALYZE_SELECTED_CONTENT:
@@ -95,6 +95,7 @@ export class MessageHandler {
 
   private async handleAnalyzeContent(
     request: AnalysisRequest,
+    sender: chrome.runtime.MessageSender,
     sendResponse: (response: AnalysisResponse) => void
   ): Promise<void> {
     try {
@@ -119,7 +120,8 @@ export class MessageHandler {
         2,
         'Identifying patterns',
         analysisId,
-        source
+        source,
+        sender.tab?.id
       );
 
       const result = await this.geminiClient.analyzeContent(
@@ -129,7 +131,7 @@ export class MessageHandler {
           analysisId,
           source,
           onProgress: (progressType, step, message) => {
-            this.sendProgressMessage(progressType, step, message, analysisId, source);
+            this.sendProgressMessage(progressType, step, message, analysisId, source, sender.tab?.id);
           }
         }
       );

@@ -10,10 +10,10 @@ vi.mock('../shared/storage');
 // Mock Chrome APIs
 global.chrome = {
   runtime: {
-    sendMessage: vi.fn(),
+    sendMessage: vi.fn().mockResolvedValue({}),
   },
   tabs: {
-    sendMessage: vi.fn(),
+    sendMessage: vi.fn().mockResolvedValue({}),
   },
 } as any;
 
