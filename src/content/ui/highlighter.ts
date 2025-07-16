@@ -98,7 +98,7 @@ export class Highlighter {
       case 'reddit':
         return [SITE_SELECTORS.REDDIT.COMMENTS, '.thing', '.Comment', '[class*="comment"]'];
       case 'hackernews':
-        return ['.comment', '.comtr', SITE_SELECTORS.HACKER_NEWS.COMMENTS];
+        return [SITE_SELECTORS.HACKER_NEWS.COMMENTS, '.comtr', '.comment'];
       default:
         return [];
     }
