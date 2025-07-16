@@ -259,10 +259,26 @@ export class Highlighter {
         const containerText = container.textContent || '';
         const normalizedContainer = this.normalizeText(containerText);
         
+        // Debug logging for highlighting failures
+        const exactMatch = normalizedContainer.includes(normalizedContent);
+        const overlapScore = this.getOverlapScore(normalizedContainer, normalizedContent);
+        const fuzzyMatchResult = this.fuzzyMatch(normalizedContainer, normalizedContent);
+        
+        console.log('🎯 Highlighting Debug:', {
+          site: this.siteType,
+          selector,
+          contentToFind: nugget.content.substring(0, 100) + '...',
+          normalizedContent: normalizedContent.substring(0, 100) + '...',
+          containerText: containerText.substring(0, 100) + '...',
+          normalizedContainer: normalizedContainer.substring(0, 100) + '...',
+          exactMatch,
+          overlapScore,
+          fuzzyMatch: fuzzyMatchResult,
+          willHighlight: exactMatch || overlapScore > 0.7 || fuzzyMatchResult
+        });
+        
         // Check if this container contains the nugget content
-        if (normalizedContainer.includes(normalizedContent) || 
-            this.getOverlapScore(normalizedContainer, normalizedContent) > 0.7 ||
-            this.fuzzyMatch(normalizedContainer, normalizedContent)) {
+        if (exactMatch || overlapScore > 0.7 || fuzzyMatchResult) {
           
           this.highlightCommentElement(container as HTMLElement, nugget);
           return true;
@@ -271,6 +287,7 @@ export class Highlighter {
     }
     
     // Fallback to text highlighting if comment detection fails
+    console.log('🔄 Falling back to text highlighting for:', nugget.content.substring(0, 100) + '...');
     return this.findAndHighlightText(nugget);
   }
 
