@@ -122,7 +122,7 @@ export class Highlighter {
       
       if (normalizedHighlight.includes(normalizedContent) || 
           normalizedContent.includes(normalizedHighlight) ||
-          this.getOverlapScore(normalizedHighlight, normalizedContent) > 0.7) {
+          this.getOverlapScore(normalizedHighlight, normalizedContent) > 0.8) {
         return highlight as HTMLElement;
       }
     }
@@ -138,7 +138,7 @@ export class Highlighter {
           
           if (normalizedHighlight.includes(normalizedPhrase) || 
               normalizedPhrase.includes(normalizedHighlight) ||
-              this.getOverlapScore(normalizedHighlight, normalizedPhrase) > 0.6) {
+              this.getOverlapScore(normalizedHighlight, normalizedPhrase) > 0.7) {
             return highlight as HTMLElement;
           }
         }
@@ -176,7 +176,7 @@ export class Highlighter {
       const normalizedComment = this.normalizeText(commentText);
       
       if (normalizedComment.includes(normalizedContent) || 
-          this.getOverlapScore(normalizedComment, normalizedContent) > 0.7) {
+          this.getOverlapScore(normalizedComment, normalizedContent) > 0.8) {
         return highlight as HTMLElement;
       }
     }
@@ -270,6 +270,9 @@ export class Highlighter {
         const overlapScore = this.getOverlapScore(normalizedContainer, normalizedContent);
         const fuzzyMatchResult = this.fuzzyMatch(normalizedContainer, normalizedContent);
         
+        // More restrictive matching criteria
+        const shouldHighlight = exactMatch || overlapScore > 0.8 || fuzzyMatchResult;
+        
         console.log('🎯 Highlighting Debug:', {
           site: this.siteType,
           selector,
@@ -280,11 +283,11 @@ export class Highlighter {
           exactMatch,
           overlapScore,
           fuzzyMatch: fuzzyMatchResult,
-          willHighlight: exactMatch || overlapScore > 0.7 || fuzzyMatchResult
+          willHighlight: shouldHighlight
         });
         
         // Check if this container contains the nugget content
-        if (exactMatch || overlapScore > 0.7 || fuzzyMatchResult) {
+        if (shouldHighlight) {
           
           this.highlightCommentElement(container as HTMLElement, nugget);
           return true;
@@ -310,6 +313,9 @@ export class Highlighter {
       const overlapScore = this.getOverlapScore(normalizedCommentText, normalizedContent);
       const fuzzyMatchResult = this.fuzzyMatch(normalizedCommentText, normalizedContent);
       
+      // More restrictive matching criteria
+      const shouldHighlight = exactMatch || overlapScore > 0.8 || fuzzyMatchResult;
+      
       console.log('🎯 HackerNews Comment Debug:', {
         contentToFind: nugget.content.substring(0, 100) + '...',
         normalizedContent: normalizedContent.substring(0, 100) + '...',
@@ -318,10 +324,10 @@ export class Highlighter {
         exactMatch,
         overlapScore,
         fuzzyMatch: fuzzyMatchResult,
-        willHighlight: exactMatch || overlapScore > 0.7 || fuzzyMatchResult
+        willHighlight: shouldHighlight
       });
       
-      if (exactMatch || overlapScore > 0.7 || fuzzyMatchResult) {
+      if (shouldHighlight) {
         // Find the parent .comtr container
         const comtrContainer = commtextElement.closest('.comtr');
         
@@ -380,7 +386,10 @@ export class Highlighter {
         const overlapScore = this.getOverlapScore(normalizedContainer, normalizedContent);
         const fuzzyMatchResult = this.fuzzyMatch(normalizedContainer, normalizedContent);
         
-        if (exactMatch || overlapScore > 0.7 || fuzzyMatchResult) {
+        // More restrictive matching criteria
+        const shouldHighlight = exactMatch || overlapScore > 0.8 || fuzzyMatchResult;
+        
+        if (shouldHighlight) {
           this.highlightCommentElement(container as HTMLElement, nugget);
           return true;
         }
@@ -1100,29 +1109,59 @@ export class Highlighter {
   }
 
   private fuzzyMatch(text: string, pattern: string): boolean {
-    // Improved fuzzy matching with multiple strategies
-    const threshold = 0.7; // Relaxed threshold
-    const words = pattern.split(' ').filter(w => w.length > 2);
+    // More precise fuzzy matching to avoid false positives
+    const threshold = 0.8; // Increased threshold for higher precision
+    
+    // Filter out common English words that cause false matches
+    const commonWords = new Set([
+      'the', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'is', 'are', 'was', 'were',
+      'have', 'has', 'had', 'will', 'would', 'could', 'should', 'can', 'may', 'might', 'must', 'shall',
+      'this', 'that', 'these', 'those', 'a', 'an', 'some', 'any', 'all', 'no', 'not', 'very', 'much',
+      'more', 'most', 'less', 'least', 'such', 'so', 'too', 'quite', 'rather', 'just', 'only', 'even',
+      'also', 'well', 'still', 'yet', 'already', 'now', 'then', 'here', 'there', 'where', 'when', 'how',
+      'what', 'who', 'which', 'why', 'because', 'if', 'unless', 'until', 'while', 'during', 'before', 'after',
+      'it', 'its', 'he', 'him', 'his', 'she', 'her', 'hers', 'we', 'us', 'our', 'ours', 'they', 'them', 'their',
+      'i', 'me', 'my', 'mine', 'you', 'your', 'yours'
+    ]);
+    
+    // Only consider meaningful words (length > 3 and not common words)
+    const meaningfulWords = pattern.split(' ').filter(w => 
+      w.length > 3 && !commonWords.has(w.toLowerCase())
+    );
     const textWords = text.split(' ');
     
-    if (words.length === 0) {
+    if (meaningfulWords.length === 0) {
       return false;
     }
     
     let matchCount = 0;
-    for (const word of words) {
-      // Check for exact word match, substring match, or similar words
+    for (const word of meaningfulWords) {
+      // More restrictive matching - only exact matches and close substring matches
       if (textWords.some(tw => 
         tw === word || 
-        tw.includes(word) || 
-        word.includes(tw) ||
-        this.similarity(tw, word) > 0.8
+        (tw.length > 4 && tw.includes(word)) ||
+        (word.length > 4 && word.includes(tw)) ||
+        this.similarity(tw, word) > 0.85 // Increased similarity threshold
       )) {
         matchCount++;
       }
     }
     
-    return matchCount / words.length >= threshold;
+    const matchRatio = matchCount / meaningfulWords.length;
+    
+    // Additional check: if we have a decent match ratio, also check for minimum absolute matches
+    if (matchRatio >= threshold) {
+      // For very short patterns, require at least 2 meaningful word matches
+      if (meaningfulWords.length < 4 && matchCount < 2) {
+        return false;
+      }
+      // For longer patterns, require at least 3 meaningful word matches
+      if (meaningfulWords.length >= 4 && matchCount < 3) {
+        return false;
+      }
+    }
+    
+    return matchRatio >= threshold;
   }
 
 
