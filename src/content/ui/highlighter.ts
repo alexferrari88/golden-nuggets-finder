@@ -263,15 +263,9 @@ export class Highlighter {
         }
         
         const containerText = container.textContent || '';
-        const normalizedContainer = this.normalizeText(containerText);
         
-        // Debug logging for highlighting failures
-        const exactMatch = normalizedContainer.includes(normalizedContent);
-        const overlapScore = this.getOverlapScore(normalizedContainer, normalizedContent);
-        const fuzzyMatchResult = this.fuzzyMatch(normalizedContainer, normalizedContent);
-        
-        // Ultra-restrictive matching criteria to prevent false positives
-        const shouldHighlight = exactMatch || overlapScore > 0.9;
+        // Use improved text matching algorithm
+        const shouldHighlight = this.improvedTextMatching(nugget.content, containerText);
         
         console.log('🎯 Highlighting Debug:', {
           site: this.siteType,
@@ -279,12 +273,12 @@ export class Highlighter {
           contentToFind: nugget.content.substring(0, 100) + '...',
           normalizedContent: normalizedContent.substring(0, 100) + '...',
           containerText: containerText.substring(0, 100) + '...',
-          normalizedContainer: normalizedContainer.substring(0, 100) + '...',
-          exactMatch,
-          overlapScore,
-          fuzzyMatch: fuzzyMatchResult,
+          normalizedContainer: this.normalizeText(containerText).substring(0, 100) + '...',
+          exactMatch: this.normalizeText(containerText).includes(normalizedContent),
+          overlapScore: this.getOverlapScore(this.normalizeText(containerText), normalizedContent),
+          fuzzyMatch: this.fuzzyMatch(this.normalizeText(containerText), normalizedContent),
           willHighlight: shouldHighlight,
-          matchReason: exactMatch ? 'exact' : (overlapScore > 0.9 ? 'high_overlap' : 'no_match')
+          matchReason: shouldHighlight ? 'improved_matching' : 'no_match'
         });
         
         // Check if this container contains the nugget content
@@ -309,24 +303,19 @@ export class Highlighter {
       const commentText = commtextElement.textContent || '';
       const normalizedCommentText = this.normalizeText(commentText);
       
-      // Check if this comment text contains the nugget content
-      const exactMatch = normalizedCommentText.includes(normalizedContent);
-      const overlapScore = this.getOverlapScore(normalizedCommentText, normalizedContent);
-      const fuzzyMatchResult = this.fuzzyMatch(normalizedCommentText, normalizedContent);
-      
-      // Ultra-restrictive matching criteria to prevent false positives
-      const shouldHighlight = exactMatch || overlapScore > 0.9;
+      // Use improved text matching algorithm
+      const shouldHighlight = this.improvedTextMatching(nugget.content, commentText);
       
       console.log('🎯 HackerNews Comment Debug:', {
         contentToFind: nugget.content.substring(0, 100) + '...',
         normalizedContent: normalizedContent.substring(0, 100) + '...',
         commentText: commentText.substring(0, 100) + '...',
         normalizedCommentText: normalizedCommentText.substring(0, 100) + '...',
-        exactMatch,
-        overlapScore,
-        fuzzyMatch: fuzzyMatchResult,
+        exactMatch: normalizedCommentText.includes(normalizedContent),
+        overlapScore: this.getOverlapScore(normalizedCommentText, normalizedContent),
+        fuzzyMatch: this.fuzzyMatch(normalizedCommentText, normalizedContent),
         willHighlight: shouldHighlight,
-        matchReason: exactMatch ? 'exact' : (overlapScore > 0.9 ? 'high_overlap' : 'no_match')
+        matchReason: shouldHighlight ? 'improved_matching' : 'no_match'
       });
       
       if (shouldHighlight) {
@@ -381,15 +370,9 @@ export class Highlighter {
         }
         
         const containerText = container.textContent || '';
-        const normalizedContainer = this.normalizeText(containerText);
         
-        // Check if this container contains the nugget content
-        const exactMatch = normalizedContainer.includes(normalizedContent);
-        const overlapScore = this.getOverlapScore(normalizedContainer, normalizedContent);
-        const fuzzyMatchResult = this.fuzzyMatch(normalizedContainer, normalizedContent);
-        
-        // Ultra-restrictive matching criteria to prevent false positives
-        const shouldHighlight = exactMatch || overlapScore > 0.9;
+        // Use improved text matching algorithm
+        const shouldHighlight = this.improvedTextMatching(nugget.content, containerText);
         
         if (shouldHighlight) {
           this.highlightCommentElement(container as HTMLElement, nugget);
@@ -863,6 +846,55 @@ export class Highlighter {
     this.textCache.set(text, normalized);
     
     return normalized;
+  }
+
+  private improvedTextMatching(nuggetText: string, commentText: string): boolean {
+    // More aggressive normalization
+    const normalizeAggressively = (text: string): string => {
+      return text
+        .toLowerCase()
+        .replace(/\s+/g, ' ')
+        .replace(/[^\w\s]/g, '')
+        .replace(/\d+/g, '') // Remove reference numbers like [0]
+        .trim();
+    };
+    
+    const normalizedNugget = normalizeAggressively(nuggetText);
+    const normalizedComment = normalizeAggressively(commentText);
+    
+    // Strategy 1: Try exact substring match first
+    if (normalizedComment.includes(normalizedNugget)) {
+      return true;
+    }
+    
+    // Strategy 2: Try reverse - check if comment is contained in nugget (for truncated cases)
+    if (normalizedNugget.includes(normalizedComment)) {
+      return true;
+    }
+    
+    // Strategy 3: Split into words and check if most words from nugget are in comment
+    const nuggetWords = normalizedNugget.split(' ').filter(word => word.length > 2);
+    const commentWords = normalizedComment.split(' ');
+    
+    // Check if at least 70% of significant words from nugget are in comment
+    const matchingWords = nuggetWords.filter(word => commentWords.includes(word));
+    const matchRatio = matchingWords.length / nuggetWords.length;
+    
+    if (matchRatio >= 0.7) {
+      return true;
+    }
+    
+    // Strategy 4: Check if the beginning of the texts match well (for cases where content diverges)
+    const nuggetStart = normalizedNugget.split(' ').slice(0, 15).join(' ');
+    const commentStart = normalizedComment.split(' ').slice(0, 15).join(' ');
+    
+    // Calculate similarity of first 15 words
+    const startWords = nuggetStart.split(' ').filter(word => word.length > 2);
+    const commentStartWords = commentStart.split(' ');
+    const startMatches = startWords.filter(word => commentStartWords.includes(word));
+    const startMatchRatio = startMatches.length / startWords.length;
+    
+    return startMatchRatio >= 0.8;
   }
   
   private getTextNodesOptimized(): Element[] {
