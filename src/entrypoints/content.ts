@@ -116,18 +116,23 @@ export default defineContentScript({
 				return "";
 			}
 
-			// Combine all content items into a single text string
+			// Combine all content items into a single text string with type delimiters
 			const contentParts = [content.title];
 
 			content.items.forEach((item) => {
+				let textContent = "";
+				
 				if (item.textContent) {
-					contentParts.push(item.textContent);
+					textContent = item.textContent;
 				} else if (item.htmlContent) {
 					// Strip HTML tags for text-only analysis
-					const textContent = item.htmlContent.replace(/<[^>]*>/g, "").trim();
-					if (textContent) {
-						contentParts.push(textContent);
-					}
+					textContent = item.htmlContent.replace(/<[^>]*>/g, "").trim();
+				}
+
+				if (textContent) {
+					// Add delimiter to specify content type for LLM analysis
+					const delimiter = item.type === "post" ? "[POST]" : "[COMMENT]";
+					contentParts.push(`${delimiter} ${textContent}`);
 				}
 			});
 
