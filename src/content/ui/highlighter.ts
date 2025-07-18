@@ -122,7 +122,7 @@ export class Highlighter {
       
       if (normalizedHighlight.includes(normalizedContent) || 
           normalizedContent.includes(normalizedHighlight) ||
-          this.getOverlapScore(normalizedHighlight, normalizedContent) > 0.8) {
+          this.getOverlapScore(normalizedHighlight, normalizedContent) > 0.9) {
         return highlight as HTMLElement;
       }
     }
@@ -138,7 +138,7 @@ export class Highlighter {
           
           if (normalizedHighlight.includes(normalizedPhrase) || 
               normalizedPhrase.includes(normalizedHighlight) ||
-              this.getOverlapScore(normalizedHighlight, normalizedPhrase) > 0.7) {
+              this.getOverlapScore(normalizedHighlight, normalizedPhrase) > 0.8) {
             return highlight as HTMLElement;
           }
         }
@@ -152,7 +152,7 @@ export class Highlighter {
       
       if (this.fuzzyMatch(normalizedHighlight, normalizedContent) || 
           this.fuzzyMatch(normalizedContent, normalizedHighlight) ||
-          this.getOverlapScore(normalizedHighlight, normalizedContent) > 0.5) {
+          this.getOverlapScore(normalizedHighlight, normalizedContent) > 0.8) {
         return highlight as HTMLElement;
       }
     }
@@ -176,7 +176,7 @@ export class Highlighter {
       const normalizedComment = this.normalizeText(commentText);
       
       if (normalizedComment.includes(normalizedContent) || 
-          this.getOverlapScore(normalizedComment, normalizedContent) > 0.8) {
+          this.getOverlapScore(normalizedComment, normalizedContent) > 0.9) {
         return highlight as HTMLElement;
       }
     }
@@ -270,8 +270,8 @@ export class Highlighter {
         const overlapScore = this.getOverlapScore(normalizedContainer, normalizedContent);
         const fuzzyMatchResult = this.fuzzyMatch(normalizedContainer, normalizedContent);
         
-        // More restrictive matching criteria
-        const shouldHighlight = exactMatch || overlapScore > 0.8 || fuzzyMatchResult;
+        // Ultra-restrictive matching criteria to prevent false positives
+        const shouldHighlight = exactMatch || overlapScore > 0.9;
         
         console.log('🎯 Highlighting Debug:', {
           site: this.siteType,
@@ -283,7 +283,8 @@ export class Highlighter {
           exactMatch,
           overlapScore,
           fuzzyMatch: fuzzyMatchResult,
-          willHighlight: shouldHighlight
+          willHighlight: shouldHighlight,
+          matchReason: exactMatch ? 'exact' : (overlapScore > 0.9 ? 'high_overlap' : 'no_match')
         });
         
         // Check if this container contains the nugget content
@@ -313,8 +314,8 @@ export class Highlighter {
       const overlapScore = this.getOverlapScore(normalizedCommentText, normalizedContent);
       const fuzzyMatchResult = this.fuzzyMatch(normalizedCommentText, normalizedContent);
       
-      // More restrictive matching criteria
-      const shouldHighlight = exactMatch || overlapScore > 0.8 || fuzzyMatchResult;
+      // Ultra-restrictive matching criteria to prevent false positives
+      const shouldHighlight = exactMatch || overlapScore > 0.9;
       
       console.log('🎯 HackerNews Comment Debug:', {
         contentToFind: nugget.content.substring(0, 100) + '...',
@@ -324,7 +325,8 @@ export class Highlighter {
         exactMatch,
         overlapScore,
         fuzzyMatch: fuzzyMatchResult,
-        willHighlight: shouldHighlight
+        willHighlight: shouldHighlight,
+        matchReason: exactMatch ? 'exact' : (overlapScore > 0.9 ? 'high_overlap' : 'no_match')
       });
       
       if (shouldHighlight) {
@@ -386,8 +388,8 @@ export class Highlighter {
         const overlapScore = this.getOverlapScore(normalizedContainer, normalizedContent);
         const fuzzyMatchResult = this.fuzzyMatch(normalizedContainer, normalizedContent);
         
-        // More restrictive matching criteria
-        const shouldHighlight = exactMatch || overlapScore > 0.8 || fuzzyMatchResult;
+        // Ultra-restrictive matching criteria to prevent false positives
+        const shouldHighlight = exactMatch || overlapScore > 0.9;
         
         if (shouldHighlight) {
           this.highlightCommentElement(container as HTMLElement, nugget);
