@@ -232,6 +232,13 @@ export default defineContentScript({
 		): void {
 			// Forward progress messages to UI manager for real-time animation updates
 			uiManager.handleProgressUpdate(progressMessage);
+			
+			// Also forward to popup if analysis was initiated from popup
+			if (progressMessage.source === "popup") {
+				chrome.runtime.sendMessage(progressMessage).catch(() => {
+					// Ignore errors - popup might not be open
+				});
+			}
 		}
 
 		// Always listen for messages from background script
