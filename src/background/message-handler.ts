@@ -121,6 +121,16 @@ export class MessageHandler {
 				return;
 			}
 
+			// Send step 1 progress: content extraction
+			this.sendProgressMessage(
+				MESSAGE_TYPES.ANALYSIS_CONTENT_EXTRACTED,
+				1,
+				"Extracting key insights",
+				analysisId,
+				source,
+				sender.tab?.id,
+			);
+
 			// Replace {{ source }} placeholder with appropriate source type
 			let processedPrompt = this.replaceSourcePlaceholder(
 				prompt.prompt,
@@ -202,6 +212,16 @@ export class MessageHandler {
 				sendResponse({ success: false, error: "Prompt not found" });
 				return;
 			}
+
+			// Send step 1 progress: content extraction
+			this.sendProgressMessage(
+				MESSAGE_TYPES.ANALYSIS_CONTENT_EXTRACTED,
+				1,
+				"Extracting key insights",
+				analysisId,
+				source,
+				sender.tab?.id,
+			);
 
 			// Replace {{ source }} placeholder with appropriate source type
 			let processedPrompt = this.replaceSourcePlaceholder(

@@ -376,15 +376,6 @@ export default defineContentScript({
 					},
 				);
 
-				// Send step 1 completion: content extraction complete
-				chrome.runtime.sendMessage({
-					type: MESSAGE_TYPES.ANALYSIS_CONTENT_EXTRACTED,
-					step: 1,
-					message: "Extracting key insights",
-					timestamp: Date.now(),
-					analysisId,
-					source,
-				});
 
 				// Convert structured content to text for AI analysis
 				const content = convertContentToText(structuredContent);

@@ -122,44 +122,6 @@ const useStepProgression = (isTypingComplete: boolean, analysisId?: string) => {
 		}
 	};
 
-	// Listen for progress and completion messages
-	useEffect(() => {
-		const messageListener = (message: any) => {
-			// Handle completion messages
-			if (
-				message.type === "ANALYSIS_COMPLETE" ||
-				message.type === "ANALYSIS_ERROR"
-			) {
-				completeAllSteps();
-				return;
-			}
-
-			// Handle real-time progress messages (only for our analysis)
-			if (
-				analysisId &&
-				message.analysisId === analysisId &&
-				(message.type === MESSAGE_TYPES.ANALYSIS_CONTENT_EXTRACTED ||
-					message.type === MESSAGE_TYPES.ANALYSIS_CONTENT_OPTIMIZED ||
-					message.type === MESSAGE_TYPES.ANALYSIS_API_REQUEST_START ||
-					message.type === MESSAGE_TYPES.ANALYSIS_API_RESPONSE_RECEIVED ||
-					message.type === MESSAGE_TYPES.ANALYSIS_PROCESSING_RESULTS)
-			) {
-				processRealTimeStep(message as AnalysisProgressMessage);
-			}
-		};
-
-		chrome.runtime.onMessage.addListener(messageListener);
-
-		return () => {
-			chrome.runtime.onMessage.removeListener(messageListener);
-			// Clean up timers on unmount
-			timersRef.current.forEach((timer) => clearTimeout(timer));
-			if (fallbackTimeoutRef.current) {
-				clearTimeout(fallbackTimeoutRef.current);
-			}
-		};
-	}, [analysisId]);
-
 	// Set up fallback timing if real messages don't arrive
 	useEffect(() => {
 		if (!isTypingComplete || !analysisId) return;
@@ -220,7 +182,7 @@ const useStepProgression = (isTypingComplete: boolean, analysisId?: string) => {
 		startStep(3, 6000, 8000); // Finalize: start after 6s, run 8s (will be interrupted)
 	};
 
-	return { currentStep, completedSteps, visibleSteps };
+	return { currentStep, completedSteps, visibleSteps, processRealTimeStep, completeAllSteps };
 };
 
 function IndexPopup() {
@@ -256,25 +218,51 @@ function IndexPopup() {
 		analyzing ? "Analyzing your content..." : "",
 		80,
 	);
-	const { currentStep, completedSteps, visibleSteps } = useStepProgression(
+	const { currentStep, completedSteps, visibleSteps, processRealTimeStep, completeAllSteps } = useStepProgression(
 		isComplete,
 		currentAnalysisId || undefined,
 	);
 
+	// Use ref to track current analysis ID for message listener
+	const currentAnalysisIdRef = useRef<string | null>(null);
+	
+	// Update ref when analysis ID changes
+	useEffect(() => {
+		currentAnalysisIdRef.current = currentAnalysisId;
+	}, [currentAnalysisId]);
+
 	useEffect(() => {
 		loadPrompts();
 
-		// Add message listener for analysis completion
+		// Add message listener for analysis completion and progress
 		const messageListener = (message: any) => {
+			// Handle completion messages
 			if (message.type === MESSAGE_TYPES.ANALYSIS_COMPLETE) {
+				completeAllSteps();
 				// Brief delay to show completion, then clear analyzing state
 				setTimeout(() => {
 					setAnalyzing(null);
 					setCurrentAnalysisId(null);
+					currentAnalysisIdRef.current = null;
 				}, 600);
 			} else if (message.type === MESSAGE_TYPES.ANALYSIS_ERROR) {
+				completeAllSteps();
 				setAnalyzing(null); // Clear analyzing state immediately on error
 				setCurrentAnalysisId(null);
+				currentAnalysisIdRef.current = null;
+			}
+			
+			// Handle real-time progress messages (only for current analysis)
+			if (
+				currentAnalysisIdRef.current &&
+				message.analysisId === currentAnalysisIdRef.current &&
+				(message.type === MESSAGE_TYPES.ANALYSIS_CONTENT_EXTRACTED ||
+					message.type === MESSAGE_TYPES.ANALYSIS_CONTENT_OPTIMIZED ||
+					message.type === MESSAGE_TYPES.ANALYSIS_API_REQUEST_START ||
+					message.type === MESSAGE_TYPES.ANALYSIS_API_RESPONSE_RECEIVED ||
+					message.type === MESSAGE_TYPES.ANALYSIS_PROCESSING_RESULTS)
+			) {
+				processRealTimeStep(message as AnalysisProgressMessage);
 			}
 		};
 
@@ -334,18 +322,9 @@ function IndexPopup() {
 			// Show immediate feedback and set analysis ID
 			setAnalyzing(promptName);
 			setCurrentAnalysisId(analysisId);
+			// Update ref immediately so message listener can access it
+			currentAnalysisIdRef.current = analysisId;
 
-			// Send immediate progress message to self to prevent fallback timeout
-			setTimeout(() => {
-				chrome.runtime.sendMessage({
-					type: MESSAGE_TYPES.ANALYSIS_CONTENT_EXTRACTED,
-					step: 1,
-					message: "Extracting key insights",
-					timestamp: Date.now(),
-					analysisId: analysisId,
-					source: "popup",
-				});
-			}, 100);
 
 			// Get the current active tab
 			const [tab] = await chrome.tabs.query({
@@ -391,6 +370,7 @@ function IndexPopup() {
 			console.error("Failed to start analysis:", err);
 			setAnalyzing(null);
 			setCurrentAnalysisId(null);
+			currentAnalysisIdRef.current = null;
 			setError("Failed to start analysis. Please try again.");
 		}
 	};
