@@ -210,9 +210,9 @@ describe('Highlighter - Comment Highlighting', () => {
       
       expect(result).toBe(true);
       const commentHighlight = document.querySelector('.nugget-comment-highlight') as HTMLElement;
-      expect(commentHighlight.style.background).toContain('rgba(255, 215, 0, 0.015)');
+      expect(commentHighlight.style.background).toContain('rgba(255, 215, 0, 0.08)');
       // Check that border is set (using setProperty with important)
-      expect(commentHighlight.style.borderLeft).toContain('4px solid rgba(255, 215, 0, 0.8)');
+      expect(commentHighlight.style.borderLeft).toContain('4px solid rgba(255, 215, 0, 0.9)');
       // Check that Hacker News specific styling was applied (border and background work)
       // Note: setProperty with 'important' may not be testable in jsdom the same way
       // The important thing is that the logic path worked and the element was found and styled
