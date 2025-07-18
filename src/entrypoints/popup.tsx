@@ -335,6 +335,18 @@ function IndexPopup() {
 			setAnalyzing(promptName);
 			setCurrentAnalysisId(analysisId);
 
+			// Send immediate progress message to self to prevent fallback timeout
+			setTimeout(() => {
+				chrome.runtime.sendMessage({
+					type: MESSAGE_TYPES.ANALYSIS_CONTENT_EXTRACTED,
+					step: 1,
+					message: "Extracting key insights",
+					timestamp: Date.now(),
+					analysisId: analysisId,
+					source: "popup",
+				});
+			}, 100);
+
 			// Get the current active tab
 			const [tab] = await chrome.tabs.query({
 				active: true,

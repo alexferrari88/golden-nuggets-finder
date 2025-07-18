@@ -354,16 +354,6 @@ export default defineContentScript({
 				// Use provided analysis ID (from popup) or generate new one
 				const analysisId = providedAnalysisId || generateAnalysisId();
 
-				// Send immediate progress message to popup to prevent fallback timeout
-				chrome.runtime.sendMessage({
-					type: MESSAGE_TYPES.ANALYSIS_CONTENT_EXTRACTED,
-					step: 1,
-					message: "Extracting key insights",
-					timestamp: Date.now(),
-					analysisId,
-					source,
-				});
-
 				// Start real-time progress tracking in UI manager
 				uiManager.startRealTimeProgress(analysisId, source);
 
@@ -381,7 +371,15 @@ export default defineContentScript({
 					},
 				);
 
-				// Content extraction complete - progress message will be sent by background script
+				// Send step 1 completion: content extraction complete
+				chrome.runtime.sendMessage({
+					type: MESSAGE_TYPES.ANALYSIS_CONTENT_EXTRACTED,
+					step: 1,
+					message: "Extracting key insights",
+					timestamp: Date.now(),
+					analysisId,
+					source,
+				});
 
 				// Convert structured content to text for AI analysis
 				const content = convertContentToText(structuredContent);
