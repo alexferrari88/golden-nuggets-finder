@@ -325,12 +325,32 @@ export class Highlighter {
         // Find the parent .comtr container
         const comtrContainer = commtextElement.closest('.comtr');
         
+        // Enhanced debug logging to understand the DOM structure
+        console.log('🔍 Debug: .comtr container search:', {
+          commtextElement: commtextElement,
+          commtextParent: commtextElement.parentElement,
+          commtextParentClass: commtextElement.parentElement?.className,
+          comtrContainer: comtrContainer,
+          comtrFound: !!comtrContainer,
+          alreadyHighlighted: comtrContainer?.classList.contains('nugget-comment-highlight'),
+          parentHierarchy: this.getParentHierarchy(commtextElement, 5)
+        });
+        
         if (comtrContainer && !comtrContainer.classList.contains('nugget-comment-highlight')) {
           console.log('✅ Found matching comment, highlighting .comtr container');
           this.highlightCommentElement(comtrContainer as HTMLElement, nugget);
           return true;
+        } else if (!comtrContainer) {
+          console.log('❌ Could not find .comtr container - checking for alternative containers');
+          // Try alternative container lookup strategies
+          const alternativeContainer = this.findAlternativeHackerNewsContainer(commtextElement);
+          if (alternativeContainer && !alternativeContainer.classList.contains('nugget-comment-highlight')) {
+            console.log('✅ Found alternative container, highlighting:', alternativeContainer.className);
+            this.highlightCommentElement(alternativeContainer as HTMLElement, nugget);
+            return true;
+          }
         } else {
-          console.log('❌ Could not find .comtr container or already highlighted');
+          console.log('❌ Container found but already highlighted');
         }
       }
     }
@@ -386,9 +406,51 @@ export class Highlighter {
       element.style.setProperty('border-collapse', 'separate', 'important');
       element.style.borderSpacing = '0';
       element.style.boxSizing = 'border-box';
-      // Force border with !important to override Hacker News table styles
-      element.style.setProperty('border-left', '4px solid rgba(255, 215, 0, 0.8)', 'important');
+      
+      // Use multiple aggressive approaches to ensure visibility
+      // 1. Try border-left with maximum specificity
+      element.style.setProperty('border-left', '4px solid rgba(255, 215, 0, 0.9)', 'important');
+      // 2. Add a background color that will definitely be visible
+      element.style.setProperty('background-color', 'rgba(255, 215, 0, 0.08)', 'important');
+      // 3. Add a subtle shadow for additional visibility
+      element.style.setProperty('box-shadow', 'inset 4px 0 0 rgba(255, 215, 0, 0.9)', 'important');
+      // 4. Add a subtle outline as backup
+      element.style.setProperty('outline', '1px solid rgba(255, 215, 0, 0.6)', 'important');
+      element.style.setProperty('outline-offset', '-1px', 'important');
+      
+      // Force the first cell to have a visible left border as well
+      const firstCell = element.querySelector('td:first-child');
+      if (firstCell) {
+        (firstCell as HTMLElement).style.setProperty('border-left', '4px solid rgba(255, 215, 0, 0.9)', 'important');
+        (firstCell as HTMLElement).style.setProperty('background-color', 'rgba(255, 215, 0, 0.05)', 'important');
+      }
     }
+    
+    // Debug logging to confirm highlighting is applied
+    console.log('🎨 Applied highlighting styles to element:', {
+      element: element,
+      tagName: element.tagName,
+      className: element.className,
+      classList: Array.from(element.classList),
+      hasNuggetClass: element.classList.contains('nugget-comment-highlight'),
+      computedStyles: {
+        borderLeft: window.getComputedStyle(element).borderLeft,
+        backgroundColor: window.getComputedStyle(element).backgroundColor,
+        boxShadow: window.getComputedStyle(element).boxShadow,
+        outline: window.getComputedStyle(element).outline,
+        display: window.getComputedStyle(element).display,
+        position: window.getComputedStyle(element).position
+      },
+      appliedStyles: styles,
+      siteType: this.siteType,
+      // Additional debugging for HackerNews
+      ...(this.siteType === 'hackernews' && {
+        firstCellStyles: element.querySelector('td:first-child') ? {
+          borderLeft: window.getComputedStyle(element.querySelector('td:first-child')!).borderLeft,
+          backgroundColor: window.getComputedStyle(element.querySelector('td:first-child')!).backgroundColor
+        } : null
+      })
+    });
     
     // Handle indicator placement differently for HackerNews table layout
     if (this.siteType === 'hackernews') {
@@ -424,17 +486,37 @@ export class Highlighter {
     
     element.addEventListener('mouseenter', () => {
       Object.assign(element.style, hoverStyles);
-      // Special handling for Hacker News - keep border width consistent
+      // Special handling for Hacker News - enhance the aggressive styling on hover
       if (this.siteType === 'hackernews') {
-        element.style.setProperty('border-left', '4px solid rgba(255, 215, 0, 0.9)', 'important');
+        element.style.setProperty('border-left', '4px solid rgba(255, 215, 0, 1)', 'important');
+        element.style.setProperty('background-color', 'rgba(255, 215, 0, 0.12)', 'important');
+        element.style.setProperty('box-shadow', 'inset 4px 0 0 rgba(255, 215, 0, 1)', 'important');
+        element.style.setProperty('outline', '1px solid rgba(255, 215, 0, 0.8)', 'important');
+        
+        // Also enhance the first cell on hover
+        const firstCell = element.querySelector('td:first-child');
+        if (firstCell) {
+          (firstCell as HTMLElement).style.setProperty('border-left', '4px solid rgba(255, 215, 0, 1)', 'important');
+          (firstCell as HTMLElement).style.setProperty('background-color', 'rgba(255, 215, 0, 0.08)', 'important');
+        }
       }
     });
     
     element.addEventListener('mouseleave', () => {
       Object.assign(element.style, originalStyles);
-      // Restore Hacker News border
+      // Restore Hacker News aggressive styling
       if (this.siteType === 'hackernews') {
-        element.style.setProperty('border-left', '4px solid rgba(255, 215, 0, 0.8)', 'important');
+        element.style.setProperty('border-left', '4px solid rgba(255, 215, 0, 0.9)', 'important');
+        element.style.setProperty('background-color', 'rgba(255, 215, 0, 0.08)', 'important');
+        element.style.setProperty('box-shadow', 'inset 4px 0 0 rgba(255, 215, 0, 0.9)', 'important');
+        element.style.setProperty('outline', '1px solid rgba(255, 215, 0, 0.6)', 'important');
+        
+        // Restore first cell styling
+        const firstCell = element.querySelector('td:first-child');
+        if (firstCell) {
+          (firstCell as HTMLElement).style.setProperty('border-left', '4px solid rgba(255, 215, 0, 0.9)', 'important');
+          (firstCell as HTMLElement).style.setProperty('background-color', 'rgba(255, 215, 0, 0.05)', 'important');
+        }
       }
     });
   }
@@ -1138,5 +1220,52 @@ export class Highlighter {
     
     const distance = matrix[n][m];
     return 1 - distance / Math.max(n, m);
+  }
+
+  private getParentHierarchy(element: Element, depth: number): string[] {
+    const hierarchy: string[] = [];
+    let current = element.parentElement;
+    
+    for (let i = 0; i < depth && current; i++) {
+      const tagName = current.tagName.toLowerCase();
+      const className = current.className ? `.${current.className.replace(/\s+/g, '.')}` : '';
+      const id = current.id ? `#${current.id}` : '';
+      hierarchy.push(`${tagName}${id}${className}`);
+      current = current.parentElement;
+    }
+    
+    return hierarchy;
+  }
+
+  private findAlternativeHackerNewsContainer(commtextElement: Element): Element | null {
+    // Try different container lookup strategies for HackerNews
+    
+    // Strategy 1: Look for tr elements with class containing "comtr" or similar
+    let container = commtextElement.closest('tr[class*="comtr"]');
+    if (container) return container;
+    
+    // Strategy 2: Look for tr elements with class "athing" + "comtr"
+    container = commtextElement.closest('tr.athing');
+    if (container) return container;
+    
+    // Strategy 3: Look for any tr element that could be a comment row
+    container = commtextElement.closest('tr');
+    if (container && (container.className.includes('com') || container.className.includes('thing'))) {
+      return container;
+    }
+    
+    // Strategy 4: Look for divs with comment-related classes
+    container = commtextElement.closest('div[class*="comment"]');
+    if (container) return container;
+    
+    // Strategy 5: Look for table elements that might contain the comment
+    container = commtextElement.closest('table');
+    if (container) {
+      // Find the specific row within the table
+      const row = commtextElement.closest('tr');
+      if (row) return row;
+    }
+    
+    return null;
   }
 }
