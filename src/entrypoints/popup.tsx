@@ -361,14 +361,17 @@ function IndexPopup() {
 				typeFilter: typeFilter,
 			});
 
-			// Listen for analysis completion
+			// Listen for analysis completion - don't close popup immediately
 			const listener = (message: any) => {
 				if (
 					message.type === MESSAGE_TYPES.ANALYSIS_COMPLETE ||
 					message.type === MESSAGE_TYPES.ANALYSIS_ERROR
 				) {
 					chrome.runtime.onMessage.removeListener(listener);
-					window.close();
+					// Don't close popup immediately - let the progress animation complete first
+					setTimeout(() => {
+						window.close();
+					}, 1000);
 				}
 			};
 			chrome.runtime.onMessage.addListener(listener);
