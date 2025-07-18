@@ -381,8 +381,8 @@ export class Highlighter {
     
     // Special handling for Hacker News table layout (apply after base styles)
     if (this.siteType === 'hackernews') {
-      // Ensure the element can display borders properly
-      element.style.setProperty('display', 'table-cell', 'important');
+      // Ensure the element maintains proper table-row display
+      element.style.setProperty('display', 'table-row', 'important');
       element.style.setProperty('border-collapse', 'separate', 'important');
       element.style.borderSpacing = '0';
       element.style.boxSizing = 'border-box';
@@ -390,16 +390,24 @@ export class Highlighter {
       element.style.setProperty('border-left', '4px solid rgba(255, 215, 0, 0.8)', 'important');
     }
     
-    // Create text-free zone for indicator by styling all content inside
-    this.createIndicatorSafeZone(element);
+    // Handle indicator placement differently for HackerNews table layout
+    if (this.siteType === 'hackernews') {
+      // For HackerNews, don't create safe zone - just position indicator absolutely
+      const indicator = this.createCornerIndicator(nugget);
+      element.style.position = 'relative'; // Ensure positioning context for indicator
+      element.appendChild(indicator);
+    } else {
+      // For other sites, create text-free zone for indicator by styling all content inside
+      this.createIndicatorSafeZone(element);
+      
+      // Add corner indicator
+      const indicator = this.createCornerIndicator(nugget);
+      element.style.position = 'relative'; // Ensure positioning context for indicator
+      element.appendChild(indicator);
+    }
     
     // Add hover effects
     this.addCommentHoverEffects(element);
-    
-    // Add corner indicator
-    const indicator = this.createCornerIndicator(nugget);
-    element.style.position = 'relative'; // Ensure positioning context for indicator
-    element.appendChild(indicator);
     
     // Track this highlight
     this.highlights.push(element);
