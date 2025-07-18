@@ -98,7 +98,8 @@ export class Highlighter {
       case 'reddit':
         return [SITE_SELECTORS.REDDIT.COMMENTS, '.thing', '.Comment', '[class*="comment"]'];
       case 'hackernews':
-        return [SITE_SELECTORS.HACKER_NEWS.COMMENTS, '.comtr', '.comment'];
+        // Priority: Use container selectors first, then text selectors as fallback
+        return ['.comtr', SITE_SELECTORS.HACKER_NEWS.COMMENT_TREE, '.comment'];
       default:
         return [];
     }
@@ -244,6 +245,11 @@ export class Highlighter {
       return false;
     }
     
+    // Use specialized highlighting for HackerNews
+    if (this.siteType === 'hackernews') {
+      return this.highlightHackerNewsComment(nugget, normalizedContent);
+    }
+    
     const commentSelectors = this.getCommentSelectors();
     
     // Find comment containers that contain the nugget content
@@ -289,6 +295,79 @@ export class Highlighter {
     // Fallback to text highlighting if comment detection fails
     console.log('🔄 Falling back to text highlighting for:', nugget.content.substring(0, 100) + '...');
     return this.findAndHighlightText(nugget);
+  }
+
+  private highlightHackerNewsComment(nugget: GoldenNugget, normalizedContent: string): boolean {
+    // For HackerNews, search for content in .commtext but highlight the parent .comtr container
+    const commtextElements = document.querySelectorAll(SITE_SELECTORS.HACKER_NEWS.COMMENTS);
+    
+    for (const commtextElement of commtextElements) {
+      const commentText = commtextElement.textContent || '';
+      const normalizedCommentText = this.normalizeText(commentText);
+      
+      // Check if this comment text contains the nugget content
+      const exactMatch = normalizedCommentText.includes(normalizedContent);
+      const overlapScore = this.getOverlapScore(normalizedCommentText, normalizedContent);
+      const fuzzyMatchResult = this.fuzzyMatch(normalizedCommentText, normalizedContent);
+      
+      console.log('🎯 HackerNews Comment Debug:', {
+        contentToFind: nugget.content.substring(0, 100) + '...',
+        normalizedContent: normalizedContent.substring(0, 100) + '...',
+        commentText: commentText.substring(0, 100) + '...',
+        normalizedCommentText: normalizedCommentText.substring(0, 100) + '...',
+        exactMatch,
+        overlapScore,
+        fuzzyMatch: fuzzyMatchResult,
+        willHighlight: exactMatch || overlapScore > 0.7 || fuzzyMatchResult
+      });
+      
+      if (exactMatch || overlapScore > 0.7 || fuzzyMatchResult) {
+        // Find the parent .comtr container
+        const comtrContainer = commtextElement.closest('.comtr');
+        
+        if (comtrContainer && !comtrContainer.classList.contains('nugget-comment-highlight')) {
+          console.log('✅ Found matching comment, highlighting .comtr container');
+          this.highlightCommentElement(comtrContainer as HTMLElement, nugget);
+          return true;
+        } else {
+          console.log('❌ Could not find .comtr container or already highlighted');
+        }
+      }
+    }
+    
+    // Fallback to generic container search
+    console.log('🔄 HackerNews: Falling back to generic container search');
+    return this.highlightGenericCommentContainer(nugget, normalizedContent);
+  }
+
+  private highlightGenericCommentContainer(nugget: GoldenNugget, normalizedContent: string): boolean {
+    const commentSelectors = this.getCommentSelectors();
+    
+    for (const selector of commentSelectors) {
+      const containers = document.querySelectorAll(selector);
+      
+      for (const container of containers) {
+        // Skip already highlighted comments
+        if (container.classList.contains('nugget-comment-highlight')) {
+          continue;
+        }
+        
+        const containerText = container.textContent || '';
+        const normalizedContainer = this.normalizeText(containerText);
+        
+        // Check if this container contains the nugget content
+        const exactMatch = normalizedContainer.includes(normalizedContent);
+        const overlapScore = this.getOverlapScore(normalizedContainer, normalizedContent);
+        const fuzzyMatchResult = this.fuzzyMatch(normalizedContainer, normalizedContent);
+        
+        if (exactMatch || overlapScore > 0.7 || fuzzyMatchResult) {
+          this.highlightCommentElement(container as HTMLElement, nugget);
+          return true;
+        }
+      }
+    }
+    
+    return false;
   }
 
   private highlightCommentElement(element: HTMLElement, nugget: GoldenNugget): void {
@@ -819,8 +898,9 @@ export class Highlighter {
     
     // Look for common comment container selectors
     const commentSelectors = [
-      '.comment',     // HackerNews
-      SITE_SELECTORS.HACKER_NEWS.COMMENTS,    // HackerNews comment text
+      '.comtr',       // HackerNews comment container
+      '.comment',     // HackerNews comment wrapper
+      SITE_SELECTORS.HACKER_NEWS.COMMENTS,    // HackerNews comment text (for traversal)
       '.thing',       // Reddit
       '.Comment',     // Reddit modern
       '[class*="comment"]',  // Generic comment classes
@@ -869,8 +949,9 @@ export class Highlighter {
     const normalizedContent = this.normalizeText(nugget.content);
     
     // Look for specific comment containers that might have fragmented content
+    // Use container selectors, not text selectors
     const containers = document.querySelectorAll(
-      `${SITE_SELECTORS.HACKER_NEWS.COMMENTS}, .comment, .usertext-body, .md, [class*="comment"], [class*="text"]`
+      `.comtr, ${SITE_SELECTORS.HACKER_NEWS.COMMENT_TREE}, .comment, .usertext-body, .md, [class*="comment"], [class*="text"]`
     );
     
     for (const container of containers) {
