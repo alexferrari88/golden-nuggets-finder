@@ -49,6 +49,9 @@ Cannot access contents of the page. Extension manifest must request permission t
 - `extension-basics.spec.ts` - Extension loading, service worker, and page accessibility
 - `popup.spec.ts` - Popup page functionality and rendering
 - `options.spec.ts` - Options page functionality and rendering
+- `substack-highlighting.spec.ts` - Substack page structure and content analysis
+- `hackernews-analysis.spec.ts` - HackerNews discussion page analysis and content extraction
+- `reddit-analysis.spec.ts` - Reddit discussion page analysis and content extraction
 
 ### Alternative Testing Strategy
 1. **Component Tests**: Extract and test core logic (extraction, UI components) without Chrome extension context
