@@ -1,32 +1,24 @@
 import { test, expect } from './fixtures';
 
 test.describe('Reddit Analysis', () => {
-  test('can load and analyze Reddit discussion page', async ({ context, extensionId }) => {
-    const page = await context.newPage();
-    
+  test('can load and analyze Reddit discussion page', async ({ cleanPage }) => {
     try {
-      // Navigate to the specific Reddit discussion
-      await page.goto('https://www.reddit.com/r/AskPhilosophyFAQ/comments/4ifqi3/im_interested_in_philosophy_where_should_i_start/');
+      // Navigate to the specific Reddit discussion using clean browser (no extension)
+      await cleanPage.goto('https://www.reddit.com/r/AskPhilosophyFAQ/comments/4ifqi3/im_interested_in_philosophy_where_should_i_start/');
       
       // Wait for page to load
-      await page.waitForLoadState('networkidle');
+      await cleanPage.waitForLoadState('networkidle');
       
-      // Check if the page loaded properly (Reddit can have various title formats)
-      const title = await page.title();
+      // Check if the page loaded properly
+      const title = await cleanPage.title();
       console.log('Page title:', title);
       
-      // Reddit may block automated browsers, so handle gracefully
-      if (title.length === 0) {
-        console.log('Reddit appears to be blocking automated access - skipping content validation');
-        test.skip(true, 'Reddit blocked automated access');
-        return;
-      }
-      
+      // With clean browser context, Reddit should load properly
       expect(title.length).toBeGreaterThan(0);
       
       // Look for the main post content
       const postSelector = '[data-test-id="post-content"]';
-      const postExists = await page.locator(postSelector).count() > 0;
+      const postExists = await cleanPage.locator(postSelector).count() > 0;
       
       if (!postExists) {
         // Try alternative selectors for Reddit post content
@@ -39,7 +31,7 @@ test.describe('Reddit Analysis', () => {
         
         let foundContent = false;
         for (const selector of altSelectors) {
-          const count = await page.locator(selector).count();
+          const count = await cleanPage.locator(selector).count();
           if (count > 0) {
             console.log(`Found content with selector: ${selector}`);
             foundContent = true;
@@ -50,7 +42,7 @@ test.describe('Reddit Analysis', () => {
       }
       
       // Look for comments section
-      const commentsExist = await page.evaluate(() => {
+      const commentsExist = await cleanPage.evaluate(() => {
         const commentSelectors = [
           '[data-test-id="comment"]',
           '.Comment',
@@ -66,48 +58,35 @@ test.describe('Reddit Analysis', () => {
       console.log('Comments found:', commentsExist);
       
       // Check if there are any existing highlights (there shouldn't be any initially)
-      const existingHighlights = await page.locator('.nugget-highlight').count();
+      const existingHighlights = await cleanPage.locator('.nugget-highlight').count();
       expect(existingHighlights).toBe(0);
       
       // Check if there are any comment highlights
-      const existingCommentHighlights = await page.locator('.nugget-comment-highlight').count();
+      const existingCommentHighlights = await cleanPage.locator('.nugget-comment-highlight').count();
       expect(existingCommentHighlights).toBe(0);
       
     } catch (error) {
-      // Don't throw errors for skipped tests
-      if (error.name === 'TestSkipError') {
-        console.log('Test was skipped due to Reddit blocking access');
-        return;
-      }
-      
       console.error('Test failed:', error);
       
       // Take a screenshot for debugging
-      await page.screenshot({ path: 'tests/debug-reddit-page.png', fullPage: true });
+      await cleanPage.screenshot({ path: 'tests/debug-reddit-page.png', fullPage: true });
       
       throw error;
-    } finally {
-      await page.close();
     }
   });
 
-  test('can simulate extension analysis on Reddit page', async ({ context, extensionId }) => {
-    const page = await context.newPage();
-    
+  test('can simulate extension analysis on Reddit page', async ({ cleanPage }) => {
     try {
-      await page.goto('https://www.reddit.com/r/AskPhilosophyFAQ/comments/4ifqi3/im_interested_in_philosophy_where_should_i_start/');
-      await page.waitForLoadState('networkidle');
+      await cleanPage.goto('https://www.reddit.com/r/AskPhilosophyFAQ/comments/4ifqi3/im_interested_in_philosophy_where_should_i_start/');
+      await cleanPage.waitForLoadState('networkidle');
       
-      // Check if Reddit is accessible
-      const title = await page.title();
-      if (title.length === 0) {
-        console.log('Reddit appears to be blocking automated access - skipping analysis test');
-        test.skip(true, 'Reddit blocked automated access');
-        return;
-      }
+      // With clean browser, Reddit should be accessible
+      const title = await cleanPage.title();
+      console.log('Page title for analysis test:', title);
+      expect(title.length).toBeGreaterThan(0);
       
       // Test content extraction from Reddit structure
-      const result = await page.evaluate(() => {
+      const result = await cleanPage.evaluate(() => {
         // Simulate Reddit content extraction with multiple selector strategies
         const postSelectors = [
           '[data-test-id="post-content"]',
@@ -160,47 +139,33 @@ test.describe('Reddit Analysis', () => {
       
       console.log('Reddit content analysis:', JSON.stringify(result, null, 2));
       
-      // Verify we can extract meaningful content (lenient check for Reddit)
-      // Reddit's content extraction can vary depending on page structure
-      console.log('Reddit analysis test completed with post length:', result.postLength);
+      // Verify we can extract meaningful content from Reddit
+      expect(result.postLength).toBeGreaterThan(10);
       
-      // This is a FAQ post, so it should have substantial content if accessible
-      if (result.hasPost && result.postLength > 0) {
+      // This is a FAQ post, so it should have substantial content
+      if (result.hasPost) {
         expect(result.postText.length).toBeGreaterThan(50);
       }
       
     } catch (error) {
-      // Don't throw errors for skipped tests
-      if (error.name === 'TestSkipError') {
-        console.log('Analysis test was skipped due to Reddit blocking access');
-        return;
-      }
-      
       console.error('Analysis simulation failed:', error);
-      await page.screenshot({ path: 'tests/debug-reddit-analysis.png', fullPage: true });
+      await cleanPage.screenshot({ path: 'tests/debug-reddit-analysis.png', fullPage: true });
       throw error;
-    } finally {
-      await page.close();
     }
   });
 
-  test('can test Reddit content structure for highlighting', async ({ context, extensionId }) => {
-    const page = await context.newPage();
-    
+  test('can test Reddit content structure for highlighting', async ({ cleanPage }) => {
     try {
-      await page.goto('https://www.reddit.com/r/AskPhilosophyFAQ/comments/4ifqi3/im_interested_in_philosophy_where_should_i_start/');
-      await page.waitForLoadState('networkidle');
+      await cleanPage.goto('https://www.reddit.com/r/AskPhilosophyFAQ/comments/4ifqi3/im_interested_in_philosophy_where_should_i_start/');
+      await cleanPage.waitForLoadState('networkidle');
       
-      // Check if Reddit is accessible
-      const title = await page.title();
-      if (title.length === 0) {
-        console.log('Reddit appears to be blocking automated access - skipping structure test');
-        test.skip(true, 'Reddit blocked automated access');
-        return;
-      }
+      // With clean browser, Reddit should be accessible
+      const title = await cleanPage.title();
+      console.log('Page title for structure test:', title);
+      expect(title.length).toBeGreaterThan(0);
       
       // Test the specific text structure of Reddit
-      const result = await page.evaluate(() => {
+      const result = await cleanPage.evaluate(() => {
         // Test Reddit-specific selectors and structure
         const titleElement = document.querySelector('h1') || document.querySelector('[data-test-id="post-content"] h1');
         const title = titleElement?.textContent || '';
@@ -247,26 +212,17 @@ test.describe('Reddit Analysis', () => {
       
       console.log('Reddit structure analysis:', JSON.stringify(result, null, 2));
       
-      // Verify the page has the expected structure (lenient check for Reddit)
-      // Reddit's structure can vary, so we just verify we got some data
-      console.log('Reddit structure test completed with result:', result);
+      // Verify the page has the expected structure
+      expect(result.totalTextElements).toBeGreaterThan(0);
       
-      // This should be a substantial FAQ post if content loaded
+      // This should be a substantial FAQ post
       if (result.hasTitle) {
         expect(result.title.toLowerCase()).toContain('philosophy');
       }
       
     } catch (error) {
-      // Don't throw errors for skipped tests
-      if (error.name === 'TestSkipError') {
-        console.log('Structure test was skipped due to Reddit blocking access');
-        return;
-      }
-      
       console.error('Structure test failed:', error);
       throw error;
-    } finally {
-      await page.close();
     }
   });
 });
