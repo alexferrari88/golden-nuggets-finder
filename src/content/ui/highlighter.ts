@@ -16,10 +16,20 @@ export class Highlighter {
   }
 
   async highlightNugget(nugget: GoldenNugget): Promise<boolean> {
+    console.log('🔍 [Highlighter Debug] Starting highlightNugget:', {
+      siteType: this.siteType,
+      isThreadedSite: this.isThreadedSite(),
+      nuggetType: nugget.type,
+      contentPreview: nugget.content.substring(0, 100) + '...',
+      url: window.location.href
+    });
+    
     // Use different highlighting strategies based on site type
     if (this.isThreadedSite()) {
+      console.log('📝 [Highlighter Debug] Using comment-based highlighting for threaded site');
       return this.highlightCommentContainer(nugget);
     } else {
+      console.log('📄 [Highlighter Debug] Using text-based highlighting for generic site');
       return this.findAndHighlightText(nugget);
     }
   }
@@ -678,10 +688,28 @@ export class Highlighter {
   private findAndHighlightText(nugget: GoldenNugget): boolean {
     const normalizedContent = this.normalizeText(nugget.content);
     
+    console.log('🎯 [Generic Highlighting Debug] Starting findAndHighlightText:', {
+      originalContent: nugget.content.substring(0, 150) + '...',
+      normalizedContent: normalizedContent.substring(0, 150) + '...',
+      normalizedLength: normalizedContent.length
+    });
+    
     // Early return if content is too short or empty
     if (normalizedContent.length < 5) {
+      console.log('❌ [Generic Highlighting Debug] Content too short, returning false');
       return false;
     }
+    
+    // For generic sites like Substack, try container-based highlighting first
+    // since text is often fragmented across multiple nodes
+    console.log('📦 [Generic Highlighting Debug] Trying container-based approach first for generic site...');
+    if (this.tryGenericContainerHighlighting(nugget)) {
+      console.log('✅ [Generic Highlighting Debug] Container-based highlighting succeeded');
+      return true;
+    }
+    
+    // Fallback to traditional text node approach
+    console.log('🔄 [Generic Highlighting Debug] Container approach failed, trying text node approach...');
     
     // Use more efficient search with caching
     const cacheKey = `highlight_${normalizedContent}`;
@@ -690,10 +718,15 @@ export class Highlighter {
     if (!textNodes) {
       textNodes = this.getTextNodesOptimized();
       this.searchCache.set(cacheKey, textNodes);
+      console.log('🔍 [Generic Highlighting Debug] Found text nodes:', textNodes.length);
+    } else {
+      console.log('📦 [Generic Highlighting Debug] Using cached text nodes:', textNodes.length);
     }
 
     // Try multiple matching strategies in order of preference
-    return this.tryMultipleMatchingStrategies(textNodes, nugget, normalizedContent);
+    const result = this.tryMultipleMatchingStrategies(textNodes, nugget, normalizedContent);
+    console.log('✅ [Generic Highlighting Debug] tryMultipleMatchingStrategies result:', result);
+    return result;
   }
 
 
@@ -940,19 +973,42 @@ export class Highlighter {
   private tryMultipleMatchingStrategies(textNodes: Element[], nugget: GoldenNugget, normalizedContent: string): boolean {
     const originalContent = nugget.content;
     
+    console.log('🎲 [Matching Strategies Debug] Starting strategies for:', {
+      nuggetType: nugget.type,
+      textNodesCount: textNodes.length,
+      normalizedContentLength: normalizedContent.length
+    });
+    
     // Strategy 1: Exact substring match (most precise) - KEEP ORIGINAL SIMPLE LOGIC
+    console.log('🎯 [Strategy 1] Trying exact substring match...');
+    let matchAttempts = 0;
     for (const textNode of textNodes) {
       const text = textNode.textContent || '';
       const normalizedText = this.normalizeText(text);
+      matchAttempts++;
+      
+      if (matchAttempts <= 5) { // Log first 5 attempts
+        console.log(`🔍 [Strategy 1] Attempt ${matchAttempts}:`, {
+          nodeText: text.substring(0, 100) + '...',
+          normalizedNodeText: normalizedText.substring(0, 100) + '...',
+          includes: normalizedText.includes(normalizedContent),
+          targetContent: normalizedContent.substring(0, 100) + '...'
+        });
+      }
       
       if (normalizedText.includes(normalizedContent)) {
+        console.log('✅ [Strategy 1] Found exact match! Highlighting...');
         this.highlightTextNodeSimple(textNode as Text, nugget, normalizedContent);
         return true;
       }
     }
+    console.log(`❌ [Strategy 1] No exact matches found in ${matchAttempts} text nodes`);
     
     // Strategy 2: Key phrase matching (extract key phrases from content)
+    console.log('🗝️ [Strategy 2] Trying key phrase matching...');
     const keyPhrases = this.extractKeyPhrases(originalContent);
+    console.log('🗝️ [Strategy 2] Extracted key phrases:', keyPhrases.slice(0, 3).map(p => p.substring(0, 50) + '...'));
+    
     for (const phrase of keyPhrases) {
       const normalizedPhrase = this.normalizeText(phrase);
       if (normalizedPhrase.length > 8) { // Only try meaningful phrases
@@ -961,26 +1017,36 @@ export class Highlighter {
           const normalizedText = this.normalizeText(text);
           
           if (normalizedText.includes(normalizedPhrase)) {
+            console.log('✅ [Strategy 2] Found phrase match! Highlighting...');
             this.highlightTextNodeSimple(textNode as Text, nugget, normalizedPhrase);
             return true;
           }
         }
       }
     }
+    console.log('❌ [Strategy 2] No phrase matches found');
     
     // Strategy 3: Fuzzy word matching
+    console.log('🔀 [Strategy 3] Trying fuzzy word matching...');
+    let fuzzyAttempts = 0;
     for (const textNode of textNodes) {
       const text = textNode.textContent || '';
       const normalizedText = this.normalizeText(text);
+      fuzzyAttempts++;
       
       if (this.fuzzyMatch(normalizedText, normalizedContent)) {
+        console.log('✅ [Strategy 3] Found fuzzy match! Highlighting...');
         this.highlightTextNodeSimple(textNode as Text, nugget, normalizedContent);
         return true;
       }
     }
+    console.log(`❌ [Strategy 3] No fuzzy matches found in ${fuzzyAttempts} text nodes`);
     
     // Strategy 4: Container-based search for HTML fragmentation (NEW - only as last resort)
-    return this.tryContainerBasedHighlighting(nugget);
+    console.log('📦 [Strategy 4] Trying container-based highlighting as last resort...');
+    const containerResult = this.tryContainerBasedHighlighting(nugget);
+    console.log(`🎲 [Matching Strategies Debug] All strategies completed. Final result: ${containerResult}`);
+    return containerResult;
   }
 
   private highlightTextNodeSimple(textNode: Text, nugget: GoldenNugget, searchTerm: string): void {
@@ -1077,9 +1143,109 @@ export class Highlighter {
     }
   }
 
+  private tryGenericContainerHighlighting(nugget: GoldenNugget): boolean {
+    const normalizedContent = this.normalizeText(nugget.content);
+    
+    console.log('🏗️ [Generic Container Debug] Starting generic container highlighting:', {
+      normalizedContent: normalizedContent.substring(0, 100) + '...'
+    });
+    
+    // For generic sites like Substack, look for content within article, main, or paragraph containers
+    const containerSelectors = [
+      'article', // Main article content (common on Substack)
+      'main',    // Main content area
+      'p',       // Individual paragraphs
+      '.post-content', // Common blog post container
+      '.content', // Generic content container
+      '[class*="post"]', // Post-related containers
+      '[class*="article"]', // Article-related containers
+      '[class*="content"]'  // Content-related containers
+    ];
+    
+    for (const selector of containerSelectors) {
+      const containers = document.querySelectorAll(selector);
+      console.log(`🏗️ [Generic Container Debug] Checking ${containers.length} containers for selector: ${selector}`);
+      
+      for (const container of containers) {
+        // Skip our own UI elements and already highlighted content
+        if (container.classList.contains('nugget-sidebar') ||
+            container.classList.contains('nugget-highlight') ||
+            container.classList.contains('nugget-comment-highlight')) {
+          continue;
+        }
+        
+        const containerText = container.textContent || '';
+        const normalizedContainer = this.normalizeText(containerText);
+        
+        // Use improved text matching algorithm (same as comment highlighting)
+        if (this.improvedTextMatching(nugget.content, containerText)) {
+          console.log('✅ [Generic Container Debug] Found matching container! Highlighting with key phrase approach...');
+          
+          // Instead of highlighting the entire container, find a good representative text within it
+          return this.highlightBestTextInContainer(container, nugget);
+        }
+      }
+    }
+    
+    console.log('❌ [Generic Container Debug] No suitable generic containers found');
+    return false;
+  }
+
+  private highlightBestTextInContainer(container: Element, nugget: GoldenNugget): boolean {
+    console.log('🎯 [Best Text Debug] Finding best text to highlight in container');
+    
+    // Extract key phrases from the nugget content
+    const keyPhrases = this.extractKeyPhrases(nugget.content);
+    console.log('🗝️ [Best Text Debug] Key phrases:', keyPhrases.slice(0, 3).map(p => p.substring(0, 50) + '...'));
+    
+    // Find text nodes within the container
+    const textNodes = this.getTextNodesInElement(container);
+    console.log('📝 [Best Text Debug] Found text nodes in container:', textNodes.length);
+    
+    // Try to find a text node that contains a good key phrase
+    for (const phrase of keyPhrases) {
+      const normalizedPhrase = this.normalizeText(phrase);
+      if (normalizedPhrase.length > 10) { // Only meaningful phrases
+        
+        for (const textNode of textNodes) {
+          const text = textNode.textContent || '';
+          const normalizedText = this.normalizeText(text);
+          
+          if (normalizedText.includes(normalizedPhrase) && text.trim().length > 15) {
+            console.log('✅ [Best Text Debug] Found text node with key phrase, highlighting...');
+            this.highlightTextNodeSimple(textNode as Text, nugget, normalizedPhrase);
+            return true;
+          }
+        }
+      }
+    }
+    
+    // Fallback: try to find any text node that contains the beginning of the nugget
+    const nuggetWords = this.normalizeText(nugget.content).split(' ');
+    const firstSignificantWords = nuggetWords.slice(0, 8).join(' '); // First 8 words
+    
+    for (const textNode of textNodes) {
+      const text = textNode.textContent || '';
+      const normalizedText = this.normalizeText(text);
+      
+      if (normalizedText.includes(firstSignificantWords) && text.trim().length > 15) {
+        console.log('✅ [Best Text Debug] Found text node with beginning words, highlighting...');
+        this.highlightTextNodeSimple(textNode as Text, nugget, firstSignificantWords);
+        return true;
+      }
+    }
+    
+    console.log('❌ [Best Text Debug] Could not find suitable text node to highlight');
+    return false;
+  }
+
   private tryContainerBasedHighlighting(nugget: GoldenNugget): boolean {
     // Only for HTML fragmentation cases - find containers with full content
     const normalizedContent = this.normalizeText(nugget.content);
+    
+    console.log('📦 [Container Strategy Debug] Starting container-based highlighting:', {
+      normalizedContent: normalizedContent.substring(0, 100) + '...'
+    });
     
     // Look for specific comment containers that might have fragmented content
     // Use container selectors, not text selectors
@@ -1087,7 +1253,11 @@ export class Highlighter {
       `.comtr, ${SITE_SELECTORS.HACKER_NEWS.COMMENT_TREE}, .comment, .usertext-body, .md, [class*="comment"], [class*="text"]`
     );
     
+    console.log('📦 [Container Strategy Debug] Found containers:', containers.length);
+    
+    let containerIndex = 0;
     for (const container of containers) {
+      containerIndex++;
       // Skip our own UI elements
       if (container.classList.contains('nugget-sidebar') ||
           container.classList.contains('nugget-highlight')) {
@@ -1097,14 +1267,27 @@ export class Highlighter {
       const containerText = container.textContent || '';
       const normalizedContainer = this.normalizeText(containerText);
       
+      if (containerIndex <= 3) { // Log first 3 containers
+        console.log(`📦 [Container Strategy Debug] Container ${containerIndex}:`, {
+          tagName: container.tagName,
+          className: container.className,
+          textPreview: containerText.substring(0, 100) + '...',
+          normalizedPreview: normalizedContainer.substring(0, 100) + '...',
+          includes: normalizedContainer.includes(normalizedContent)
+        });
+      }
+      
       // If container has the full content, find a good text node within it
       if (normalizedContainer.includes(normalizedContent)) {
+        console.log('✅ [Container Strategy Debug] Found container with content! Searching for text nodes...');
         const textNodes = this.getTextNodesInElement(container);
+        console.log('📦 [Container Strategy Debug] Text nodes in container:', textNodes.length);
         
         // Find the best text node to highlight within this container
         for (const textNode of textNodes) {
           const text = textNode.textContent || '';
           if (text.trim().length > 10) {
+            console.log('✅ [Container Strategy Debug] Highlighting representative text node');
             // Highlight this representative text node
             this.highlightTextNodeSimple(textNode as Text, nugget, this.normalizeText(text));
             return true;
@@ -1113,6 +1296,7 @@ export class Highlighter {
       }
     }
     
+    console.log('❌ [Container Strategy Debug] No suitable containers found');
     return false;
   }
 
