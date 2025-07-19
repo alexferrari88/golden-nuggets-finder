@@ -233,7 +233,7 @@ export const createHoverStyles = (baseStyles: Record<string, any>, hoverStyles: 
 
 // Generate inline CSS strings for dynamic styling
 export const generateInlineStyles = {
-  highlightStyle: () => `background-color: ${colors.highlight.background}; padding: 1px 2px; border-radius: 3px; border-bottom: 1px solid ${colors.highlight.border}; box-shadow: 0 0 0 1px ${colors.highlight.border};`,
+  highlightStyle: () => `background-color: ${colors.highlight.background} !important; padding: 2px 4px !important; border-radius: 3px !important; border: 1px solid ${colors.highlight.border} !important; box-shadow: 0 0 0 2px ${colors.highlight.border}40, 0 2px 4px rgba(0,0,0,0.1) !important; position: relative !important; z-index: 1100 !important; display: inline !important; font-weight: 500 !important; text-decoration: none !important; color: inherit !important;`,
   boxShadowMd: () => shadows.md,
   boxShadowLg: () => shadows.lg,
   boxShadowXl: () => shadows.xl,

@@ -695,7 +695,7 @@ export class Highlighter {
     });
     
     // Early return if content is too short or empty
-    if (normalizedContent.length < 5) {
+    if (normalizedContent.length < 3) {
       console.log('❌ [Generic Highlighting Debug] Content too short, returning false');
       return false;
     }
@@ -1062,10 +1062,26 @@ export class Highlighter {
     const highlightText = text.substring(startIndex, startIndex + searchTerm.length);
     const afterText = text.substring(startIndex + searchTerm.length);
     
-    // Create the highlight element
+    // Create the highlight element with highly visible styling
     const highlightSpan = document.createElement('span');
     highlightSpan.className = 'nugget-highlight';
-    highlightSpan.style.cssText = generateInlineStyles.highlightStyle();
+    
+    // Apply highly visible styles with !important to override site CSS
+    highlightSpan.style.cssText = `
+      background-color: ${colors.highlight.background} !important;
+      padding: 2px 4px !important;
+      border-radius: 3px !important;
+      border: 1px solid ${colors.highlight.border} !important;
+      box-shadow: 0 0 0 2px ${colors.highlight.border}40, 0 2px 4px rgba(0,0,0,0.1) !important;
+      position: relative !important;
+      z-index: ${zIndex.tooltip} !important;
+      display: inline !important;
+      font-weight: 500 !important;
+      text-decoration: none !important;
+      color: inherit !important;
+      line-height: inherit !important;
+    `;
+    
     highlightSpan.dataset.nuggetType = nugget.type;
     highlightSpan.textContent = highlightText;
     
@@ -1205,13 +1221,13 @@ export class Highlighter {
     // Try to find a text node that contains a good key phrase
     for (const phrase of keyPhrases) {
       const normalizedPhrase = this.normalizeText(phrase);
-      if (normalizedPhrase.length > 10) { // Only meaningful phrases
+      if (normalizedPhrase.length > 5) { // Accept shorter but meaningful phrases
         
         for (const textNode of textNodes) {
           const text = textNode.textContent || '';
           const normalizedText = this.normalizeText(text);
           
-          if (normalizedText.includes(normalizedPhrase) && text.trim().length > 15) {
+          if (normalizedText.includes(normalizedPhrase) && text.trim().length > 8) {
             console.log('✅ [Best Text Debug] Found text node with key phrase, highlighting...');
             this.highlightTextNodeSimple(textNode as Text, nugget, normalizedPhrase);
             return true;
@@ -1228,7 +1244,7 @@ export class Highlighter {
       const text = textNode.textContent || '';
       const normalizedText = this.normalizeText(text);
       
-      if (normalizedText.includes(firstSignificantWords) && text.trim().length > 15) {
+      if (normalizedText.includes(firstSignificantWords) && text.trim().length > 8) {
         console.log('✅ [Best Text Debug] Found text node with beginning words, highlighting...');
         this.highlightTextNodeSimple(textNode as Text, nugget, firstSignificantWords);
         return true;

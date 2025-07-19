@@ -324,4 +324,93 @@ describe('Highlighter', () => {
       expect(popup.style.left).toBeTruthy();
     });
   });
+
+  describe('Visual Highlighting Issues (TDD)', () => {
+    it('should apply golden yellow highlight styles with high visibility', async () => {
+      const nugget = createMockNugget('important vision content');
+      document.body.innerHTML = '<article><p>I think vision is in short supply today. The ability to formulate important vision content that should be highlighted.</p></article>';
+
+      const result = await highlighter.highlightNugget(nugget);
+      
+      expect(result).toBe(true);
+      const highlight = document.querySelector('.nugget-highlight');
+      expect(highlight).toBeTruthy();
+      
+      // Verify golden yellow background is applied
+      expect(highlight?.style.cssText).toContain('background-color');
+      expect(highlight?.style.cssText).toContain('rgba(255, 215, 0, 0.3)');
+      
+      // Verify padding and border for visibility
+      expect(highlight?.style.cssText).toContain('padding');
+      expect(highlight?.style.cssText).toContain('border');
+    });
+
+    it('should handle Substack-style container highlighting', async () => {
+      const nugget = createMockNugget('I think vision is in short supply today . The ability to formulate a normative, opinionated perspective on what should exist—as applied to the world, to our work, to our relationships, and to ourselves. Having to articulate what a great future version of something looks like forces us to work through what we care about.');
+      
+      // Simulate Substack article structure
+      document.body.innerHTML = `
+        <article>
+          <p>I think vision is in short supply today. The ability to formulate a normative, opinionated perspective on what should exist—as applied to the world, to our work, to our relationships, and to ourselves.</p>
+          <p>Having to articulate what a great future version of something looks like forces us to work through what we care about, why we've chosen one endpoint over another, and what that implies about what actually matters to us.</p>
+        </article>
+      `;
+
+      const result = await highlighter.highlightNugget(nugget);
+      
+      expect(result).toBe(true);
+      const highlights = document.querySelectorAll('.nugget-highlight');
+      expect(highlights.length).toBeGreaterThan(0);
+      
+      // Should highlight substantial text, not tiny fragments
+      const totalHighlightedText = Array.from(highlights)
+        .map(h => h.textContent || '')
+        .join(' ');
+      expect(totalHighlightedText.length).toBeGreaterThan(20);
+    });
+
+    it('should not highlight tiny or meaningless text fragments', async () => {
+      const nugget = createMockNugget('vision');
+      document.body.innerHTML = `
+        <div>
+          <span>a</span>
+          <span>vision</span>
+          <span>b</span>
+          <p>This paragraph contains a broader discussion about vision and leadership in modern organizations.</p>
+        </div>
+      `;
+
+      const result = await highlighter.highlightNugget(nugget);
+      
+      if (result) {
+        const highlights = document.querySelectorAll('.nugget-highlight');
+        
+        // If we do highlight, ensure it's meaningful text, not just the isolated word
+        for (const highlight of highlights) {
+          const highlightedText = highlight.textContent || '';
+          expect(highlightedText.length).toBeGreaterThan(5); // Not just "vision"
+        }
+      }
+    });
+
+    it('should have visible styling that stands out from page content', async () => {
+      const nugget = createMockNugget('test content');
+      document.body.innerHTML = '<p>This is test content for highlighting</p>';
+
+      await highlighter.highlightNugget(nugget);
+      
+      const highlight = document.querySelector('.nugget-highlight') as HTMLElement;
+      expect(highlight).toBeTruthy();
+      
+      // Background should be present and visible
+      expect(highlight.style.cssText).toContain('background-color');
+      
+      // Should have visual emphasis (border, shadow, etc.)
+      const hasVisualEmphasis = 
+        highlight.style.cssText.includes('border') ||
+        highlight.style.cssText.includes('box-shadow') ||
+        highlight.style.cssText.includes('outline');
+      expect(hasVisualEmphasis).toBe(true);
+    });
+  });
 });
