@@ -325,6 +325,120 @@ describe('Highlighter', () => {
     });
   });
 
+  describe('Duplicate Highlighting Prevention (TDD)', () => {
+    it('should not create duplicate highlights when called multiple times with same nugget', async () => {
+      const nugget = createMockNugget('test content to highlight');
+      document.body.innerHTML = '<article><p>This is test content to highlight in the page.</p></article>';
+
+      // First highlighting attempt
+      const result1 = await highlighter.highlightNugget(nugget);
+      expect(result1).toBe(true);
+      
+      const highlightsAfterFirst = document.querySelectorAll('.nugget-highlight');
+      expect(highlightsAfterFirst.length).toBe(1);
+      
+      // Second highlighting attempt with same nugget - should not create duplicates
+      const result2 = await highlighter.highlightNugget(nugget);
+      expect(result2).toBe(false); // Should return false because already tracked
+      
+      const highlightsAfterSecond = document.querySelectorAll('.nugget-highlight');
+      expect(highlightsAfterSecond.length).toBe(1); // Should still be only 1
+    });
+
+    it('should not modify DOM when attempting to highlight already highlighted content', async () => {
+      const nugget = createMockNugget('important vision content');
+      document.body.innerHTML = '<article><p>This contains important vision content that needs highlighting.</p></article>';
+
+      // First highlighting
+      await highlighter.highlightNugget(nugget);
+      const originalHTML = document.body.innerHTML;
+      const originalTextNodeCount = document.createTreeWalker(
+        document.body,
+        NodeFilter.SHOW_TEXT
+      ).nextNode() ? 1 : 0;
+
+      // Second highlighting attempt
+      await highlighter.highlightNugget(nugget);
+      const newHTML = document.body.innerHTML;
+      
+      // DOM should remain unchanged
+      expect(newHTML).toBe(originalHTML);
+    });
+
+    it('should track highlighted nuggets to prevent re-highlighting', async () => {
+      const nugget1 = createMockNugget('first content');
+      const nugget2 = createMockNugget('second content'); 
+      const nugget1Duplicate = createMockNugget('first content'); // Same content as nugget1
+      
+      document.body.innerHTML = `
+        <article>
+          <p>This has first content in it.</p>
+          <p>This has second content in it.</p>
+        </article>
+      `;
+
+      // Highlight first nugget
+      const result1 = await highlighter.highlightNugget(nugget1);
+      expect(result1).toBe(true);
+      
+      // Highlight second nugget (different content)
+      const result2 = await highlighter.highlightNugget(nugget2);
+      expect(result2).toBe(true);
+      
+      // Try to highlight duplicate of first nugget
+      const result3 = await highlighter.highlightNugget(nugget1Duplicate);
+      expect(result3).toBe(false); // Should be prevented
+      
+      // Should still only have 2 highlights
+      const highlights = document.querySelectorAll('.nugget-highlight');
+      expect(highlights.length).toBe(2);
+    });
+
+    it('should handle rapid successive highlighting calls gracefully', async () => {
+      const nugget = createMockNugget('rapid highlight test');
+      document.body.innerHTML = '<article><p>This is rapid highlight test content for testing.</p></article>';
+
+      // Simulate rapid successive calls (like in the bug logs)
+      const promises = [
+        highlighter.highlightNugget(nugget),
+        highlighter.highlightNugget(nugget),
+        highlighter.highlightNugget(nugget),
+        highlighter.highlightNugget(nugget),
+        highlighter.highlightNugget(nugget)
+      ];
+
+      const results = await Promise.all(promises);
+      
+      // Only first call should succeed
+      expect(results[0]).toBe(true);
+      expect(results.slice(1).every(r => r === false)).toBe(true);
+      
+      // Should only have one highlight
+      const highlights = document.querySelectorAll('.nugget-highlight');
+      expect(highlights.length).toBe(1);
+    });
+
+    it('should allow re-highlighting after clearing highlights', async () => {
+      const nugget = createMockNugget('test content');
+      document.body.innerHTML = '<article><p>This is test content for highlighting.</p></article>';
+
+      // First highlighting
+      const result1 = await highlighter.highlightNugget(nugget);
+      expect(result1).toBe(true);
+
+      // Attempt duplicate - should be blocked
+      const result2 = await highlighter.highlightNugget(nugget);
+      expect(result2).toBe(false);
+
+      // Clear highlights
+      highlighter.clearHighlights();
+
+      // Should now be able to highlight again
+      const result3 = await highlighter.highlightNugget(nugget);
+      expect(result3).toBe(true);
+    });
+  });
+
   describe('Visual Highlighting Issues (TDD)', () => {
     it('should apply golden yellow highlight styles with high visibility', async () => {
       const nugget = createMockNugget('important vision content');
@@ -336,13 +450,14 @@ describe('Highlighter', () => {
       const highlight = document.querySelector('.nugget-highlight');
       expect(highlight).toBeTruthy();
       
-      // Verify golden yellow background is applied
+      // Verify golden yellow background is applied with !important to override site CSS
       expect(highlight?.style.cssText).toContain('background-color');
-      expect(highlight?.style.cssText).toContain('rgba(255, 215, 0, 0.3)');
+      expect(highlight?.style.cssText).toContain('!important');
       
-      // Verify padding and border for visibility
+      // Verify padding and border for visibility with !important
       expect(highlight?.style.cssText).toContain('padding');
       expect(highlight?.style.cssText).toContain('border');
+      expect(highlight?.style.cssText).toContain('box-shadow');
     });
 
     it('should handle Substack-style container highlighting', async () => {
@@ -411,6 +526,138 @@ describe('Highlighter', () => {
         highlight.style.cssText.includes('box-shadow') ||
         highlight.style.cssText.includes('outline');
       expect(hasVisualEmphasis).toBe(true);
+    });
+
+    it('FAILING: should override aggressive site CSS with !important styles', async () => {
+      const nugget = createMockNugget('vision is undersupplied');
+      
+      // Simulate Substack's aggressive CSS that might override our highlighting
+      document.body.innerHTML = `
+        <style>
+          p { background: white !important; color: black !important; border: none !important; }
+        </style>
+        <article>
+          <p style="background: white !important; color: black !important;">I think vision is undersupplied today and we need better tools.</p>
+        </article>
+      `;
+
+      const result = await highlighter.highlightNugget(nugget);
+      
+      expect(result).toBe(true);
+      const highlight = document.querySelector('.nugget-highlight') as HTMLElement;
+      expect(highlight).toBeTruthy();
+      
+      // Our styles should use !important to override site CSS
+      expect(highlight.style.cssText).toContain('!important');
+      
+      // Test that our highlighting is actually visible by checking computed styles
+      // (This would fail if site CSS overrides our styles)
+      const computedStyle = window.getComputedStyle(highlight);
+      expect(computedStyle.backgroundColor).not.toBe('rgba(0, 0, 0, 0)'); // Not transparent
+      expect(computedStyle.backgroundColor).not.toBe('white');
+    });
+
+    it('FAILING: should highlight meaningful content chunks, not tiny fragments', async () => {
+      const nugget = createMockNugget('I think vision is in short supply today . The ability to formulate a normative, opinionated perspective on what should exist—as applied to the world, to our work, to our relationships, and to ourselves.');
+      
+      // Simulate Substack's fragmented HTML structure
+      document.body.innerHTML = `
+        <article>
+          <p>I think vision is in short supply today. The <em>ability</em> to formulate a normative, opinionated perspective on what should exist—as applied to the world, to our work, to our relationships, and to ourselves.</p>
+        </article>
+      `;
+
+      const result = await highlighter.highlightNugget(nugget);
+      
+      expect(result).toBe(true);
+      const highlights = document.querySelectorAll('.nugget-highlight');
+      expect(highlights.length).toBeGreaterThan(0);
+      
+      // The highlighted text should be substantial (not just a few words)
+      const totalHighlightedText = Array.from(highlights)
+        .map(h => h.textContent || '')
+        .join(' ');
+      
+      expect(totalHighlightedText.length).toBeGreaterThan(50); // Substantial text, not fragments
+      
+      // Should contain key phrases from the nugget (either the beginning OR the substantial middle part)
+      const containsBeginning = totalHighlightedText.includes('vision is in short supply');
+      const containsSubstantialPart = totalHighlightedText.includes('normative, opinionated perspective');
+      
+      // At least one substantial part should be highlighted (due to HTML fragmentation, may not get both)
+      expect(containsBeginning || containsSubstantialPart).toBe(true);
+      
+      // If it highlights the substantial part, ensure it's truly substantial
+      if (containsSubstantialPart) {
+        expect(totalHighlightedText.length).toBeGreaterThan(80); // Even more substantial
+      }
+    });
+
+    it('FAILING: should handle container-based highlighting for Substack articles', async () => {
+      const nugget = createMockNugget('I think culturally, many millennials were sold a very different bag of goods... I don\'t think many of us gave much thought about what we were running towards.');
+      
+      // Simulate real Substack structure where text is spread across multiple elements
+      document.body.innerHTML = `
+        <article>
+          <div class="post-content">
+            <p>I think culturally, many millennials were sold a very different bag of goods. We're the generation that burnt out working crazy hours in pursuit of external achievement.</p>
+            <p>I don't think many of us gave much thought about what we were running towards. We're trained to be good at running, but maybe not great at deciding what we're running towards.</p>
+          </div>
+        </article>
+      `;
+
+      const result = await highlighter.highlightNugget(nugget);
+      
+      expect(result).toBe(true);
+      
+      // Should find and highlight text even when it's fragmented across multiple paragraphs
+      const highlights = document.querySelectorAll('.nugget-highlight');
+      expect(highlights.length).toBeGreaterThan(0);
+      
+      // Should highlight meaningful content that represents the nugget
+      const highlightedText = Array.from(highlights)
+        .map(h => h.textContent || '')
+        .join(' ');
+      
+      const hasKeyContent = 
+        highlightedText.includes('millennials were sold') ||
+        highlightedText.includes('different bag of goods') ||
+        highlightedText.includes('running towards');
+      
+      expect(hasKeyContent).toBe(true);
+    });
+
+    it('FAILING: should create clearly visible highlights on real Substack content', async () => {
+      const nugget = createMockNugget('Here are some prompts that I\'ve found generative for myself in case they spark something for you');
+      
+      // Real Substack HTML structure (simplified)
+      document.body.innerHTML = `
+        <article class="post-content">
+          <div class="body markup">
+            <p>Here are some prompts that I've found generative for myself in case they spark something for you:</p>
+            <ul>
+              <li>[Self] Draft/sketch your obituary. What do you hope people will say about you and the life you led?</li>
+              <li>[Relationships] Pick a relationship you care about. What does that relationship look like when it's running optimally?</li>
+            </ul>
+          </div>
+        </article>
+      `;
+
+      const result = await highlighter.highlightNugget(nugget);
+      
+      expect(result).toBe(true);
+      const highlight = document.querySelector('.nugget-highlight') as HTMLElement;
+      expect(highlight).toBeTruthy();
+      
+      // Verify the highlight has strong visual prominence
+      expect(highlight.style.cssText).toContain('background-color');
+      expect(highlight.style.cssText).toContain('border');
+      expect(highlight.style.cssText).toContain('box-shadow');
+      
+      // Should highlight the complete sentence, not just a fragment
+      const highlightedText = highlight.textContent || '';
+      expect(highlightedText).toContain('prompts that I\'ve found generative');
+      expect(highlightedText.length).toBeGreaterThan(30);
     });
   });
 });
