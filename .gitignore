@@ -107,3 +107,9 @@ temp/
 # Test artifacts
 test-results/
 playwright-report/
+
+
+# fixtures
+reddit-thread-*/
+twitter-thread-*/
+hn-story-*/
