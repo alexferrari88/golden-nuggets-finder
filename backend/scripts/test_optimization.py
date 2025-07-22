@@ -259,8 +259,8 @@ async def cleanup_test_data():
         await db.execute("""
             DELETE FROM optimization_runs
             WHERE id IN (
-                SELECT or.id FROM optimization_runs or
-                LEFT JOIN optimized_prompts op ON or.id = op.optimization_run_id
+                SELECT opt_run.id FROM optimization_runs opt_run
+                LEFT JOIN optimized_prompts op ON opt_run.id = op.optimization_run_id
                 WHERE op.id IS NULL OR op.prompt LIKE '%mock%'
             )
         """)

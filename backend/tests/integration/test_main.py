@@ -3,6 +3,7 @@ Basic tests for the FastAPI backend.
 """
 
 import asyncio
+import uuid
 
 from fastapi.testclient import TestClient
 import pytest
@@ -113,11 +114,14 @@ def test_current_prompt():
 
 def test_update_feedback_item(setup_database):
     """Test updating a feedback item"""
+    # Use unique ID for each test run
+    test_id = f"update-test-{uuid.uuid4()}"
+    
     # First, submit feedback to have something to update
     feedback_data = {
         "nuggetFeedback": [
             {
-                "id": "update-test-1",
+                "id": test_id,
                 "nuggetContent": "Original content for update testing",
                 "originalType": "tool",
                 "correctedType": None,
@@ -140,7 +144,7 @@ def test_update_feedback_item(setup_database):
     }
     
     response = client.put(
-        "/feedback/update-test-1?feedback_type=nugget", 
+        f"/feedback/{test_id}?feedback_type=nugget", 
         json=update_data
     )
     assert response.status_code == 200
@@ -180,11 +184,14 @@ def test_update_feedback_item_empty_update():
 
 def test_delete_feedback_item(setup_database):
     """Test deleting a feedback item"""
+    # Use unique ID for each test run
+    test_id = f"delete-test-{uuid.uuid4()}"
+    
     # First, submit feedback to have something to delete
     feedback_data = {
         "missingContentFeedback": [
             {
-                "id": "delete-test-1", 
+                "id": test_id, 
                 "content": "Content to be deleted",
                 "suggestedType": "explanation",
                 "timestamp": 1642780800000,
@@ -200,7 +207,7 @@ def test_delete_feedback_item(setup_database):
     
     # Now delete the feedback item
     response = client.delete(
-        "/feedback/delete-test-1?feedback_type=missing_content"
+        f"/feedback/{test_id}?feedback_type=missing_content"
     )
     assert response.status_code == 200
     data = response.json()
@@ -209,7 +216,7 @@ def test_delete_feedback_item(setup_database):
     
     # Verify it's actually deleted by trying to get details
     response = client.get(
-        "/feedback/delete-test-1?feedback_type=missing_content"
+        f"/feedback/{test_id}?feedback_type=missing_content"
     )
     assert response.status_code == 404
 

@@ -577,12 +577,12 @@ Return valid JSON with the exact structure: {{"golden_nuggets": [...]}}"""
         cursor = await db.execute(
             """
             SELECT
-                or.id, or.mode, or.trigger_type, or.started_at, or.completed_at,
-                or.status, or.performance_improvement, or.feedback_count, or.error_message,
+                opt_run.id, opt_run.mode, opt_run.trigger_type, opt_run.started_at, opt_run.completed_at,
+                opt_run.status, opt_run.performance_improvement, opt_run.feedback_count, opt_run.error_message,
                 op.version, op.positive_rate
-            FROM optimization_runs or
-            LEFT JOIN optimized_prompts op ON or.id = op.optimization_run_id
-            ORDER BY or.started_at DESC
+            FROM optimization_runs opt_run
+            LEFT JOIN optimized_prompts op ON opt_run.id = op.optimization_run_id
+            ORDER BY opt_run.started_at DESC
             LIMIT ?
         """,
             (limit,),
