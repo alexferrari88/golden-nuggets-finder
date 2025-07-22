@@ -87,6 +87,9 @@ class StoredNuggetFeedback(BaseModel):
     url: str
     context: str
     created_at: datetime
+    report_count: int = 1
+    first_reported_at: datetime
+    last_reported_at: datetime
 
 
 class StoredMissingContentFeedback(BaseModel):
@@ -99,6 +102,9 @@ class StoredMissingContentFeedback(BaseModel):
     url: str
     context: str
     created_at: datetime
+    report_count: int = 1
+    first_reported_at: datetime
+    last_reported_at: datetime
 
 
 class OptimizationRun(BaseModel):
@@ -170,3 +176,29 @@ class MonitoringResponse(BaseModel):
     active_runs: dict[str, OptimizationProgress]
     recent_completions: list[dict]
     system_health: SystemHealthResponse
+
+
+# Deduplication models
+
+class DeduplicationInfo(BaseModel):
+    """Information about duplicate reports"""
+    
+    report_count: int = Field(..., description="Number of times this content was reported")
+    first_reported_at: str = Field(..., description="ISO timestamp of first report")
+    last_reported_at: str = Field(..., description="ISO timestamp of most recent report")
+    is_duplicate: bool = Field(..., description="Whether this was a duplicate submission")
+
+
+class FeedbackWithDeduplication(BaseModel):
+    """Feedback response model that includes deduplication information"""
+    
+    id: str
+    content: str
+    feedback_type: Literal["nugget", "missing_content"]
+    url: str
+    rating: Optional[Literal["positive", "negative"]] = None
+    suggested_type: Optional[Literal["tool", "media", "explanation", "analogy", "model"]] = None
+    original_type: Optional[Literal["tool", "media", "explanation", "analogy", "model"]] = None
+    corrected_type: Optional[Literal["tool", "media", "explanation", "analogy", "model"]] = None
+    created_at: str
+    deduplication: DeduplicationInfo

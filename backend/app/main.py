@@ -89,18 +89,30 @@ async def submit_feedback(feedback_data: FeedbackSubmissionRequest):
     missing content feedback (user-identified golden nuggets).
     """
     try:
+        deduplication_results = {
+            "nugget_duplicates": 0,
+            "missing_content_duplicates": 0,
+            "total_submitted": 0
+        }
+        
         async with get_db() as db:
             # Store nugget feedback
             if feedback_data.nuggetFeedback:
                 for feedback in feedback_data.nuggetFeedback:
-                    await feedback_service.store_nugget_feedback(db, feedback)
+                    was_duplicate = await feedback_service.store_nugget_feedback(db, feedback)
+                    if was_duplicate:
+                        deduplication_results["nugget_duplicates"] += 1
+                    deduplication_results["total_submitted"] += 1
 
             # Store missing content feedback
             if feedback_data.missingContentFeedback:
                 for missing_feedback in feedback_data.missingContentFeedback:
-                    await feedback_service.store_missing_content_feedback(
+                    was_duplicate = await feedback_service.store_missing_content_feedback(
                         db, missing_feedback
                     )
+                    if was_duplicate:
+                        deduplication_results["missing_content_duplicates"] += 1
+                    deduplication_results["total_submitted"] += 1
 
             # Check if optimization should be triggered
             stats = await feedback_service.get_feedback_stats(db)
@@ -120,6 +132,7 @@ async def submit_feedback(feedback_data: FeedbackSubmissionRequest):
                             "Feedback stored successfully. Optimization triggered."
                         ),
                         "stats": stats,
+                        "deduplication": deduplication_results,
                     },
                     background=background_tasks,
                 )
@@ -128,6 +141,7 @@ async def submit_feedback(feedback_data: FeedbackSubmissionRequest):
                 "success": True,
                 "message": "Feedback stored successfully",
                 "stats": stats,
+                "deduplication": deduplication_results,
             }
 
     except Exception as e:
@@ -502,6 +516,52 @@ async def get_cost_trends(days: int = 30):
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Failed to get cost trends: {e!s}"
+        ) from e
+
+
+@app.get("/feedback/duplicates")
+async def get_duplicate_analysis(limit: int = 50):
+    """Get analysis of duplicate feedback submissions"""
+    try:
+        async with get_db() as db:
+            cursor = await db.execute(f"""
+                SELECT 
+                    feedback_type,
+                    content,
+                    url,
+                    report_count,
+                    similar_items,
+                    earliest_report,
+                    latest_report,
+                    item_ids
+                FROM duplicate_content_analysis
+                ORDER BY report_count DESC, latest_report DESC
+                LIMIT ?
+            """, (limit,))
+            
+            results = await cursor.fetchall()
+            
+            duplicates = []
+            for row in results:
+                duplicates.append({
+                    "feedback_type": row[0],
+                    "content": row[1][:200] + "..." if len(row[1]) > 200 else row[1],  # Truncate for display
+                    "url": row[2],
+                    "report_count": row[3],
+                    "similar_items": row[4],
+                    "earliest_report": row[5],
+                    "latest_report": row[6],
+                    "item_ids": row[7].split(",") if row[7] else []
+                })
+            
+            return {
+                "duplicates": duplicates,
+                "total_found": len(duplicates),
+                "limit": limit
+            }
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Failed to get duplicate analysis: {e!s}"
         ) from e
 
 

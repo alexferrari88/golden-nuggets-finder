@@ -21,49 +21,173 @@ class FeedbackService:
     async def store_nugget_feedback(
         self, db: aiosqlite.Connection, feedback: NuggetFeedback
     ):
-        """Store nugget feedback in database"""
-        await db.execute(
+        """Store nugget feedback in database with deduplication"""
+        current_time = datetime.now()
+        
+        # Check for existing record with same content, URL, and original type
+        cursor = await db.execute(
             """
-            INSERT INTO nugget_feedback (
-                id, nugget_content, original_type, corrected_type,
-                rating, timestamp, url, context, created_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """,
-            (
-                feedback.id,
-                feedback.nuggetContent,
-                feedback.originalType,
-                feedback.correctedType,
-                feedback.rating,
-                feedback.timestamp,
-                feedback.url,
-                feedback.context,
-                datetime.now(),
-            ),
+            SELECT id, report_count, first_reported_at 
+            FROM nugget_feedback 
+            WHERE nugget_content = ? AND url = ? AND original_type = ?
+            """,
+            (feedback.nuggetContent, feedback.url, feedback.originalType)
         )
+        existing = await cursor.fetchone()
+        
+        if existing:
+            # Found duplicate - increment report count and update timestamps/fields
+            existing_id, current_count, first_reported = existing
+            await db.execute(
+                """
+                UPDATE nugget_feedback 
+                SET report_count = ?, 
+                    last_reported_at = ?,
+                    context = ?,
+                    corrected_type = ?,
+                    rating = ?
+                WHERE id = ?
+                """,
+                (current_count + 1, current_time, feedback.context, 
+                 feedback.correctedType, feedback.rating, existing_id)
+            )
+            
+            # Update the feedback ID to return the existing record's ID
+            feedback.id = existing_id
+            
+        else:
+            # No duplicate found - insert new record
+            await db.execute(
+                """
+                INSERT INTO nugget_feedback (
+                    id, nugget_content, original_type, corrected_type,
+                    rating, timestamp, url, context, created_at,
+                    report_count, first_reported_at, last_reported_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+                (
+                    feedback.id,
+                    feedback.nuggetContent,
+                    feedback.originalType,
+                    feedback.correctedType,
+                    feedback.rating,
+                    feedback.timestamp,
+                    feedback.url,
+                    feedback.context,
+                    current_time,
+                    1,  # report_count
+                    current_time,  # first_reported_at
+                    current_time,  # last_reported_at
+                ),
+            )
+        
         await db.commit()
+        
+        # Return whether this was a duplicate for API response
+        return existing is not None
 
     async def store_missing_content_feedback(
         self, db: aiosqlite.Connection, feedback: MissingContentFeedback
     ):
-        """Store missing content feedback in database"""
-        await db.execute(
+        """Store missing content feedback in database with deduplication"""
+        current_time = datetime.now()
+        
+        # Check for existing record with same content and URL
+        cursor = await db.execute(
             """
-            INSERT INTO missing_content_feedback (
-                id, content, suggested_type, timestamp, url, context, created_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?)
-        """,
-            (
-                feedback.id,
-                feedback.content,
-                feedback.suggestedType,
-                feedback.timestamp,
-                feedback.url,
-                feedback.context,
-                datetime.now(),
-            ),
+            SELECT id, report_count, first_reported_at 
+            FROM missing_content_feedback 
+            WHERE content = ? AND url = ?
+            """,
+            (feedback.content, feedback.url)
         )
+        existing = await cursor.fetchone()
+        
+        if existing:
+            # Found duplicate - increment report count and update timestamps
+            existing_id, current_count, first_reported = existing
+            await db.execute(
+                """
+                UPDATE missing_content_feedback 
+                SET report_count = ?, 
+                    last_reported_at = ?,
+                    context = ?
+                WHERE id = ?
+                """,
+                (current_count + 1, current_time, feedback.context, existing_id)
+            )
+            
+            # Update the feedback ID to return the existing record's ID
+            # This ensures consistent behavior for the API response
+            feedback.id = existing_id
+            
+        else:
+            # No duplicate found - insert new record
+            await db.execute(
+                """
+                INSERT INTO missing_content_feedback (
+                    id, content, suggested_type, timestamp, url, context, 
+                    created_at, report_count, first_reported_at, last_reported_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+                (
+                    feedback.id,
+                    feedback.content,
+                    feedback.suggestedType,
+                    feedback.timestamp,
+                    feedback.url,
+                    feedback.context,
+                    current_time,
+                    1,  # report_count
+                    current_time,  # first_reported_at
+                    current_time,  # last_reported_at
+                ),
+            )
+        
         await db.commit()
+        
+        # Return whether this was a duplicate for API response
+        return existing is not None
+
+    async def get_deduplication_info(
+        self, db: aiosqlite.Connection, feedback_id: str, feedback_type: str
+    ) -> dict:
+        """Get deduplication information for a feedback item"""
+        if feedback_type == "nugget":
+            cursor = await db.execute(
+                """
+                SELECT report_count, first_reported_at, last_reported_at
+                FROM nugget_feedback 
+                WHERE id = ?
+                """,
+                (feedback_id,)
+            )
+        else:  # missing_content
+            cursor = await db.execute(
+                """
+                SELECT report_count, first_reported_at, last_reported_at
+                FROM missing_content_feedback 
+                WHERE id = ?
+                """,
+                (feedback_id,)
+            )
+        
+        result = await cursor.fetchone()
+        if result:
+            report_count, first_reported_at, last_reported_at = result
+            return {
+                "report_count": report_count,
+                "first_reported_at": first_reported_at,
+                "last_reported_at": last_reported_at,
+                "is_duplicate": report_count > 1
+            }
+        
+        return {
+            "report_count": 1,
+            "first_reported_at": None,
+            "last_reported_at": None,
+            "is_duplicate": False
+        }
 
     async def get_feedback_stats(self, db: aiosqlite.Connection) -> dict:
         """
