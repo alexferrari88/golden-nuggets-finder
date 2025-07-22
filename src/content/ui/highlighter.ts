@@ -1497,10 +1497,15 @@ export class Highlighter {
   private highlightBestTextInContainer(container: Element, nugget: GoldenNugget): boolean {
     console.log('🎯 [Best Text Debug] Finding best text to highlight in container');
     
-    // First, try to find a substantial text match that spans multiple text nodes if needed
     const containerText = container.textContent || '';
     const normalizedContainer = this.normalizeText(containerText);
     const normalizedNugget = this.normalizeText(nugget.content);
+    
+    // NEW STRATEGY: Try to highlight multiple text nodes that together contain more of the nugget
+    console.log('🔗 [Multi-Node Strategy] Attempting to find multiple text nodes that together contain more nugget content...');
+    if (this.tryMultiNodeHighlighting(container, nugget)) {
+      return true;
+    }
     
     // Extract key phrases from the nugget content
     const keyPhrases = this.extractKeyPhrases(nugget.content);
@@ -1510,10 +1515,13 @@ export class Highlighter {
     const textNodes = this.getTextNodesInElement(container);
     console.log('📝 [Best Text Debug] Found text nodes in container:', textNodes.length);
     
-    // Strategy 1: Try to find a text node with substantial content that includes the beginning of the nugget
+    // Strategy 1: Try to find text nodes with substantial content, prioritize longer matches
     const nuggetStart = this.normalizeText(nugget.content.split(' ').slice(0, 8).join(' ')); // First 8 words
     
-    for (const phrase of keyPhrases) {
+    // Sort phrases by length descending to prioritize longer, more complete content
+    const sortedPhrases = keyPhrases.sort((a, b) => b.length - a.length);
+    
+    for (const phrase of sortedPhrases) {
       const normalizedPhrase = this.normalizeText(phrase);
       if (normalizedPhrase.length > 20) { // Prioritize longer, more substantial phrases
         
@@ -1527,9 +1535,8 @@ export class Highlighter {
           
           if ((includesStart || hasSubstantialOverlap) && text.trim().length > 20) {
             console.log('✅ [Best Text Debug] Found substantial text node with key phrase, highlighting...');
-            // If it includes the start, prefer highlighting with the nugget start content
-            const highlightPhrase = includesStart ? nugget.content : phrase;
-            this.highlightSubstantialText(textNode as Text, nugget, highlightPhrase);
+            // NEW: Try to highlight as much of the phrase as possible within this node's context
+            this.highlightMaximalText(textNode as Text, nugget, phrase);
             return true;
           }
         }
@@ -1541,7 +1548,7 @@ export class Highlighter {
     let bestScore = 0;
     let bestPhrase = '';
     
-    for (const phrase of keyPhrases) {
+    for (const phrase of sortedPhrases) {
       const normalizedPhrase = this.normalizeText(phrase);
       if (normalizedPhrase.length > 10) {
         
@@ -1561,11 +1568,11 @@ export class Highlighter {
     
     if (bestTextNode && bestScore > 0.3) {
       console.log('✅ [Best Text Debug] Found best matching text node, highlighting...');
-      this.highlightSubstantialText(bestTextNode, nugget, bestPhrase);
+      this.highlightMaximalText(bestTextNode, nugget, bestPhrase);
       return true;
     }
     
-    // Fallback: try to find any text node that contains the beginning of the nugget
+    // Strategy 3: Try to find any text node that contains the beginning of the nugget
     const nuggetWords = this.normalizeText(nugget.content).split(' ');
     const firstSignificantWords = nuggetWords.slice(0, 12).join(' '); // More words for better context
     
@@ -1575,13 +1582,371 @@ export class Highlighter {
       
       if (normalizedText.includes(firstSignificantWords) && text.trim().length > 20) {
         console.log('✅ [Best Text Debug] Found text node with beginning words, highlighting...');
-        this.highlightSubstantialText(textNode as Text, nugget, firstSignificantWords);
+        this.highlightMaximalText(textNode as Text, nugget, nugget.content);
         return true;
       }
     }
     
     console.log('❌ [Best Text Debug] Could not find suitable text node to highlight');
     return false;
+  }
+
+  private tryMultiNodeHighlighting(container: Element, nugget: GoldenNugget): boolean {
+    console.log('🔗 [Multi-Node Debug] Starting multi-node highlighting');
+    
+    const containerText = container.textContent || '';
+    const normalizedContainer = this.normalizeText(containerText);
+    const normalizedNugget = this.normalizeText(nugget.content);
+    
+    // Check if the container has enough of the nugget content to warrant multi-node highlighting
+    const overlap = this.getOverlapScore(normalizedContainer, normalizedNugget);
+    if (overlap < 0.4) { // Lowered threshold to catch more cases
+      console.log('❌ [Multi-Node Debug] Container overlap too low:', overlap);
+      return false;
+    }
+    
+    // NEW: Try paragraph-based approach first for better content grouping
+    if (this.tryParagraphBasedHighlighting(container, nugget)) {
+      return true;
+    }
+    
+    // Find all text nodes in container
+    const textNodes = this.getTextNodesInElement(container);
+    if (textNodes.length < 2) {
+      console.log('❌ [Multi-Node Debug] Not enough text nodes for multi-node highlighting');
+      return false;
+    }
+    
+    // Try to find a sequence of text nodes that together contain a substantial portion of the nugget
+    console.log('🔍 [Multi-Node Debug] Looking for sequences of text nodes...');
+    
+    const nuggetWords = this.normalizeText(nugget.content).split(' ');
+    const minWordsToMatch = Math.max(6, Math.floor(nuggetWords.length * 0.4)); // Lowered threshold: 40% of words or 6 words
+    
+    for (let i = 0; i < textNodes.length; i++) {
+      for (let j = i + 1; j <= Math.min(i + 8, textNodes.length); j++) { // Check longer sequences up to 8 nodes
+        const sequenceNodes = textNodes.slice(i, j);
+        const combinedText = sequenceNodes.map(n => n.textContent || '').join(' ');
+        const normalizedCombined = this.normalizeText(combinedText);
+        
+        // Count how many nugget words are in this sequence
+        const combinedWords = normalizedCombined.split(' ');
+        const matchingWords = nuggetWords.filter(word => word.length > 2 && combinedWords.includes(word)); // Only meaningful words
+        
+        if (matchingWords.length >= minWordsToMatch && combinedText.length > 40) { // Lowered minimum length
+          console.log('✅ [Multi-Node Debug] Found good sequence:', {
+            nodes: sequenceNodes.length,
+            matchingWords: matchingWords.length,
+            totalWords: nuggetWords.length,
+            matchRatio: matchingWords.length / nuggetWords.length,
+            textPreview: combinedText.substring(0, 150) + '...'
+          });
+          
+          // Highlight each node in the sequence with a slightly different approach
+          return this.highlightNodeSequence(sequenceNodes as Text[], nugget, combinedText);
+        }
+      }
+    }
+    
+    console.log('❌ [Multi-Node Debug] No good sequences found');
+    return false;
+  }
+  
+  private tryParagraphBasedHighlighting(container: Element, nugget: GoldenNugget): boolean {
+    console.log('📄 [Paragraph Debug] Trying paragraph-based highlighting');
+    
+    // Look for paragraph elements that together might contain the nugget
+    const paragraphs = container.querySelectorAll('p, div[class*="paragraph"], paragraph');
+    if (paragraphs.length < 2) {
+      console.log('❌ [Paragraph Debug] Not enough paragraphs found');
+      return false;
+    }
+    
+    const normalizedNugget = this.normalizeText(nugget.content);
+    const nuggetWords = normalizedNugget.split(' ');
+    const minWordsToMatch = Math.max(6, Math.floor(nuggetWords.length * 0.4));
+    
+    console.log('🔍 [Paragraph Debug] Checking', paragraphs.length, 'paragraphs for content spans');
+    
+    // Try combinations of consecutive paragraphs
+    for (let i = 0; i < paragraphs.length; i++) {
+      for (let j = i + 1; j <= Math.min(i + 4, paragraphs.length); j++) { // Up to 4 consecutive paragraphs
+        const paragraphSet = Array.from(paragraphs).slice(i, j);
+        const combinedText = paragraphSet.map(p => p.textContent || '').join(' ');
+        const normalizedCombined = this.normalizeText(combinedText);
+        
+        // Count word matches
+        const combinedWords = normalizedCombined.split(' ');
+        const matchingWords = nuggetWords.filter(word => word.length > 2 && combinedWords.includes(word));
+        
+        if (matchingWords.length >= minWordsToMatch && combinedText.length > 80) {
+          console.log('✅ [Paragraph Debug] Found good paragraph sequence:', {
+            paragraphs: paragraphSet.length,
+            matchingWords: matchingWords.length,
+            totalWords: nuggetWords.length,
+            matchRatio: matchingWords.length / nuggetWords.length,
+            textPreview: combinedText.substring(0, 200) + '...'
+          });
+          
+          // Find the best paragraph to highlight from this sequence
+          return this.highlightBestParagraphFromSequence(paragraphSet, nugget, combinedText);
+        }
+      }
+    }
+    
+    console.log('❌ [Paragraph Debug] No good paragraph sequences found');
+    return false;
+  }
+  
+  private highlightBestParagraphFromSequence(paragraphs: Element[], nugget: GoldenNugget, combinedText: string): boolean {
+    console.log('🎯 [Paragraph Highlight] Selecting best paragraph from sequence of', paragraphs.length);
+    
+    const normalizedNugget = this.normalizeText(nugget.content);
+    let bestParagraph: Element | null = null;
+    let bestScore = 0;
+    
+    // Find paragraph with best overlap with nugget content
+    for (const paragraph of paragraphs) {
+      const paragraphText = paragraph.textContent || '';
+      const normalizedParagraph = this.normalizeText(paragraphText);
+      const score = this.getOverlapScore(normalizedParagraph, normalizedNugget);
+      
+      if (score > bestScore && paragraphText.length > 20) {
+        bestScore = score;
+        bestParagraph = paragraph;
+      }
+    }
+    
+    if (bestParagraph && bestScore > 0.3) {
+      console.log('✅ [Paragraph Highlight] Found best paragraph with score:', bestScore);
+      
+      // Get text nodes from the best paragraph and highlight multiple nodes if beneficial
+      const textNodes = this.getTextNodesInElement(bestParagraph);
+      if (textNodes.length > 1) {
+        return this.highlightNodeSequence(textNodes.slice(0, 3) as Text[], nugget, combinedText);
+      } else if (textNodes.length === 1) {
+        this.highlightMaximalText(textNodes[0] as Text, nugget, nugget.content);
+        return true;
+      }
+    }
+    
+    console.log('❌ [Paragraph Highlight] Could not find suitable paragraph to highlight');
+    return false;
+  }
+  
+  private highlightNodeSequence(nodes: Text[], nugget: GoldenNugget, combinedText: string): boolean {
+    console.log('🎨 [Sequence Highlight] Highlighting', nodes.length, 'nodes in sequence');
+    
+    let highlightedCount = 0;
+    
+    for (let i = 0; i < nodes.length; i++) {
+      const textNode = nodes[i];
+      const text = textNode.textContent || '';
+      
+      // Skip nodes with too little meaningful content
+      if (text.trim().length < 5) {
+        continue;
+      }
+      
+      // For the first node, try to include as much context as possible
+      // For subsequent nodes, highlight the whole node if it has meaningful content
+      if (i === 0) {
+        // For first node, try to find the best starting point
+        this.highlightMaximalText(textNode, nugget, combinedText);
+      } else {
+        // For subsequent nodes, highlight the whole meaningful content
+        this.highlightWholeTextNode(textNode, nugget);
+      }
+      
+      highlightedCount++;
+      
+      // Don't highlight too many nodes to avoid overwhelming the user
+      if (highlightedCount >= 3) {
+        break;
+      }
+    }
+    
+    return highlightedCount > 0;
+  }
+  
+  private highlightMaximalText(textNode: Text, nugget: GoldenNugget, targetContent: string): void {
+    console.log('📏 [Maximal Text Debug] Highlighting maximal text within node');
+    
+    const text = textNode.textContent || '';
+    const normalizedText = this.normalizeText(text);
+    const normalizedTarget = this.normalizeText(targetContent);
+    
+    // Try to find the longest possible matching substring
+    let bestMatch = this.findLongestMatch(text, targetContent);
+    
+    if (!bestMatch && normalizedText.length > 10) {
+      // Fallback: if we can't find a direct match, try to highlight a substantial portion
+      // that has good word overlap with the target
+      const textWords = normalizedText.split(' ');
+      const targetWords = normalizedTarget.split(' ');
+      const matchingWords = textWords.filter(word => word.length > 2 && targetWords.includes(word));
+      
+      if (matchingWords.length >= Math.min(5, targetWords.length * 0.4)) {
+        // If we have good word overlap, highlight a substantial portion of the text
+        const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 20);
+        if (sentences.length > 0) {
+          // Find the sentence with the best overlap
+          let bestSentence = sentences[0];
+          let bestScore = 0;
+          
+          for (const sentence of sentences) {
+            const sentenceNorm = this.normalizeText(sentence);
+            const score = this.getOverlapScore(sentenceNorm, normalizedTarget);
+            if (score > bestScore) {
+              bestScore = score;
+              bestSentence = sentence;
+            }
+          }
+          
+          if (bestScore > 0.3) {
+            bestMatch = {
+              text: bestSentence.trim(),
+              startIndex: text.indexOf(bestSentence.trim()),
+              endIndex: text.indexOf(bestSentence.trim()) + bestSentence.trim().length
+            };
+          }
+        }
+      }
+    }
+    
+    // If still no good match, highlight a meaningful chunk from the beginning
+    if (!bestMatch && text.length > 30) {
+      const words = text.split(/\s+/);
+      const chunkSize = Math.min(20, Math.max(8, Math.floor(words.length * 0.6))); // 60% of words, but between 8-20
+      const chunk = words.slice(0, chunkSize).join(' ');
+      bestMatch = {
+        text: chunk,
+        startIndex: 0,
+        endIndex: chunk.length
+      };
+    }
+    
+    if (bestMatch) {
+      this.createHighlightSpan(textNode, bestMatch, nugget);
+    }
+  }
+  
+  private highlightWholeTextNode(textNode: Text, nugget: GoldenNugget): void {
+    const text = textNode.textContent || '';
+    if (text.trim().length > 5) {
+      const match = {
+        text: text,
+        startIndex: 0,
+        endIndex: text.length
+      };
+      this.createHighlightSpan(textNode, match, nugget);
+    }
+  }
+  
+  private findLongestMatch(text: string, targetContent: string): { text: string, startIndex: number, endIndex: number } | null {
+    const normalizedText = this.normalizeText(text);
+    const normalizedTarget = this.normalizeText(targetContent);
+    
+    // Look for the longest substring match
+    let bestMatch: { text: string, startIndex: number, endIndex: number } | null = null;
+    let maxLength = 0;
+    
+    // Try different chunk sizes, starting with larger ones
+    const words = text.split(/\s+/);
+    for (let chunkSize = Math.min(words.length, 25); chunkSize >= 4; chunkSize--) { // Increased max size and lowered min
+      for (let i = 0; i <= words.length - chunkSize; i++) {
+        const chunk = words.slice(i, i + chunkSize).join(' ');
+        const normalizedChunk = this.normalizeText(chunk);
+        
+        // Check both directions: chunk in target AND target phrases in chunk
+        const chunkInTarget = normalizedTarget.includes(normalizedChunk);
+        const targetPhraseInChunk = this.hasSignificantOverlap(normalizedChunk, normalizedTarget);
+        
+        if ((chunkInTarget || targetPhraseInChunk) && chunk.length > maxLength) {
+          const startIndex = text.indexOf(chunk);
+          if (startIndex !== -1) {
+            maxLength = chunk.length;
+            bestMatch = {
+              text: chunk,
+              startIndex: startIndex,
+              endIndex: startIndex + chunk.length
+            };
+          }
+        }
+      }
+      
+      // If we found a good match, don't keep looking for smaller ones
+      if (bestMatch && maxLength > 40) { // Lowered threshold
+        break;
+      }
+    }
+    
+    return bestMatch;
+  }
+  
+  private hasSignificantOverlap(chunkText: string, targetText: string): boolean {
+    const chunkWords = chunkText.split(' ').filter(w => w.length > 2);
+    const targetWords = targetText.split(' ').filter(w => w.length > 2);
+    
+    if (chunkWords.length === 0 || targetWords.length === 0) return false;
+    
+    const matchingWords = chunkWords.filter(word => targetWords.includes(word));
+    const overlapRatio = matchingWords.length / Math.min(chunkWords.length, targetWords.length);
+    
+    return overlapRatio > 0.6 && matchingWords.length >= 3; // Need at least 60% overlap and 3+ matching words
+  }
+  
+  private createHighlightSpan(textNode: Text, match: { text: string, startIndex: number, endIndex: number }, nugget: GoldenNugget): void {
+    const text = textNode.textContent || '';
+    
+    const beforeText = text.substring(0, match.startIndex);
+    const highlightText = match.text;
+    const afterText = text.substring(match.endIndex);
+    
+    // Create the highlight element with highly visible styling
+    const highlightSpan = document.createElement('span');
+    highlightSpan.className = 'nugget-highlight';
+    
+    // Apply highly visible styles with !important to override site CSS
+    highlightSpan.style.cssText = `
+      background-color: ${colors.highlight.background} !important;
+      padding: 3px 6px !important;
+      border-radius: 4px !important;
+      border: 2px solid ${colors.highlight.border} !important;
+      box-shadow: 0 0 0 3px ${colors.highlight.border}30, 0 4px 8px rgba(0,0,0,0.15) !important;
+      position: relative !important;
+      z-index: ${zIndex.tooltip} !important;
+      display: inline !important;
+      font-weight: 600 !important;
+      text-decoration: none !important;
+      color: inherit !important;
+      line-height: 1.4 !important;
+      margin: 2px 0 !important;
+    `;
+    
+    highlightSpan.dataset.nuggetType = nugget.type;
+    highlightSpan.textContent = highlightText;
+    
+    // Replace the text node with the highlighted version
+    const parent = textNode.parentNode;
+    if (parent) {
+      if (beforeText) {
+        parent.insertBefore(document.createTextNode(beforeText), textNode);
+      }
+      parent.insertBefore(highlightSpan, textNode);
+      if (afterText) {
+        parent.insertBefore(document.createTextNode(afterText), textNode);
+      }
+      parent.removeChild(textNode);
+      
+      // Create clickable indicator for the first highlight only
+      if (this.highlights.length === 0) {
+        const indicator = this.createClickableIndicator(nugget);
+        this.placeIndicatorAtCommentEnd(indicator, parent as Element);
+      }
+    }
+    
+    this.highlights.push(highlightSpan);
   }
 
   private tryContainerBasedHighlighting(nugget: GoldenNugget): boolean {
