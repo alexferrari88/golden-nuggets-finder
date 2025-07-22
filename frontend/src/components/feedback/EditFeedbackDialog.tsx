@@ -86,43 +86,45 @@ export function EditFeedbackDialog({ item, children }: EditFeedbackDialogProps) 
             />
           </div>
 
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Rating</label>
-            <div className="flex gap-2">
-              <Button
-                type="button"
-                variant={rating === 'positive' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setRating(rating === 'positive' ? null : 'positive')}
-                className="flex items-center gap-2"
-              >
-                <ThumbsUp className="h-4 w-4" />
-                Positive
-              </Button>
-              <Button
-                type="button"
-                variant={rating === 'negative' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setRating(rating === 'negative' ? null : 'negative')}
-                className="flex items-center gap-2"
-              >
-                <ThumbsDown className="h-4 w-4" />
-                Negative
-              </Button>
-              {rating && (
+          {item.type === 'nugget' && (
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Rating</label>
+              <div className="flex gap-2">
                 <Button
                   type="button"
-                  variant="ghost"
+                  variant={rating === 'positive' ? 'default' : 'outline'}
                   size="sm"
-                  onClick={() => setRating(null)}
+                  onClick={() => setRating(rating === 'positive' ? null : 'positive')}
                   className="flex items-center gap-2"
                 >
-                  <X className="h-4 w-4" />
-                  Clear
+                  <ThumbsUp className="h-4 w-4" />
+                  Positive
                 </Button>
-              )}
+                <Button
+                  type="button"
+                  variant={rating === 'negative' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setRating(rating === 'negative' ? null : 'negative')}
+                  className="flex items-center gap-2"
+                >
+                  <ThumbsDown className="h-4 w-4" />
+                  Negative
+                </Button>
+                {rating && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setRating(null)}
+                    className="flex items-center gap-2"
+                  >
+                    <X className="h-4 w-4" />
+                    Clear
+                  </Button>
+                )}
+              </div>
             </div>
-          </div>
+          )}
 
           {updateMutation.error && (
             <Alert variant="destructive">
