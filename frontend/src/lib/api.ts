@@ -148,11 +148,11 @@ export const apiClient = {
     }),
 
   getRecentActivity: (params: { limit?: number } = {}): Promise<OptimizationProgress[]> =>
-    makeRequest<OptimizationProgress[]>({
+    makeRequest<{ activities: OptimizationProgress[]; count: number }>({
       method: 'GET',
       url: '/activity/recent',
       params,
-    }),
+    }).then(response => response.activities),
 
   // Cost Analysis - Financial tracking  
   getOptimizationCosts: (runId: string): Promise<CostSummary> =>

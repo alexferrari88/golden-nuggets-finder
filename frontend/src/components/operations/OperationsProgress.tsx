@@ -45,7 +45,9 @@ export function OperationsProgress({
   // Update log entries when new data arrives
   useEffect(() => {
     if (recentActivity) {
-      setLogEntries(recentActivity);
+      // Ensure recentActivity is an array before setting it
+      const activities = Array.isArray(recentActivity) ? recentActivity : [];
+      setLogEntries(activities);
     }
   }, [recentActivity]);
 
@@ -81,9 +83,10 @@ export function OperationsProgress({
     return entry.progress > 0 && entry.progress < 100;
   };
 
-  const activeOperations = logEntries.filter(isActiveOperation);
-  const completedOperations = logEntries.filter(entry => entry.progress >= 100);
-  const pendingOperations = logEntries.filter(entry => entry.progress === 0);
+  const safeLogEntries = Array.isArray(logEntries) ? logEntries : [];
+  const activeOperations = safeLogEntries.filter(isActiveOperation);
+  const completedOperations = safeLogEntries.filter(entry => entry.progress >= 100);
+  const pendingOperations = safeLogEntries.filter(entry => entry.progress === 0);
 
   if (isError) {
     return (
