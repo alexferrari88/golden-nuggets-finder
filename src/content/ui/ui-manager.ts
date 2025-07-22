@@ -169,14 +169,16 @@ export class UIManager {
 		this.showControlPanel();
 	}
 
-	exitSelectionMode(): void {
+	exitSelectionMode(hideNotifications: boolean = true): void {
 		if (this.selectionScraper) {
 			this.selectionScraper.destroy();
 			this.selectionScraper = undefined;
 		}
 		this.selectionModeActive = false;
 		this.currentPromptId = undefined;
-		this.notifications.hide();
+		if (hideNotifications) {
+			this.notifications.hide();
+		}
 
 		// Remove keyboard listener
 		this.removeKeyboardListener();
@@ -485,17 +487,21 @@ export class UIManager {
 				};
 
 				// Send to background script
-				await chrome.runtime.sendMessage({
+				const response = await chrome.runtime.sendMessage({
 					type: MESSAGE_TYPES.SUBMIT_MISSING_CONTENT_FEEDBACK,
 					missingContentFeedback: [feedback],
 				});
 
+				if (response?.success === false) {
+					throw new Error(response.error || "Background script reported failure");
+				}
+
 				// Show success notification
 				this.notifications.showSuccess("Missing content reported successfully!");
 
-				// Exit selection mode after a brief delay to let notification show
+				// Exit selection mode without hiding notifications (success will auto-hide)
 				setTimeout(() => {
-					this.exitSelectionMode();
+					this.exitSelectionMode(false);
 				}, 1500);
 			} catch (error) {
 				console.error("Failed to submit missing content feedback:", error);
