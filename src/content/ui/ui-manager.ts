@@ -287,6 +287,9 @@ export class UIManager {
 		// Clear any existing results first
 		this.clearResults();
 
+		// Set selection mode active so Esc key works
+		this.selectionModeActive = true;
+
 		console.log(`[UIManager] Entering direct missing content mode with text: "${selectedText.substring(0, 50)}..."`);
 		
 		// Show info banner for direct missing content mode
