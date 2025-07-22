@@ -74,6 +74,27 @@ export const HistoricalViews: React.FC<HistoricalViewsProps> = ({ limit = 50 }) 
 
   if (!historicalData) return null;
 
+  // Check if there's no historical data
+  if (historicalData.runs.length === 0) {
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+            <h2 className="text-2xl font-semibold mb-2">Historical Performance</h2>
+            <p className="text-gray-600">
+              Past optimization runs and performance analysis
+            </p>
+          </div>
+        </div>
+        <div className="text-center py-12 text-gray-500">
+          <BarChart3 className="h-16 w-16 mx-auto mb-4 text-gray-300" />
+          <p className="text-lg mb-2">No historical data available</p>
+          <p className="text-sm">Performance history will appear here after optimization runs complete.</p>
+        </div>
+      </div>
+    );
+  }
+
   const getStatusIcon = (status: OptimizationRun['status']) => {
     switch (status) {
       case 'completed':

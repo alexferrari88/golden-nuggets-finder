@@ -155,7 +155,8 @@ export function OperationsProgress({
         ) : logEntries.length === 0 ? (
           <div className="text-center py-8 text-gray-500">
             <Activity className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-            <p>No recent operations</p>
+            <p>No operations data available</p>
+            <p className="text-sm mt-2">Operations will appear here when feedback processing begins.</p>
           </div>
         ) : (
           <div className="space-y-4">

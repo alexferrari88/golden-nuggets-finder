@@ -76,6 +76,25 @@ export const CostAnalytics: React.FC<CostAnalyticsProps> = ({ days = 30 }) => {
 
   if (!costSummary) return null;
 
+  // Check if there's no meaningful cost data
+  if (costSummary.total_cost === 0 && costSummary.total_runs === 0 && costSummary.total_tokens === 0) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h2 className="text-2xl font-semibold mb-2">Cost Analytics</h2>
+          <p className="text-gray-600">
+            Cost analysis and trends for the last {days} days
+          </p>
+        </div>
+        <div className="text-center py-12 text-gray-500">
+          <DollarSign className="h-16 w-16 mx-auto mb-4 text-gray-300" />
+          <p className="text-lg mb-2">No cost data available</p>
+          <p className="text-sm">Cost analytics will appear here after optimization runs begin.</p>
+        </div>
+      </div>
+    );
+  }
+
   const calculateTrend = () => {
     if (!costSummary.daily_breakdown || costSummary.daily_breakdown.length < 2) {
       return { direction: 'stable', percentage: 0 };

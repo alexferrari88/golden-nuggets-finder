@@ -221,7 +221,8 @@ export function FeedbackQueueTable({
         ) : filteredItems.length === 0 ? (
           <div className="text-center py-8 text-gray-500">
             <MessageSquare className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-            <p>No pending feedback items</p>
+            <p>No feedback data available</p>
+            <p className="text-sm mt-2">Start using the Golden Nuggets extension to generate feedback data that will appear here.</p>
           </div>
         ) : (
           <div className="space-y-2">
