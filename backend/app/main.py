@@ -30,6 +30,8 @@ from .models import (
 )
 from .services.feedback_service import FeedbackService
 from .services.optimization_service import OptimizationService
+from .services.progress_tracking_service import ProgressTrackingService
+from .services.cost_tracking_service import CostTrackingService
 
 # Load environment variables
 load_dotenv()
@@ -41,10 +43,16 @@ app = FastAPI(
     version="1.0.0",
 )
 
-# Configure CORS for Chrome extension
+# Configure CORS for Chrome extension and dashboard
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["chrome-extension://*"],  # Allow Chrome extensions
+    allow_origins=[
+        "chrome-extension://*",  # Allow Chrome extensions
+        "http://localhost:5173",  # Vite dev server
+        "http://localhost:3000",  # Alternative React dev server
+        "http://127.0.0.1:5173",
+        "http://127.0.0.1:3000",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -53,6 +61,8 @@ app.add_middleware(
 # Initialize services
 feedback_service = FeedbackService()
 optimization_service = OptimizationService()
+progress_service = ProgressTrackingService()
+cost_service = CostTrackingService()
 
 # Track startup time for uptime monitoring
 STARTUP_TIME = time.time()
@@ -365,6 +375,185 @@ async def get_monitoring_dashboard():
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Failed to get monitoring data: {e!s}"
+        ) from e
+
+
+# New dashboard endpoints for feedback queue and enhanced tracking
+
+@app.get("/feedback/pending")
+async def get_pending_feedback(
+    limit: int = 50,
+    offset: int = 0,
+    feedback_type: str = "all"
+):
+    """Get pending (unprocessed) feedback items for dashboard queue"""
+    try:
+        async with get_db() as db:
+            result = await feedback_service.get_pending_feedback(
+                db, limit=limit, offset=offset, feedback_type=feedback_type
+            )
+            return result
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Failed to get pending feedback: {e!s}"
+        ) from e
+
+
+@app.get("/feedback/recent")
+async def get_recent_feedback(
+    limit: int = 20,
+    include_processed: bool = True
+):
+    """Get recent feedback items with processing status"""
+    try:
+        async with get_db() as db:
+            items = await feedback_service.get_recent_feedback(
+                db, limit=limit, include_processed=include_processed
+            )
+            return {"items": items, "count": len(items)}
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Failed to get recent feedback: {e!s}"
+        ) from e
+
+
+@app.get("/feedback/{feedback_id}")
+async def get_feedback_details(feedback_id: str, feedback_type: str):
+    """Get detailed information about a specific feedback item"""
+    try:
+        async with get_db() as db:
+            details = await feedback_service.get_feedback_item_details(
+                db, feedback_id, feedback_type
+            )
+            if not details:
+                raise HTTPException(status_code=404, detail="Feedback item not found")
+            return details
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Failed to get feedback details: {e!s}"
+        ) from e
+
+
+@app.get("/feedback/usage/stats")
+async def get_feedback_usage_stats():
+    """Get statistics about feedback usage across optimizations"""
+    try:
+        async with get_db() as db:
+            stats = await feedback_service.get_feedback_usage_stats(db)
+            return stats
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Failed to get usage stats: {e!s}"
+        ) from e
+
+
+@app.get("/optimization/{run_id}/progress")
+async def get_optimization_progress_history(run_id: str):
+    """Get detailed progress history for an optimization run"""
+    try:
+        async with get_db() as db:
+            progress_history = await progress_service.get_progress_history(db, run_id)
+            return {
+                "run_id": run_id,
+                "progress_history": progress_history,
+                "total_entries": len(progress_history)
+            }
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Failed to get progress history: {e!s}"
+        ) from e
+
+
+@app.get("/optimization/{run_id}/costs")
+async def get_optimization_costs(run_id: str):
+    """Get detailed cost breakdown for an optimization run"""
+    try:
+        async with get_db() as db:
+            costs = await cost_service.get_run_costs(db, run_id)
+            return costs
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Failed to get optimization costs: {e!s}"
+        ) from e
+
+
+@app.get("/costs/summary")
+async def get_costs_summary(days: int = 30):
+    """Get cost summary over specified time period"""
+    try:
+        async with get_db() as db:
+            summary = await cost_service.get_costs_summary(db, days)
+            return summary
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Failed to get cost summary: {e!s}"
+        ) from e
+
+
+@app.get("/costs/trends")
+async def get_cost_trends(days: int = 30):
+    """Get cost trends and projections"""
+    try:
+        async with get_db() as db:
+            trends = await cost_service.get_cost_trends(db, days)
+            return trends
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Failed to get cost trends: {e!s}"
+        ) from e
+
+
+@app.get("/dashboard/stats")
+async def get_dashboard_stats():
+    """Get comprehensive dashboard statistics"""
+    try:
+        async with get_db() as db:
+            # Use the dashboard_stats view created in migration
+            cursor = await db.execute("SELECT * FROM dashboard_stats")
+            stats = await cursor.fetchone()
+            
+            if not stats:
+                return {
+                    "pending_nugget_feedback": 0,
+                    "pending_missing_feedback": 0,
+                    "processed_nugget_feedback": 0,
+                    "processed_missing_feedback": 0,
+                    "active_optimizations": 0,
+                    "completed_optimizations": 0,
+                    "failed_optimizations": 0,
+                    "monthly_costs": 0,
+                    "monthly_tokens": 0
+                }
+            
+            return {
+                "pending_nugget_feedback": stats[0],
+                "pending_missing_feedback": stats[1],
+                "processed_nugget_feedback": stats[2],
+                "processed_missing_feedback": stats[3],
+                "active_optimizations": stats[4],
+                "completed_optimizations": stats[5],
+                "failed_optimizations": stats[6],
+                "monthly_costs": stats[7],
+                "monthly_tokens": stats[8]
+            }
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Failed to get dashboard stats: {e!s}"
+        ) from e
+
+
+@app.get("/activity/recent")
+async def get_recent_activity(limit: int = 10):
+    """Get recent activity across all optimizations"""
+    try:
+        async with get_db() as db:
+            activity = await progress_service.get_recent_activity(db, limit)
+            return {"activities": activity, "count": len(activity)}
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Failed to get recent activity: {e!s}"
         ) from e
 
 
