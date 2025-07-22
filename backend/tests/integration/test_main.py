@@ -1,23 +1,18 @@
 """
-Basic tests for the FastAPI backend.
+Integration tests for the FastAPI backend API endpoints.
+
+Tests the complete request/response cycle including database operations.
 """
 
-import asyncio
 import uuid
 
 from fastapi.testclient import TestClient
 import pytest
 
-from app.database import init_database
 from app.main import app
 
+# Create test client for FastAPI app
 client = TestClient(app)
-
-
-@pytest.fixture
-def setup_database():
-    """Initialize test database"""
-    asyncio.run(init_database())
 
 
 def test_health_check():
@@ -27,7 +22,7 @@ def test_health_check():
     assert "Golden Nuggets Feedback API" in response.json()["message"]
 
 
-def test_feedback_stats_endpoint():
+def test_feedback_stats_endpoint(clean_database):
     """Test getting feedback stats"""
     response = client.get("/feedback/stats")
     assert response.status_code == 200
@@ -41,13 +36,13 @@ def test_feedback_stats_endpoint():
     assert "nextOptimizationTrigger" in data
 
 
-def test_feedback_submission_empty():
+def test_feedback_submission_empty(clean_database):
     """Test submitting empty feedback"""
     response = client.post("/feedback", json={})
     assert response.status_code == 200
 
 
-def test_feedback_submission_valid(setup_database):
+def test_feedback_submission_valid(clean_database):
     """Test submitting valid feedback"""
     feedback_data = {
         "nuggetFeedback": [
@@ -80,7 +75,7 @@ def test_feedback_submission_valid(setup_database):
     assert data["success"] is True
 
 
-def test_optimization_trigger():
+def test_optimization_trigger(clean_database):
     """Test manual optimization trigger"""
     optimization_request = {"mode": "cheap", "manualTrigger": True}
 
@@ -91,7 +86,7 @@ def test_optimization_trigger():
     assert "Optimization started" in data["message"]
 
 
-def test_optimization_history():
+def test_optimization_history(clean_database):
     """Test getting optimization history"""
     response = client.get("/optimize/history")
     assert response.status_code == 200
@@ -100,7 +95,7 @@ def test_optimization_history():
     assert isinstance(data["data"], list)
 
 
-def test_current_prompt():
+def test_current_prompt(clean_database):
     """Test getting current optimized prompt"""
     response = client.get("/optimize/current")
     assert response.status_code == 200
@@ -112,7 +107,7 @@ def test_current_prompt():
     assert "prompt" in data
 
 
-def test_update_feedback_item(setup_database):
+def test_update_feedback_item(clean_database):
     """Test updating a feedback item"""
     # Use unique ID for each test run
     test_id = f"update-test-{uuid.uuid4()}"
@@ -155,7 +150,7 @@ def test_update_feedback_item(setup_database):
     assert "rating" in data["updated_fields"]
 
 
-def test_update_feedback_item_not_found():
+def test_update_feedback_item_not_found(clean_database):
     """Test updating a non-existent feedback item"""
     update_data = {
         "content": "This should fail",
@@ -170,7 +165,7 @@ def test_update_feedback_item_not_found():
     assert "not found" in response.json()["detail"].lower()
 
 
-def test_update_feedback_item_empty_update():
+def test_update_feedback_item_empty_update(clean_database):
     """Test updating feedback item with no fields"""
     update_data = {}
     
@@ -182,7 +177,7 @@ def test_update_feedback_item_empty_update():
     assert "At least one field must be provided" in response.json()["detail"]
 
 
-def test_delete_feedback_item(setup_database):
+def test_delete_feedback_item(clean_database):
     """Test deleting a feedback item"""
     # Use unique ID for each test run
     test_id = f"delete-test-{uuid.uuid4()}"
@@ -221,7 +216,7 @@ def test_delete_feedback_item(setup_database):
     assert response.status_code == 404
 
 
-def test_delete_feedback_item_not_found():
+def test_delete_feedback_item_not_found(clean_database):
     """Test deleting a non-existent feedback item"""
     response = client.delete(
         "/feedback/non-existent-id?feedback_type=nugget"

@@ -9,13 +9,28 @@ from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 import os
 import sqlite3
+import tempfile
 
 import aiosqlite
 
-DATABASE_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "feedback.db")
+# Determine if we're in test environment
+import sys
+_IS_TESTING = (
+    "pytest" in sys.modules or
+    "PYTEST_CURRENT_TEST" in os.environ or 
+    "pytest" in os.environ.get("_", "") or
+    any("pytest" in arg for arg in sys.argv)
+)
 
-# Ensure data directory exists
-os.makedirs(os.path.dirname(DATABASE_PATH), exist_ok=True)
+# Use different database paths for testing vs production
+if _IS_TESTING:
+    # Use a temporary database for tests - each test session gets its own
+    _temp_dir = tempfile.mkdtemp(prefix="golden_nuggets_test_")
+    DATABASE_PATH = os.path.join(_temp_dir, "test_feedback.db")
+else:
+    DATABASE_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "feedback.db")
+    # Ensure data directory exists for production
+    os.makedirs(os.path.dirname(DATABASE_PATH), exist_ok=True)
 
 
 @asynccontextmanager
@@ -44,6 +59,42 @@ async def init_database():
 def get_sync_db():
     """Get synchronous database connection for non-async contexts"""
     return sqlite3.connect(DATABASE_PATH)
+
+
+# Test database utilities
+
+def get_test_database_path():
+    """Get the current database path (useful for tests)"""
+    return DATABASE_PATH
+
+
+def is_test_environment():
+    """Check if we're running in test environment"""
+    return _IS_TESTING
+
+
+async def cleanup_test_database():
+    """Clean up test database (removes all data, recreates schema)"""
+    if not _IS_TESTING:
+        raise RuntimeError("cleanup_test_database() can only be called in test environment")
+    
+    # Remove the database file if it exists
+    if os.path.exists(DATABASE_PATH):
+        os.remove(DATABASE_PATH)
+    
+    # Reinitialize with fresh schema
+    await init_database()
+
+
+def reset_database_for_test():
+    """Create a new temporary database path for a test"""
+    global DATABASE_PATH, _temp_dir
+    if not _IS_TESTING:
+        raise RuntimeError("reset_database_for_test() can only be called in test environment")
+    
+    # Create a new temporary directory and database path
+    _temp_dir = tempfile.mkdtemp(prefix="golden_nuggets_test_")
+    DATABASE_PATH = os.path.join(_temp_dir, "test_feedback.db")
 
 
 # Database utility functions
