@@ -280,6 +280,256 @@ export class UIManager {
 		this.showMissingContentPanel();
 	}
 
+	async enterDirectMissingContentMode(selectedText: string, url: string): Promise<void> {
+		// Clear any existing results first
+		this.clearResults();
+
+		console.log(`[UIManager] Entering direct missing content mode with text: "${selectedText.substring(0, 50)}..."`);
+		
+		// Show info banner for direct missing content mode
+		this.notifications.showInfo(
+			`Select the type for the highlighted text: "${selectedText.length > 50 ? selectedText.substring(0, 47) + '...' : selectedText}"`,
+		);
+
+		// Add keyboard listener for Esc key
+		this.addKeyboardListener();
+
+		// Show direct missing content selection panel
+		this.showDirectMissingContentPanel(selectedText, url);
+	}
+
+	private showDirectMissingContentPanel(selectedText: string, url: string): void {
+		if (this.controlPanel) {
+			this.controlPanel.remove();
+		}
+
+		this.controlPanel = document.createElement("div");
+		this.controlPanel.className = "nugget-direct-missing-content-panel";
+		this.controlPanel.style.cssText = `
+			position: fixed;
+			bottom: 20px;
+			right: 20px;
+			width: 380px;
+			background: ${colors.background.primary};
+			border: 1px solid ${colors.border.light};
+			border-radius: ${borderRadius.lg};
+			box-shadow: ${shadows.lg};
+			z-index: 10001;
+			font-family: ${typography.fontFamily.sans};
+			padding: ${spacing.lg};
+			transform: translateY(100px);
+			opacity: 0;
+			transition: all 0.3s ease;
+		`;
+
+		// Header with close button
+		const headerContainer = document.createElement("div");
+		headerContainer.style.cssText = `
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			margin-bottom: ${spacing.md};
+		`;
+
+		const header = document.createElement("div");
+		header.style.cssText = `
+			font-size: ${typography.fontSize.sm};
+			font-weight: ${typography.fontWeight.semibold};
+			color: ${colors.text.primary};
+		`;
+		header.textContent = "Report Missed Golden Nugget";
+
+		// Close button
+		const closeButton = document.createElement("button");
+		closeButton.style.cssText = `
+			background: none;
+			border: none;
+			cursor: pointer;
+			color: ${colors.text.secondary};
+			font-size: ${typography.fontSize.lg};
+			padding: ${spacing.xs};
+			border-radius: ${borderRadius.sm};
+			transition: all 0.2s ease;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			width: 24px;
+			height: 24px;
+		`;
+		closeButton.innerHTML = "×";
+		closeButton.title = "Cancel (Esc)";
+
+		closeButton.addEventListener("click", () => {
+			this.exitSelectionMode();
+		});
+
+		closeButton.addEventListener("mouseenter", () => {
+			closeButton.style.backgroundColor = colors.background.secondary;
+			closeButton.style.color = colors.text.primary;
+		});
+
+		closeButton.addEventListener("mouseleave", () => {
+			closeButton.style.backgroundColor = "transparent";
+			closeButton.style.color = colors.text.secondary;
+		});
+
+		headerContainer.appendChild(header);
+		headerContainer.appendChild(closeButton);
+
+		// Show selected text
+		const textPreview = document.createElement("div");
+		textPreview.style.cssText = `
+			font-size: ${typography.fontSize.xs};
+			color: ${colors.text.secondary};
+			background: ${colors.background.tertiary};
+			border-radius: ${borderRadius.sm};
+			padding: ${spacing.sm};
+			margin-bottom: ${spacing.md};
+			max-height: 80px;
+			overflow-y: auto;
+			line-height: ${typography.lineHeight.normal};
+			border-left: 3px solid ${colors.border.medium};
+		`;
+		textPreview.textContent = selectedText;
+
+		// Type selection
+		const typeSelectionContainer = document.createElement("div");
+		typeSelectionContainer.style.cssText = `
+			margin-bottom: ${spacing.md};
+		`;
+
+		const typeLabel = document.createElement("div");
+		typeLabel.style.cssText = `
+			font-size: ${typography.fontSize.xs};
+			color: ${colors.text.secondary};
+			margin-bottom: ${spacing.sm};
+		`;
+		typeLabel.textContent = "What type of golden nugget is this?";
+
+		const typeSelect = document.createElement("select");
+		typeSelect.className = "nugget-type-select";
+		typeSelect.style.cssText = `
+			width: 100%;
+			padding: ${spacing.sm};
+			border: 1px solid ${colors.border.light};
+			border-radius: ${borderRadius.sm};
+			background: ${colors.background.primary};
+			color: ${colors.text.primary};
+			font-size: ${typography.fontSize.sm};
+			font-family: ${typography.fontFamily.sans};
+		`;
+
+		const typeOptions = [
+			{ value: "", label: "Select type..." },
+			{ value: "tool", label: "🛠️ Tool" },
+			{ value: "media", label: "📺 Media" },
+			{ value: "explanation", label: "💡 Explanation" },
+			{ value: "analogy", label: "🔄 Analogy" },
+			{ value: "model", label: "📊 Model" },
+		];
+
+		typeOptions.forEach((option) => {
+			const optionElement = document.createElement("option");
+			optionElement.value = option.value;
+			optionElement.textContent = option.label;
+			typeSelect.appendChild(optionElement);
+		});
+
+		typeSelectionContainer.appendChild(typeLabel);
+		typeSelectionContainer.appendChild(typeSelect);
+
+		// Submit button
+		const submitButton = document.createElement("button");
+		submitButton.className = "missing-content-submit-btn";
+		submitButton.style.cssText = `
+			width: 100%;
+			padding: ${spacing.sm} ${spacing.md};
+			background: ${colors.button.primary.background};
+			color: ${colors.button.primary.text};
+			border: none;
+			border-radius: ${borderRadius.sm};
+			font-size: ${typography.fontSize.sm};
+			font-weight: ${typography.fontWeight.medium};
+			cursor: pointer;
+			transition: all 0.2s ease;
+			opacity: 0.5;
+		`;
+		submitButton.textContent = "Submit Missing Nugget";
+		submitButton.disabled = true;
+
+		// Enable submit button when type is selected
+		typeSelect.addEventListener("change", () => {
+			const hasSelection = typeSelect.value !== "";
+			submitButton.disabled = !hasSelection;
+			submitButton.style.opacity = hasSelection ? "1" : "0.5";
+		});
+
+		// Submit functionality
+		submitButton.addEventListener("click", async () => {
+			const selectedType = typeSelect.value as any;
+			if (!selectedType) return;
+
+			try {
+				submitButton.textContent = "Submitting...";
+				submitButton.disabled = true;
+
+				// Create missing content feedback
+				const feedback = {
+					id: `missing_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+					content: selectedText,
+					suggestedType: selectedType,
+					timestamp: Date.now(),
+					url: url,
+					context: selectedText, // For direct selection, content is the context
+				};
+
+				// Send to background script
+				await chrome.runtime.sendMessage({
+					type: MESSAGE_TYPES.SUBMIT_MISSING_CONTENT_FEEDBACK,
+					feedback: [feedback],
+				});
+
+				// Show success notification
+				this.notifications.showSuccess("Missing content reported successfully!");
+
+				// Exit selection mode
+				this.exitSelectionMode();
+			} catch (error) {
+				console.error("Failed to submit missing content feedback:", error);
+				submitButton.textContent = "Submit Missing Nugget";
+				submitButton.disabled = false;
+				this.notifications.showError("Failed to submit feedback. Please try again.");
+			}
+		});
+
+		// Hover effects for submit button
+		submitButton.addEventListener("mouseenter", () => {
+			if (!submitButton.disabled) {
+				submitButton.style.backgroundColor = colors.button.primary.hoverBackground;
+			}
+		});
+
+		submitButton.addEventListener("mouseleave", () => {
+			if (!submitButton.disabled) {
+				submitButton.style.backgroundColor = colors.button.primary.background;
+			}
+		});
+
+		// Assemble the panel
+		this.controlPanel.appendChild(headerContainer);
+		this.controlPanel.appendChild(textPreview);
+		this.controlPanel.appendChild(typeSelectionContainer);
+		this.controlPanel.appendChild(submitButton);
+
+		document.body.appendChild(this.controlPanel);
+
+		// Animate in
+		requestAnimationFrame(() => {
+			this.controlPanel!.style.transform = "translateY(0)";
+			this.controlPanel!.style.opacity = "1";
+		});
+	}
+
 	getSelectedContent(): Content | null {
 		if (this.selectionScraper) {
 			const allContent = this.selectionScraper.getContent();

@@ -292,7 +292,7 @@ export default defineContentScript({
 
 					case MESSAGE_TYPES.ENTER_MISSING_CONTENT_MODE:
 						initialize(); // Initialize when needed
-						await enterMissingContentMode();
+						await enterMissingContentMode(request.selectedText, request.url);
 						sendResponse({ success: true });
 						break;
 
@@ -479,19 +479,28 @@ export default defineContentScript({
 			}
 		}
 
-		async function enterMissingContentMode(): Promise<void> {
+		async function enterMissingContentMode(selectedText?: string, url?: string): Promise<void> {
 			try {
-				// Create a separate ContentScraper instance for missing content selection
-				const selectionScraper = createContentScraper();
+				if (selectedText) {
+					// Direct missing content report with pre-selected text
+					console.log("[Content] Entering direct missing content mode with selected text");
+					await uiManager.enterDirectMissingContentMode(selectedText, url || window.location.href);
+				} else {
+					// Original flow - use ContentScraper for multi-selection
+					console.log("[Content] Entering interactive missing content selection mode");
+					
+					// Create a separate ContentScraper instance for missing content selection
+					const selectionScraper = createContentScraper();
 
-				// Extract content first
-				await selectionScraper.run();
+					// Extract content first
+					await selectionScraper.run();
 
-				// Then explicitly display checkboxes for selection
-				selectionScraper.displayCheckboxes();
+					// Then explicitly display checkboxes for selection
+					selectionScraper.displayCheckboxes();
 
-				// Enter missing content selection mode through UI manager
-				await uiManager.enterMissingContentMode(selectionScraper);
+					// Enter missing content selection mode through UI manager
+					await uiManager.enterMissingContentMode(selectionScraper);
+				}
 			} catch (error) {
 				console.error("Failed to enter missing content selection mode:", error);
 				uiManager.showErrorBanner(

@@ -8,10 +8,31 @@ export default defineBackground(() => {
 	const geminiClient = new GeminiClient();
 	const messageHandler = new MessageHandler(geminiClient);
 
+	// Track analysis completion state per tab
+	const analysisCompletedTabs = new Set<number>();
+
 	// Set up message listeners
 	chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+		// Handle ANALYSIS_COMPLETE message to track state
+		if (request.type === MESSAGE_TYPES.ANALYSIS_COMPLETE && sender.tab?.id) {
+			analysisCompletedTabs.add(sender.tab.id);
+			console.log(`[Background] Analysis completed for tab ${sender.tab.id}`);
+		}
+		
 		messageHandler.handleMessage(request, sender, sendResponse);
 		return true; // Keep the message channel open for async responses
+	});
+
+	// Clean up analysis state when tabs are closed or updated
+	chrome.tabs.onRemoved.addListener((tabId) => {
+		analysisCompletedTabs.delete(tabId);
+	});
+	
+	chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
+		// Clear analysis state when user navigates to a new URL
+		if (changeInfo.url) {
+			analysisCompletedTabs.delete(tabId);
+		}
 	});
 
 	// Set up context menu
@@ -40,6 +61,8 @@ export default defineBackground(() => {
 				}
 			} else if (info.menuItemId === "select-comments") {
 				handleCommentSelectionClick(tab);
+			} else if (info.menuItemId === "report-missed-nugget") {
+				handleReportMissedNugget(tab, info);
 			}
 		}
 	});
@@ -99,6 +122,14 @@ export default defineBackground(() => {
 				parentId: "golden-nuggets-finder",
 				title: "✂️ Select Content to Analyze",
 				contexts: ["page", "selection"],
+			});
+
+			// Add "Report missed golden nugget" option (only shows for selection context)
+			chrome.contextMenus.create({
+				id: "report-missed-nugget",
+				parentId: "golden-nuggets-finder",
+				title: "🚩 Report missed golden nugget",
+				contexts: ["selection"],
 			});
 		} catch (error) {
 			console.error("Failed to setup context menu:", error);
@@ -222,6 +253,45 @@ export default defineBackground(() => {
 		} catch (error) {
 			console.error(
 				"[Background] Failed to handle comment selection click:",
+				error,
+			);
+		}
+	}
+
+	async function handleReportMissedNugget(
+		tab?: chrome.tabs.Tab,
+		info?: chrome.contextMenus.OnClickData
+	): Promise<void> {
+		if (!tab?.id) return;
+
+		try {
+			// Check if analysis has been completed on this tab
+			if (!analysisCompletedTabs.has(tab.id)) {
+				console.log("[Background] Analysis not completed on this tab - cannot report missed nugget");
+				return;
+			}
+
+			// Check if user has selected text and it's long enough
+			const selectedText = info?.selectionText?.trim() || "";
+			if (selectedText.length <= 5) {
+				console.log("[Background] Selected text too short or empty - cannot report missed nugget");
+				return;
+			}
+
+			// Inject content script dynamically first
+			await injectContentScript(tab.id);
+
+			console.log(`[Background] Reporting missed nugget for selected text: "${selectedText.substring(0, 50)}..."`);
+			
+			// Send message to content script to show nugget type selection UI
+			await chrome.tabs.sendMessage(tab.id, {
+				type: MESSAGE_TYPES.ENTER_MISSING_CONTENT_MODE,
+				selectedText: selectedText,
+				url: tab.url,
+			});
+		} catch (error) {
+			console.error(
+				"[Background] Failed to handle missed nugget report:",
 				error,
 			);
 		}
