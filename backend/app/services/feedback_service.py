@@ -23,7 +23,7 @@ class FeedbackService:
     ):
         """Store nugget feedback in database with deduplication"""
         current_time = datetime.now()
-        
+
         # Check for existing record with same content, URL, and original type
         cursor = await db.execute(
             """
@@ -31,10 +31,10 @@ class FeedbackService:
             FROM nugget_feedback 
             WHERE nugget_content = ? AND url = ? AND original_type = ?
             """,
-            (feedback.nuggetContent, feedback.url, feedback.originalType)
+            (feedback.nuggetContent, feedback.url, feedback.originalType),
         )
         existing = await cursor.fetchone()
-        
+
         if existing:
             # Found duplicate - increment report count and update timestamps/fields
             existing_id, current_count, first_reported = existing
@@ -48,13 +48,19 @@ class FeedbackService:
                     rating = ?
                 WHERE id = ?
                 """,
-                (current_count + 1, current_time, feedback.context, 
-                 feedback.correctedType, feedback.rating, existing_id)
+                (
+                    current_count + 1,
+                    current_time,
+                    feedback.context,
+                    feedback.correctedType,
+                    feedback.rating,
+                    existing_id,
+                ),
             )
-            
+
             # Update the feedback ID to return the existing record's ID
             feedback.id = existing_id
-            
+
         else:
             # No duplicate found - insert new record
             await db.execute(
@@ -80,9 +86,9 @@ class FeedbackService:
                     current_time,  # last_reported_at
                 ),
             )
-        
+
         await db.commit()
-        
+
         # Return whether this was a duplicate for API response
         return existing is not None
 
@@ -91,7 +97,7 @@ class FeedbackService:
     ):
         """Store missing content feedback in database with deduplication"""
         current_time = datetime.now()
-        
+
         # Check for existing record with same content and URL
         cursor = await db.execute(
             """
@@ -99,10 +105,10 @@ class FeedbackService:
             FROM missing_content_feedback 
             WHERE content = ? AND url = ?
             """,
-            (feedback.content, feedback.url)
+            (feedback.content, feedback.url),
         )
         existing = await cursor.fetchone()
-        
+
         if existing:
             # Found duplicate - increment report count and update timestamps
             existing_id, current_count, first_reported = existing
@@ -114,13 +120,13 @@ class FeedbackService:
                     context = ?
                 WHERE id = ?
                 """,
-                (current_count + 1, current_time, feedback.context, existing_id)
+                (current_count + 1, current_time, feedback.context, existing_id),
             )
-            
+
             # Update the feedback ID to return the existing record's ID
             # This ensures consistent behavior for the API response
             feedback.id = existing_id
-            
+
         else:
             # No duplicate found - insert new record
             await db.execute(
@@ -143,9 +149,9 @@ class FeedbackService:
                     current_time,  # last_reported_at
                 ),
             )
-        
+
         await db.commit()
-        
+
         # Return whether this was a duplicate for API response
         return existing is not None
 
@@ -160,7 +166,7 @@ class FeedbackService:
                 FROM nugget_feedback 
                 WHERE id = ?
                 """,
-                (feedback_id,)
+                (feedback_id,),
             )
         else:  # missing_content
             cursor = await db.execute(
@@ -169,9 +175,9 @@ class FeedbackService:
                 FROM missing_content_feedback 
                 WHERE id = ?
                 """,
-                (feedback_id,)
+                (feedback_id,),
             )
-        
+
         result = await cursor.fetchone()
         if result:
             report_count, first_reported_at, last_reported_at = result
@@ -179,14 +185,14 @@ class FeedbackService:
                 "report_count": report_count,
                 "first_reported_at": first_reported_at,
                 "last_reported_at": last_reported_at,
-                "is_duplicate": report_count > 1
+                "is_duplicate": report_count > 1,
             }
-        
+
         return {
             "report_count": 1,
             "first_reported_at": None,
             "last_reported_at": None,
-            "is_duplicate": False
+            "is_duplicate": False,
         }
 
     async def get_feedback_stats(self, db: aiosqlite.Connection) -> dict:
@@ -470,27 +476,27 @@ class FeedbackService:
     # New methods for dashboard functionality
 
     async def get_pending_feedback(
-        self, 
-        db: aiosqlite.Connection, 
-        limit: int = 50, 
+        self,
+        db: aiosqlite.Connection,
+        limit: int = 50,
         offset: int = 0,
-        feedback_type: str = "all"
+        feedback_type: str = "all",
     ) -> dict:
         """
         Get unprocessed feedback items for the dashboard queue.
-        
+
         Args:
             db: Database connection
             limit: Maximum number of items to return
             offset: Offset for pagination
             feedback_type: Filter by type ('all', 'nugget', 'missing_content')
-            
+
         Returns:
             Dictionary with pending feedback items and pagination info
         """
         items = []
         total_count = 0
-        
+
         if feedback_type in ["all", "nugget"]:
             # Get pending nugget feedback
             cursor = await db.execute(
@@ -506,31 +512,35 @@ class FeedbackService:
                 ORDER BY created_at DESC
                 LIMIT ? OFFSET ?
                 """,
-                (limit if feedback_type == "nugget" else limit // 2, offset)
+                (limit if feedback_type == "nugget" else limit // 2, offset),
             )
-            
+
             nugget_items = await cursor.fetchall()
-            
+
             for item in nugget_items:
-                items.append({
-                    "type": item[0],
-                    "id": item[1],
-                    "content": item[2],
-                    "rating": item[3],
-                    "original_type": item[4],
-                    "corrected_type": item[5],
-                    "url": item[6],
-                    "processed": item[7],
-                    "last_used_at": item[8],
-                    "usage_count": item[9],
-                    "client_timestamp": item[10],
-                    "created_at": item[11]
-                })
-        
+                items.append(
+                    {
+                        "type": item[0],
+                        "id": item[1],
+                        "content": item[2],
+                        "rating": item[3],
+                        "original_type": item[4],
+                        "corrected_type": item[5],
+                        "url": item[6],
+                        "processed": item[7],
+                        "last_used_at": item[8],
+                        "usage_count": item[9],
+                        "client_timestamp": item[10],
+                        "created_at": item[11],
+                    }
+                )
+
         if feedback_type in ["all", "missing_content"]:
             # Get pending missing content feedback
-            remaining_limit = limit if feedback_type == "missing_content" else limit - len(items)
-            
+            remaining_limit = (
+                limit if feedback_type == "missing_content" else limit - len(items)
+            )
+
             cursor = await db.execute(
                 """
                 SELECT 
@@ -543,25 +553,27 @@ class FeedbackService:
                 ORDER BY created_at DESC
                 LIMIT ? OFFSET ?
                 """,
-                (remaining_limit, offset)
+                (remaining_limit, offset),
             )
-            
+
             missing_items = await cursor.fetchall()
-            
+
             for item in missing_items:
-                items.append({
-                    "type": item[0],
-                    "id": item[1],
-                    "content": item[2],
-                    "suggested_type": item[3],
-                    "url": item[4],
-                    "processed": item[5],
-                    "last_used_at": item[6],
-                    "usage_count": item[7],
-                    "client_timestamp": item[8],
-                    "created_at": item[9]
-                })
-        
+                items.append(
+                    {
+                        "type": item[0],
+                        "id": item[1],
+                        "content": item[2],
+                        "suggested_type": item[3],
+                        "url": item[4],
+                        "processed": item[5],
+                        "last_used_at": item[6],
+                        "usage_count": item[7],
+                        "client_timestamp": item[8],
+                        "created_at": item[9],
+                    }
+                )
+
         # Get total count for pagination
         if feedback_type == "all":
             cursor = await db.execute(
@@ -580,87 +592,89 @@ class FeedbackService:
             cursor = await db.execute(
                 "SELECT COUNT(*) FROM missing_content_feedback WHERE processed = FALSE"
             )
-        
+
         result = await cursor.fetchone()
         total_count = result[0] if result else 0
-        
+
         # Sort combined items by created_at if showing all types
         if feedback_type == "all":
             items.sort(key=lambda x: x["created_at"], reverse=True)
-        
+
         return {
             "items": items[:limit],
             "total_count": total_count,
             "limit": limit,
             "offset": offset,
-            "has_more": offset + len(items) < total_count
+            "has_more": offset + len(items) < total_count,
         }
 
     async def get_recent_feedback(
-        self, 
-        db: aiosqlite.Connection, 
-        limit: int = 20,
-        include_processed: bool = True
+        self, db: aiosqlite.Connection, limit: int = 20, include_processed: bool = True
     ) -> list[dict]:
         """
         Get recent feedback items with processing status.
-        
+
         Args:
             db: Database connection
             limit: Maximum number of items to return
             include_processed: Whether to include processed items
-            
+
         Returns:
             List of recent feedback items
         """
         processed_filter = "" if include_processed else "WHERE processed = FALSE"
-        
-        cursor = await db.execute(f"""
+
+        cursor = await db.execute(
+            f"""
             SELECT * FROM recent_feedback_with_status
             {processed_filter}
             LIMIT ?
-        """, (limit,))
-        
+        """,
+            (limit,),
+        )
+
         results = await cursor.fetchall()
-        
+
         items = []
         for row in results:
-            items.append({
-                "type": row[0],
-                "id": row[1],
-                "content": row[2],
-                "rating": row[3] if row[3] else None,
-                "url": row[4],
-                "processed": row[5],
-                "last_used_at": row[6],
-                "usage_count": row[7],
-                "created_at": row[8],
-                "client_timestamp": row[9]
-            })
-        
+            items.append(
+                {
+                    "type": row[0],
+                    "id": row[1],
+                    "content": row[2],
+                    "rating": row[3] if row[3] else None,
+                    "url": row[4],
+                    "processed": row[5],
+                    "last_used_at": row[6],
+                    "usage_count": row[7],
+                    "created_at": row[8],
+                    "client_timestamp": row[9],
+                }
+            )
+
         return items
 
     async def mark_feedback_used(
-        self, 
-        db: aiosqlite.Connection, 
-        feedback_items: list[dict], 
-        optimization_run_id: str
+        self,
+        db: aiosqlite.Connection,
+        feedback_items: list[dict],
+        optimization_run_id: str,
     ):
         """
         Mark feedback items as processed/used and create usage records.
-        
+
         Args:
             db: Database connection
             feedback_items: List of feedback items with type and id
             optimization_run_id: ID of the optimization run using this feedback
         """
         current_time = datetime.now().isoformat()
-        
+
         for item in feedback_items:
             feedback_type = item["type"]  # 'nugget' or 'missing_content'
             feedback_id = item["id"]
             contribution_score = item.get("contribution_score", 1.0)
-            
+
             # Update the feedback table
             if feedback_type == "nugget":
                 await db.execute(
@@ -671,7 +685,7 @@ class FeedbackService:
                         usage_count = usage_count + 1
                     WHERE id = ?
                     """,
-                    (current_time, feedback_id)
+                    (current_time, feedback_id),
                 )
             else:  # missing_content
                 await db.execute(
@@ -682,9 +696,9 @@ class FeedbackService:
                         usage_count = usage_count + 1
                     WHERE id = ?
                     """,
-                    (current_time, feedback_id)
+                    (current_time, feedback_id),
                 )
-            
+
             # Create usage record
             usage_id = str(uuid.uuid4())
             await db.execute(
@@ -695,20 +709,24 @@ class FeedbackService:
                 ) VALUES (?, ?, ?, ?, ?, ?)
                 """,
                 (
-                    usage_id, optimization_run_id, feedback_type,
-                    feedback_id, contribution_score, current_time
-                )
+                    usage_id,
+                    optimization_run_id,
+                    feedback_type,
+                    feedback_id,
+                    contribution_score,
+                    current_time,
+                ),
             )
-        
+
         await db.commit()
 
     async def get_feedback_usage_stats(self, db: aiosqlite.Connection) -> dict:
         """
         Get statistics about feedback usage across optimizations.
-        
+
         Args:
             db: Database connection
-            
+
         Returns:
             Dictionary with usage statistics
         """
@@ -720,9 +738,9 @@ class FeedbackService:
                 AVG(contribution_score) as avg_contribution_score
             FROM feedback_usage
         """)
-        
+
         overall_stats = await cursor.fetchone()
-        
+
         # Get usage by feedback type
         cursor = await db.execute("""
             SELECT 
@@ -733,9 +751,9 @@ class FeedbackService:
             FROM feedback_usage
             GROUP BY feedback_type
         """)
-        
+
         usage_by_type = await cursor.fetchall()
-        
+
         # Get most frequently used feedback
         cursor = await db.execute("""
             SELECT 
@@ -749,18 +767,24 @@ class FeedbackService:
             ORDER BY use_count DESC
             LIMIT 10
         """)
-        
+
         frequent_feedback = await cursor.fetchall()
-        
+
         return {
-            "total_unique_used": overall_stats[0] if overall_stats and overall_stats[0] else 0,
-            "total_usage_records": overall_stats[1] if overall_stats and overall_stats[1] else 0,
-            "average_contribution": overall_stats[2] if overall_stats and overall_stats[2] else 0.0,
+            "total_unique_used": overall_stats[0]
+            if overall_stats and overall_stats[0]
+            else 0,
+            "total_usage_records": overall_stats[1]
+            if overall_stats and overall_stats[1]
+            else 0,
+            "average_contribution": overall_stats[2]
+            if overall_stats and overall_stats[2]
+            else 0.0,
             "usage_by_type": {
                 row[0]: {
                     "unique_items": row[1] if row[1] else 0,
                     "total_uses": row[2] if row[2] else 0,
-                    "avg_score": row[3] if row[3] else 0.0
+                    "avg_score": row[3] if row[3] else 0.0,
                 }
                 for row in usage_by_type
             },
@@ -770,26 +794,23 @@ class FeedbackService:
                     "id": row[1],
                     "use_count": row[2] if row[2] else 0,
                     "last_used": row[3] if row[3] else "",
-                    "avg_score": row[4] if row[4] else 0.0
+                    "avg_score": row[4] if row[4] else 0.0,
                 }
                 for row in frequent_feedback
-            ]
+            ],
         }
 
     async def get_feedback_item_details(
-        self, 
-        db: aiosqlite.Connection, 
-        feedback_id: str, 
-        feedback_type: str
+        self, db: aiosqlite.Connection, feedback_id: str, feedback_type: str
     ) -> Optional[dict]:
         """
         Get detailed information about a specific feedback item.
-        
+
         Args:
             db: Database connection
             feedback_id: ID of the feedback item
             feedback_type: Type of feedback ('nugget' or 'missing_content')
-            
+
         Returns:
             Detailed feedback information or None if not found
         """
@@ -803,7 +824,7 @@ class FeedbackService:
                 FROM nugget_feedback
                 WHERE id = ?
                 """,
-                (feedback_id,)
+                (feedback_id,),
             )
         else:  # missing_content
             cursor = await db.execute(
@@ -815,14 +836,14 @@ class FeedbackService:
                 FROM missing_content_feedback
                 WHERE id = ?
                 """,
-                (feedback_id,)
+                (feedback_id,),
             )
-        
+
         result = await cursor.fetchone()
-        
+
         if not result:
             return None
-        
+
         # Get usage history for this feedback
         cursor = await db.execute(
             """
@@ -837,11 +858,11 @@ class FeedbackService:
             WHERE fu.feedback_id = ? AND fu.feedback_type = ?
             ORDER BY fu.created_at DESC
             """,
-            (feedback_id, feedback_type)
+            (feedback_id, feedback_type),
         )
-        
+
         usage_history = await cursor.fetchall()
-        
+
         if feedback_type == "nugget":
             return {
                 "type": "nugget",
@@ -863,10 +884,10 @@ class FeedbackService:
                         "contribution_score": row[1],
                         "used_at": row[2],
                         "optimization_mode": row[3],
-                        "run_status": row[4]
+                        "run_status": row[4],
                     }
                     for row in usage_history
-                ]
+                ],
             }
         else:
             return {
@@ -887,8 +908,8 @@ class FeedbackService:
                         "contribution_score": row[1],
                         "used_at": row[2],
                         "optimization_mode": row[3],
-                        "run_status": row[4]
+                        "run_status": row[4],
                     }
                     for row in usage_history
-                ]
+                ],
             }

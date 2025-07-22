@@ -148,9 +148,10 @@ class PromptOptimizationResult(BaseModel):
 
 # Monitoring and observability models
 
+
 class OptimizationProgress(BaseModel):
     """Current progress of an optimization run"""
-    
+
     step: str
     progress: int = Field(..., description="Progress percentage (0-100, -1 for failed)")
     message: str
@@ -160,7 +161,7 @@ class OptimizationProgress(BaseModel):
 
 class SystemHealthResponse(BaseModel):
     """System health check response"""
-    
+
     status: Literal["healthy", "degraded", "unhealthy"]
     uptime_seconds: float
     active_optimizations: int
@@ -172,7 +173,7 @@ class SystemHealthResponse(BaseModel):
 
 class MonitoringResponse(BaseModel):
     """Monitoring dashboard response"""
-    
+
     active_runs: dict[str, OptimizationProgress]
     recent_completions: list[dict]
     system_health: SystemHealthResponse
@@ -180,25 +181,38 @@ class MonitoringResponse(BaseModel):
 
 # Deduplication models
 
+
 class DeduplicationInfo(BaseModel):
     """Information about duplicate reports"""
-    
-    report_count: int = Field(..., description="Number of times this content was reported")
+
+    report_count: int = Field(
+        ..., description="Number of times this content was reported"
+    )
     first_reported_at: str = Field(..., description="ISO timestamp of first report")
-    last_reported_at: str = Field(..., description="ISO timestamp of most recent report")
-    is_duplicate: bool = Field(..., description="Whether this was a duplicate submission")
+    last_reported_at: str = Field(
+        ..., description="ISO timestamp of most recent report"
+    )
+    is_duplicate: bool = Field(
+        ..., description="Whether this was a duplicate submission"
+    )
 
 
 class FeedbackWithDeduplication(BaseModel):
     """Feedback response model that includes deduplication information"""
-    
+
     id: str
     content: str
     feedback_type: Literal["nugget", "missing_content"]
     url: str
     rating: Optional[Literal["positive", "negative"]] = None
-    suggested_type: Optional[Literal["tool", "media", "explanation", "analogy", "model"]] = None
-    original_type: Optional[Literal["tool", "media", "explanation", "analogy", "model"]] = None
-    corrected_type: Optional[Literal["tool", "media", "explanation", "analogy", "model"]] = None
+    suggested_type: Optional[
+        Literal["tool", "media", "explanation", "analogy", "model"]
+    ] = None
+    original_type: Optional[
+        Literal["tool", "media", "explanation", "analogy", "model"]
+    ] = None
+    corrected_type: Optional[
+        Literal["tool", "media", "explanation", "analogy", "model"]
+    ] = None
     created_at: str
     deduplication: DeduplicationInfo

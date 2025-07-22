@@ -1,7 +1,7 @@
 """
 Progress tracking service for monitoring DSPy optimization runs.
 
-Provides both in-memory (for real-time updates) and persistent 
+Provides both in-memory (for real-time updates) and persistent
 (for historical tracking and recovery) progress tracking.
 """
 
@@ -15,23 +15,23 @@ import aiosqlite
 
 class ProgressTrackingService:
     """Service for tracking optimization progress both in-memory and persistently"""
-    
+
     def __init__(self):
         # In-memory progress storage for real-time updates
         self.active_progress: Dict[str, dict] = {}
-    
+
     async def save_progress(
-        self, 
-        db: aiosqlite.Connection, 
-        run_id: str, 
-        phase: str, 
-        progress_percent: int, 
+        self,
+        db: aiosqlite.Connection,
+        run_id: str,
+        phase: str,
+        progress_percent: int,
         message: str,
-        metadata: Optional[dict] = None
+        metadata: Optional[dict] = None,
     ):
         """
         Save progress both in-memory (for real-time) and to database (for persistence).
-        
+
         Args:
             db: Database connection
             run_id: Optimization run ID
@@ -41,17 +41,17 @@ class ProgressTrackingService:
             metadata: Optional metadata for the progress entry
         """
         timestamp = datetime.now().isoformat()
-        
+
         # Update in-memory progress for real-time access
         progress_data = {
             "step": phase,
             "progress": progress_percent,
             "message": message,
             "timestamp": timestamp,
-            "last_updated": timestamp
+            "last_updated": timestamp,
         }
         self.active_progress[run_id] = progress_data
-        
+
         # Save to database for persistence
         progress_id = str(uuid.uuid4())
         await db.execute(
@@ -68,23 +68,21 @@ class ProgressTrackingService:
                 progress_percent,
                 message,
                 timestamp,
-                json.dumps(metadata) if metadata else None
-            )
+                json.dumps(metadata) if metadata else None,
+            ),
         )
         await db.commit()
-    
+
     async def get_progress_history(
-        self, 
-        db: aiosqlite.Connection, 
-        run_id: str
+        self, db: aiosqlite.Connection, run_id: str
     ) -> list[dict]:
         """
         Get complete progress history for an optimization run.
-        
+
         Args:
             db: Database connection
             run_id: Optimization run ID
-            
+
         Returns:
             List of progress entries with timestamps
         """
@@ -95,11 +93,11 @@ class ProgressTrackingService:
             WHERE optimization_run_id = ?
             ORDER BY timestamp ASC
             """,
-            (run_id,)
+            (run_id,),
         )
-        
+
         results = await cursor.fetchall()
-        
+
         progress_history = []
         for row in results:
             metadata = None
@@ -108,73 +106,73 @@ class ProgressTrackingService:
                     metadata = json.loads(row[4])
                 except json.JSONDecodeError:
                     metadata = None
-            
-            progress_history.append({
-                "phase": row[0],
-                "progress": row[1],
-                "message": row[2],
-                "timestamp": row[3],
-                "metadata": metadata
-            })
-        
+
+            progress_history.append(
+                {
+                    "phase": row[0],
+                    "progress": row[1],
+                    "message": row[2],
+                    "timestamp": row[3],
+                    "metadata": metadata,
+                }
+            )
+
         return progress_history
-    
+
     def get_run_progress(self, run_id: str) -> Optional[dict]:
         """
         Get current in-memory progress for a run (for real-time updates).
-        
+
         Args:
             run_id: Optimization run ID
-            
+
         Returns:
             Current progress data or None if not found
         """
         return self.active_progress.get(run_id)
-    
+
     def get_all_active_runs(self) -> Dict[str, dict]:
         """
         Get all active runs from in-memory storage.
-        
+
         Returns:
             Dictionary mapping run_id to progress data
         """
         return self.active_progress.copy()
-    
+
     def complete_run(self, run_id: str):
         """
         Mark a run as complete and remove from active tracking.
-        
+
         Args:
             run_id: Optimization run ID
         """
         if run_id in self.active_progress:
             del self.active_progress[run_id]
-    
+
     def fail_run(self, run_id: str, error_message: str):
         """
         Mark a run as failed and remove from active tracking.
-        
+
         Args:
             run_id: Optimization run ID
             error_message: Error description
         """
         if run_id in self.active_progress:
             # Update progress to show failure
-            self.active_progress[run_id].update({
-                "step": "failed",
-                "progress": -1,
-                "message": f"❌ {error_message}",
-                "last_updated": datetime.now().isoformat()
-            })
-    
-    async def cleanup_old_progress(
-        self, 
-        db: aiosqlite.Connection, 
-        days_old: int = 30
-    ):
+            self.active_progress[run_id].update(
+                {
+                    "step": "failed",
+                    "progress": -1,
+                    "message": f"❌ {error_message}",
+                    "last_updated": datetime.now().isoformat(),
+                }
+            )
+
+    async def cleanup_old_progress(self, db: aiosqlite.Connection, days_old: int = 30):
         """
         Clean up old progress entries from database.
-        
+
         Args:
             db: Database connection
             days_old: Delete entries older than this many days
@@ -186,19 +184,17 @@ class ProgressTrackingService:
             """.format(days_old)
         )
         await db.commit()
-    
+
     async def get_recent_activity(
-        self, 
-        db: aiosqlite.Connection, 
-        limit: int = 10
+        self, db: aiosqlite.Connection, limit: int = 10
     ) -> list[dict]:
         """
         Get recent optimization activity across all runs.
-        
+
         Args:
             db: Database connection
             limit: Maximum number of activity entries to return
-            
+
         Returns:
             List of recent activity entries
         """
@@ -217,30 +213,32 @@ class ProgressTrackingService:
             ORDER BY op.timestamp DESC
             LIMIT ?
             """,
-            (limit,)
+            (limit,),
         )
-        
+
         results = await cursor.fetchall()
-        
+
         activity = []
         for row in results:
-            activity.append({
-                "run_id": row[0],
-                "mode": row[1],
-                "phase": row[2],
-                "progress": row[3],
-                "message": row[4],
-                "timestamp": row[5],
-                "run_status": row[6]
-            })
-        
+            activity.append(
+                {
+                    "run_id": row[0],
+                    "mode": row[1],
+                    "phase": row[2],
+                    "progress": row[3],
+                    "message": row[4],
+                    "timestamp": row[5],
+                    "run_status": row[6],
+                }
+            )
+
         return activity
-    
+
     async def restore_active_runs(self, db: aiosqlite.Connection):
         """
         Restore active runs from database on service startup.
         Useful for recovering in-memory state after server restart.
-        
+
         Args:
             db: Database connection
         """
@@ -252,7 +250,7 @@ class ProgressTrackingService:
             """
         )
         running_runs = await cursor.fetchall()
-        
+
         # For each running run, get latest progress
         for (run_id,) in running_runs:
             cursor = await db.execute(
@@ -263,16 +261,16 @@ class ProgressTrackingService:
                 ORDER BY timestamp DESC
                 LIMIT 1
                 """,
-                (run_id,)
+                (run_id,),
             )
-            
+
             latest_progress = await cursor.fetchone()
-            
+
             if latest_progress:
                 self.active_progress[run_id] = {
                     "step": latest_progress[0],
                     "progress": latest_progress[1],
                     "message": latest_progress[2],
                     "timestamp": latest_progress[3],
-                    "last_updated": latest_progress[3]
+                    "last_updated": latest_progress[3],
                 }

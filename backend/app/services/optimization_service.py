@@ -28,8 +28,7 @@ from .feedback_service import FeedbackService
 
 # Configure structured logging
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
@@ -42,7 +41,7 @@ class OptimizationService:
         self.executor = ThreadPoolExecutor(
             max_workers=2
         )  # Limit concurrent optimizations
-        
+
         # In-memory progress tracking for active runs
         self.active_runs = {}
 
@@ -82,13 +81,16 @@ Return your response as valid JSON only, with no additional text or explanation.
         # Create optimization run record
         run_id = str(uuid.uuid4())
         trigger_type = "auto" if auto_trigger else "manual"
-        
-        logger.info("🚀 Starting DSPy optimization", extra={
-            "run_id": run_id,
-            "mode": mode,
-            "trigger_type": trigger_type,
-            "timestamp": datetime.now().isoformat()
-        })
+
+        logger.info(
+            "🚀 Starting DSPy optimization",
+            extra={
+                "run_id": run_id,
+                "mode": mode,
+                "trigger_type": trigger_type,
+                "timestamp": datetime.now().isoformat(),
+            },
+        )
 
         await db.execute(
             """
@@ -99,31 +101,41 @@ Return your response as valid JSON only, with no additional text or explanation.
             (run_id, mode, trigger_type, datetime.now(), "running", 0),
         )
         await db.commit()
-        
+
         # Initialize progress tracking
         self._log_progress(run_id, "initialization", 10, "Setting up optimization")
 
         try:
             # Get training examples from feedback
             logger.info("📊 Gathering training examples", extra={"run_id": run_id})
-            self._log_progress(run_id, "data_gathering", 20, "Gathering training examples")
-            
+            self._log_progress(
+                run_id, "data_gathering", 20, "Gathering training examples"
+            )
+
             training_examples = await self.feedback_service.get_training_examples(
                 db, limit=200
             )
-            
-            logger.info("📈 Training examples collected", extra={
-                "run_id": run_id,
-                "training_count": len(training_examples),
-                "status": "success" if len(training_examples) >= 10 else "insufficient_data"
-            })
 
-            if len(training_examples) < 10:
-                logger.error("Insufficient training data", extra={
+            logger.info(
+                "📈 Training examples collected",
+                extra={
                     "run_id": run_id,
                     "training_count": len(training_examples),
-                    "required_minimum": 10
-                })
+                    "status": "success"
+                    if len(training_examples) >= 10
+                    else "insufficient_data",
+                },
+            )
+
+            if len(training_examples) < 10:
+                logger.error(
+                    "Insufficient training data",
+                    extra={
+                        "run_id": run_id,
+                        "training_count": len(training_examples),
+                        "required_minimum": 10,
+                    },
+                )
                 raise Exception(
                     "Not enough training examples. Need at least 10 feedback items."
                 )
@@ -140,29 +152,43 @@ Return your response as valid JSON only, with no additional text or explanation.
             await db.commit()
 
             # Run optimization in thread pool to avoid blocking
-            logger.info("🧠 Starting DSPy optimization", extra={
-                "run_id": run_id,
-                "mode": mode,
-                "training_examples": len(training_examples)
-            })
-            self._log_progress(run_id, "optimization", 30, f"Running {mode} optimization")
-            
+            logger.info(
+                "🧠 Starting DSPy optimization",
+                extra={
+                    "run_id": run_id,
+                    "mode": mode,
+                    "training_examples": len(training_examples),
+                },
+            )
+            self._log_progress(
+                run_id, "optimization", 30, f"Running {mode} optimization"
+            )
+
             result = await asyncio.get_event_loop().run_in_executor(
-                self.executor, self._run_dspy_optimization, training_examples, mode, run_id
+                self.executor,
+                self._run_dspy_optimization,
+                training_examples,
+                mode,
+                run_id,
             )
 
             # Store optimized prompt
-            logger.info("💾 Storing optimized prompt", extra={
-                "run_id": run_id,
-                "performance_improvement": result.get("improvement", 0.0)
-            })
+            logger.info(
+                "💾 Storing optimized prompt",
+                extra={
+                    "run_id": run_id,
+                    "performance_improvement": result.get("improvement", 0.0),
+                },
+            )
             self._log_progress(run_id, "storing", 90, "Storing optimized prompt")
-            
+
             optimized_prompt_id = await self._store_optimized_prompt(db, result, run_id)
 
             # Mark optimization as completed
-            self._log_progress(run_id, "completed", 100, "Optimization completed successfully")
-            
+            self._log_progress(
+                run_id, "completed", 100, "Optimization completed successfully"
+            )
+
             await db.execute(
                 """
                 UPDATE optimization_runs
@@ -178,15 +204,18 @@ Return your response as valid JSON only, with no additional text or explanation.
                 ),
             )
             await db.commit()
-            
-            logger.info("✅ Optimization completed successfully", extra={
-                "run_id": run_id,
-                "mode": mode,
-                "performance_improvement": result.get("improvement", 0.0),
-                "execution_time": result.get("execution_time", 0),
-                "training_examples": len(training_examples)
-            })
-            
+
+            logger.info(
+                "✅ Optimization completed successfully",
+                extra={
+                    "run_id": run_id,
+                    "mode": mode,
+                    "performance_improvement": result.get("improvement", 0.0),
+                    "execution_time": result.get("execution_time", 0),
+                    "training_examples": len(training_examples),
+                },
+            )
+
             # Clean up active run tracking
             if run_id in self.active_runs:
                 del self.active_runs[run_id]
@@ -202,18 +231,23 @@ Return your response as valid JSON only, with no additional text or explanation.
 
         except Exception as e:
             # Mark optimization as failed
-            logger.error("❌ Optimization failed", extra={
-                "run_id": run_id,
-                "mode": mode,
-                "error": str(e),
-                "error_type": type(e).__name__
-            })
+            logger.error(
+                "❌ Optimization failed",
+                extra={
+                    "run_id": run_id,
+                    "mode": mode,
+                    "error": str(e),
+                    "error_type": type(e).__name__,
+                },
+            )
             self._log_progress(run_id, "failed", -1, f"Optimization failed: {str(e)}")
-            
+
             # Clean up active run tracking after delay to allow status check
             if run_id in self.active_runs:
-                self.active_runs[run_id]["cleanup_after"] = datetime.now().replace(minute=datetime.now().minute + 5)
-            
+                self.active_runs[run_id]["cleanup_after"] = datetime.now().replace(
+                    minute=datetime.now().minute + 5
+                )
+
             await db.execute(
                 """
                 UPDATE optimization_runs
@@ -226,7 +260,9 @@ Return your response as valid JSON only, with no additional text or explanation.
 
             raise Exception(f"Optimization failed: {e!s}")
 
-    def _run_dspy_optimization(self, training_examples: list[dict], mode: str, run_id: str = None) -> dict:
+    def _run_dspy_optimization(
+        self, training_examples: list[dict], mode: str, run_id: str = None
+    ) -> dict:
         """
         Run DSPy optimization (executed in thread pool).
 
@@ -286,16 +322,19 @@ Return your response as valid JSON only, with no additional text or explanation.
             # Choose evaluation metric
             metric = OptimizationMetrics.golden_nugget_metric
 
-            # Run optimization  
+            # Run optimization
             print(
                 f"Starting {mode} optimization with {len(train_examples)} training examples..."
             )
-            logger.info("🔧 DSPy optimization in progress", extra={
-                "run_id": run_id,
-                "mode": mode,
-                "train_examples": len(train_examples),
-                "val_examples": len(val_examples)
-            })
+            logger.info(
+                "🔧 DSPy optimization in progress",
+                extra={
+                    "run_id": run_id,
+                    "mode": mode,
+                    "train_examples": len(train_examples),
+                    "val_examples": len(val_examples),
+                },
+            )
 
             optimized_extractor = optimizer.compile(
                 extractor,
@@ -332,13 +371,16 @@ Return your response as valid JSON only, with no additional text or explanation.
             print(
                 f"Optimization completed: {optimized_score:.3f} vs {baseline_score:.3f} baseline"
             )
-            logger.info("📊 DSPy optimization metrics", extra={
-                "run_id": run_id,
-                "optimized_score": optimized_score,
-                "baseline_score": baseline_score,
-                "improvement": improvement,
-                "execution_time": execution_time
-            })
+            logger.info(
+                "📊 DSPy optimization metrics",
+                extra={
+                    "run_id": run_id,
+                    "optimized_score": optimized_score,
+                    "baseline_score": baseline_score,
+                    "improvement": improvement,
+                    "execution_time": execution_time,
+                },
+            )
 
             return {
                 "optimized_prompt": optimized_prompt,
@@ -462,17 +504,26 @@ Return valid JSON with the exact structure: {{"golden_nuggets": [...]}}"""
                 "progress": progress,
                 "message": message,
                 "timestamp": datetime.now().isoformat(),
-                "last_updated": datetime.now()
+                "last_updated": datetime.now(),
             }
-            
+
             # Console logging with emoji indicators
             if progress == 100:
-                logger.info(f"✅ {message}", extra={"run_id": run_id, "step": step, "progress": progress})
+                logger.info(
+                    f"✅ {message}",
+                    extra={"run_id": run_id, "step": step, "progress": progress},
+                )
             elif progress == -1:
-                logger.error(f"❌ {message}", extra={"run_id": run_id, "step": step, "error": True})
+                logger.error(
+                    f"❌ {message}",
+                    extra={"run_id": run_id, "step": step, "error": True},
+                )
             else:
-                logger.info(f"📈 {message} ({progress}%)", extra={"run_id": run_id, "step": step, "progress": progress})
-            
+                logger.info(
+                    f"📈 {message} ({progress}%)",
+                    extra={"run_id": run_id, "step": step, "progress": progress},
+                )
+
         except Exception as e:
             logger.warning(f"Failed to log progress: {e}")
 
@@ -484,13 +535,18 @@ Return valid JSON with the exact structure: {{"golden_nuggets": [...]}}"""
         """Get progress for all currently active optimization runs"""
         # Clean up old runs (older than 24 hours)
         now = datetime.now()
-        cutoff = now.replace(hour=now.hour - 24) if now.hour >= 24 else now.replace(day=now.day - 1, hour=now.hour)
-        
+        cutoff = (
+            now.replace(hour=now.hour - 24)
+            if now.hour >= 24
+            else now.replace(day=now.day - 1, hour=now.hour)
+        )
+
         self.active_runs = {
-            run_id: data for run_id, data in self.active_runs.items()
+            run_id: data
+            for run_id, data in self.active_runs.items()
             if data.get("last_updated", now) > cutoff
         }
-        
+
         return self.active_runs
 
     async def get_current_prompt(self, db: aiosqlite.Connection) -> Optional[dict]:

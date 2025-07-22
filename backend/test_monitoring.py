@@ -10,13 +10,14 @@ import requests
 from datetime import datetime
 import time
 
+
 def test_monitoring_endpoints():
     """Test the monitoring endpoints"""
     base_url = "http://localhost:7532"
-    
+
     print("🔍 Testing Monitoring Endpoints")
     print("=" * 50)
-    
+
     # Test health endpoint
     print("\n📋 Testing /monitor/health")
     try:
@@ -32,7 +33,7 @@ def test_monitoring_endpoints():
             print(f"❌ Health endpoint failed: {response.status_code}")
     except requests.exceptions.RequestException as e:
         print(f"❌ Health endpoint error: {e}")
-    
+
     # Test monitoring dashboard
     print("\n📊 Testing /monitor")
     try:
@@ -47,7 +48,7 @@ def test_monitoring_endpoints():
             print(f"❌ Monitoring dashboard failed: {response.status_code}")
     except requests.exceptions.RequestException as e:
         print(f"❌ Monitoring dashboard error: {e}")
-    
+
     # Test optimization status (should return not found for test ID)
     print("\n🔍 Testing /monitor/status/{run_id}")
     try:
@@ -63,20 +64,21 @@ def test_monitoring_endpoints():
     except requests.exceptions.RequestException as e:
         print(f"❌ Status endpoint error: {e}")
 
+
 def demonstrate_logging():
     """Demonstrate the enhanced logging features"""
     print("\n🔊 Demonstrating Enhanced Logging")
     print("=" * 50)
-    
+
     from app.services.optimization_service import OptimizationService
-    
+
     # Create service and simulate optimization progress
     service = OptimizationService()
-    
+
     run_id = f"demo-{datetime.now().strftime('%H%M%S')}"
-    
+
     print(f"📝 Simulating optimization run: {run_id}")
-    
+
     # Simulate optimization steps
     steps = [
         ("initialization", 10, "🚀 Setting up optimization environment"),
@@ -84,13 +86,13 @@ def demonstrate_logging():
         ("validation", 50, "✅ Validating training data"),
         ("optimization", 80, "🧠 Running DSPy optimization"),
         ("evaluation", 95, "📈 Evaluating performance"),
-        ("completed", 100, "✅ Optimization completed successfully")
+        ("completed", 100, "✅ Optimization completed successfully"),
     ]
-    
+
     for step, progress, message in steps:
         service._log_progress(run_id, step, progress, message)
         time.sleep(0.5)  # Simulate work
-    
+
     print(f"\n📋 Final Progress Status:")
     final_progress = service.get_run_progress(run_id)
     if final_progress:
@@ -99,24 +101,27 @@ def demonstrate_logging():
         print(f"   Message: {final_progress['message']}")
         print(f"   Timestamp: {final_progress['timestamp']}")
 
+
 if __name__ == "__main__":
     print("🔧 Golden Nuggets Backend - Monitoring & Logging Test")
     print("=" * 60)
-    
+
     # Test logging functionality (works without server)
     demonstrate_logging()
-    
+
     print("\n" + "=" * 60)
     print("🌐 Testing API Endpoints (requires server running)")
     print("Run 'python run.py' in another terminal first")
     print("=" * 60)
-    
+
     # Test API endpoints (requires server)
     test_monitoring_endpoints()
-    
+
     print("\n✅ Testing Complete!")
     print("\n📚 Available Endpoints:")
     print("   GET  /monitor/health          - System health check")
     print("   GET  /monitor                 - Complete monitoring dashboard")
     print("   GET  /monitor/status/{run_id} - Individual optimization status")
-    print("   POST /optimize                - Trigger optimization (shows in monitoring)")
+    print(
+        "   POST /optimize                - Trigger optimization (shows in monitoring)"
+    )
