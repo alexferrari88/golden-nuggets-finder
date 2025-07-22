@@ -26,6 +26,7 @@ export default defineConfig({
 				"https://twitter.com/*",
 				"https://x.com/*",
 				"https://example.com/*",
+				"http://localhost/*",
 			],
 		}),
 		web_accessible_resources: [
@@ -56,7 +57,7 @@ export default defineConfig({
 		content_security_policy: {
 			// Use specific port for dev server HMR connection
 			extension_pages:
-				"script-src 'self'; object-src 'self'; connect-src 'self' https://generativelanguage.googleapis.com ws://localhost:8624; style-src 'self' 'unsafe-inline'",
+				"script-src 'self'; object-src 'self'; connect-src 'self' https://generativelanguage.googleapis.com ws://localhost:8624 http://localhost:7532; style-src 'self' 'unsafe-inline'",
 		},
 	},
 

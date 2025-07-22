@@ -2,6 +2,7 @@ fastapi==0.116.1
 uvicorn[standard]==0.35.0
 sqlalchemy==2.0.41
 alembic==1.16.4
+aiosqlite==0.20.0
 pydantic==2.11.7
 dspy-ai==2.6.27
 python-dotenv==1.1.1
