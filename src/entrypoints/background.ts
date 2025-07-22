@@ -29,10 +29,11 @@ export default defineBackground(() => {
 	// Handle context menu clicks
 	chrome.contextMenus.onClicked.addListener((info, tab) => {
 		if (info.menuItemId && typeof info.menuItemId === "string") {
-			if (info.menuItemId.includes("-")) {
-				// Handle typed menu clicks (e.g., "promptId-typeId")
-				const parts = info.menuItemId.split("-");
-				if (parts.length >= 2) {
+			if (info.menuItemId.includes("__")) {
+				// Handle typed menu clicks (e.g., "promptId__typeId")
+				// Use double underscore as delimiter to avoid conflicts with prompt IDs that may contain hyphens
+				const parts = info.menuItemId.split("__");
+				if (parts.length === 2) {
 					const promptId = parts[0];
 					const typeId = parts[1];
 					handleTypedContextMenuClick(promptId, typeId, tab);
@@ -73,9 +74,10 @@ export default defineBackground(() => {
 				});
 
 				// Create type-specific submenus for each prompt
+				// Use double underscore as delimiter to avoid conflicts with prompt IDs that may contain hyphens
 				TypeFilterService.CONTEXT_MENU_OPTIONS.forEach((option) => {
 					chrome.contextMenus.create({
-						id: `${prompt.id}-${option.id}`,
+						id: `${prompt.id}__${option.id}`,
 						parentId: `prompt-${prompt.id}`,
 						title: option.title,
 						contexts: ["page", "selection"],
