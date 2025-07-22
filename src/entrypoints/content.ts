@@ -439,7 +439,10 @@ export default defineContentScript({
 						response.error || "Analysis failed. Please try again.",
 					);
 					// Notify popup of error
-					chrome.runtime.sendMessage({ type: MESSAGE_TYPES.ANALYSIS_ERROR });
+					chrome.runtime.sendMessage({ 
+						type: MESSAGE_TYPES.ANALYSIS_ERROR, 
+						error: response.error || "Analysis failed. Please try again."
+					});
 				}
 			} catch (error) {
 				console.error("Analysis failed:", error);
@@ -448,7 +451,10 @@ export default defineContentScript({
 				}
 				uiManager.showErrorBanner("Analysis failed. Please try again.");
 				// Notify popup of error
-				chrome.runtime.sendMessage({ type: MESSAGE_TYPES.ANALYSIS_ERROR });
+				chrome.runtime.sendMessage({ 
+					type: MESSAGE_TYPES.ANALYSIS_ERROR, 
+					error: (error as Error).message || "Analysis failed. Please try again."
+				});
 			} finally {
 				performanceMonitor.logTimer(
 					"total_analysis",

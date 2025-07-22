@@ -19,6 +19,101 @@ function generateAnalysisId(): string {
 export class MessageHandler {
 	constructor(private geminiClient: GeminiClient) {}
 
+	// Helper to classify and enhance backend error messages for users
+	private enhanceBackendError(error: any): { message: string; showToUser: boolean; retryable: boolean } {
+		const errorMessage = (error as Error).message.toLowerCase();
+		const originalMessage = (error as Error).message;
+
+		// Network/Connection errors
+		if (errorMessage.includes("failed to fetch") || errorMessage.includes("networkerror") || errorMessage.includes("network error")) {
+			return {
+				message: "Backend service is unavailable. Your data has been saved locally and will sync when the backend is available.",
+				showToUser: true,
+				retryable: true
+			};
+		}
+
+		// Database errors  
+		if (errorMessage.includes("database is locked") || errorMessage.includes("database error")) {
+			return {
+				message: "Backend database is temporarily busy. Your data has been saved locally and will sync when available.",
+				showToUser: true,
+				retryable: true
+			};
+		}
+
+		// DSPy configuration errors
+		if (errorMessage.includes("dspy not available") || errorMessage.includes("install with: pip install dspy-ai")) {
+			return {
+				message: "Backend optimization system not configured. Using default prompts. Contact administrator to enable DSPy optimization.",
+				showToUser: true,
+				retryable: false
+			};
+		}
+
+		// DSPy training data errors
+		if (errorMessage.includes("not enough training examples") || errorMessage.includes("need at least")) {
+			const match = originalMessage.match(/need at least (\d+)/i);
+			const required = match ? match[1] : "more";
+			return {
+				message: `More feedback needed for optimization (need at least ${required} items). Keep using the extension to provide feedback.`,
+				showToUser: true,
+				retryable: false
+			};
+		}
+
+		// API key/configuration errors
+		if (errorMessage.includes("gemini_api_key") || errorMessage.includes("environment variable")) {
+			return {
+				message: "Backend API configuration missing. Contact administrator to configure Gemini API key.",
+				showToUser: true,
+				retryable: false
+			};
+		}
+
+		// Server errors (500)
+		if (errorMessage.includes("500") || errorMessage.includes("internal server error")) {
+			return {
+				message: "Backend server error occurred. Your data has been saved locally. Please try again later.",
+				showToUser: true,
+				retryable: true
+			};
+		}
+
+		// Timeout errors
+		if (errorMessage.includes("timed out") || errorMessage.includes("timeout")) {
+			return {
+				message: "Backend request timed out. Your data has been saved locally. Please try again.",
+				showToUser: true,
+				retryable: true
+			};
+		}
+
+		// Generic server error - preserve original message but make it user-friendly
+		return {
+			message: `Backend error: ${originalMessage.replace(/^[^:]*:\s*/, '')}. Your data has been saved locally.`,
+			showToUser: true,
+			retryable: true
+		};
+	}
+
+	// Helper to notify users of backend errors
+	private async notifyUserOfBackendError(tabId: number | undefined, errorInfo: { message: string; showToUser: boolean; retryable: boolean }) {
+		if (!errorInfo.showToUser || !tabId) return;
+
+		// Send error notification to content script for user visibility
+		try {
+			await chrome.tabs.sendMessage(tabId, {
+				type: MESSAGE_TYPES.SHOW_ERROR,
+				message: errorInfo.message,
+				retryable: errorInfo.retryable
+			});
+		} catch (error) {
+			// Content script might not be ready, that's okay
+			console.log("Could not send backend error to content script:", error);
+		}
+	}
+
 	// Helper to send progress messages to all listeners
 	private sendProgressMessage(
 		progressType: AnalysisProgressMessage["type"],
@@ -98,11 +193,11 @@ export class MessageHandler {
 					break;
 
 				case MESSAGE_TYPES.SUBMIT_NUGGET_FEEDBACK:
-					await this.handleSubmitNuggetFeedback(request, sendResponse);
+					await this.handleSubmitNuggetFeedback(request, sender, sendResponse);
 					break;
 
 				case MESSAGE_TYPES.SUBMIT_MISSING_CONTENT_FEEDBACK:
-					await this.handleSubmitMissingContentFeedback(request, sendResponse);
+					await this.handleSubmitMissingContentFeedback(request, sender, sendResponse);
 					break;
 
 				case MESSAGE_TYPES.GET_FEEDBACK_STATS:
@@ -488,6 +583,7 @@ export class MessageHandler {
 
 	private async handleSubmitNuggetFeedback(
 		request: any,
+		sender: chrome.runtime.MessageSender,
 		sendResponse: (response: any) => void,
 	): Promise<void> {
 		try {
@@ -505,13 +601,21 @@ export class MessageHandler {
 			try {
 				const result = await this.sendFeedbackToBackend({ nuggetFeedback: [feedback] });
 				console.log("Nugget feedback sent to backend:", result);
+				sendResponse({ success: true, message: "Feedback submitted successfully" });
 			} catch (error) {
 				console.error("Failed to send nugget feedback to backend:", error);
-				// Continue with local storage as fallback
+				
+				// Classify backend error and notify user
+				const errorInfo = this.enhanceBackendError(error);
+				await this.notifyUserOfBackendError(sender.tab?.id, errorInfo);
+				
+				// Still return success since data was stored locally as fallback
+				sendResponse({ 
+					success: true, 
+					message: "Feedback saved locally (backend unavailable)",
+					warning: errorInfo.message
+				});
 			}
-
-			console.log("Nugget feedback processed:", feedback);
-			sendResponse({ success: true, message: "Feedback submitted successfully" });
 		} catch (error) {
 			console.error("Failed to submit nugget feedback:", error);
 			sendResponse({ success: false, error: (error as Error).message });
@@ -520,6 +624,7 @@ export class MessageHandler {
 
 	private async handleSubmitMissingContentFeedback(
 		request: any,
+		sender: chrome.runtime.MessageSender,
 		sendResponse: (response: any) => void,
 	): Promise<void> {
 		try {
@@ -539,16 +644,24 @@ export class MessageHandler {
 			try {
 				const result = await this.sendFeedbackToBackend({ missingContentFeedback });
 				console.log("Missing content feedback sent to backend:", result);
+				sendResponse({ 
+					success: true, 
+					message: `${missingContentFeedback.length} missing content feedback items submitted successfully` 
+				});
 			} catch (error) {
 				console.error("Failed to send missing content feedback to backend:", error);
-				// Continue with local storage as fallback
+				
+				// Classify backend error and notify user
+				const errorInfo = this.enhanceBackendError(error);
+				await this.notifyUserOfBackendError(sender.tab?.id, errorInfo);
+				
+				// Still return success since data was stored locally as fallback
+				sendResponse({ 
+					success: true, 
+					message: `${missingContentFeedback.length} feedback items saved locally (backend unavailable)`,
+					warning: errorInfo.message
+				});
 			}
-
-			console.log("Missing content feedback processed:", missingContentFeedback);
-			sendResponse({ 
-				success: true, 
-				message: `${missingContentFeedback.length} missing content feedback items submitted successfully` 
-			});
 		} catch (error) {
 			console.error("Failed to submit missing content feedback:", error);
 			sendResponse({ success: false, error: (error as Error).message });
@@ -618,7 +731,14 @@ export class MessageHandler {
 			sendResponse({ success: true, data: result });
 		} catch (error) {
 			console.error("Failed to trigger optimization:", error);
-			sendResponse({ success: false, error: (error as Error).message });
+			
+			// Use the new backend error classification system
+			const errorInfo = this.enhanceBackendError(error);
+			sendResponse({ 
+				success: false, 
+				error: errorInfo.message,
+				retryable: errorInfo.retryable
+			});
 		}
 	}
 

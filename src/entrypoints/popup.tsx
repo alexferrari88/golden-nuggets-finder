@@ -194,6 +194,7 @@ function IndexPopup() {
 	const [currentAnalysisId, setCurrentAnalysisId] = useState<string | null>(
 		null,
 	);
+	const [backendStatus, setBackendStatus] = useState<"unknown" | "available" | "unavailable">("unknown");
 	const [selectionMode, setSelectionMode] = useState<"quick" | "custom">(
 		"quick",
 	);
@@ -233,6 +234,7 @@ function IndexPopup() {
 
 	useEffect(() => {
 		loadPrompts();
+		checkBackendStatus();
 
 		// Add message listener for analysis completion and progress
 		const messageListener = (message: any) => {
@@ -250,6 +252,8 @@ function IndexPopup() {
 				setAnalyzing(null); // Clear analyzing state immediately on error
 				setCurrentAnalysisId(null);
 				currentAnalysisIdRef.current = null;
+				// Display the actual error message to the user
+				setError(message.error || "Analysis failed. Please try again.");
 			}
 			
 			// Handle real-time progress messages (only for current analysis)
@@ -272,6 +276,24 @@ function IndexPopup() {
 			chrome.runtime.onMessage.removeListener(messageListener);
 		};
 	}, []);
+
+	// Check backend availability
+	const checkBackendStatus = async () => {
+		try {
+			const response = await chrome.runtime.sendMessage({
+				type: MESSAGE_TYPES.GET_FEEDBACK_STATS,
+			});
+			
+			if (response.success) {
+				setBackendStatus(response.warning ? "unavailable" : "available");
+			} else {
+				setBackendStatus("unavailable");
+			}
+		} catch (error) {
+			console.error("Failed to check backend status:", error);
+			setBackendStatus("unavailable");
+		}
+	};
 
 	const loadPrompts = async () => {
 		try {
@@ -546,9 +568,27 @@ function IndexPopup() {
 						padding: spacing["2xl"],
 						fontSize: typography.fontSize.sm,
 						fontWeight: typography.fontWeight.medium,
+						display: "flex",
+						flexDirection: "column",
+						gap: spacing.md,
+						alignItems: "center",
 					}}
 				>
-					{error}
+					<div>{error}</div>
+					<button
+						onClick={() => {
+							setError(null);
+							loadPrompts();
+							checkBackendStatus();
+						}}
+						style={{
+							...components.button.secondary,
+							fontSize: typography.fontSize.sm,
+							padding: `${spacing.xs} ${spacing.md}`,
+						}}
+					>
+						Try Again
+					</button>
 				</div>
 			</div>
 		);
@@ -782,11 +822,61 @@ function IndexPopup() {
 						fontSize: typography.fontSize.lg,
 						fontWeight: typography.fontWeight.semibold,
 						color: colors.text.primary,
-						marginBottom: spacing.md,
+						marginBottom: spacing.xs,
 					}}
 				>
 					Golden Nugget Finder
 				</h1>
+
+				{/* Backend Status Indicator */}
+				{backendStatus !== "unknown" && (
+					<div
+						style={{
+							display: "flex",
+							alignItems: "center",
+							justifyContent: "center",
+							gap: spacing.xs,
+							marginBottom: spacing.md,
+							fontSize: typography.fontSize.xs,
+							color: colors.text.secondary,
+						}}
+					>
+						<div
+							style={{
+								width: "6px",
+								height: "6px",
+								borderRadius: "50%",
+								backgroundColor: backendStatus === "available" 
+									? colors.success 
+									: colors.error,
+							}}
+						/>
+						Backend: {backendStatus === "available" ? "Connected" : "Offline"}
+						{backendStatus === "unavailable" && (
+							<>
+								<span style={{ fontSize: typography.fontSize.xs, color: colors.text.secondary }}>
+									{" "}(Using local mode)
+								</span>
+								<button
+									onClick={checkBackendStatus}
+									style={{
+										marginLeft: spacing.xs,
+										fontSize: typography.fontSize.xs,
+										padding: "2px 6px",
+										backgroundColor: "transparent",
+										color: colors.text.accent,
+										border: `1px solid ${colors.text.accent}`,
+										borderRadius: "3px",
+										cursor: "pointer",
+									}}
+									title="Retry backend connection"
+								>
+									Retry
+								</button>
+							</>
+						)}
+					</div>
+				)}
 
 				{/* Mode Toggle */}
 				<div

@@ -136,7 +136,7 @@ describe('GeminiClient', () => {
 
       await expect(
         geminiClient.analyzeContent('test content', 'test prompt')
-      ).rejects.toThrow('Analysis failed. Please try again.');
+      ).rejects.toThrow('Invalid request: Gemini API error: 400 Bad Request - Error details');
     });
 
     it('should throw error if no response text', async () => {
@@ -155,7 +155,7 @@ describe('GeminiClient', () => {
 
       await expect(
         geminiClient.analyzeContent('test content', 'test prompt')
-      ).rejects.toThrow('Analysis failed. Please try again.');
+      ).rejects.toThrow('Gemini API error:');
     });
 
     it('should throw error on invalid response format', async () => {
@@ -176,7 +176,7 @@ describe('GeminiClient', () => {
 
       await expect(
         geminiClient.analyzeContent('test content', 'test prompt')
-      ).rejects.toThrow('Analysis failed. Please try again.');
+      ).rejects.toThrow('Gemini API error:');
     });
 
     it('should throw error on malformed JSON', async () => {
@@ -284,39 +284,118 @@ describe('GeminiClient', () => {
   });
 
   describe('enhanceError', () => {
-    it('should enhance API key error', () => {
-      const error = new Error('API key invalid');
+    it('should enhance API key error with original details', () => {
+      const error = new Error('API_KEY_INVALID: The provided API key is invalid');
       const enhanced = geminiClient['enhanceError'](error);
       
-      expect(enhanced.message).toBe('Invalid API key. Please check your settings.');
+      expect(enhanced.message).toBe('Invalid API key: API_KEY_INVALID: The provided API key is invalid. Please check your Gemini API key in settings.');
     });
 
-    it('should enhance rate limit error', () => {
+    it('should enhance authentication error with context', () => {
+      const error = new Error('Authentication failed: Invalid credentials provided');
+      const enhanced = geminiClient['enhanceError'](error);
+      
+      expect(enhanced.message).toBe('Invalid API key: Authentication failed: Invalid credentials provided. Please check your Gemini API key in settings.');
+    });
+
+    it('should enhance rate limit error with details extraction', () => {
+      const error = new Error('Rate limit exceeded. Reset in 3600 seconds');
+      const enhanced = geminiClient['enhanceError'](error);
+      
+      // The regex captures just the number, not the full phrase
+      expect(enhanced.message).toBe('Rate limit reached (3600). Please wait before trying again.');
+    });
+
+    it('should handle rate limit without specific details', () => {
       const error = new Error('Rate limit exceeded');
       const enhanced = geminiClient['enhanceError'](error);
       
-      expect(enhanced.message).toBe('Rate limit reached. Please try again later.');
+      expect(enhanced.message).toBe('Rate limit reached. Please wait before trying again.');
     });
 
-    it('should enhance timeout error', () => {
-      const error = new Error('Request timeout');
+    it('should enhance quota errors with original message', () => {
+      const error = new Error('Quota exceeded for this API key. Current usage: 1000/1000 requests');
       const enhanced = geminiClient['enhanceError'](error);
       
-      expect(enhanced.message).toBe('Request timed out. Please try again.');
+      // Quota errors are caught by "api key" check first, not the quota check
+      expect(enhanced.message).toBe('Invalid API key: Quota exceeded for this API key. Current usage: 1000/1000 requests. Please check your Gemini API key in settings.');
     });
 
-    it('should enhance network error', () => {
-      const error = new Error('Network connection failed');
+    it('should enhance timeout error with original context', () => {
+      const error = new Error('Request timeout after 30000ms');
       const enhanced = geminiClient['enhanceError'](error);
       
-      expect(enhanced.message).toBe('Network error. Please check your internet connection.');
+      expect(enhanced.message).toBe('Request timed out: Request timeout after 30000ms. Please try again.');
     });
 
-    it('should provide generic error for unknown errors', () => {
-      const error = new Error('Unknown error');
+    it('should enhance network error with original details', () => {
+      const error = new Error('Network connection failed: DNS resolution failed');
       const enhanced = geminiClient['enhanceError'](error);
       
-      expect(enhanced.message).toBe('Analysis failed. Please try again.');
+      expect(enhanced.message).toBe('Network error: Network connection failed: DNS resolution failed. Please check your internet connection.');
+    });
+
+    it('should enhance failed to fetch errors', () => {
+      const error = new Error('Failed to fetch from https://generativelanguage.googleapis.com');
+      const enhanced = geminiClient['enhanceError'](error);
+      
+      expect(enhanced.message).toBe('Network error: Failed to fetch from https://generativelanguage.googleapis.com. Please check your internet connection.');
+    });
+
+    it('should handle 400 Bad Request errors', () => {
+      const error = new Error('400 Bad Request: Invalid JSON in request body');
+      const enhanced = geminiClient['enhanceError'](error);
+      
+      expect(enhanced.message).toBe('Invalid request: 400 Bad Request: Invalid JSON in request body. The content might be too large or contain unsupported characters.');
+    });
+
+    it('should handle 403 Forbidden errors with API key mention', () => {
+      const error = new Error('403 Forbidden: API key does not have permission');
+      const enhanced = geminiClient['enhanceError'](error);
+      
+      // 403 errors with "api key" in message are caught by API key check first
+      expect(enhanced.message).toBe('Invalid API key: 403 Forbidden: API key does not have permission. Please check your Gemini API key in settings.');
+    });
+
+    it('should handle 403 Forbidden errors without API key mention', () => {
+      const error = new Error('403 Forbidden: Access denied to this resource');
+      const enhanced = geminiClient['enhanceError'](error);
+      
+      // 403 errors without "api key" should be handled by the 403 check
+      expect(enhanced.message).toBe('Access denied: 403 Forbidden: Access denied to this resource. Please check your API key permissions.');
+    });
+
+    it('should handle 404 Not Found errors', () => {
+      const error = new Error('404 Not Found: Model not found');
+      const enhanced = geminiClient['enhanceError'](error);
+      
+      expect(enhanced.message).toBe('API endpoint not found: 404 Not Found: Model not found. The Gemini API might be unavailable.');
+    });
+
+    it('should handle 500 Internal Server Error', () => {
+      const error = new Error('500 Internal Server Error: Service temporarily unavailable');
+      const enhanced = geminiClient['enhanceError'](error);
+      
+      expect(enhanced.message).toBe('Gemini API server error: 500 Internal Server Error: Service temporarily unavailable. Please try again later.');
+    });
+
+    it('should preserve original message for unrecognized errors', () => {
+      const error = new Error('Some unexpected API error occurred');
+      const enhanced = geminiClient['enhanceError'](error);
+      
+      expect(enhanced.message).toBe('Gemini API error: Some unexpected API error occurred');
+    });
+
+    it('should handle unknown error types with fallback', () => {
+      const enhanced = geminiClient['enhanceError']('string error');
+      
+      expect(enhanced.message).toBe('Analysis failed with unknown error: string error');
+    });
+
+    it('should handle null/undefined errors', () => {
+      const enhanced = geminiClient['enhanceError'](null);
+      
+      expect(enhanced.message).toBe('Analysis failed with unknown error: null');
     });
   });
 
