@@ -52,9 +52,17 @@ export interface ModeCost {
 
 export interface DashboardStats {
   pending_nugget_feedback: number;
-  pending_missing_content_feedback: number;
+  pending_missing_feedback: number;
+  processed_nugget_feedback: number;
+  processed_missing_feedback: number;
   active_optimizations: number;
-  total_feedback_items: number;
+  completed_optimizations: number;
+  failed_optimizations: number;
+  monthly_costs: number;
+  monthly_tokens: number;
+  // Computed fields
+  total_feedback_items?: number;
+  pending_missing_content_feedback?: number;
 }
 
 export interface OptimizationRun {

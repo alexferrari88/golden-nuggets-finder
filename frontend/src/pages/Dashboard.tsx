@@ -21,7 +21,7 @@ export function Dashboard() {
   const [activeTab, setActiveTab] = useState('overview');
 
   const {
-    data: stats,
+    data: rawStats,
     isLoading: statsLoading,
     error: statsError,
   } = useQuery<DashboardStats, ApiError>({
@@ -37,8 +37,18 @@ export function Dashboard() {
     }
   };
 
+  // Compute derived fields to maintain compatibility
+  const stats = rawStats ? {
+    ...rawStats,
+    total_feedback_items: (rawStats.pending_nugget_feedback || 0) + 
+                          (rawStats.pending_missing_feedback || 0) +
+                          (rawStats.processed_nugget_feedback || 0) +
+                          (rawStats.processed_missing_feedback || 0),
+    pending_missing_content_feedback: rawStats.pending_missing_feedback
+  } : null;
+
   const totalPendingFeedback = (stats?.pending_nugget_feedback || 0) + 
-                               (stats?.pending_missing_content_feedback || 0);
+                               (stats?.pending_missing_feedback || 0);
 
   return (
     <ResponsiveContainer maxWidth="full" className="min-h-screen">
@@ -88,6 +98,13 @@ export function Dashboard() {
           </AlertDescription>
         </Alert>
       ) : stats ? (
+        stats.total_feedback_items === 0 && stats.active_optimizations === 0 ? (
+          <Alert>
+            <AlertDescription className="text-center py-4">
+              No data available. The database appears to be empty. Start using the Golden Nuggets extension to generate feedback data.
+            </AlertDescription>
+          </Alert>
+        ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {/* Total Feedback Items */}
           <Card>
@@ -115,7 +132,7 @@ export function Dashboard() {
               <div className="text-2xl font-bold">{totalPendingFeedback}</div>
               <div className="text-xs text-gray-500 flex gap-2">
                 <span>🟡 {stats.pending_nugget_feedback} nuggets</span>
-                <span>🔴 {stats.pending_missing_content_feedback} missing</span>
+                <span>🔴 {stats.pending_missing_feedback} missing</span>
               </div>
             </CardContent>
           </Card>
@@ -157,6 +174,7 @@ export function Dashboard() {
             </CardContent>
           </Card>
         </div>
+        )
       ) : null}
 
       {/* Main Dashboard Content */}
