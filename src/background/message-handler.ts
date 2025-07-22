@@ -114,6 +114,22 @@ export class MessageHandler {
 		}
 	}
 
+	// Helper to notify users of duplicate feedback submissions
+	private async notifyUserOfDuplication(tabId: number | undefined, message: string) {
+		if (!tabId) return;
+
+		// Send info notification to content script for user visibility
+		try {
+			await chrome.tabs.sendMessage(tabId, {
+				type: MESSAGE_TYPES.SHOW_INFO,
+				message: message
+			});
+		} catch (error) {
+			// Content script might not be ready, that's okay
+			console.log("Could not send deduplication info to content script:", error);
+		}
+	}
+
 	// Helper to send progress messages to all listeners
 	private sendProgressMessage(
 		progressType: AnalysisProgressMessage["type"],
@@ -601,7 +617,17 @@ export class MessageHandler {
 			try {
 				const result = await this.sendFeedbackToBackend({ nuggetFeedback: [feedback] });
 				console.log("Nugget feedback sent to backend:", result);
-				sendResponse({ success: true, message: "Feedback submitted successfully" });
+				
+				// Check for deduplication information and notify user if needed
+				if (result.deduplication?.user_message) {
+					await this.notifyUserOfDuplication(sender.tab?.id, result.deduplication.user_message);
+				}
+				
+				sendResponse({ 
+					success: true, 
+					message: "Feedback submitted successfully",
+					deduplication: result.deduplication
+				});
 			} catch (error) {
 				console.error("Failed to send nugget feedback to backend:", error);
 				
@@ -644,9 +670,16 @@ export class MessageHandler {
 			try {
 				const result = await this.sendFeedbackToBackend({ missingContentFeedback });
 				console.log("Missing content feedback sent to backend:", result);
+				
+				// Check for deduplication information and notify user if needed
+				if (result.deduplication?.user_message) {
+					await this.notifyUserOfDuplication(sender.tab?.id, result.deduplication.user_message);
+				}
+				
 				sendResponse({ 
 					success: true, 
-					message: `${missingContentFeedback.length} missing content feedback items submitted successfully` 
+					message: `${missingContentFeedback.length} missing content feedback items submitted successfully`,
+					deduplication: result.deduplication
 				});
 			} catch (error) {
 				console.error("Failed to send missing content feedback to backend:", error);

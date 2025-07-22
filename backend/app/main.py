@@ -92,27 +92,82 @@ async def submit_feedback(feedback_data: FeedbackSubmissionRequest):
         deduplication_results = {
             "nugget_duplicates": 0,
             "missing_content_duplicates": 0,
-            "total_submitted": 0
+            "total_submitted": 0,
+            "duplicate_details": [],
+            "user_message": None,
         }
-        
+
         async with get_db() as db:
             # Store nugget feedback
             if feedback_data.nuggetFeedback:
                 for feedback in feedback_data.nuggetFeedback:
-                    was_duplicate = await feedback_service.store_nugget_feedback(db, feedback)
+                    was_duplicate = await feedback_service.store_nugget_feedback(
+                        db, feedback
+                    )
                     if was_duplicate:
                         deduplication_results["nugget_duplicates"] += 1
+
+                        # Get deduplication info for user message
+                        dedup_info = await feedback_service.get_deduplication_info(
+                            db, feedback.id, "nugget"
+                        )
+
+                        deduplication_results["duplicate_details"].append(
+                            {
+                                "type": "nugget",
+                                "content": feedback.nuggetContent[:100] + "..."
+                                if len(feedback.nuggetContent) > 100
+                                else feedback.nuggetContent,
+                                "report_count": dedup_info["report_count"],
+                                "first_reported_at": dedup_info["first_reported_at"],
+                            }
+                        )
+
                     deduplication_results["total_submitted"] += 1
 
             # Store missing content feedback
             if feedback_data.missingContentFeedback:
                 for missing_feedback in feedback_data.missingContentFeedback:
-                    was_duplicate = await feedback_service.store_missing_content_feedback(
-                        db, missing_feedback
+                    was_duplicate = (
+                        await feedback_service.store_missing_content_feedback(
+                            db, missing_feedback
+                        )
                     )
                     if was_duplicate:
                         deduplication_results["missing_content_duplicates"] += 1
+
+                        # Get deduplication info for user message
+                        dedup_info = await feedback_service.get_deduplication_info(
+                            db, missing_feedback.id, "missing_content"
+                        )
+
+                        deduplication_results["duplicate_details"].append(
+                            {
+                                "type": "missing_content",
+                                "content": missing_feedback.content[:100] + "..."
+                                if len(missing_feedback.content) > 100
+                                else missing_feedback.content,
+                                "report_count": dedup_info["report_count"],
+                                "first_reported_at": dedup_info["first_reported_at"],
+                            }
+                        )
+
                     deduplication_results["total_submitted"] += 1
+
+            # Generate user-friendly deduplication message
+            total_duplicates = (
+                deduplication_results["nugget_duplicates"]
+                + deduplication_results["missing_content_duplicates"]
+            )
+            if total_duplicates > 0:
+                if total_duplicates == 1:
+                    deduplication_results["user_message"] = (
+                        f"This feedback was already submitted previously. Your report has been counted (total: {deduplication_results['duplicate_details'][0]['report_count']} reports)."
+                    )
+                else:
+                    deduplication_results["user_message"] = (
+                        f"{total_duplicates} of your feedback items were duplicates. Your reports have been counted and help improve our system."
+                    )
 
             # Check if optimization should be triggered
             stats = await feedback_service.get_feedback_stats(db)
@@ -237,6 +292,7 @@ async def get_current_optimized_prompt():
 
 # Monitoring and observability endpoints
 
+
 @app.get("/monitor/health", response_model=SystemHealthResponse)
 async def get_system_health():
     """Get system health status and diagnostics"""
@@ -244,17 +300,17 @@ async def get_system_health():
         # Check system components
         uptime = time.time() - STARTUP_TIME
         active_optimizations = len(optimization_service.get_all_active_runs())
-        
+
         # Check DSPy availability
         dspy_available = True
         try:
             import dspy
         except ImportError:
             dspy_available = False
-        
+
         # Check Gemini configuration
         gemini_configured = bool(os.getenv("GEMINI_API_KEY"))
-        
+
         # Check database accessibility
         database_accessible = True
         try:
@@ -262,7 +318,7 @@ async def get_system_health():
                 await db.execute("SELECT 1")
         except Exception:
             database_accessible = False
-        
+
         # Determine overall health status
         if not database_accessible:
             status = "unhealthy"
@@ -270,7 +326,7 @@ async def get_system_health():
             status = "degraded"
         else:
             status = "healthy"
-        
+
         return SystemHealthResponse(
             status=status,
             uptime_seconds=uptime,
@@ -280,10 +336,12 @@ async def get_system_health():
             database_accessible=database_accessible,
             details={
                 "startup_time": datetime.fromtimestamp(STARTUP_TIME).isoformat(),
-                "gemini_key_length": len(os.getenv("GEMINI_API_KEY", "")) if gemini_configured else 0
-            }
+                "gemini_key_length": len(os.getenv("GEMINI_API_KEY", ""))
+                if gemini_configured
+                else 0,
+            },
         )
-        
+
     except Exception as e:
         return SystemHealthResponse(
             status="unhealthy",
@@ -292,7 +350,7 @@ async def get_system_health():
             dspy_available=False,
             gemini_configured=False,
             database_accessible=False,
-            details={"error": str(e)}
+            details={"error": str(e)},
         )
 
 
@@ -302,24 +360,27 @@ async def get_optimization_status(run_id: str):
     try:
         # Check in-memory progress first
         progress = optimization_service.get_run_progress(run_id)
-        
+
         if progress:
             return {
                 "success": True,
                 "run_id": run_id,
                 "progress": OptimizationProgress(**progress),
-                "source": "active"
+                "source": "active",
             }
-        
+
         # Check database for completed/failed runs
         async with get_db() as db:
-            cursor = await db.execute("""
+            cursor = await db.execute(
+                """
                 SELECT status, started_at, completed_at, error_message, performance_improvement
                 FROM optimization_runs
                 WHERE id = ?
-            """, (run_id,))
+            """,
+                (run_id,),
+            )
             result = await cursor.fetchone()
-            
+
             if result:
                 status, started_at, completed_at, error_message, improvement = result
                 return {
@@ -330,11 +391,11 @@ async def get_optimization_status(run_id: str):
                     "completed_at": completed_at,
                     "error_message": error_message,
                     "performance_improvement": improvement,
-                    "source": "database"
+                    "source": "database",
                 }
-        
+
         return {"success": False, "error": "Optimization run not found"}
-        
+
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Failed to get optimization status: {e!s}"
@@ -349,10 +410,10 @@ async def get_monitoring_dashboard():
             # Get active runs
             active_runs_data = optimization_service.get_all_active_runs()
             active_runs = {
-                run_id: OptimizationProgress(**progress) 
+                run_id: OptimizationProgress(**progress)
                 for run_id, progress in active_runs_data.items()
             }
-            
+
             # Get recent completions (last 10)
             cursor = await db.execute("""
                 SELECT id, mode, trigger_type, started_at, completed_at, status, 
@@ -363,29 +424,31 @@ async def get_monitoring_dashboard():
                 LIMIT 10
             """)
             results = await cursor.fetchall()
-            
+
             recent_completions = []
             for result in results:
-                recent_completions.append({
-                    "id": result[0],
-                    "mode": result[1],
-                    "trigger_type": result[2],
-                    "started_at": result[3],
-                    "completed_at": result[4],
-                    "status": result[5],
-                    "performance_improvement": result[6],
-                    "error_message": result[7]
-                })
-            
+                recent_completions.append(
+                    {
+                        "id": result[0],
+                        "mode": result[1],
+                        "trigger_type": result[2],
+                        "started_at": result[3],
+                        "completed_at": result[4],
+                        "status": result[5],
+                        "performance_improvement": result[6],
+                        "error_message": result[7],
+                    }
+                )
+
             # Get system health
             health_response = await get_system_health()
-            
+
             return MonitoringResponse(
                 active_runs=active_runs,
                 recent_completions=recent_completions,
-                system_health=health_response
+                system_health=health_response,
             )
-            
+
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Failed to get monitoring data: {e!s}"
@@ -394,11 +457,10 @@ async def get_monitoring_dashboard():
 
 # New dashboard endpoints for feedback queue and enhanced tracking
 
+
 @app.get("/feedback/pending")
 async def get_pending_feedback(
-    limit: int = 50,
-    offset: int = 0,
-    feedback_type: str = "all"
+    limit: int = 50, offset: int = 0, feedback_type: str = "all"
 ):
     """Get pending (unprocessed) feedback items for dashboard queue"""
     try:
@@ -414,10 +476,7 @@ async def get_pending_feedback(
 
 
 @app.get("/feedback/recent")
-async def get_recent_feedback(
-    limit: int = 20,
-    include_processed: bool = True
-):
+async def get_recent_feedback(limit: int = 20, include_processed: bool = True):
     """Get recent feedback items with processing status"""
     try:
         async with get_db() as db:
@@ -472,7 +531,7 @@ async def get_optimization_progress_history(run_id: str):
             return {
                 "run_id": run_id,
                 "progress_history": progress_history,
-                "total_entries": len(progress_history)
+                "total_entries": len(progress_history),
             }
     except Exception as e:
         raise HTTPException(
@@ -524,7 +583,8 @@ async def get_duplicate_analysis(limit: int = 50):
     """Get analysis of duplicate feedback submissions"""
     try:
         async with get_db() as db:
-            cursor = await db.execute(f"""
+            cursor = await db.execute(
+                f"""
                 SELECT 
                     feedback_type,
                     content,
@@ -537,27 +597,33 @@ async def get_duplicate_analysis(limit: int = 50):
                 FROM duplicate_content_analysis
                 ORDER BY report_count DESC, latest_report DESC
                 LIMIT ?
-            """, (limit,))
-            
+            """,
+                (limit,),
+            )
+
             results = await cursor.fetchall()
-            
+
             duplicates = []
             for row in results:
-                duplicates.append({
-                    "feedback_type": row[0],
-                    "content": row[1][:200] + "..." if len(row[1]) > 200 else row[1],  # Truncate for display
-                    "url": row[2],
-                    "report_count": row[3],
-                    "similar_items": row[4],
-                    "earliest_report": row[5],
-                    "latest_report": row[6],
-                    "item_ids": row[7].split(",") if row[7] else []
-                })
-            
+                duplicates.append(
+                    {
+                        "feedback_type": row[0],
+                        "content": row[1][:200] + "..."
+                        if len(row[1]) > 200
+                        else row[1],  # Truncate for display
+                        "url": row[2],
+                        "report_count": row[3],
+                        "similar_items": row[4],
+                        "earliest_report": row[5],
+                        "latest_report": row[6],
+                        "item_ids": row[7].split(",") if row[7] else [],
+                    }
+                )
+
             return {
                 "duplicates": duplicates,
                 "total_found": len(duplicates),
-                "limit": limit
+                "limit": limit,
             }
     except Exception as e:
         raise HTTPException(
@@ -573,7 +639,7 @@ async def get_dashboard_stats():
             # Use the dashboard_stats view created in migration
             cursor = await db.execute("SELECT * FROM dashboard_stats")
             stats = await cursor.fetchone()
-            
+
             if not stats:
                 return {
                     "pending_nugget_feedback": 0,
@@ -584,9 +650,9 @@ async def get_dashboard_stats():
                     "completed_optimizations": 0,
                     "failed_optimizations": 0,
                     "monthly_costs": 0,
-                    "monthly_tokens": 0
+                    "monthly_tokens": 0,
                 }
-            
+
             return {
                 "pending_nugget_feedback": stats[0],
                 "pending_missing_feedback": stats[1],
@@ -596,7 +662,7 @@ async def get_dashboard_stats():
                 "completed_optimizations": stats[5],
                 "failed_optimizations": stats[6],
                 "monthly_costs": stats[7],
-                "monthly_tokens": stats[8]
+                "monthly_tokens": stats[8],
             }
     except Exception as e:
         raise HTTPException(

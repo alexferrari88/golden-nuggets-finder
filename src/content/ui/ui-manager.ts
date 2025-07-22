@@ -80,6 +80,10 @@ export class UIManager {
 		this.notifications.showError(message);
 	}
 
+	showInfoBanner(message: string): void {
+		this.notifications.showInfo(message);
+	}
+
 	showApiKeyErrorBanner(): void {
 		this.notifications.showApiKeyError();
 	}

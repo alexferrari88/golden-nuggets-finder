@@ -339,6 +339,12 @@ export default defineContentScript({
 						sendResponse({ success: true });
 						break;
 
+					case MESSAGE_TYPES.SHOW_INFO:
+						// No need to initialize for info display
+						uiManager.showInfoBanner(request.message);
+						sendResponse({ success: true });
+						break;
+
 					case MESSAGE_TYPES.SHOW_API_KEY_ERROR:
 						// No need to initialize for error display
 						uiManager.showApiKeyErrorBanner();
