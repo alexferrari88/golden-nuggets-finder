@@ -15,6 +15,13 @@ export interface SavedPrompt {
 	name: string;
 	prompt: string;
 	isDefault: boolean;
+	// Optional properties for optimized prompts
+	isOptimized?: boolean;
+	optimizationDate?: string;
+	performance?: {
+		feedbackCount: number;
+		positiveRate: number;
+	};
 }
 
 export interface ExtensionConfig {
@@ -32,6 +39,7 @@ export interface SidebarNuggetItem {
 	nugget: GoldenNugget;
 	status: "highlighted" | "not-found";
 	selected: boolean;
+	feedback?: NuggetFeedback;
 }
 
 export interface TypeFilterOptions {
@@ -89,6 +97,61 @@ export interface AnalysisResponse {
 	error?: string;
 }
 
+// Feedback System Types
+export type FeedbackRating = "positive" | "negative";
+
+export interface NuggetFeedback {
+	id: string;
+	nuggetContent: string; // First 200 chars for identification
+	originalType: GoldenNuggetType;
+	correctedType?: GoldenNuggetType; // If user corrected the type
+	rating: FeedbackRating;
+	timestamp: number;
+	url: string;
+	context: string; // Surrounding content (first 200 chars)
+}
+
+export interface MissingContentFeedback {
+	id: string;
+	content: string;
+	suggestedType: GoldenNuggetType;
+	timestamp: number;
+	url: string;
+	context: string; // Page context
+}
+
+export interface FeedbackSubmission {
+	nuggetFeedback?: NuggetFeedback[];
+	missingContentFeedback?: MissingContentFeedback[];
+}
+
+export interface FeedbackStats {
+	totalFeedback: number;
+	positiveCount: number;
+	negativeCount: number;
+	lastOptimizationDate: string | null;
+	daysSinceLastOptimization: number;
+	recentNegativeRate: number; // Negative rate in last 20 items
+	shouldOptimize: boolean;
+	nextOptimizationTrigger: string;
+}
+
+export interface OptimizationRequest {
+	mode: "expensive" | "cheap"; // MIPROv2 vs BootstrapFewShotWithRandomSearch
+	manualTrigger?: boolean;
+}
+
+export interface OptimizedPrompt {
+	id: string;
+	version: number;
+	prompt: string;
+	optimizationDate: string;
+	performance: {
+		feedbackCount: number;
+		positiveRate: number;
+	};
+}
+
 export interface DebugLogMessage {
 	type:
 		| "log"
@@ -136,6 +199,13 @@ export interface MessageTypes {
 	DEBUG_LOG: "DEBUG_LOG";
 	ENTER_SELECTION_MODE: "ENTER_SELECTION_MODE";
 	ANALYZE_SELECTED_CONTENT: "ANALYZE_SELECTED_CONTENT";
+	// Feedback System Messages
+	SUBMIT_NUGGET_FEEDBACK: "SUBMIT_NUGGET_FEEDBACK";
+	ENTER_MISSING_CONTENT_MODE: "ENTER_MISSING_CONTENT_MODE";
+	SUBMIT_MISSING_CONTENT_FEEDBACK: "SUBMIT_MISSING_CONTENT_FEEDBACK";
+	GET_FEEDBACK_STATS: "GET_FEEDBACK_STATS";
+	TRIGGER_OPTIMIZATION: "TRIGGER_OPTIMIZATION";
+	GET_CURRENT_OPTIMIZED_PROMPT: "GET_CURRENT_OPTIMIZED_PROMPT";
 }
 
 export const MESSAGE_TYPES: MessageTypes = {
@@ -159,4 +229,11 @@ export const MESSAGE_TYPES: MessageTypes = {
 	DEBUG_LOG: "DEBUG_LOG",
 	ENTER_SELECTION_MODE: "ENTER_SELECTION_MODE",
 	ANALYZE_SELECTED_CONTENT: "ANALYZE_SELECTED_CONTENT",
+	// Feedback System Messages
+	SUBMIT_NUGGET_FEEDBACK: "SUBMIT_NUGGET_FEEDBACK",
+	ENTER_MISSING_CONTENT_MODE: "ENTER_MISSING_CONTENT_MODE",
+	SUBMIT_MISSING_CONTENT_FEEDBACK: "SUBMIT_MISSING_CONTENT_FEEDBACK",
+	GET_FEEDBACK_STATS: "GET_FEEDBACK_STATS",
+	TRIGGER_OPTIMIZATION: "TRIGGER_OPTIMIZATION",
+	GET_CURRENT_OPTIMIZED_PROMPT: "GET_CURRENT_OPTIMIZED_PROMPT",
 };

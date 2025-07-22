@@ -4,6 +4,9 @@ import {
 	type AnalysisRequest,
 	type AnalysisResponse,
 	MESSAGE_TYPES,
+	type NuggetFeedback,
+	type MissingContentFeedback,
+	type FeedbackSubmission,
 } from "../shared/types";
 import type { GeminiClient } from "./gemini-client";
 import { TypeFilterService } from "./type-filter-service";
@@ -94,6 +97,26 @@ export class MessageHandler {
 					await this.handleOpenOptionsPage(sendResponse);
 					break;
 
+				case MESSAGE_TYPES.SUBMIT_NUGGET_FEEDBACK:
+					await this.handleSubmitNuggetFeedback(request, sendResponse);
+					break;
+
+				case MESSAGE_TYPES.SUBMIT_MISSING_CONTENT_FEEDBACK:
+					await this.handleSubmitMissingContentFeedback(request, sendResponse);
+					break;
+
+				case MESSAGE_TYPES.GET_FEEDBACK_STATS:
+					await this.handleGetFeedbackStats(sendResponse);
+					break;
+
+				case MESSAGE_TYPES.TRIGGER_OPTIMIZATION:
+					await this.handleTriggerOptimization(request, sendResponse);
+					break;
+
+				case MESSAGE_TYPES.GET_CURRENT_OPTIMIZED_PROMPT:
+					await this.handleGetCurrentOptimizedPrompt(sendResponse);
+					break;
+
 				default:
 					sendResponse({ success: false, error: "Unknown message type" });
 			}
@@ -136,6 +159,18 @@ export class MessageHandler {
 				prompt.prompt,
 				request.url,
 			);
+
+			// Check if we should use optimized prompt from backend
+			try {
+				const optimizedPromptResponse = await this.getOptimizedPromptIfAvailable();
+				if (optimizedPromptResponse && optimizedPromptResponse.prompt) {
+					console.log("Using optimized prompt from backend DSPy system");
+					processedPrompt = this.replaceSourcePlaceholder(optimizedPromptResponse.prompt, request.url);
+				}
+			} catch (error) {
+				console.log("No optimized prompt available, using default:", (error as Error).message);
+				// Continue with default prompt
+			}
 
 			// Apply type filtering if specified
 			if (request.typeFilter && request.typeFilter.selectedTypes.length > 0) {
@@ -229,6 +264,18 @@ export class MessageHandler {
 				request.url,
 			);
 
+			// Check if we should use optimized prompt from backend
+			try {
+				const optimizedPromptResponse = await this.getOptimizedPromptIfAvailable();
+				if (optimizedPromptResponse && optimizedPromptResponse.prompt) {
+					console.log("Using optimized prompt from backend DSPy system for selected content");
+					processedPrompt = this.replaceSourcePlaceholder(optimizedPromptResponse.prompt, request.url);
+				}
+			} catch (error) {
+				console.log("No optimized prompt available for selected content, using default:", (error as Error).message);
+				// Continue with default prompt
+			}
+
 			// Apply type filtering if specified
 			if (request.typeFilter && request.typeFilter.selectedTypes.length > 0) {
 				// Validate selected types
@@ -310,6 +357,32 @@ export class MessageHandler {
 	): Promise<void> {
 		try {
 			const prompts = await storage.getPrompts();
+			
+			// Try to add current optimized prompt if available
+			try {
+				const optimizedPromptResponse = await this.getOptimizedPromptIfAvailable();
+				if (optimizedPromptResponse && optimizedPromptResponse.prompt && optimizedPromptResponse.version > 0) {
+					const optimizedPromptItem = {
+						id: `optimized-v${optimizedPromptResponse.version}`,
+						name: `🚀 Optimized Prompt v${optimizedPromptResponse.version} (DSPy)`,
+						prompt: optimizedPromptResponse.prompt,
+						isDefault: false,
+						isOptimized: true,
+						optimizationDate: optimizedPromptResponse.optimizationDate,
+						performance: optimizedPromptResponse.performance
+					};
+					
+					// Add optimized prompt at the beginning of the list
+					const promptsWithOptimized = [optimizedPromptItem, ...prompts];
+					console.log("Added optimized prompt to prompts list");
+					sendResponse({ success: true, data: promptsWithOptimized });
+					return;
+				}
+			} catch (error) {
+				console.log("No optimized prompt available for prompts list:", (error as Error).message);
+				// Continue with regular prompts
+			}
+			
 			sendResponse({ success: true, data: prompts });
 		} catch (error) {
 			sendResponse({ success: false, error: (error as Error).message });
@@ -408,6 +481,259 @@ export class MessageHandler {
 			return "Twitter thread";
 		} else {
 			return "text";
+		}
+	}
+
+	// Feedback System Handlers
+
+	private async handleSubmitNuggetFeedback(
+		request: any,
+		sendResponse: (response: any) => void,
+	): Promise<void> {
+		try {
+			const feedback: NuggetFeedback = request.feedback;
+			
+			if (!feedback) {
+				sendResponse({ success: false, error: "No feedback data provided" });
+				return;
+			}
+
+			// Store feedback locally as backup
+			await this.storeFeedbackLocally('nugget', feedback);
+
+			// Send to backend API
+			try {
+				const result = await this.sendFeedbackToBackend({ nuggetFeedback: [feedback] });
+				console.log("Nugget feedback sent to backend:", result);
+			} catch (error) {
+				console.error("Failed to send nugget feedback to backend:", error);
+				// Continue with local storage as fallback
+			}
+
+			console.log("Nugget feedback processed:", feedback);
+			sendResponse({ success: true, message: "Feedback submitted successfully" });
+		} catch (error) {
+			console.error("Failed to submit nugget feedback:", error);
+			sendResponse({ success: false, error: (error as Error).message });
+		}
+	}
+
+	private async handleSubmitMissingContentFeedback(
+		request: any,
+		sendResponse: (response: any) => void,
+	): Promise<void> {
+		try {
+			const missingContentFeedback: MissingContentFeedback[] = request.missingContentFeedback;
+			
+			if (!missingContentFeedback || missingContentFeedback.length === 0) {
+				sendResponse({ success: false, error: "No missing content feedback provided" });
+				return;
+			}
+
+			// Store feedback locally as backup
+			for (const feedback of missingContentFeedback) {
+				await this.storeFeedbackLocally('missing', feedback);
+			}
+
+			// Send to backend API
+			try {
+				const result = await this.sendFeedbackToBackend({ missingContentFeedback });
+				console.log("Missing content feedback sent to backend:", result);
+			} catch (error) {
+				console.error("Failed to send missing content feedback to backend:", error);
+				// Continue with local storage as fallback
+			}
+
+			console.log("Missing content feedback processed:", missingContentFeedback);
+			sendResponse({ 
+				success: true, 
+				message: `${missingContentFeedback.length} missing content feedback items submitted successfully` 
+			});
+		} catch (error) {
+			console.error("Failed to submit missing content feedback:", error);
+			sendResponse({ success: false, error: (error as Error).message });
+		}
+	}
+
+	private async handleGetFeedbackStats(
+		sendResponse: (response: any) => void,
+	): Promise<void> {
+		try {
+			// Get stats from backend API
+			const response = await fetch('http://localhost:7532/feedback/stats', {
+				method: 'GET',
+				headers: { 'Content-Type': 'application/json' }
+			});
+
+			if (!response.ok) {
+				throw new Error(`Backend stats request failed: ${response.status} ${response.statusText}`);
+			}
+
+			const stats = await response.json();
+			console.log("Feedback stats retrieved from backend:", stats);
+			sendResponse({ success: true, data: stats });
+		} catch (error) {
+			console.error("Failed to get feedback stats from backend:", error);
+			
+			// Fallback to mock stats if backend is unavailable
+			const fallbackStats = {
+				totalFeedback: 0,
+				positiveCount: 0,
+				negativeCount: 0,
+				lastOptimizationDate: null,
+				daysSinceLastOptimization: 0,
+				recentNegativeRate: 0,
+				shouldOptimize: false,
+				nextOptimizationTrigger: "Backend not available - using local data"
+			};
+			sendResponse({ success: true, data: fallbackStats, warning: "Backend not available, using fallback stats" });
+		}
+	}
+
+	private async handleTriggerOptimization(
+		request: any,
+		sendResponse: (response: any) => void,
+	): Promise<void> {
+		try {
+			const optimizationRequest = {
+				mode: request.mode || 'cheap',
+				manualTrigger: true
+			};
+
+			console.log("Triggering optimization:", optimizationRequest);
+			
+			// Send optimization request to backend
+			const response = await fetch('http://localhost:7532/optimize', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(optimizationRequest)
+			});
+
+			if (!response.ok) {
+				throw new Error(`Optimization request failed: ${response.status} ${response.statusText}`);
+			}
+
+			const result = await response.json();
+			console.log("Optimization triggered successfully:", result);
+			sendResponse({ success: true, data: result });
+		} catch (error) {
+			console.error("Failed to trigger optimization:", error);
+			sendResponse({ success: false, error: (error as Error).message });
+		}
+	}
+
+	// Helper method to store feedback locally for now
+	private async storeFeedbackLocally(
+		type: 'nugget' | 'missing',
+		feedback: NuggetFeedback | MissingContentFeedback
+	): Promise<void> {
+		try {
+			const key = type === 'nugget' ? 'nugget_feedback' : 'missing_feedback';
+			const existingData = await chrome.storage.local.get([key]);
+			const feedbackArray = existingData[key] || [];
+			
+			feedbackArray.push({
+				...feedback,
+				storedAt: Date.now()
+			});
+
+			// Keep only last 1000 feedback items to prevent storage overflow
+			if (feedbackArray.length > 1000) {
+				feedbackArray.splice(0, feedbackArray.length - 1000);
+			}
+
+			await chrome.storage.local.set({ [key]: feedbackArray });
+		} catch (error) {
+			console.error("Failed to store feedback locally:", error);
+			throw error;
+		}
+	}
+
+	private async handleGetCurrentOptimizedPrompt(
+		sendResponse: (response: any) => void,
+	): Promise<void> {
+		try {
+			// Get current optimized prompt from backend
+			const response = await fetch('http://localhost:7532/optimize/current', {
+				method: 'GET',
+				headers: { 'Content-Type': 'application/json' }
+			});
+
+			if (!response.ok) {
+				throw new Error(`Get optimized prompt failed: ${response.status} ${response.statusText}`);
+			}
+
+			const optimizedPrompt = await response.json();
+			console.log("Current optimized prompt retrieved:", optimizedPrompt);
+			sendResponse({ success: true, data: optimizedPrompt });
+		} catch (error) {
+			console.error("Failed to get current optimized prompt:", error);
+			sendResponse({ 
+				success: false, 
+				error: (error as Error).message,
+				fallback: "Using default prompt - no optimized prompt available"
+			});
+		}
+	}
+
+	// Send feedback to backend API with timeout and retry logic
+	private async sendFeedbackToBackend(feedback: FeedbackSubmission): Promise<any> {
+		const controller = new AbortController();
+		const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+
+		try {
+			const response = await fetch('http://localhost:7532/feedback', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(feedback),
+				signal: controller.signal
+			});
+			
+			if (!response.ok) {
+				const errorText = await response.text();
+				throw new Error(`Backend feedback submission failed: ${response.status} ${response.statusText} - ${errorText}`);
+			}
+			
+			return await response.json();
+		} catch (error) {
+			if ((error as Error).name === 'AbortError') {
+				throw new Error('Backend request timed out after 10 seconds');
+			}
+			throw error;
+		} finally {
+			clearTimeout(timeoutId);
+		}
+	}
+
+	// Helper method to get optimized prompt if available (used during analysis)
+	private async getOptimizedPromptIfAvailable(): Promise<any> {
+		const controller = new AbortController();
+		const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout for prompt fetch
+
+		try {
+			const response = await fetch('http://localhost:7532/optimize/current', {
+				method: 'GET',
+				headers: { 'Content-Type': 'application/json' },
+				signal: controller.signal
+			});
+
+			if (!response.ok) {
+				throw new Error(`Failed to get optimized prompt: ${response.status} ${response.statusText}`);
+			}
+
+			const result = await response.json();
+			// Only return if we have a valid prompt with decent performance
+			if (result && result.prompt && result.version > 0) {
+				return result;
+			}
+			return null;
+		} catch (error) {
+			if ((error as Error).name === 'AbortError') {
+				throw new Error('Optimized prompt request timed out');
+			}
+			throw error;
+		} finally {
+			clearTimeout(timeoutId);
 		}
 	}
 }
