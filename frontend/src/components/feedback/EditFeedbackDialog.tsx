@@ -28,7 +28,7 @@ export function EditFeedbackDialog({ item, children }: EditFeedbackDialogProps) 
 
   const updateMutation = useMutation({
     mutationFn: (updates: { content?: string; rating?: 'positive' | 'negative' | null }) =>
-      apiClient.updateFeedbackItem(item.id, updates),
+      apiClient.updateFeedbackItem(item.id, item.type, updates),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['pending-feedback'] });
       setOpen(false);

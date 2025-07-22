@@ -141,17 +141,19 @@ export const apiClient = {
     }),
 
   // Feedback Item Management - Edit/Delete operations
-  updateFeedbackItem: (id: string, updates: { content?: string; rating?: 'positive' | 'negative' | null }) =>
+  updateFeedbackItem: (id: string, feedbackType: 'nugget' | 'missing_content', updates: { content?: string; rating?: 'positive' | 'negative' | null }) =>
     makeRequest({
       method: 'PUT',
       url: `/feedback/${id}`,
+      params: { feedback_type: feedbackType },
       data: updates,
     }),
 
-  deleteFeedbackItem: (id: string) =>
+  deleteFeedbackItem: (id: string, feedbackType: 'nugget' | 'missing_content') =>
     makeRequest({
       method: 'DELETE',
       url: `/feedback/${id}`,
+      params: { feedback_type: feedbackType },
     }),
 
   // Optimization Progress - Live tracking

@@ -24,7 +24,7 @@ export function DeleteFeedbackDialog({ item, children }: DeleteFeedbackDialogPro
   const queryClient = useQueryClient();
 
   const deleteMutation = useMutation({
-    mutationFn: () => apiClient.deleteFeedbackItem(item.id),
+    mutationFn: () => apiClient.deleteFeedbackItem(item.id, item.type),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['pending-feedback'] });
       setOpen(false);
