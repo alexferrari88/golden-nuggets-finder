@@ -7,7 +7,7 @@ optimization modes with threshold-based triggering.
 
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime
+from datetime import datetime, timezone
 import json
 import logging
 from typing import Optional
@@ -88,7 +88,7 @@ Return your response as valid JSON only, with no additional text or explanation.
                 "run_id": run_id,
                 "mode": mode,
                 "trigger_type": trigger_type,
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
             },
         )
 
@@ -98,7 +98,7 @@ Return your response as valid JSON only, with no additional text or explanation.
                 id, mode, trigger_type, started_at, status, feedback_count
             ) VALUES (?, ?, ?, ?, ?, ?)
         """,
-            (run_id, mode, trigger_type, datetime.now(), "running", 0),
+            (run_id, mode, trigger_type, datetime.now(timezone.utc), "running", 0),
         )
         await db.commit()
 
@@ -197,7 +197,7 @@ Return your response as valid JSON only, with no additional text or explanation.
                 WHERE id = ?
             """,
                 (
-                    datetime.now(),
+                    datetime.now(timezone.utc),
                     result["optimized_prompt"][:1000],  # Store first 1000 chars
                     result.get("improvement", 0.0),
                     run_id,
@@ -244,8 +244,8 @@ Return your response as valid JSON only, with no additional text or explanation.
 
             # Clean up active run tracking after delay to allow status check
             if run_id in self.active_runs:
-                self.active_runs[run_id]["cleanup_after"] = datetime.now().replace(
-                    minute=datetime.now().minute + 5
+                self.active_runs[run_id]["cleanup_after"] = datetime.now(timezone.utc).replace(
+                    minute=datetime.now(timezone.utc).minute + 5
                 )
 
             await db.execute(
@@ -254,7 +254,7 @@ Return your response as valid JSON only, with no additional text or explanation.
                 SET status = 'failed', completed_at = ?, error_message = ?
                 WHERE id = ?
             """,
-                (datetime.now(), str(e), run_id),
+                (datetime.now(timezone.utc), str(e), run_id),
             )
             await db.commit()
 
@@ -277,7 +277,7 @@ Return your response as valid JSON only, with no additional text or explanation.
             validate_dspy_environment,
         )
 
-        start_time = datetime.now()
+        start_time = datetime.now(timezone.utc)
 
         # Validate DSPy environment
         env_status = validate_dspy_environment()
@@ -287,7 +287,7 @@ Return your response as valid JSON only, with no additional text or explanation.
                 "performance_score": 0.0,
                 "baseline_score": 0.0,
                 "improvement": 0.0,
-                "execution_time": (datetime.now() - start_time).total_seconds(),
+                "execution_time": (datetime.now(timezone.utc) - start_time).total_seconds(),
                 "training_examples_count": len(training_examples),
                 "validation_examples_count": 0,
                 "mode": mode,
@@ -345,7 +345,7 @@ Return your response as valid JSON only, with no additional text or explanation.
                 metric=metric,
             )
 
-            execution_time = (datetime.now() - start_time).total_seconds()
+            execution_time = (datetime.now(timezone.utc) - start_time).total_seconds()
 
             # Extract optimized prompt
             optimized_prompt = self._extract_prompt_from_module(optimized_extractor)
@@ -394,7 +394,7 @@ Return your response as valid JSON only, with no additional text or explanation.
             }
 
         except Exception as e:
-            execution_time = (datetime.now() - start_time).total_seconds()
+            execution_time = (datetime.now(timezone.utc) - start_time).total_seconds()
 
             print(f"Optimization failed: {e}")
 
@@ -484,7 +484,7 @@ Return valid JSON with the exact structure: {{"golden_nuggets": [...]}}"""
                 prompt_id,
                 version,
                 optimization_result["optimized_prompt"],
-                datetime.now(),
+                datetime.now(timezone.utc),
                 optimization_result["training_examples_count"],
                 optimization_result["performance_score"],
                 True,  # is_current
@@ -503,8 +503,8 @@ Return valid JSON with the exact structure: {{"golden_nuggets": [...]}}"""
                 "step": step,
                 "progress": progress,
                 "message": message,
-                "timestamp": datetime.now().isoformat(),
-                "last_updated": datetime.now(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "last_updated": datetime.now(timezone.utc),
             }
 
             # Console logging with emoji indicators
@@ -534,7 +534,7 @@ Return valid JSON with the exact structure: {{"golden_nuggets": [...]}}"""
     def get_all_active_runs(self) -> dict:
         """Get progress for all currently active optimization runs"""
         # Clean up old runs (older than 24 hours)
-        now = datetime.now()
+        now = datetime.now(timezone.utc)
         cutoff = (
             now.replace(hour=now.hour - 24)
             if now.hour >= 24

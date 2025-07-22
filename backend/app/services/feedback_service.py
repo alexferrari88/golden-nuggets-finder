@@ -5,7 +5,7 @@ Manages storage, retrieval, and analysis of user feedback for both
 nugget ratings/corrections and missing content submissions.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 import json
 import uuid
 from typing import Optional
@@ -22,7 +22,7 @@ class FeedbackService:
         self, db: aiosqlite.Connection, feedback: NuggetFeedback
     ):
         """Store nugget feedback in database with deduplication"""
-        current_time = datetime.now()
+        current_time = datetime.now(timezone.utc)
 
         # Check for existing record with same content, URL, and original type
         cursor = await db.execute(
@@ -96,7 +96,7 @@ class FeedbackService:
         self, db: aiosqlite.Connection, feedback: MissingContentFeedback
     ):
         """Store missing content feedback in database with deduplication"""
-        current_time = datetime.now()
+        current_time = datetime.now(timezone.utc)
 
         # Check for existing record with same content and URL
         cursor = await db.execute(
@@ -260,7 +260,7 @@ class FeedbackService:
                 last_opt_dt = datetime.fromisoformat(
                     last_optimization_date.replace("Z", "+00:00")
                 )
-                days_since = (datetime.now() - last_opt_dt).days
+                days_since = (datetime.now(timezone.utc) - last_opt_dt).days
             except:
                 days_since = 999  # Fallback if parsing fails
         else:
@@ -668,7 +668,7 @@ class FeedbackService:
             feedback_items: List of feedback items with type and id
             optimization_run_id: ID of the optimization run using this feedback
         """
-        current_time = datetime.now().isoformat()
+        current_time = datetime.now(timezone.utc).isoformat() + "Z"
 
         for item in feedback_items:
             feedback_type = item["type"]  # 'nugget' or 'missing_content'

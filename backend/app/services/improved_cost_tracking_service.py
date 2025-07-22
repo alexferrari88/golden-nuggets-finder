@@ -7,7 +7,7 @@ via lm.history, providing accurate, maintenance-free cost monitoring.
 
 import json
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional
 
 import aiosqlite
@@ -69,7 +69,7 @@ class ImprovedCostTrackingService:
                 input_tokens,
                 output_tokens,
                 operation_cost,
-                datetime.now().isoformat(),
+                datetime.now(timezone.utc).isoformat(),
                 json.dumps({
                     **(metadata or {}),
                     "operation_name": operation_name,
@@ -212,7 +212,7 @@ class ImprovedCostTrackingService:
         Get cost summary with accuracy information.
         (Enhanced version of existing method)
         """
-        since_date = (datetime.now() - timedelta(days=days)).isoformat()
+        since_date = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
 
         # Get total costs for the period
         cursor = await db.execute(

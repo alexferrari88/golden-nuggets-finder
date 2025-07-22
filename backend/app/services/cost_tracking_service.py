@@ -7,7 +7,7 @@ and cost breakdowns by operation type and model.
 
 import json
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional
 
 import aiosqlite
@@ -79,7 +79,7 @@ class CostTrackingService:
                 input_tokens,
                 output_tokens,
                 cost_usd,
-                datetime.now().isoformat(),
+                datetime.now(timezone.utc).isoformat(),
                 json.dumps(metadata) if metadata else None,
             ),
         )
@@ -194,7 +194,7 @@ class CostTrackingService:
         Returns:
             Cost summary with trends and breakdowns
         """
-        since_date = (datetime.now() - timedelta(days=days)).isoformat()
+        since_date = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
 
         # Get total costs for the period
         cursor = await db.execute(
@@ -295,7 +295,7 @@ class CostTrackingService:
         Returns:
             Trend data and projections
         """
-        since_date = (datetime.now() - timedelta(days=days)).isoformat()
+        since_date = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
 
         # Get weekly costs for trend analysis
         cursor = await db.execute(

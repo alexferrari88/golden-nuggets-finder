@@ -7,7 +7,7 @@ Provides both in-memory (for real-time updates) and persistent
 
 import json
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Optional
 
 import aiosqlite
@@ -40,7 +40,7 @@ class ProgressTrackingService:
             message: Human-readable progress message
             metadata: Optional metadata for the progress entry
         """
-        timestamp = datetime.now().isoformat()
+        timestamp = datetime.now(timezone.utc).isoformat()
 
         # Update in-memory progress for real-time access
         progress_data = {
@@ -165,7 +165,7 @@ class ProgressTrackingService:
                     "step": "failed",
                     "progress": -1,
                     "message": f"❌ {error_message}",
-                    "last_updated": datetime.now().isoformat(),
+                    "last_updated": datetime.now(timezone.utc).isoformat(),
                 }
             )
 
