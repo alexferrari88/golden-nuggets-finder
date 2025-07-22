@@ -309,6 +309,13 @@ export default defineContentScript({
 						}
 						// Also ensure analysis modal is properly completed/closed
 						uiManager.restoreSelectionMode();
+						
+						// Notify background script that analysis is complete for context menu tracking
+						chrome.runtime.sendMessage({ 
+							type: MESSAGE_TYPES.ANALYSIS_COMPLETE,
+							fromContentScript: true 
+						});
+						
 						sendResponse({ success: true });
 						break;
 

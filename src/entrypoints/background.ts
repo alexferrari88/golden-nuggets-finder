@@ -16,7 +16,7 @@ export default defineBackground(() => {
 		// Handle ANALYSIS_COMPLETE message to track state
 		if (request.type === MESSAGE_TYPES.ANALYSIS_COMPLETE && sender.tab?.id) {
 			analysisCompletedTabs.add(sender.tab.id);
-			console.log(`[Background] Analysis completed for tab ${sender.tab.id}`);
+			console.log(`[Background] Analysis completed for tab ${sender.tab.id}, tracked tabs:`, Array.from(analysisCompletedTabs));
 		}
 		
 		messageHandler.handleMessage(request, sender, sendResponse);
@@ -49,6 +49,12 @@ export default defineBackground(() => {
 
 	// Handle context menu clicks
 	chrome.contextMenus.onClicked.addListener((info, tab) => {
+		console.log("[Background] Context menu clicked:", {
+			menuItemId: info.menuItemId,
+			selectionText: info.selectionText?.substring(0, 50) + "...",
+			contexts: info.contexts
+		});
+		
 		if (info.menuItemId && typeof info.menuItemId === "string") {
 			if (info.menuItemId.includes("__")) {
 				// Handle typed menu clicks (e.g., "promptId__typeId")
@@ -60,8 +66,10 @@ export default defineBackground(() => {
 					handleTypedContextMenuClick(promptId, typeId, tab);
 				}
 			} else if (info.menuItemId === "select-comments") {
+				console.log("[Background] Handling select-comments click");
 				handleCommentSelectionClick(tab);
 			} else if (info.menuItemId === "report-missed-nugget") {
+				console.log("[Background] Handling report-missed-nugget click");
 				handleReportMissedNugget(tab, info);
 			}
 		}
@@ -131,6 +139,7 @@ export default defineBackground(() => {
 				title: "🚩 Report missed golden nugget",
 				contexts: ["selection"],
 			});
+			console.log("[Background] Context menu 'report-missed-nugget' created");
 		} catch (error) {
 			console.error("Failed to setup context menu:", error);
 		}
@@ -262,17 +271,27 @@ export default defineBackground(() => {
 		tab?: chrome.tabs.Tab,
 		info?: chrome.contextMenus.OnClickData
 	): Promise<void> {
-		if (!tab?.id) return;
+		console.log("[Background] handleReportMissedNugget called", {
+			tabId: tab?.id,
+			selectedText: info?.selectionText?.substring(0, 50) + "...",
+			trackedTabs: Array.from(analysisCompletedTabs)
+		});
+		
+		if (!tab?.id) {
+			console.log("[Background] No tab ID - returning");
+			return;
+		}
 
 		try {
 			// Check if analysis has been completed on this tab
 			if (!analysisCompletedTabs.has(tab.id)) {
-				console.log("[Background] Analysis not completed on this tab - cannot report missed nugget");
+				console.log(`[Background] Analysis not completed on tab ${tab.id} - cannot report missed nugget. Tracked tabs:`, Array.from(analysisCompletedTabs));
 				return;
 			}
 
 			// Check if user has selected text and it's long enough
 			const selectedText = info?.selectionText?.trim() || "";
+			console.log(`[Background] Selected text length: ${selectedText.length}`);
 			if (selectedText.length <= 5) {
 				console.log("[Background] Selected text too short or empty - cannot report missed nugget");
 				return;

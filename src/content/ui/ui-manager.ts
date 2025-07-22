@@ -2,6 +2,7 @@ import type { Content, ContentScraper } from "threads-harvester";
 import {
 	borderRadius,
 	colors,
+	components,
 	shadows,
 	spacing,
 	typography,
@@ -444,8 +445,8 @@ export class UIManager {
 		submitButton.style.cssText = `
 			width: 100%;
 			padding: ${spacing.sm} ${spacing.md};
-			background: ${colors.button.primary.background};
-			color: ${colors.button.primary.text};
+			background: ${components.button.primary.backgroundColor};
+			color: ${components.button.primary.color};
 			border: none;
 			border-radius: ${borderRadius.sm};
 			font-size: ${typography.fontSize.sm};
@@ -505,13 +506,13 @@ export class UIManager {
 		// Hover effects for submit button
 		submitButton.addEventListener("mouseenter", () => {
 			if (!submitButton.disabled) {
-				submitButton.style.backgroundColor = colors.button.primary.hoverBackground;
+				submitButton.style.backgroundColor = colors.gray[800]; // Darker hover state
 			}
 		});
 
 		submitButton.addEventListener("mouseleave", () => {
 			if (!submitButton.disabled) {
-				submitButton.style.backgroundColor = colors.button.primary.background;
+				submitButton.style.backgroundColor = components.button.primary.backgroundColor;
 			}
 		});
 
