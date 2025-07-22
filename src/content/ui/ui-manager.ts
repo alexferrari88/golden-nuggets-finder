@@ -487,14 +487,16 @@ export class UIManager {
 				// Send to background script
 				await chrome.runtime.sendMessage({
 					type: MESSAGE_TYPES.SUBMIT_MISSING_CONTENT_FEEDBACK,
-					feedback: [feedback],
+					missingContentFeedback: [feedback],
 				});
 
 				// Show success notification
 				this.notifications.showSuccess("Missing content reported successfully!");
 
-				// Exit selection mode
-				this.exitSelectionMode();
+				// Exit selection mode after a brief delay to let notification show
+				setTimeout(() => {
+					this.exitSelectionMode();
+				}, 1500);
 			} catch (error) {
 				console.error("Failed to submit missing content feedback:", error);
 				submitButton.textContent = "Submit Missing Nugget";

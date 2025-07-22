@@ -21,6 +21,17 @@ export class NotificationManager {
     }, ui.notificationTimeout);
   }
 
+  showSuccess(message: string): void {
+    this.hideBanner();
+    this.currentBanner = this.createBanner(message, 'success');
+    document.body.appendChild(this.currentBanner);
+    
+    // Auto-hide success after timeout
+    this.autoHideTimeout = setTimeout(() => {
+      this.hideBanner();
+    }, ui.notificationTimeout);
+  }
+
   showApiKeyError(): void {
     this.hideBanner();
     this.currentBanner = this.createApiKeyErrorBanner();
@@ -55,7 +66,7 @@ export class NotificationManager {
     this.hideBanner();
   }
 
-  private createBanner(message: string, type: 'progress' | 'error' | 'info', options?: { showButton?: boolean; buttonText?: string; onButtonClick?: () => void }): HTMLElement {
+  private createBanner(message: string, type: 'progress' | 'error' | 'info' | 'success', options?: { showButton?: boolean; buttonText?: string; onButtonClick?: () => void }): HTMLElement {
     const banner = document.createElement('div');
     banner.className = `nugget-notification-banner nugget-banner-${type}`;
     
@@ -96,6 +107,12 @@ export class NotificationManager {
       case 'info':
         typeStyles = `
           background: ${colors.text.accent};
+          color: white;
+        `;
+        break;
+      case 'success':
+        typeStyles = `
+          background: ${colors.success};
           color: white;
         `;
         break;
