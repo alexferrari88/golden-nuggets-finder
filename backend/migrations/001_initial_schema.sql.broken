@@ -1,0 +1,168 @@
+-- Initial database schema for Golden Nuggets Finder feedback system
+-- This migration creates all the core tables needed for feedback collection and optimization
+
+-- Enable foreign key support
+PRAGMA foreign_keys = ON;
+
+-- Table for storing nugget feedback (ratings and type corrections)
+CREATE TABLE IF NOT EXISTS nugget_feedback (
+    id TEXT PRIMARY KEY,
+    nugget_content TEXT NOT NULL,           -- First 200 chars of the nugget for identification
+    original_type TEXT NOT NULL,            -- Original type assigned by LLM
+    corrected_type TEXT,                    -- User-corrected type (if any)
+    rating TEXT NOT NULL CHECK(rating IN ('positive', 'negative')),
+    timestamp INTEGER NOT NULL,             -- Unix timestamp from client
+    url TEXT NOT NULL,                      -- Page URL where feedback was given
+    context TEXT NOT NULL,                  -- Surrounding content (first 200 chars)
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,  -- Server timestamp
+    
+    -- Indexes for common queries
+    CONSTRAINT nugget_feedback_idx_timestamp CREATE INDEX IF NOT EXISTS idx_nugget_feedback_timestamp ON nugget_feedback(timestamp),
+    CONSTRAINT nugget_feedback_idx_rating CREATE INDEX IF NOT EXISTS idx_nugget_feedback_rating ON nugget_feedback(rating),
+    CONSTRAINT nugget_feedback_idx_url CREATE INDEX IF NOT EXISTS idx_nugget_feedback_url ON nugget_feedback(url),
+    CONSTRAINT nugget_feedback_idx_created CREATE INDEX IF NOT EXISTS idx_nugget_feedback_created ON nugget_feedback(created_at)
+);
+
+-- Table for storing missing content feedback (user-identified golden nuggets)  
+CREATE TABLE IF NOT EXISTS missing_content_feedback (
+    id TEXT PRIMARY KEY,
+    content TEXT NOT NULL,                  -- The content user identified as valuable
+    suggested_type TEXT NOT NULL,           -- Type suggested by user
+    timestamp INTEGER NOT NULL,             -- Unix timestamp from client
+    url TEXT NOT NULL,                      -- Page URL where content was identified
+    context TEXT NOT NULL,                  -- Page context
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,  -- Server timestamp
+    
+    -- Indexes for common queries
+    CONSTRAINT missing_content_idx_timestamp CREATE INDEX IF NOT EXISTS idx_missing_content_timestamp ON missing_content_feedback(timestamp),
+    CONSTRAINT missing_content_idx_type CREATE INDEX IF NOT EXISTS idx_missing_content_type ON missing_content_feedback(suggested_type),
+    CONSTRAINT missing_content_idx_url CREATE INDEX IF NOT EXISTS idx_missing_content_url ON missing_content_feedback(url),
+    CONSTRAINT missing_content_idx_created CREATE INDEX IF NOT EXISTS idx_missing_content_created ON missing_content_feedback(created_at)
+);
+
+-- Table for tracking optimization runs
+CREATE TABLE IF NOT EXISTS optimization_runs (
+    id TEXT PRIMARY KEY,
+    mode TEXT NOT NULL CHECK(mode IN ('expensive', 'cheap')),  -- MIPROv2 or BootstrapFewShot
+    trigger_type TEXT NOT NULL CHECK(trigger_type IN ('auto', 'manual')),  -- How was optimization triggered
+    started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    completed_at TIMESTAMP,                 -- NULL if still running or failed
+    status TEXT NOT NULL DEFAULT 'running' CHECK(status IN ('running', 'completed', 'failed')),
+    result_prompt TEXT,                     -- Truncated result (first 1000 chars)
+    performance_improvement REAL,           -- Performance improvement over baseline
+    feedback_count INTEGER NOT NULL,        -- Number of training examples used
+    error_message TEXT,                     -- Error details if failed
+    
+    -- Indexes for common queries
+    CONSTRAINT optimization_runs_idx_started CREATE INDEX IF NOT EXISTS idx_optimization_runs_started ON optimization_runs(started_at),
+    CONSTRAINT optimization_runs_idx_status CREATE INDEX IF NOT EXISTS idx_optimization_runs_status ON optimization_runs(status),
+    CONSTRAINT optimization_runs_idx_mode CREATE INDEX IF NOT EXISTS idx_optimization_runs_mode ON optimization_runs(mode)
+);
+
+-- Table for storing versioned optimized prompts
+CREATE TABLE IF NOT EXISTS optimized_prompts (
+    id TEXT PRIMARY KEY,
+    version INTEGER NOT NULL,               -- Incremental version number
+    prompt TEXT NOT NULL,                   -- Full optimized prompt text
+    optimization_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    feedback_count INTEGER NOT NULL,        -- Number of examples used for this optimization
+    positive_rate REAL NOT NULL,            -- Performance score/positive rate
+    is_current BOOLEAN DEFAULT FALSE,       -- Whether this is the active prompt
+    optimization_run_id TEXT,               -- Link to the optimization run
+    
+    FOREIGN KEY (optimization_run_id) REFERENCES optimization_runs (id),
+    
+    -- Indexes for common queries
+    CONSTRAINT optimized_prompts_idx_version CREATE INDEX IF NOT EXISTS idx_optimized_prompts_version ON optimized_prompts(version),
+    CONSTRAINT optimized_prompts_idx_current CREATE INDEX IF NOT EXISTS idx_optimized_prompts_current ON optimized_prompts(is_current),
+    CONSTRAINT optimized_prompts_idx_date CREATE INDEX IF NOT EXISTS idx_optimized_prompts_date ON optimized_prompts(optimization_date)
+);
+
+-- Table for storing training examples used by DSPy
+CREATE TABLE IF NOT EXISTS training_examples (
+    id TEXT PRIMARY KEY,
+    input_content TEXT NOT NULL,            -- Input content for training
+    expected_output TEXT NOT NULL,          -- Expected JSON output (golden nuggets)
+    feedback_score REAL NOT NULL,           -- Quality score (0.0 to 1.0)
+    url TEXT NOT NULL,                      -- Source URL
+    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    used_in_optimization BOOLEAN DEFAULT FALSE,  -- Whether this example was used in optimization
+    
+    -- Indexes for common queries
+    CONSTRAINT training_examples_idx_score CREATE INDEX IF NOT EXISTS idx_training_examples_score ON training_examples(feedback_score),
+    CONSTRAINT training_examples_idx_timestamp CREATE INDEX IF NOT EXISTS idx_training_examples_timestamp ON training_examples(timestamp),
+    CONSTRAINT training_examples_idx_used CREATE INDEX IF NOT EXISTS idx_training_examples_used ON training_examples(used_in_optimization)
+);
+
+-- Create a view for feedback statistics (commonly needed)
+CREATE VIEW IF NOT EXISTS feedback_stats AS
+SELECT 
+    COUNT(*) as total_feedback,
+    SUM(CASE WHEN rating = 'positive' THEN 1 ELSE 0 END) as positive_count,
+    SUM(CASE WHEN rating = 'negative' THEN 1 ELSE 0 END) as negative_count,
+    ROUND(AVG(CASE WHEN rating = 'positive' THEN 1.0 ELSE 0.0 END), 3) as positive_rate,
+    MAX(created_at) as last_feedback_date,
+    COUNT(DISTINCT url) as unique_urls
+FROM nugget_feedback;
+
+-- Create a view for recent feedback trends (last 20 items)
+CREATE VIEW IF NOT EXISTS recent_feedback_stats AS
+SELECT 
+    COUNT(*) as recent_total,
+    SUM(CASE WHEN rating = 'positive' THEN 1 ELSE 0 END) as recent_positive,
+    SUM(CASE WHEN rating = 'negative' THEN 1 ELSE 0 END) as recent_negative,
+    ROUND(AVG(CASE WHEN rating = 'positive' THEN 1.0 ELSE 0.0 END), 3) as recent_positive_rate,
+    ROUND(AVG(CASE WHEN rating = 'negative' THEN 1.0 ELSE 0.0 END), 3) as recent_negative_rate
+FROM (
+    SELECT rating 
+    FROM nugget_feedback 
+    ORDER BY created_at DESC 
+    LIMIT 20
+);
+
+-- Insert initial baseline prompt if no prompts exist
+INSERT OR IGNORE INTO optimized_prompts (
+    id, version, prompt, optimization_date, feedback_count, positive_rate, is_current
+) VALUES (
+    'baseline-prompt-001',
+    0,
+    'You are an expert at identifying golden nuggets of insight from {{ source }}.
+
+Your task is to find the most valuable insights that would be useful for a software developer, entrepreneur, or knowledge worker. Focus on:
+
+1. **Tools and Resources**: Specific tools, libraries, services, or resources mentioned
+2. **Media and References**: Books, articles, videos, podcasts, or other content worth consuming  
+3. **Explanations**: Clear explanations of complex concepts, processes, or phenomena
+4. **Analogies and Models**: Mental models, analogies, or frameworks for understanding
+5. **Models and Frameworks**: Structured approaches, methodologies, or systematic thinking tools
+
+For each golden nugget, provide:
+- The exact original text (verbatim quote)
+- Why it''s valuable for the target persona
+
+Return your response as valid JSON only, with no additional text or explanation.',
+    CURRENT_TIMESTAMP,
+    0,
+    0.0,
+    TRUE
+);
+
+-- Create triggers to maintain data integrity
+
+-- Trigger to ensure only one current prompt at a time
+CREATE TRIGGER IF NOT EXISTS ensure_single_current_prompt
+    BEFORE UPDATE ON optimized_prompts
+    WHEN NEW.is_current = TRUE
+BEGIN
+    UPDATE optimized_prompts SET is_current = FALSE WHERE is_current = TRUE AND id != NEW.id;
+END;
+
+-- Trigger to update optimization run status when prompt is created
+CREATE TRIGGER IF NOT EXISTS update_optimization_run_on_prompt_creation
+    AFTER INSERT ON optimized_prompts
+    WHEN NEW.optimization_run_id IS NOT NULL
+BEGIN
+    UPDATE optimization_runs 
+    SET status = 'completed', completed_at = CURRENT_TIMESTAMP
+    WHERE id = NEW.optimization_run_id AND status = 'running';
+END;

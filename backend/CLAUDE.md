@@ -1,0 +1,290 @@
+# CLAUDE.md - Backend
+
+This file provides guidance to Claude Code when working with the Golden Nuggets Finder backend infrastructure.
+
+## Core Principles
+
+- **Defensive Security Only**: This backend collects feedback to improve AI prompts - never implement offensive security capabilities
+- **Data Privacy**: User feedback contains webpage content - handle with appropriate privacy considerations
+- **API Stability**: Chrome extension depends on stable API contracts - breaking changes require extension updates
+- **Performance**: DSPy optimization can be CPU/memory intensive - use background tasks and limits
+
+## ⚠️ CRITICAL WARNINGS - DO NOT IGNORE
+
+### NEVER Expose Internal Database Operations
+
+**ABSOLUTELY NEVER** create direct database endpoints that expose raw SQL or internal database operations.
+
+**Why this is critical:**
+- All database access must go through service layer (`FeedbackService`, `OptimizationService`)
+- Pydantic models provide validation and security boundaries
+- Direct database exposure could leak sensitive user data or allow injection attacks
+- Chrome extension expects specific JSON response formats
+
+**Current Architecture (DO NOT CHANGE):**
+- All database operations in `app/database.py` and service classes
+- API endpoints only use service layer methods
+- Pydantic models validate all input/output data
+- No direct SQL exposure in API responses
+
+### NEVER Store Sensitive Data in Feedback
+
+**ABSOLUTELY NEVER** store full webpage content, personal information, or sensitive data in feedback records.
+
+**Why this is critical:**
+- Feedback contains user's browsing context which may include personal information
+- Database should only store what's necessary for prompt optimization
+- Full content is now stored for optimal DSPy training and analysis
+- User URLs are stored for analysis but should not contain query parameters with sensitive data
+
+**Current Data Storage (UPDATED):**
+- `nuggetContent`: Full golden nugget content (no length restrictions)
+- `context`: Full surrounding context from page (no length restrictions)
+- Full webpage content is NEVER stored in database
+- Personal identifiers are not collected
+
+## Architecture Overview
+
+### Framework and Core Technologies
+- **Framework**: FastAPI with async/await support
+- **Database**: SQLite with aiosqlite for async operations
+- **AI Integration**: DSPy framework with Google Gemini API
+- **Validation**: Pydantic models for type safety
+- **Deployment**: Docker with multi-stage builds
+- **Testing**: pytest with async support
+
+### Backend Components
+
+1. **FastAPI Application** (`app/main.py`):
+   - REST API endpoints for feedback collection and optimization
+   - CORS configuration for Chrome extension integration
+   - Background task management for async optimization
+   - Health check and monitoring endpoints
+
+2. **Service Layer**:
+   - **FeedbackService** (`services/feedback_service.py`): Manages feedback storage, statistics, and analysis
+   - **OptimizationService** (`services/optimization_service.py`): Handles DSPy-based prompt optimization
+
+3. **Data Models** (`app/models.py`):
+   - Pydantic models for API validation
+   - Database models for internal storage
+   - TypeScript interface compatibility for Chrome extension
+
+4. **Database Layer** (`app/database.py`):
+   - SQLite schema and migrations
+   - Async connection management
+   - Query operations and data persistence
+
+## Development Workflow
+
+### Setup and Running
+```bash
+# Docker (Recommended)
+cd backend
+cp .env.example .env
+# Add GEMINI_API_KEY to .env
+docker-compose --profile dev up backend-dev
+
+# Local Development
+python -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+python run.py
+```
+
+### Testing
+```bash
+# Run all tests
+pytest tests/
+
+# Run specific test file
+pytest tests/test_main.py -v
+
+# Run with coverage
+pytest --cov=app tests/
+```
+
+### Code Quality
+```bash
+# Formatting and linting with ruff
+ruff check .
+ruff format .
+
+# Type checking with mypy
+mypy .
+```
+
+### Database Management
+```bash
+# Initialize database (automatic on startup)
+python scripts/db_management.py init
+
+# Backup database
+python scripts/db_management.py backup
+
+# View feedback stats
+python scripts/db_management.py stats
+```
+
+## File Structure and Components
+
+### Main Application Files
+- `app/main.py` - FastAPI application with all API endpoints
+- `app/models.py` - Pydantic models for validation and type safety
+- `app/database.py` - SQLite database operations and schema
+
+### Service Layer (`app/services/`)
+- `feedback_service.py` - Feedback collection, storage, and statistics
+- `optimization_service.py` - DSPy optimization logic and prompt management
+
+### Infrastructure
+- `Dockerfile` / `Dockerfile.dev` - Docker containerization
+- `docker-compose.yml` - Multi-service orchestration
+- `requirements.txt` - Python dependencies
+- `run.py` - Development server startup script
+
+### Database Schema
+
+The SQLite database includes these main tables:
+
+1. **`nugget_feedback`**: User ratings and type corrections for golden nuggets
+   - Stores positive/negative ratings and type corrections
+   - Full content storage for complete DSPy training
+   
+2. **`missing_content_feedback`**: User-identified content that was missed
+   - Captures golden nuggets the AI failed to identify
+   - Used to improve recall in optimization
+
+3. **`optimization_runs`**: History of DSPy optimization attempts
+   - Tracks expensive vs cheap optimization modes
+   - Records performance improvements and execution time
+
+4. **`optimized_prompts`**: Versioned optimized prompts from DSPy
+   - Current and historical optimized prompts
+   - Performance metrics and feedback integration
+
+5. **`training_examples`**: DSPy training data derived from feedback
+   - Converts user feedback into training examples
+   - Used for both expensive and cheap optimization modes
+
+## Chrome Extension Integration
+
+### API Contract
+The backend provides stable API endpoints that the Chrome extension depends on:
+
+- `POST /feedback` - Submit user feedback (ratings, corrections, missing content)
+- `GET /feedback/stats` - Get feedback statistics and optimization triggers
+- `GET /optimize/current` - Retrieve current optimized prompt
+
+### Data Flow
+1. Chrome extension collects user feedback through UI interactions
+2. Feedback is batched and sent to `POST /feedback` endpoint
+3. Backend stores feedback and checks optimization thresholds
+4. If thresholds met, background optimization is triggered
+5. Chrome extension periodically checks `GET /optimize/current` for updated prompts
+
+### Type Safety
+Pydantic models in `app/models.py` match TypeScript interfaces in the Chrome extension to ensure type safety across the entire system.
+
+## DSPy Optimization System
+
+### Optimization Modes
+- **Expensive Mode** (`MIPROv2`): High-quality optimization, 5-15 minutes execution time
+- **Cheap Mode** (`BootstrapFewShotWithRandomSearch`): Fast optimization, 1-3 minutes execution time
+
+### Automatic Triggers
+Optimization is automatically triggered when:
+1. **Time + Volume**: 7+ days since last optimization AND 25+ feedback items
+2. **High Volume**: 75+ total feedback items
+3. **Quality Issues**: 15+ feedback items with 40%+ recent negative rate
+
+### Training Data Generation
+User feedback is converted into DSPy training examples:
+- Positive feedback creates positive training examples
+- Negative feedback with corrections guides optimization
+- Missing content feedback improves recall metrics
+
+## API Endpoints
+
+### Feedback Collection
+- `POST /feedback` - Submit feedback from Chrome extension
+  - Accepts both nugget feedback and missing content feedback
+  - Triggers optimization if thresholds are met
+  - Returns updated statistics
+
+- `GET /feedback/stats` - Get current feedback statistics
+  - Total feedback count and positive/negative rates
+  - Days since last optimization
+  - Optimization trigger status
+
+### Prompt Optimization
+- `POST /optimize` - Manually trigger optimization
+  - Supports both expensive and cheap modes
+  - Runs as background task
+  - Returns estimated completion time
+
+- `GET /optimize/history` - Get optimization run history
+  - Past optimization attempts and results
+  - Performance improvements over time
+
+- `GET /optimize/current` - Get current optimized prompt
+  - Latest optimized prompt if available
+  - Performance metrics and version information
+
+### Health and Monitoring
+- `GET /` - Health check endpoint
+- Console logging for optimization progress and errors
+
+## Development Best Practices
+
+### Adding New Features
+1. **Models First**: Define Pydantic models in `app/models.py`
+2. **Database Schema**: Add tables/migrations in `app/database.py`
+3. **Service Layer**: Implement business logic in appropriate service class
+4. **API Endpoints**: Add FastAPI endpoints in `app/main.py`
+5. **Testing**: Add tests in `tests/` directory
+
+### Error Handling
+- Use HTTPException for API errors with appropriate status codes
+- Log errors for debugging but don't expose internal details
+- Graceful degradation when DSPy is not available
+
+### Performance Considerations
+- DSPy optimization runs in background tasks to avoid blocking API
+- ThreadPoolExecutor limits concurrent optimization attempts
+- Database operations are async to handle concurrent requests
+
+### Security Guidelines
+- Validate all input with Pydantic models
+- Limit stored content to prevent data bloat and privacy issues
+- Use environment variables for sensitive configuration
+- Proper CORS configuration for Chrome extension integration
+
+## Environment Variables
+
+- `GEMINI_API_KEY` - Required for DSPy optimization (same as Chrome extension)
+- `PORT` - Server port (default: 7532)
+- `DATABASE_PATH` - Custom database location (optional)
+- `ENVIRONMENT` - development/production mode (optional)
+
+## Troubleshooting
+
+### Common Issues
+1. **DSPy Import Error**: Install with `pip install dspy-ai`
+2. **Gemini API Errors**: Verify API key and account credits
+3. **CORS Issues**: Check server port and Chrome extension configuration
+4. **Database Errors**: Verify write permissions in data directory
+
+### Debugging
+- Enable debug logging in `run.py` for development
+- Check optimization service logs for DSPy execution issues
+- Use FastAPI's automatic OpenAPI docs at `/docs` endpoint
+- Monitor background task execution in server logs
+
+## Integration with Main Extension
+
+This backend integrates with the Chrome extension's feedback collection system:
+- Feedback UI components send data to backend API
+- Background script polls for optimized prompts
+- Error handling maintains functionality even when backend is unavailable
+- Gradual rollout of optimized prompts based on performance metrics

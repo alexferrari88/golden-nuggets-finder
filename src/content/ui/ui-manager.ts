@@ -19,7 +19,9 @@ import {
 	type SavedPrompt,
 	type SidebarNuggetItem,
 	type TypeFilterOptions,
+	type MissingContentFeedback,
 } from "../../shared/types";
+import { ALL_NUGGET_TYPES, GoldenNuggetType } from '../../shared/schemas';
 import { Highlighter } from "./highlighter";
 import { NotificationManager } from "./notifications";
 import { Sidebar } from "./sidebar";
@@ -250,6 +252,32 @@ export class UIManager {
 
 	isSelectionModeActive(): boolean {
 		return this.selectionModeActive;
+	}
+
+	async enterMissingContentMode(contentScraper?: ContentScraper): Promise<void> {
+		// Clear any existing results first
+		this.clearResults();
+
+		if (contentScraper) {
+			this.selectionScraper = contentScraper;
+			this.selectionModeActive = true;
+
+			// Listen for selection changes to update control panel
+			this.selectionScraper.on("selectionChanged", () => {
+				this.updateMissingContentPanel();
+			});
+		}
+
+		// Show info banner for missing content mode
+		this.notifications.showInfo(
+			"Select content that should have been identified as golden nuggets",
+		);
+
+		// Add keyboard listener for Esc key
+		this.addKeyboardListener();
+
+		// Show missing content control panel
+		this.showMissingContentPanel();
 	}
 
 	getSelectedContent(): Content | null {
@@ -1055,5 +1083,294 @@ export class UIManager {
 
 	private isAnalysisInProgress(): boolean {
 		return this.controlPanel?.querySelector(".analysis-steps") !== null;
+	}
+
+	private showMissingContentPanel(): void {
+		if (this.controlPanel) {
+			this.controlPanel.remove();
+		}
+
+		const selectedContent = this.getSelectedContent();
+		const allContent = this.selectionScraper?.getContent();
+		const totalItems = allContent?.items?.length || 0;
+
+		this.controlPanel = document.createElement("div");
+		this.controlPanel.className = "nugget-missing-content-panel";
+		this.controlPanel.style.cssText = `
+			position: fixed;
+			bottom: 20px;
+			right: 20px;
+			width: 360px;
+			background: ${colors.background.primary};
+			border: 1px solid ${colors.border.light};
+			border-radius: ${borderRadius.lg};
+			box-shadow: ${shadows.lg};
+			z-index: 10001;
+			font-family: ${typography.fontFamily.sans};
+			padding: ${spacing.lg};
+			transform: translateY(100px);
+			opacity: 0;
+			transition: all 0.3s ease;
+		`;
+
+		// Header with close button
+		const headerContainer = document.createElement("div");
+		headerContainer.style.cssText = `
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			margin-bottom: ${spacing.md};
+		`;
+
+		const header = document.createElement("div");
+		header.style.cssText = `
+			font-size: ${typography.fontSize.sm};
+			font-weight: ${typography.fontWeight.semibold};
+			color: ${colors.text.primary};
+		`;
+		header.textContent = "Mark Missing Golden Nuggets";
+
+		// Close button
+		const closeButton = document.createElement("button");
+		closeButton.style.cssText = `
+			background: none;
+			border: none;
+			cursor: pointer;
+			color: ${colors.text.secondary};
+			font-size: ${typography.fontSize.lg};
+			padding: ${spacing.xs};
+			border-radius: ${borderRadius.sm};
+			transition: all 0.2s ease;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			width: 24px;
+			height: 24px;
+		`;
+		closeButton.innerHTML = "×";
+		closeButton.title = "Close missing content mode (Esc)";
+
+		closeButton.addEventListener("click", () => {
+			this.exitSelectionMode();
+		});
+
+		closeButton.addEventListener("mouseenter", () => {
+			closeButton.style.backgroundColor = colors.background.secondary;
+			closeButton.style.color = colors.text.primary;
+		});
+
+		closeButton.addEventListener("mouseleave", () => {
+			closeButton.style.backgroundColor = "transparent";
+			closeButton.style.color = colors.text.secondary;
+		});
+
+		headerContainer.appendChild(header);
+		headerContainer.appendChild(closeButton);
+
+		// Instructions
+		const instructions = document.createElement("div");
+		instructions.style.cssText = `
+			font-size: ${typography.fontSize.xs};
+			color: ${colors.text.secondary};
+			margin-bottom: ${spacing.md};
+			padding: ${spacing.sm};
+			background: ${colors.background.tertiary};
+			border-radius: ${borderRadius.sm};
+			line-height: ${typography.lineHeight.normal};
+		`;
+		instructions.textContent = 
+			"Select content that should have been identified as golden nuggets, then choose its type and submit.";
+
+		// Counter
+		const counter = document.createElement("div");
+		counter.className = "missing-content-counter";
+		counter.style.cssText = `
+			font-size: ${typography.fontSize.sm};
+			color: ${colors.text.secondary};
+			margin-bottom: ${spacing.md};
+		`;
+
+		// Quick actions
+		const quickActions = document.createElement("div");
+		quickActions.style.cssText = `
+			display: flex;
+			gap: ${spacing.sm};
+			margin-bottom: ${spacing.md};
+		`;
+
+		const selectAllBtn = this.createButton("Select All", () => {
+			this.selectAllContent();
+		});
+
+		const clearAllBtn = this.createButton("Clear All", () => {
+			this.clearAllContent();
+		});
+
+		quickActions.appendChild(selectAllBtn);
+		quickActions.appendChild(clearAllBtn);
+
+		// Nugget Type Selection
+		const typeSection = document.createElement("div");
+		typeSection.style.cssText = `
+			margin-bottom: ${spacing.md};
+		`;
+
+		const typeLabel = document.createElement("div");
+		typeLabel.style.cssText = `
+			font-size: ${typography.fontSize.sm};
+			font-weight: ${typography.fontWeight.medium};
+			color: ${colors.text.primary};
+			margin-bottom: ${spacing.sm};
+		`;
+		typeLabel.textContent = "Nugget Type:";
+
+		const typeSelect = document.createElement("select");
+		typeSelect.id = "missing-content-type-select";
+		typeSelect.style.cssText = `
+			width: 100%;
+			padding: ${spacing.sm};
+			border: 1px solid ${colors.border.light};
+			border-radius: ${borderRadius.sm};
+			background-color: ${colors.background.primary};
+			color: ${colors.text.primary};
+			font-size: ${typography.fontSize.sm};
+		`;
+
+		// Add all nugget types as options
+		ALL_NUGGET_TYPES.forEach((type) => {
+			const option = document.createElement("option");
+			option.value = type;
+			option.textContent = type.charAt(0).toUpperCase() + type.slice(1);
+			typeSelect.appendChild(option);
+		});
+
+		// Default to 'explanation' as it's most common
+		typeSelect.value = "explanation";
+
+		typeSection.appendChild(typeLabel);
+		typeSection.appendChild(typeSelect);
+
+		// Submit button
+		const submitBtn = document.createElement("button");
+		submitBtn.style.cssText = `
+			width: 100%;
+			padding: ${spacing.md};
+			background-color: ${colors.text.accent};
+			color: ${colors.background.primary};
+			border: none;
+			border-radius: ${borderRadius.md};
+			font-size: ${typography.fontSize.sm};
+			font-weight: ${typography.fontWeight.semibold};
+			cursor: pointer;
+			transition: all 0.2s ease;
+		`;
+		submitBtn.textContent = "Submit Missing Content";
+
+		submitBtn.addEventListener("click", () => {
+			this.submitMissingContentFeedback();
+		});
+
+		submitBtn.addEventListener("mouseenter", () => {
+			submitBtn.style.backgroundColor = colors.text.primary;
+			submitBtn.style.boxShadow = shadows.md;
+		});
+
+		submitBtn.addEventListener("mouseleave", () => {
+			submitBtn.style.backgroundColor = colors.text.accent;
+			submitBtn.style.boxShadow = "none";
+		});
+
+		// Assemble panel
+		this.controlPanel.appendChild(headerContainer);
+		this.controlPanel.appendChild(instructions);
+		this.controlPanel.appendChild(counter);
+		this.controlPanel.appendChild(quickActions);
+		this.controlPanel.appendChild(typeSection);
+		this.controlPanel.appendChild(submitBtn);
+
+		document.body.appendChild(this.controlPanel);
+
+		// Animate in
+		requestAnimationFrame(() => {
+			this.controlPanel!.style.transform = "translateY(0)";
+			this.controlPanel!.style.opacity = "1";
+		});
+
+		this.updateMissingContentPanel();
+	}
+
+	private updateMissingContentPanel(): void {
+		if (!this.controlPanel) return;
+
+		const selectedContent = this.getSelectedContent();
+		const allContent = this.selectionScraper?.getContent();
+		const selectedCount = selectedContent?.items?.length || 0;
+		const totalCount = allContent?.items?.length || 0;
+
+		const counter = this.controlPanel.querySelector(".missing-content-counter");
+		if (counter) {
+			if (totalCount === 0) {
+				counter.textContent = "No content detected on this page.";
+			} else {
+				counter.textContent = `${selectedCount} of ${totalCount} items selected for marking as missing golden nuggets`;
+			}
+		}
+	}
+
+	private submitMissingContentFeedback(): void {
+		const selectedContent = this.getSelectedContent();
+		if (!selectedContent || !selectedContent.items || selectedContent.items.length === 0) {
+			this.notifications.showError("Please select content to mark as missing golden nuggets.");
+			return;
+		}
+
+		const typeSelect = this.controlPanel?.querySelector("#missing-content-type-select") as HTMLSelectElement;
+		if (!typeSelect) {
+			this.notifications.showError("Unable to determine nugget type selection.");
+			return;
+		}
+
+		const selectedType = typeSelect.value as GoldenNuggetType;
+
+		// Create feedback for each selected item
+		const missingContentFeedback: MissingContentFeedback[] = [];
+		const context = document.title + ' - ' + window.location.href;
+
+		selectedContent.items.forEach((item) => {
+			const feedbackId = `missing_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+			const content = item.textContent || item.htmlContent || '';
+
+			if (content.trim()) {
+				missingContentFeedback.push({
+					id: feedbackId,
+					content: content.substring(0, 1000), // Limit content length
+					suggestedType: selectedType,
+					timestamp: Date.now(),
+					url: window.location.href,
+					context: context.substring(0, 200)
+				});
+			}
+		});
+
+		if (missingContentFeedback.length === 0) {
+			this.notifications.showError("No valid content found in selection.");
+			return;
+		}
+
+		// Send to background script for processing
+		chrome.runtime.sendMessage({
+			type: MESSAGE_TYPES.SUBMIT_MISSING_CONTENT_FEEDBACK,
+			missingContentFeedback: missingContentFeedback
+		});
+
+		// Show success message and exit
+		this.notifications.showInfo(
+			`Successfully submitted ${missingContentFeedback.length} missing golden nugget${missingContentFeedback.length > 1 ? 's' : ''}`
+		);
+
+		// Exit selection mode after a brief delay
+		setTimeout(() => {
+			this.exitSelectionMode();
+		}, 1500);
 	}
 }

@@ -290,6 +290,12 @@ export default defineContentScript({
 						sendResponse({ success: true });
 						break;
 
+					case MESSAGE_TYPES.ENTER_MISSING_CONTENT_MODE:
+						initialize(); // Initialize when needed
+						await enterMissingContentMode();
+						sendResponse({ success: true });
+						break;
+
 					case MESSAGE_TYPES.ANALYSIS_COMPLETE:
 						initialize(); // Initialize when needed
 						if (request.data) {
@@ -469,6 +475,27 @@ export default defineContentScript({
 				console.error("Failed to enter selection mode:", error);
 				uiManager.showErrorBanner(
 					"Failed to enter selection mode. Please try again.",
+				);
+			}
+		}
+
+		async function enterMissingContentMode(): Promise<void> {
+			try {
+				// Create a separate ContentScraper instance for missing content selection
+				const selectionScraper = createContentScraper();
+
+				// Extract content first
+				await selectionScraper.run();
+
+				// Then explicitly display checkboxes for selection
+				selectionScraper.displayCheckboxes();
+
+				// Enter missing content selection mode through UI manager
+				await uiManager.enterMissingContentMode(selectionScraper);
+			} catch (error) {
+				console.error("Failed to enter missing content selection mode:", error);
+				uiManager.showErrorBanner(
+					"Failed to enter missing content selection mode. Please try again.",
 				);
 			}
 		}

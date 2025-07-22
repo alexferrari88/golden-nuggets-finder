@@ -10,44 +10,68 @@ FastAPI backend for collecting user feedback and optimizing prompts using DSPy f
 - **Threshold-Based Triggers**: Smart optimization triggering based on feedback volume and quality
 - **SQLite Storage**: Lightweight database for feedback and optimization history
 
-## Installation
+## Quick Start (Docker - Recommended)
 
-1. Create a virtual environment:
+1. **Set up environment variables:**
 ```bash
 cd backend
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-```
-
-2. Install dependencies:
-```bash
-pip install -r requirements.txt
-```
-
-3. Set up environment variables:
-```bash
 cp .env.example .env
 # Edit .env and add your GEMINI_API_KEY (same as your Chrome extension uses)
 ```
 
-## Running the Server
-
-### Development Mode (with auto-reload)
+2. **Run with Docker Compose:**
 ```bash
+# Production deployment
+docker-compose up -d backend
+
+# Development with hot reload
+docker-compose --profile dev up backend-dev
+
+# With database backups (optional)
+docker-compose --profile backup up -d backup
+```
+
+The server will start on `http://localhost:7532`.
+
+## Docker Services
+
+- **`backend`**: Production server with optimized build
+- **`backend-dev`**: Development server with hot reload and source mounting  
+- **`backup`**: Automatic daily database backups (optional, keeps 7 days)
+
+## Alternative: Local Development Setup
+
+For development without Docker:
+
+1. **Create virtual environment:**
+```bash
+cd backend
+python -m venv venv
+source venv/bin/activate  # Windows: venv\Scripts\activate
+```
+
+2. **Install dependencies:**
+```bash
+pip install -r requirements.txt
+```
+
+3. **Set up environment:**
+```bash
+cp .env.example .env
+# Edit .env and add your GEMINI_API_KEY
+```
+
+4. **Run server:**
+```bash
+# Development (auto-reload)
 python run.py
-```
 
-### Production Mode
-```bash
+# Production mode
 python run.py --prod
-```
 
-### Custom Port
-```bash
+# Custom port
 python run.py --port 8000
 ```
-
-The server will start on `http://localhost:7532` by default.
 
 ## API Endpoints
 

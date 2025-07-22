@@ -1,4 +1,5 @@
-import { SidebarNuggetItem } from '../../shared/types';
+import { SidebarNuggetItem, NuggetFeedback, FeedbackRating, MESSAGE_TYPES } from '../../shared/types';
+import { ALL_NUGGET_TYPES, GoldenNuggetType } from '../../shared/schemas';
 import { Highlighter } from './highlighter';
 import { colors, shadows, generateInlineStyles, borderRadius, spacing, typography, zIndex, ui } from '../../shared/design-system';
 
@@ -762,17 +763,259 @@ export class Sidebar {
       background: ${colors.background.tertiary};
       border-radius: ${borderRadius.sm};
       border-left: 2px solid ${colors.border.default};
+      margin-bottom: ${spacing.sm};
     `;
     synthesis.textContent = item.nugget.synthesis;
+    
+    // Feedback Section
+    const feedbackSection = this.createFeedbackSection(item, globalIndex);
     
     // Assemble the content
     contentContainer.appendChild(headerDiv);
     contentContainer.appendChild(contentPreview);
     contentContainer.appendChild(synthesis);
+    contentContainer.appendChild(feedbackSection);
     
     nuggetDiv.appendChild(contentContainer);
     
     return nuggetDiv;
+  }
+
+  private createFeedbackSection(item: SidebarNuggetItem, globalIndex: number): HTMLElement {
+    const feedbackSection = document.createElement('div');
+    feedbackSection.className = 'nugget-feedback-section';
+    feedbackSection.style.cssText = `
+      display: flex;
+      flex-direction: column;
+      gap: ${spacing.sm};
+      padding-top: ${spacing.sm};
+      border-top: 1px solid ${colors.border.light};
+    `;
+
+    // Feedback buttons row
+    const feedbackButtons = document.createElement('div');
+    feedbackButtons.style.cssText = `
+      display: flex;
+      align-items: center;
+      gap: ${spacing.sm};
+      justify-content: space-between;
+    `;
+
+    // Thumbs up/down buttons
+    const ratingContainer = document.createElement('div');
+    ratingContainer.style.cssText = `
+      display: flex;
+      align-items: center;
+      gap: ${spacing.xs};
+    `;
+
+    const thumbsUpBtn = this.createFeedbackButton(
+      'thumbs-up',
+      '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"></path></svg>',
+      item.feedback?.rating === 'positive',
+      () => this.handleFeedbackRating(globalIndex, 'positive')
+    );
+
+    const thumbsDownBtn = this.createFeedbackButton(
+      'thumbs-down', 
+      '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3zm0 0H7a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h3"></path></svg>',
+      item.feedback?.rating === 'negative',
+      () => this.handleFeedbackRating(globalIndex, 'negative')
+    );
+
+    ratingContainer.appendChild(thumbsUpBtn);
+    ratingContainer.appendChild(thumbsDownBtn);
+
+    // Type correction dropdown
+    const typeCorrection = this.createTypeCorrection(item, globalIndex);
+
+    feedbackButtons.appendChild(ratingContainer);
+    feedbackButtons.appendChild(typeCorrection);
+
+    feedbackSection.appendChild(feedbackButtons);
+
+    return feedbackSection;
+  }
+
+  private createFeedbackButton(
+    type: string,
+    iconSvg: string,
+    isActive: boolean,
+    onClick: () => void
+  ): HTMLElement {
+    const button = document.createElement('button');
+    button.className = `feedback-btn-${type}`;
+    button.style.cssText = `
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      border: 1px solid ${isActive ? colors.text.accent : colors.border.light};
+      border-radius: ${borderRadius.sm};
+      background: ${isActive ? colors.text.accent : colors.background.primary};
+      color: ${isActive ? colors.white : colors.text.secondary};
+      cursor: pointer;
+      transition: all 0.2s ease;
+      padding: 0;
+    `;
+
+    button.innerHTML = iconSvg;
+    button.title = type === 'thumbs-up' ? 
+      'Mark as correctly identified golden nugget' : 
+      'Mark as incorrectly identified (not a golden nugget)';
+
+    button.addEventListener('click', (e) => {
+      e.stopPropagation();
+      onClick();
+    });
+
+    button.addEventListener('mouseenter', () => {
+      if (!isActive) {
+        button.style.borderColor = colors.border.medium;
+        button.style.backgroundColor = colors.background.secondary;
+      }
+    });
+
+    button.addEventListener('mouseleave', () => {
+      if (!isActive) {
+        button.style.borderColor = colors.border.light;
+        button.style.backgroundColor = colors.background.primary;
+      }
+    });
+
+    return button;
+  }
+
+  private createTypeCorrection(item: SidebarNuggetItem, globalIndex: number): HTMLElement {
+    const container = document.createElement('div');
+    container.style.cssText = `
+      display: flex;
+      align-items: center;
+      gap: ${spacing.xs};
+    `;
+
+    const label = document.createElement('span');
+    label.textContent = 'Type:';
+    label.style.cssText = `
+      font-size: ${typography.fontSize.xs};
+      color: ${colors.text.secondary};
+      font-weight: ${typography.fontWeight.medium};
+    `;
+
+    const select = document.createElement('select');
+    select.style.cssText = `
+      padding: ${spacing.xs} ${spacing.sm};
+      border: 1px solid ${colors.border.light};
+      border-radius: ${borderRadius.sm};
+      background: ${colors.background.primary};
+      color: ${colors.text.primary};
+      font-size: ${typography.fontSize.xs};
+      cursor: pointer;
+      outline: none;
+    `;
+
+    // Add options
+    ALL_NUGGET_TYPES.forEach(type => {
+      const option = document.createElement('option');
+      option.value = type;
+      option.textContent = type;
+      option.selected = (item.feedback?.correctedType || item.nugget.type) === type;
+      select.appendChild(option);
+    });
+
+    // Handle type change
+    select.addEventListener('change', (e) => {
+      const newType = (e.target as HTMLSelectElement).value as GoldenNuggetType;
+      this.handleTypeCorrection(globalIndex, newType);
+    });
+
+    select.addEventListener('focus', () => {
+      select.style.borderColor = colors.border.medium;
+    });
+
+    select.addEventListener('blur', () => {
+      select.style.borderColor = colors.border.light;
+    });
+
+    container.appendChild(label);
+    container.appendChild(select);
+
+    return container;
+  }
+
+  private handleFeedbackRating(globalIndex: number, rating: FeedbackRating): void {
+    const item = this.allItems[globalIndex];
+    if (!item) return;
+
+    // Create or update feedback
+    const feedbackId = `feedback_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const nuggetContent = item.nugget.content.substring(0, 200);
+    const context = document.title + ' - ' + window.location.href;
+
+    const feedback: NuggetFeedback = {
+      id: feedbackId,
+      nuggetContent: nuggetContent,
+      originalType: item.nugget.type,
+      correctedType: item.feedback?.correctedType || item.nugget.type,
+      rating: rating,
+      timestamp: Date.now(),
+      url: window.location.href,
+      context: context.substring(0, 200)
+    };
+
+    // Update the item
+    this.allItems[globalIndex].feedback = feedback;
+
+    // Send to background script for processing
+    chrome.runtime.sendMessage({
+      type: MESSAGE_TYPES.SUBMIT_NUGGET_FEEDBACK,
+      feedback: feedback
+    });
+
+    // Refresh the UI to show the new state
+    this.refreshCurrentPage();
+  }
+
+  private handleTypeCorrection(globalIndex: number, newType: GoldenNuggetType): void {
+    const item = this.allItems[globalIndex];
+    if (!item) return;
+
+    // Create feedback if it doesn't exist, or update existing
+    if (!item.feedback) {
+      const feedbackId = `feedback_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const nuggetContent = item.nugget.content.substring(0, 200);
+      const context = document.title + ' - ' + window.location.href;
+
+      item.feedback = {
+        id: feedbackId,
+        nuggetContent: nuggetContent,
+        originalType: item.nugget.type,
+        rating: 'positive', // Default to positive since they're correcting the type
+        timestamp: Date.now(),
+        url: window.location.href,
+        context: context.substring(0, 200)
+      };
+    }
+
+    // Update the corrected type
+    item.feedback.correctedType = newType;
+
+    // Send to background script
+    chrome.runtime.sendMessage({
+      type: MESSAGE_TYPES.SUBMIT_NUGGET_FEEDBACK,
+      feedback: item.feedback
+    });
+  }
+
+  private enterMissingContentMode(): void {
+    // Hide the action menu first
+    this.hideActionMenu();
+    
+    // Send message to content script to enter missing content selection mode
+    chrome.runtime.sendMessage({
+      type: MESSAGE_TYPES.ENTER_MISSING_CONTENT_MODE
+    });
   }
 
   private adjustPageLayout(showSidebar: boolean): void {
@@ -868,6 +1111,11 @@ export class Sidebar {
         icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18"/><path d="M6 6l12 12"/></svg>',
         label: 'Clear Selection',
         action: () => this.clearAllSelections()
+      },
+      {
+        icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0z"/></svg>',
+        label: 'Mark Missing Content',
+        action: () => this.enterMissingContentMode()
       },
       {
         icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>',

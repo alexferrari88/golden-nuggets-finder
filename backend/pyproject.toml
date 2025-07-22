@@ -1,0 +1,62 @@
+[tool.ruff]
+target-version = "py39"
+line-length = 88
+
+[tool.ruff.lint]
+select = [
+    "E",  # pycodestyle errors
+    "W",  # pycodestyle warnings
+    "F",  # pyflakes
+    "I",  # isort
+    "B",  # flake8-bugbear
+    "C4", # flake8-comprehensions
+    "UP", # pyupgrade
+    "ARG", # flake8-unused-arguments
+    "SIM", # flake8-simplify
+    "TCH", # flake8-type-checking
+    "N",  # pep8-naming
+    "S",  # flake8-bandit (security)
+    "FBT", # flake8-boolean-trap
+    "A",  # flake8-builtins
+    "COM", # flake8-commas
+    "ERA", # eradicate (commented-out code)
+    "RUF", # Ruff-specific rules
+]
+ignore = [
+    "S101", # assert used (common in tests)
+    "S104", # hardcoded-bind-all-interfaces
+    "S108", # hardcoded-temp-file (fine for dev)
+    "S311", # pseudo-random generators (OK for test data generation)
+    "FBT001", # boolean-type-hint-positional-argument
+    "FBT002", # boolean-default-value-positional-argument
+    "COM812", # trailing-comma-missing (conflicts with formatter)
+    "ERA001", # commented-out-code (sometimes needed)
+]
+
+[tool.ruff.lint.per-file-ignores]
+"app/models.py" = [
+    "N815",  # mixedCase variables (required for Chrome extension API compatibility)
+]
+"tests/**" = [
+    "S101",  # assert used (needed in tests)
+    "ARG001", # unused-function-argument (fixtures)
+    "SIM117", # combine-if-branches (test clarity)
+]
+"scripts/**" = [
+    "S602",  # subprocess-popen-with-shell-equals-true
+    "S603",  # subprocess-without-shell-equals-true
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["app", "tests", "scripts"]
+force-sort-within-sections = true
+split-on-trailing-comma = true
+
+[tool.ruff.lint.mccabe]
+max-complexity = 10
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
