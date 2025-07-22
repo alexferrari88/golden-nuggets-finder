@@ -9,6 +9,8 @@ FastAPI backend for collecting user feedback and optimizing prompts using DSPy f
 - **DSPy Optimization**: Automatic prompt optimization using MIPROv2 and BootstrapFewShotWithRandomSearch
 - **Threshold-Based Triggers**: Smart optimization triggering based on feedback volume and quality
 - **SQLite Storage**: Lightweight database for feedback and optimization history
+- **Enhanced Logging**: Structured logging with emoji indicators and progress tracking
+- **Monitoring & Observability**: Real-time optimization progress tracking and system health monitoring
 
 ## Quick Start (Docker - Recommended)
 
@@ -76,7 +78,7 @@ python run.py --port 8000
 ## API Endpoints
 
 ### Health Check
-- `GET /` - Server health check
+- `GET /` - Basic server health check
 
 ### Feedback Collection
 - `POST /feedback` - Submit feedback from Chrome extension
@@ -86,6 +88,11 @@ python run.py --port 8000
 - `POST /optimize` - Manually trigger prompt optimization
 - `GET /optimize/history` - Get optimization run history
 - `GET /optimize/current` - Get current optimized prompt
+
+### Monitoring & Observability
+- `GET /monitor/health` - Comprehensive system health check with component status
+- `GET /monitor` - Complete monitoring dashboard with active runs and recent completions
+- `GET /monitor/status/{run_id}` - Real-time progress tracking for specific optimization runs
 
 ## Optimization Thresholds
 
@@ -109,6 +116,49 @@ The system uses SQLite with these main tables:
 - `optimization_runs`: History of optimization attempts
 - `optimized_prompts`: Versioned optimized prompts
 - `training_examples`: DSPy training data from feedback
+
+## Monitoring Usage
+
+### Real-time Optimization Tracking
+
+Monitor optimization progress in real-time:
+
+```bash
+# Check system health
+curl http://localhost:7532/monitor/health
+
+# View monitoring dashboard  
+curl http://localhost:7532/monitor
+
+# Track specific optimization run
+curl http://localhost:7532/monitor/status/your-run-id
+```
+
+### Enhanced Logging
+
+The backend provides structured logging with visual indicators:
+
+```
+🚀 Starting DSPy optimization (mode: expensive, run_id: abc-123)
+📊 Gathering training examples (20%)
+🧠 Running DSPy optimization (75%) 
+✅ Optimization completed successfully (improvement: 12.5%)
+```
+
+### Testing Monitoring Features
+
+Use the included test script to demonstrate monitoring capabilities:
+
+```bash
+cd backend
+python test_monitoring.py
+```
+
+This script:
+- Demonstrates structured logging with progress tracking
+- Tests all monitoring API endpoints
+- Shows example monitoring dashboard responses
+- Validates system health checks
 
 ## Chrome Extension Integration
 
@@ -159,6 +209,16 @@ The database is automatically initialized on first startup. SQLite file is creat
 4. **Chrome extension CORS errors**
    - Verify the backend is running on the expected port (7532)
    - Check Chrome extension's API URL configuration
+
+5. **Monitoring endpoints not working**
+   - Check server is running: `curl http://localhost:7532/monitor/health`
+   - Use the test script: `python test_monitoring.py`
+   - Check logs for structured output during optimization runs
+
+6. **Optimization progress not visible**
+   - Progress is tracked in memory during active runs only
+   - Use `/monitor/status/{run_id}` with the run_id from `/optimize` response
+   - Completed runs show historical data from database
 
 ## Architecture
 

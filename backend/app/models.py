@@ -138,3 +138,35 @@ class PromptOptimizationResult(BaseModel):
     optimization_mode: str
     execution_time: float
     improvement_over_baseline: Optional[float] = None
+
+
+# Monitoring and observability models
+
+class OptimizationProgress(BaseModel):
+    """Current progress of an optimization run"""
+    
+    step: str
+    progress: int = Field(..., description="Progress percentage (0-100, -1 for failed)")
+    message: str
+    timestamp: str
+    last_updated: str
+
+
+class SystemHealthResponse(BaseModel):
+    """System health check response"""
+    
+    status: Literal["healthy", "degraded", "unhealthy"]
+    uptime_seconds: float
+    active_optimizations: int
+    dspy_available: bool
+    gemini_configured: bool
+    database_accessible: bool
+    details: dict = Field(default_factory=dict)
+
+
+class MonitoringResponse(BaseModel):
+    """Monitoring dashboard response"""
+    
+    active_runs: dict[str, OptimizationProgress]
+    recent_completions: list[dict]
+    system_health: SystemHealthResponse

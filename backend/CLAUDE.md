@@ -231,9 +231,105 @@ User feedback is converted into DSPy training examples:
   - Latest optimized prompt if available
   - Performance metrics and version information
 
-### Health and Monitoring
-- `GET /` - Health check endpoint
-- Console logging for optimization progress and errors
+### Monitoring and Observability
+- `GET /` - Basic health check endpoint
+- `GET /monitor/health` - Comprehensive system health check
+  - System status (healthy/degraded/unhealthy)
+  - Uptime tracking and component diagnostics
+  - DSPy availability and Gemini API configuration status
+  - Database accessibility verification
+  - Active optimization count
+- `GET /monitor` - Complete monitoring dashboard
+  - Real-time active optimization runs with progress
+  - Recent completion history (last 10 runs)
+  - Comprehensive system health data
+  - Structured data for monitoring integrations
+- `GET /monitor/status/{run_id}` - Individual optimization run status
+  - Real-time progress for active optimizations (step, progress %, message)
+  - Historical data for completed/failed runs
+  - Detailed error information and performance metrics
+  - Source indication (active memory vs database)
+
+## Enhanced Logging and Progress Tracking
+
+### Structured Logging Features
+The backend now includes comprehensive structured logging with the following capabilities:
+
+- **Emoji-Enhanced Logs**: Visual indicators for different types of events
+  - 🚀 Optimization started
+  - 📊 Data gathering phase
+  - 🧠 DSPy optimization running
+  - ✅ Successful completion
+  - ❌ Error conditions
+
+- **Structured Metadata**: All log entries include structured data for parsing:
+  ```json
+  {
+    "run_id": "abc-123",
+    "mode": "expensive", 
+    "step": "optimization",
+    "progress": 45,
+    "timestamp": "2025-01-01T12:00:00Z"
+  }
+  ```
+
+- **Real-time Progress Tracking**: In-memory progress storage for active optimizations
+  - Step-by-step progress (initialization → data_gathering → optimization → storing → completed)
+  - Percentage completion (0-100%, -1 for failed)
+  - Descriptive messages for each phase
+  - Automatic cleanup of old progress data
+
+### Monitoring Usage Examples
+
+**Check System Health:**
+```bash
+curl http://localhost:7532/monitor/health
+# Returns: status, uptime, component health, active optimizations
+```
+
+**Monitor Active Optimizations:**
+```bash
+curl http://localhost:7532/monitor
+# Returns: active runs, recent completions, system health
+```
+
+**Track Specific Optimization:**
+```bash
+curl http://localhost:7532/monitor/status/your-run-id
+# Returns: real-time progress or historical data
+```
+
+**Test Monitoring (Development):**
+```bash
+cd backend
+python test_monitoring.py
+# Demonstrates logging and tests all monitoring endpoints
+```
+
+### Log Output Examples
+
+**Console Output During Optimization:**
+```
+2025-01-01 12:00:00 - INFO - 🚀 Starting DSPy optimization
+2025-01-01 12:00:05 - INFO - 📊 Gathering training examples (20%)  
+2025-01-01 12:01:30 - INFO - 🧠 Running DSPy optimization (50%)
+2025-01-01 12:05:45 - INFO - ✅ Optimization completed successfully
+```
+
+**API Response for Active Run:**
+```json
+{
+  "success": true,
+  "run_id": "abc-123",
+  "progress": {
+    "step": "optimization", 
+    "progress": 75,
+    "message": "🧠 Running DSPy optimization",
+    "timestamp": "2025-01-01T12:03:00Z"
+  },
+  "source": "active"
+}
+```
 
 ## Development Best Practices
 
@@ -280,6 +376,28 @@ User feedback is converted into DSPy training examples:
 - Check optimization service logs for DSPy execution issues
 - Use FastAPI's automatic OpenAPI docs at `/docs` endpoint
 - Monitor background task execution in server logs
+
+### Monitoring and Observability Troubleshooting
+1. **Optimization Progress Not Visible**: 
+   - Check `/monitor/status/{run_id}` endpoint for real-time progress
+   - Verify run_id matches what's returned from `/optimize` POST request
+   - In-memory progress is cleaned up after completion
+
+2. **System Health Issues**:
+   - Use `/monitor/health` to diagnose component failures
+   - Check DSPy availability: `dspy_available: false` → Install DSPy
+   - Check Gemini configuration: `gemini_configured: false` → Set GEMINI_API_KEY
+   - Check database access: `database_accessible: false` → Verify file permissions
+
+3. **Missing Log Output**:
+   - Ensure logging level is set to INFO or DEBUG
+   - Check console output during optimization runs
+   - Structured log data is in the `extra` field for log parsing tools
+
+4. **Monitoring Dashboard Empty**:
+   - No active runs: Start an optimization to see progress tracking
+   - No recent completions: Historical data from `optimization_runs` table
+   - Use `python test_monitoring.py` to generate sample data
 
 ## Integration with Main Extension
 

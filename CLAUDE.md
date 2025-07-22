@@ -163,6 +163,22 @@ For detailed information about specific components, refer to the CLAUDE.md files
 4. Background script sends content to Gemini API
 5. Results are displayed via content script UI components
 
+### Backend Integration & Monitoring
+The backend (`backend/`) provides feedback collection and DSPy-based prompt optimization with comprehensive monitoring:
+
+- **Feedback Collection**: Chrome extension sends user feedback to `/feedback` endpoint
+- **Optimization Triggers**: Automatic optimization based on feedback volume and quality thresholds
+- **Enhanced Logging**: Structured logging with emoji indicators and progress tracking during optimizations
+- **Monitoring API**: Real-time optimization progress via `/monitor/*` endpoints
+- **Health Checks**: System health monitoring for DSPy, Gemini API, and database components
+
+**Monitoring Endpoints:**
+- `GET /monitor/health` - System health and component status
+- `GET /monitor` - Complete monitoring dashboard with active runs
+- `GET /monitor/status/{run_id}` - Real-time progress for specific optimizations
+
+See `backend/MONITORING_GUIDE.md` for comprehensive monitoring documentation.
+
 ### Golden Nugget Response Schema
 ```json
 {
