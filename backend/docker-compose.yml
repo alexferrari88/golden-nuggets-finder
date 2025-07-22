@@ -1,0 +1,72 @@
+version: '3.8'
+
+services:
+  # Main backend service
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "7532:7532"
+    environment:
+      - PORT=7532
+      - ENVIRONMENT=production
+      # Add your API keys via .env file or environment
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+    volumes:
+      # Persist database data
+      - backend_data:/app/data
+      # Persist logs
+      - backend_logs:/app/logs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:7532/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Development service with hot reload
+  backend-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    ports:
+      - "7532:7532"
+    environment:
+      - PORT=7532
+      - ENVIRONMENT=development
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+    volumes:
+      # Mount source code for development
+      - .:/app
+      # Persist database data
+      - backend_data:/app/data
+    restart: unless-stopped
+    profiles:
+      - dev
+
+  # Database backup service (runs periodically)
+  backup:
+    image: alpine:latest
+    volumes:
+      - backend_data:/data
+      - ./backups:/backups
+    command: >
+      sh -c "
+        while true; do
+          sleep 86400;  # Wait 24 hours
+          timestamp=$$(date +%Y%m%d_%H%M%S);
+          cp /data/feedback.db /backups/feedback_backup_$$timestamp.db 2>/dev/null || echo 'No database to backup';
+          find /backups -name 'feedback_backup_*.db' -mtime +7 -delete;  # Keep last 7 days
+        done
+      "
+    restart: unless-stopped
+    profiles:
+      - backup
+
+volumes:
+  backend_data:
+    driver: local
+  backend_logs:
+    driver: local
