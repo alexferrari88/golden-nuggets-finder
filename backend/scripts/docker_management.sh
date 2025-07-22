@@ -82,6 +82,23 @@ stop_services() {
     print_success "All services stopped"
 }
 
+# Stop services and remove volumes
+teardown() {
+    print_warning "This will stop all services and remove all volumes (including database data)!"
+    print_warning "Are you sure? (y/N)"
+    read -n 1 -r
+    echo
+    
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        print_info "Teardown cancelled"
+        return 1
+    fi
+    
+    print_info "Stopping services and removing volumes..."
+    docker-compose --profile dev --profile backup down -v
+    print_success "Services stopped and volumes removed"
+}
+
 # View logs
 view_logs() {
     local service=${1:-backend}
@@ -252,6 +269,7 @@ show_help() {
     echo "  start-dev           Start development environment with hot reload"
     echo "  start-prod          Start production environment"
     echo "  stop               Stop all services"
+    echo "  teardown           Stop all services and remove volumes (destructive!)"
     echo "  restart            Restart services"
     echo "  logs [service]     View logs (default: backend)"
     echo "  health             Check backend health"
@@ -284,6 +302,9 @@ main() {
             ;;
         stop)
             stop_services
+            ;;
+        teardown)
+            teardown
             ;;
         restart)
             stop_services
