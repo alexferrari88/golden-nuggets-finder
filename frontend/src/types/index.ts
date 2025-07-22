@@ -57,6 +57,31 @@ export interface DashboardStats {
   total_feedback_items: number;
 }
 
+export interface OptimizationRun {
+  id: string;
+  status: 'running' | 'completed' | 'failed';
+  mode: string;
+  started_at: string;
+  completed_at?: string;
+  tokens_used: number;
+  api_cost: number;
+  feedback_items_processed: number;
+  success_rate?: number;
+  duration_seconds?: number;
+}
+
+export interface HistoricalPerformance {
+  runs: OptimizationRun[];
+  total_count: number;
+  has_more: boolean;
+  performance_trends: {
+    avg_duration: number;
+    avg_cost: number;
+    avg_success_rate: number;
+    total_processed: number;
+  };
+}
+
 export interface ApiError {
   message: string;
   status: number;

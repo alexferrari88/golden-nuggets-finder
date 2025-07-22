@@ -8,13 +8,11 @@ import {
   ThumbsUp, 
   ThumbsDown, 
   Clock,
-  Filter,
   RefreshCw
 } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
+import { Badge } from '../ui/badge';
+import { Button } from '../ui/button';
 import { 
   Table, 
   TableBody, 
@@ -22,10 +20,12 @@ import {
   TableHead, 
   TableHeader, 
   TableRow 
-} from '@/components/ui/table';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { apiClient } from '@/lib/api';
-import type { PendingFeedback, FeedbackItem, ApiError } from '@/types';
+} from '../ui/table';
+import { Alert, AlertDescription } from '../ui/alert';
+import { AdvancedFilters, defaultFilters } from '../common/AdvancedFilters';
+import type { FilterState } from '../common/AdvancedFilters';
+import api from '../../lib/api';
+import type { PendingFeedback, FeedbackItem, ApiError } from '../../types';
 
 interface FeedbackQueueTableProps {
   refreshInterval?: number;
@@ -36,7 +36,7 @@ export function FeedbackQueueTable({
   refreshInterval = 10000, 
   pageSize = 20 
 }: FeedbackQueueTableProps) {
-  const [selectedType, setSelectedType] = useState<string>('all');
+  const [filters, setFilters] = useState<FilterState>(defaultFilters);
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [page, setPage] = useState(0);
 
@@ -47,12 +47,37 @@ export function FeedbackQueueTable({
     isError,
     refetch,
   } = useQuery<PendingFeedback, ApiError>({
-    queryKey: ['pending-feedback', selectedType, page],
-    queryFn: () => apiClient.getPendingFeedback({
-      limit: pageSize,
-      offset: page * pageSize,
-      feedback_type: selectedType === 'all' ? undefined : selectedType,
-    }),
+    queryKey: ['pending-feedback', filters, page],
+    queryFn: () => {
+      const params = new URLSearchParams({
+        limit: pageSize.toString(),
+        offset: (page * pageSize).toString(),
+      });
+      
+      if (filters.type !== 'all') {
+        params.append('feedback_type', filters.type);
+      }
+      if (filters.processed !== 'all') {
+        params.append('processed', filters.processed === 'processed' ? 'true' : 'false');
+      }
+      if (filters.search) {
+        params.append('search', filters.search);
+      }
+      if (filters.rating !== 'all') {
+        params.append('rating', filters.rating);
+      }
+      if (filters.dateRange !== 'all') {
+        params.append('date_range', filters.dateRange);
+      }
+      if (filters.sortBy) {
+        params.append('sort_by', filters.sortBy);
+      }
+      if (filters.sortOrder) {
+        params.append('sort_order', filters.sortOrder);
+      }
+      
+      return api.get(`/feedback/pending?${params}`).then(res => res.data);
+    },
     refetchInterval: refreshInterval,
     staleTime: 5000,
   });
@@ -136,31 +161,46 @@ export function FeedbackQueueTable({
     );
   }
 
+  const filterConfig = {
+    showSearch: true,
+    showType: true,
+    showStatus: false,
+    showRating: true,
+    showDateRange: true,
+    showProcessed: true,
+    showSort: true,
+    types: [
+      { value: 'nugget', label: 'Golden Nuggets' },
+      { value: 'missing_content', label: 'Missing Content' },
+    ],
+    sortOptions: [
+      { value: 'created_at', label: 'Created Date' },
+      { value: 'usage_count', label: 'Usage Count' },
+      { value: 'rating', label: 'Rating' },
+    ],
+  };
+
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-2">
-            <MessageSquare className="h-5 w-5" />
-            Feedback Queue
-            {feedbackData && (
-              <Badge variant="secondary">
-                {feedbackData.total_count} items
-              </Badge>
-            )}
-          </CardTitle>
-          <div className="flex items-center gap-2">
-            <Select value={selectedType} onValueChange={setSelectedType}>
-              <SelectTrigger className="w-40">
-                <Filter className="h-4 w-4 mr-2" />
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Types</SelectItem>
-                <SelectItem value="nugget">Golden Nuggets</SelectItem>
-                <SelectItem value="missing_content">Missing Content</SelectItem>
-              </SelectContent>
-            </Select>
+    <div className="space-y-4">
+      <AdvancedFilters
+        filters={filters}
+        onFiltersChange={setFilters}
+        config={filterConfig}
+        collapsible={true}
+      />
+      
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2">
+              <MessageSquare className="h-5 w-5" />
+              Feedback Queue
+              {feedbackData && (
+                <Badge variant="secondary">
+                  {feedbackData.total_count} items
+                </Badge>
+              )}
+            </CardTitle>
             <Button 
               variant="outline" 
               size="sm" 
@@ -170,8 +210,7 @@ export function FeedbackQueueTable({
               <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
             </Button>
           </div>
-        </div>
-      </CardHeader>
+        </CardHeader>
       <CardContent>
         {isLoading && !feedbackData ? (
           <div className="space-y-2">
@@ -307,7 +346,8 @@ export function FeedbackQueueTable({
             )}
           </div>
         )}
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+    </div>
   );
 }

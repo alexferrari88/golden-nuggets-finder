@@ -1,17 +1,20 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { RefreshCw, Layout, BarChart3, MessageSquare, Settings } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { SystemHealthWidget } from '@/components/dashboard/SystemHealthWidget';
-import { QuickActionsPanel } from '@/components/dashboard/QuickActionsPanel';
-import { FeedbackQueueTable } from '@/components/feedback/FeedbackQueueTable';
-import { OperationsProgress } from '@/components/operations/OperationsProgress';
-import { apiClient } from '@/lib/api';
-import type { DashboardStats, ApiError } from '@/types';
+import { Button } from '../components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
+import { Badge } from '../components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
+import { Alert, AlertDescription } from '../components/ui/alert';
+import { ResponsiveContainer, ResponsiveStack } from '../components/layout/ResponsiveContainer';
+import { SystemHealthWidget } from '../components/dashboard/SystemHealthWidget';
+import { QuickActionsPanel } from '../components/dashboard/QuickActionsPanel';
+import { FeedbackQueueTable } from '../components/feedback/FeedbackQueueTable';
+import { OperationsProgress } from '../components/operations/OperationsProgress';
+import { CostAnalytics } from '../components/analytics/CostAnalytics';
+import { HistoricalViews } from '../components/analytics/HistoricalViews';
+import api from '../lib/api';
+import type { DashboardStats, ApiError } from '../types';
 
 export function Dashboard() {
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
@@ -23,7 +26,7 @@ export function Dashboard() {
     error: statsError,
   } = useQuery<DashboardStats, ApiError>({
     queryKey: ['dashboard-stats'],
-    queryFn: apiClient.getDashboardStats,
+    queryFn: () => api.get('/dashboard/stats').then(res => res.data),
     refetchInterval: 10000,
     staleTime: 5000,
   });
@@ -38,16 +41,16 @@ export function Dashboard() {
                                (stats?.pending_missing_content_feedback || 0);
 
   return (
-    <div className="space-y-6">
+    <ResponsiveContainer maxWidth="full" className="min-h-screen">
       {/* Dashboard Header */}
-      <div className="flex items-center justify-between">
-        <div>
+      <ResponsiveStack direction="horizontal-on-desktop" className="mb-6">
+        <div className="flex-1">
           <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
           <p className="text-gray-600">
             Monitor your Golden Nuggets optimization system
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <div className="text-sm text-gray-500">
             Last updated: {lastUpdate.toLocaleTimeString()}
           </div>
@@ -59,10 +62,10 @@ export function Dashboard() {
             }}
           >
             <RefreshCw className="h-4 w-4 mr-2" />
-            Refresh
+            <span className="hidden sm:inline">Refresh</span>
           </Button>
         </div>
-      </div>
+      </ResponsiveStack>
 
       {/* Stats Overview Cards */}
       {statsLoading ? (
@@ -158,11 +161,23 @@ export function Dashboard() {
 
       {/* Main Dashboard Content */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="queue">Feedback Queue</TabsTrigger>
-          <TabsTrigger value="operations">Operations</TabsTrigger>
-          <TabsTrigger value="analytics">Analytics</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 h-auto">
+          <TabsTrigger value="overview" className="text-xs sm:text-sm px-2 py-2">
+            <span className="hidden sm:inline">Overview</span>
+            <span className="sm:hidden">📊</span>
+          </TabsTrigger>
+          <TabsTrigger value="queue" className="text-xs sm:text-sm px-2 py-2">
+            <span className="hidden sm:inline">Feedback Queue</span>
+            <span className="sm:hidden">📥</span>
+          </TabsTrigger>
+          <TabsTrigger value="operations" className="text-xs sm:text-sm px-2 py-2">
+            <span className="hidden sm:inline">Operations</span>
+            <span className="sm:hidden">⚡</span>
+          </TabsTrigger>
+          <TabsTrigger value="analytics" className="text-xs sm:text-sm px-2 py-2">
+            <span className="hidden sm:inline">Analytics</span>
+            <span className="sm:hidden">📈</span>
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6">
@@ -199,33 +214,22 @@ export function Dashboard() {
         </TabsContent>
 
         <TabsContent value="analytics" className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Cost Analysis</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-center py-8 text-gray-500">
-                  <BarChart3 className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                  <p>Cost analytics coming in Phase 4</p>
-                </div>
-              </CardContent>
-            </Card>
+          <Tabs defaultValue="costs" className="space-y-6">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="costs">Cost Analytics</TabsTrigger>
+              <TabsTrigger value="historical">Historical Performance</TabsTrigger>
+            </TabsList>
             
-            <Card>
-              <CardHeader>
-                <CardTitle>Performance Trends</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-center py-8 text-gray-500">
-                  <BarChart3 className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                  <p>Performance charts coming in Phase 4</p>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+            <TabsContent value="costs">
+              <CostAnalytics days={30} />
+            </TabsContent>
+            
+            <TabsContent value="historical">
+              <HistoricalViews limit={100} />
+            </TabsContent>
+          </Tabs>
         </TabsContent>
       </Tabs>
-    </div>
+    </ResponsiveContainer>
   );
 }

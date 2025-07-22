@@ -11,16 +11,9 @@ import {
   CheckCircle,
   AlertCircle
 } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
-} from '@/components/ui/select';
+import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
+import { Button } from '../ui/button';
+import { Badge } from '../ui/badge';
 import { 
   Dialog,
   DialogContent,
@@ -29,25 +22,24 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from '@/components/ui/dialog';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { apiClient } from '@/lib/api';
-import type { ApiError } from '@/types';
+} from '../ui/dialog';
+import { Alert, AlertDescription } from '../ui/alert';
+import { DataExporter } from '../export/DataExporter';
+import api from '../../lib/api';
+import type { ApiError } from '../../types';
 
 interface QuickActionsPanelProps {
   onActionComplete?: (action: string, success: boolean) => void;
 }
 
 export function QuickActionsPanel({ onActionComplete }: QuickActionsPanelProps) {
-  const [exportFormat, setExportFormat] = useState<'csv' | 'json'>('json');
-  const [exportType, setExportType] = useState<string>('feedback');
   const [confirmDialog, setConfirmDialog] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
   // Optimization trigger mutation
   const optimizationMutation = useMutation({
     mutationFn: ({ force }: { force?: boolean } = {}) => 
-      apiClient.triggerOptimization({ force }),
+      api.post('/optimization/trigger', { force }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['recent-activity'] });
       queryClient.invalidateQueries({ queryKey: ['system-health'] });
@@ -55,31 +47,6 @@ export function QuickActionsPanel({ onActionComplete }: QuickActionsPanelProps) 
     },
     onError: () => {
       onActionComplete?.('optimization', false);
-    },
-  });
-
-  // Export data mutation
-  const exportMutation = useMutation({
-    mutationFn: ({ format, type }: { format: 'csv' | 'json', type: string }) =>
-      apiClient.exportData(format, type),
-    onSuccess: (data, variables) => {
-      // Create download link for the blob
-      const blob = new Blob([data as BlobPart], { 
-        type: variables.format === 'csv' ? 'text/csv' : 'application/json' 
-      });
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${variables.type}-export.${variables.format}`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-      
-      onActionComplete?.('export', true);
-    },
-    onError: () => {
-      onActionComplete?.('export', false);
     },
   });
 
@@ -93,11 +60,7 @@ export function QuickActionsPanel({ onActionComplete }: QuickActionsPanelProps) 
     setConfirmDialog(null);
   };
 
-  const handleExport = () => {
-    exportMutation.mutate({ format: exportFormat, type: exportType });
-  };
-
-  const getActionStatus = (mutation: typeof optimizationMutation | typeof exportMutation) => {
+  const getActionStatus = (mutation: typeof optimizationMutation) => {
     if (mutation.isPending) return 'loading';
     if (mutation.isError) return 'error';
     if (mutation.isSuccess) return 'success';
@@ -200,48 +163,18 @@ export function QuickActionsPanel({ onActionComplete }: QuickActionsPanelProps) 
               Data Export
             </h4>
             
-            <div className="space-y-2">
-              <div className="flex gap-2">
-                <Select value={exportType} onValueChange={setExportType}>
-                  <SelectTrigger className="flex-1">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="feedback">Feedback Data</SelectItem>
-                    <SelectItem value="optimizations">Optimization Runs</SelectItem>
-                    <SelectItem value="costs">Cost Analysis</SelectItem>
-                    <SelectItem value="progress">Progress Logs</SelectItem>
-                  </SelectContent>
-                </Select>
-                
-                <Select value={exportFormat} onValueChange={(value) => setExportFormat(value as 'csv' | 'json')}>
-                  <SelectTrigger className="w-24">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="json">JSON</SelectItem>
-                    <SelectItem value="csv">CSV</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div className="flex items-center justify-between">
-                <p className="text-xs text-gray-500">
-                  Export {exportType.replace('_', ' ')} as {exportFormat.toUpperCase()}
-                </p>
-                <div className="flex items-center gap-2">
-                  {getStatusIcon(getActionStatus(exportMutation))}
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    disabled={exportMutation.isPending}
-                    onClick={handleExport}
-                  >
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-gray-500">
+                Export data with advanced options and job tracking
+              </p>
+              <DataExporter
+                trigger={
+                  <Button variant="outline" size="sm">
                     <Download className="h-4 w-4 mr-2" />
-                    Export
+                    Export Data
                   </Button>
-                </div>
-              </div>
+                }
+              />
             </div>
           </div>
         </div>
@@ -255,30 +188,12 @@ export function QuickActionsPanel({ onActionComplete }: QuickActionsPanelProps) 
             </AlertDescription>
           </Alert>
         )}
-        
-        {exportMutation.isError && (
-          <Alert variant="destructive">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>
-              Failed to export data: {(exportMutation.error as unknown as ApiError)?.message}
-            </AlertDescription>
-          </Alert>
-        )}
 
         {optimizationMutation.isSuccess && (
           <Alert>
             <CheckCircle className="h-4 w-4" />
             <AlertDescription>
               Optimization started successfully! Check the Operations Monitor for progress.
-            </AlertDescription>
-          </Alert>
-        )}
-
-        {exportMutation.isSuccess && (
-          <Alert>
-            <CheckCircle className="h-4 w-4" />
-            <AlertDescription>
-              Data exported successfully! Check your downloads folder.
             </AlertDescription>
           </Alert>
         )}
