@@ -140,6 +140,20 @@ export const apiClient = {
       url: '/feedback/usage/stats',
     }),
 
+  // Feedback Item Management - Edit/Delete operations
+  updateFeedbackItem: (id: string, updates: { content?: string; rating?: 'positive' | 'negative' | null }) =>
+    makeRequest({
+      method: 'PUT',
+      url: `/feedback/${id}`,
+      data: updates,
+    }),
+
+  deleteFeedbackItem: (id: string) =>
+    makeRequest({
+      method: 'DELETE',
+      url: `/feedback/${id}`,
+    }),
+
   // Optimization Progress - Live tracking
   getOptimizationProgress: (runId: string): Promise<OptimizationProgress[]> =>
     makeRequest<OptimizationProgress[]>({

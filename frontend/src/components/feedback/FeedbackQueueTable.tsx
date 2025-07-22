@@ -8,7 +8,9 @@ import {
   ThumbsUp, 
   ThumbsDown, 
   Clock,
-  RefreshCw
+  RefreshCw,
+  Edit3,
+  Trash2
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Badge } from '../ui/badge';
@@ -24,6 +26,8 @@ import {
 import { Alert, AlertDescription } from '../ui/alert';
 import { AdvancedFilters, defaultFilters } from '../common/AdvancedFilters';
 import type { FilterState } from '../common/AdvancedFilters';
+import { EditFeedbackDialog } from './EditFeedbackDialog';
+import { DeleteFeedbackDialog } from './DeleteFeedbackDialog';
 import api from '../../lib/api';
 import type { PendingFeedback, FeedbackItem, ApiError } from '../../types';
 
@@ -236,6 +240,7 @@ export function FeedbackQueueTable({
                   <TableHead>Usage</TableHead>
                   <TableHead>Created</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead className="w-24">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -292,12 +297,26 @@ export function FeedbackQueueTable({
                           {item.processed ? 'Processed' : 'Pending'}
                         </Badge>
                       </TableCell>
+                      <TableCell onClick={(e) => e.stopPropagation()}>
+                        <div className="flex gap-1">
+                          <EditFeedbackDialog item={item}>
+                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                              <Edit3 className="h-3 w-3" />
+                            </Button>
+                          </EditFeedbackDialog>
+                          <DeleteFeedbackDialog item={item}>
+                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-red-600 hover:text-red-700">
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </DeleteFeedbackDialog>
+                        </div>
+                      </TableCell>
                     </TableRow>
                     
                     {/* Expanded content row */}
                     {expandedRows.has(item.id) && (
                       <TableRow>
-                        <TableCell colSpan={7}>
+                        <TableCell colSpan={8}>
                           <div className="py-4 px-4 bg-gray-50 rounded-lg">
                             <h4 className="font-medium mb-2">Full Content:</h4>
                             <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">
