@@ -27,6 +27,7 @@ from .models import (
     OptimizationRequest,
     OptimizedPromptResponse,
     SystemHealthResponse,
+    UpdateFeedbackRequest,
 )
 from .services.feedback_service import FeedbackService
 from .services.optimization_service import OptimizationService
@@ -506,6 +507,70 @@ async def get_feedback_details(feedback_id: str, feedback_type: str):
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Failed to get feedback details: {e!s}"
+        ) from e
+
+
+@app.put("/feedback/{feedback_id}")
+async def update_feedback_item(
+    feedback_id: str, 
+    feedback_type: str, 
+    updates: UpdateFeedbackRequest
+):
+    """Update a feedback item"""
+    try:
+        async with get_db() as db:
+            # Convert Pydantic model to dict, excluding None values
+            update_data = updates.model_dump(exclude_none=True)
+            
+            if not update_data:
+                raise HTTPException(
+                    status_code=400, 
+                    detail="At least one field must be provided for update"
+                )
+            
+            success = await feedback_service.update_feedback_item(
+                db, feedback_id, feedback_type, update_data
+            )
+            
+            if not success:
+                raise HTTPException(status_code=404, detail="Feedback item not found")
+                
+            return {
+                "success": True,
+                "message": "Feedback item updated successfully",
+                "updated_fields": list(update_data.keys())
+            }
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Failed to update feedback item: {e!s}"
+        ) from e
+
+
+@app.delete("/feedback/{feedback_id}")
+async def delete_feedback_item(feedback_id: str, feedback_type: str):
+    """Delete a feedback item and its usage records"""
+    try:
+        async with get_db() as db:
+            success = await feedback_service.delete_feedback_item(
+                db, feedback_id, feedback_type
+            )
+            
+            if not success:
+                raise HTTPException(status_code=404, detail="Feedback item not found")
+                
+            return {
+                "success": True,
+                "message": "Feedback item deleted successfully"
+            }
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Failed to delete feedback item: {e!s}"
         ) from e
 
 

@@ -40,6 +40,18 @@ class FeedbackSubmissionRequest(BaseModel):
     missingContentFeedback: Optional[list[MissingContentFeedback]] = None
 
 
+class UpdateFeedbackRequest(BaseModel):
+    """Request model for updating feedback items"""
+    content: Optional[str] = None
+    rating: Optional[Literal["positive", "negative"]] = None
+    corrected_type: Optional[
+        Literal["tool", "media", "explanation", "analogy", "model"]
+    ] = None
+    suggested_type: Optional[
+        Literal["tool", "media", "explanation", "analogy", "model"]
+    ] = None
+
+
 # Stats and optimization models
 
 

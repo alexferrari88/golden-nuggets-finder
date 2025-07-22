@@ -913,3 +913,112 @@ class FeedbackService:
                     for row in usage_history
                 ],
             }
+
+    async def update_feedback_item(
+        self, 
+        db: aiosqlite.Connection, 
+        feedback_id: str, 
+        feedback_type: str,
+        updates: dict
+    ) -> bool:
+        """
+        Update a feedback item.
+
+        Args:
+            db: Database connection
+            feedback_id: ID of the feedback item
+            feedback_type: Type of feedback ('nugget' or 'missing_content')
+            updates: Dictionary of fields to update
+
+        Returns:
+            True if item was updated, False if not found
+        """
+        if feedback_type == "nugget":
+            # Build dynamic update query for nugget feedback
+            valid_fields = ['nugget_content', 'rating', 'corrected_type', 'context']
+            update_fields = []
+            update_values = []
+            
+            for field, value in updates.items():
+                if field == 'content':  # Map 'content' to 'nugget_content'
+                    field = 'nugget_content'
+                if field in valid_fields:
+                    update_fields.append(f"{field} = ?")
+                    update_values.append(value)
+            
+            if not update_fields:
+                return False
+                
+            update_values.append(feedback_id)
+            query = f"""
+                UPDATE nugget_feedback 
+                SET {', '.join(update_fields)}
+                WHERE id = ?
+            """
+            
+        else:  # missing_content
+            # Build dynamic update query for missing content feedback
+            valid_fields = ['content', 'suggested_type', 'context']
+            update_fields = []
+            update_values = []
+            
+            for field, value in updates.items():
+                if field in valid_fields:
+                    update_fields.append(f"{field} = ?")
+                    update_values.append(value)
+            
+            if not update_fields:
+                return False
+                
+            update_values.append(feedback_id)
+            query = f"""
+                UPDATE missing_content_feedback 
+                SET {', '.join(update_fields)}
+                WHERE id = ?
+            """
+
+        cursor = await db.execute(query, update_values)
+        await db.commit()
+        
+        return cursor.rowcount > 0
+
+    async def delete_feedback_item(
+        self, 
+        db: aiosqlite.Connection, 
+        feedback_id: str, 
+        feedback_type: str
+    ) -> bool:
+        """
+        Delete a feedback item and its usage records.
+
+        Args:
+            db: Database connection
+            feedback_id: ID of the feedback item
+            feedback_type: Type of feedback ('nugget' or 'missing_content')
+
+        Returns:
+            True if item was deleted, False if not found
+        """
+        # First delete usage records
+        await db.execute(
+            """
+            DELETE FROM feedback_usage 
+            WHERE feedback_id = ? AND feedback_type = ?
+            """,
+            (feedback_id, feedback_type),
+        )
+
+        # Then delete the feedback item
+        if feedback_type == "nugget":
+            cursor = await db.execute(
+                "DELETE FROM nugget_feedback WHERE id = ?",
+                (feedback_id,),
+            )
+        else:  # missing_content
+            cursor = await db.execute(
+                "DELETE FROM missing_content_feedback WHERE id = ?",
+                (feedback_id,),
+            )
+
+        await db.commit()
+        return cursor.rowcount > 0
