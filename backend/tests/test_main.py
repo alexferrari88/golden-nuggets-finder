@@ -109,3 +109,115 @@ def test_current_prompt():
     assert "id" in data
     assert "version" in data
     assert "prompt" in data
+
+
+def test_update_feedback_item(setup_database):
+    """Test updating a feedback item"""
+    # First, submit feedback to have something to update
+    feedback_data = {
+        "nuggetFeedback": [
+            {
+                "id": "update-test-1",
+                "nuggetContent": "Original content for update testing",
+                "originalType": "tool",
+                "correctedType": None,
+                "rating": "positive",
+                "timestamp": 1642780800000,
+                "url": "https://example.com/update-test",
+                "context": "Original context for update testing",
+            }
+        ]
+    }
+    
+    # Submit the feedback
+    response = client.post("/feedback", json=feedback_data)
+    assert response.status_code == 200
+    
+    # Now update the feedback item
+    update_data = {
+        "content": "Updated content for update testing",
+        "rating": "negative"
+    }
+    
+    response = client.put(
+        "/feedback/update-test-1?feedback_type=nugget", 
+        json=update_data
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["success"] is True
+    assert data["message"] == "Feedback item updated successfully"
+    assert "content" in data["updated_fields"]
+    assert "rating" in data["updated_fields"]
+
+
+def test_update_feedback_item_not_found():
+    """Test updating a non-existent feedback item"""
+    update_data = {
+        "content": "This should fail",
+        "rating": "positive"
+    }
+    
+    response = client.put(
+        "/feedback/non-existent-id?feedback_type=nugget", 
+        json=update_data
+    )
+    assert response.status_code == 404
+    assert "not found" in response.json()["detail"].lower()
+
+
+def test_update_feedback_item_empty_update():
+    """Test updating feedback item with no fields"""
+    update_data = {}
+    
+    response = client.put(
+        "/feedback/some-id?feedback_type=nugget", 
+        json=update_data
+    )
+    assert response.status_code == 400
+    assert "At least one field must be provided" in response.json()["detail"]
+
+
+def test_delete_feedback_item(setup_database):
+    """Test deleting a feedback item"""
+    # First, submit feedback to have something to delete
+    feedback_data = {
+        "missingContentFeedback": [
+            {
+                "id": "delete-test-1", 
+                "content": "Content to be deleted",
+                "suggestedType": "explanation",
+                "timestamp": 1642780800000,
+                "url": "https://example.com/delete-test",
+                "context": "Context for deletion testing",
+            }
+        ]
+    }
+    
+    # Submit the feedback
+    response = client.post("/feedback", json=feedback_data)
+    assert response.status_code == 200
+    
+    # Now delete the feedback item
+    response = client.delete(
+        "/feedback/delete-test-1?feedback_type=missing_content"
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["success"] is True
+    assert data["message"] == "Feedback item deleted successfully"
+    
+    # Verify it's actually deleted by trying to get details
+    response = client.get(
+        "/feedback/delete-test-1?feedback_type=missing_content"
+    )
+    assert response.status_code == 404
+
+
+def test_delete_feedback_item_not_found():
+    """Test deleting a non-existent feedback item"""
+    response = client.delete(
+        "/feedback/non-existent-id?feedback_type=nugget"
+    )
+    assert response.status_code == 404
+    assert "not found" in response.json()["detail"].lower()

@@ -217,6 +217,25 @@ User feedback is converted into DSPy training examples:
   - Days since last optimization
   - Optimization trigger status
 
+- `GET /feedback/{feedback_id}` - Get detailed information about specific feedback item
+  - Requires `feedback_type` query parameter ('nugget' or 'missing_content')
+  - Returns complete feedback details including usage history
+  - Returns 404 if feedback item not found
+
+- `PUT /feedback/{feedback_id}` - Update existing feedback item
+  - Requires `feedback_type` query parameter ('nugget' or 'missing_content')
+  - Request body: `UpdateFeedbackRequest` with optional fields to update
+  - Supports updating: `content`, `rating`, `corrected_type`, `suggested_type`
+  - Returns updated field names and success confirmation
+  - Returns 404 if feedback item not found
+  - Returns 400 if no fields provided for update
+
+- `DELETE /feedback/{feedback_id}` - Delete feedback item and associated usage records
+  - Requires `feedback_type` query parameter ('nugget' or 'missing_content') 
+  - Permanently removes feedback item and all usage history
+  - Returns success confirmation
+  - Returns 404 if feedback item not found
+
 ### Prompt Optimization
 - `POST /optimize` - Manually trigger optimization
   - Supports both expensive and cheap modes
