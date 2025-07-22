@@ -56,3 +56,10 @@ export interface DashboardStats {
   active_optimizations: number;
   total_feedback_items: number;
 }
+
+export interface ApiError {
+  message: string;
+  status: number;
+  code: string;
+  retryable: boolean;
+}
