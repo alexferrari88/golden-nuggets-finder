@@ -773,7 +773,7 @@ export class Highlighter {
     }
 
     // Try multiple matching strategies in order of preference
-    const result = this.tryMultipleMatchingStrategies(textNodes, nugget, normalizedContent);
+    const result = this.tryMultipleMatchingStrategies(textNodes, nugget, normalizedContent, pageContent);
     console.log('✅ [Generic Highlighting Debug] tryMultipleMatchingStrategies result:', result);
     return result;
   }
@@ -1019,7 +1019,7 @@ export class Highlighter {
     return textNodes;
   }
   
-  private tryMultipleMatchingStrategies(textNodes: Element[], nugget: GoldenNugget, normalizedContent: string): boolean {
+  private tryMultipleMatchingStrategies(textNodes: Element[], nugget: GoldenNugget, normalizedContent: string, pageContent?: string): boolean {
     const originalContent = getDisplayContent(nugget, pageContent);
     
     console.log('🎲 [Matching Strategies Debug] Starting strategies for:', {
