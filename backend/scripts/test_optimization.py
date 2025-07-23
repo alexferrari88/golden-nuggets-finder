@@ -203,30 +203,32 @@ async def monitor_optimization_history():
     optimization_service = OptimizationService()
 
     async with get_db() as db:
-        history = await optimization_service.get_optimization_history(db, limit=20)
+        history_data = await optimization_service.get_optimization_history(db, limit=20)
 
-        if not history:
+        if not history_data or not history_data.get("runs"):
             print("No optimization runs found.")
             return
 
+        history = history_data["runs"]
         print(
-            f"{'Date':<19} | {'Mode':<9} | {'Status':<9} | {'Improvement':<11} | {'Examples'}"
+            f"{'Date':<19} | {'Mode':<9} | {'Status':<9} | {'Duration':<9} | {'Cost':<8} | {'Examples'}"
         )
-        print("-" * 70)
+        print("-" * 80)
 
         for run in history:
-            date = run.get("startedAt", "")[:19]  # Truncate timestamp
+            date = run.get("started_at", "")[:19]  # Truncate timestamp
             mode = run.get("mode", "unknown")
             status = run.get("status", "unknown")
-            improvement = run.get("performanceImprovement", 0) or 0
-            examples = run.get("feedbackCount", 0)
+            duration = run.get("duration_seconds", 0) or 0
+            cost = run.get("api_cost", 0.0) or 0.0
+            examples = run.get("feedback_items_processed", 0)
 
             status_icon = {"completed": "✅", "failed": "❌", "running": "⏳"}.get(
                 status, "?"
             )
 
             print(
-                f"{date} | {mode:>9} | {status_icon} {status:<7} | {improvement:>9.1%} | {examples:>8}"
+                f"{date} | {mode:>9} | {status_icon} {status:<7} | {duration:>7}s | ${cost:>6.4f} | {examples:>8}"
             )
 
         # Show current prompt info

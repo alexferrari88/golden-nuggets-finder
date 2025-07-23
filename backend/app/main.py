@@ -254,13 +254,17 @@ async def trigger_optimization(
         ) from e
 
 
-@app.get("/optimize/history")
-async def get_optimization_history():
-    """Get history of prompt optimizations"""
+@app.get("/optimization/history")
+async def get_optimization_history(
+    limit: int = 50, days: int = None, mode: str = None
+):
+    """Get history of prompt optimizations with performance analytics"""
     try:
         async with get_db() as db:
-            history = await optimization_service.get_optimization_history(db)
-            return {"success": True, "data": history}
+            history = await optimization_service.get_optimization_history(
+                db, limit=limit, days=days, mode=mode
+            )
+            return history
 
     except Exception as e:
         raise HTTPException(

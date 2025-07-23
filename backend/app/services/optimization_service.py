@@ -571,41 +571,113 @@ Return valid JSON with the exact structure: {{"golden_nuggets": [...]}}"""
         return None
 
     async def get_optimization_history(
-        self, db: aiosqlite.Connection, limit: int = 50
-    ) -> list[dict]:
-        """Get history of optimization runs"""
+        self, db: aiosqlite.Connection, limit: int = 50, days: int = None, mode: str = None
+    ) -> dict:
+        """Get optimization history with performance analytics"""
+        
+        # Build the WHERE clause based on filters
+        where_conditions = []
+        params = []
+        
+        if days:
+            where_conditions.append("DATE(opt_run.started_at) >= DATE('now', '-' || ? || ' days')")
+            params.append(days)
+            
+        if mode and mode != 'all':
+            where_conditions.append("opt_run.mode = ?")
+            params.append(mode)
+        
+        where_clause = ""
+        if where_conditions:
+            where_clause = "WHERE " + " AND ".join(where_conditions)
+        
+        # Get the filtered optimization runs with calculated fields
         cursor = await db.execute(
-            """
+            f"""
             SELECT
                 opt_run.id, opt_run.mode, opt_run.trigger_type, opt_run.started_at, opt_run.completed_at,
                 opt_run.status, opt_run.performance_improvement, opt_run.feedback_count, opt_run.error_message,
-                op.version, op.positive_rate
+                opt_run.api_cost, opt_run.total_tokens, opt_run.input_tokens, opt_run.output_tokens,
+                op.version, op.positive_rate,
+                -- Calculate duration in seconds
+                CASE 
+                    WHEN opt_run.completed_at IS NOT NULL THEN
+                        CAST((JULIANDAY(opt_run.completed_at) - JULIANDAY(opt_run.started_at)) * 86400 AS INTEGER)
+                    ELSE NULL
+                END as duration_seconds
             FROM optimization_runs opt_run
             LEFT JOIN optimized_prompts op ON opt_run.id = op.optimization_run_id
+            {where_clause}
             ORDER BY opt_run.started_at DESC
             LIMIT ?
-        """,
-            (limit,),
+            """,
+            (*params, limit),
         )
 
         results = await cursor.fetchall()
 
-        history = []
+        # Transform results into the expected format
+        runs = []
         for result in results:
-            history.append(
-                {
-                    "id": result[0],
-                    "mode": result[1],
-                    "triggerType": result[2],
-                    "startedAt": result[3],
-                    "completedAt": result[4],
-                    "status": result[5],
-                    "performanceImprovement": result[6],
-                    "feedbackCount": result[7],
-                    "errorMessage": result[8],
-                    "promptVersion": result[9],
-                    "positiveRate": result[10],
-                }
-            )
+            # Use positive_rate as success_rate, fallback to performance_improvement
+            success_rate = result[14]  # positive_rate
+            if success_rate is None and result[6] is not None:  # performance_improvement
+                # Convert performance improvement to a success rate (0-1)
+                # Assuming performance_improvement is a percentage or ratio
+                success_rate = min(max(result[6], 0), 1) if result[6] >= 0 else None
+            
+            run = {
+                "id": result[0],
+                "status": result[5],
+                "mode": result[1],
+                "started_at": result[3],
+                "completed_at": result[4],
+                "tokens_used": result[10] or 0,  # total_tokens
+                "api_cost": result[9] or 0.0,
+                "feedback_items_processed": result[7] or 0,  # feedback_count
+                "success_rate": success_rate,
+                "duration_seconds": result[15]  # duration_seconds calculated field
+            }
+            runs.append(run)
 
-        return history
+        # Calculate performance trends from completed runs only
+        completed_runs = [r for r in runs if r["status"] == "completed"]
+        
+        if completed_runs:
+            # Calculate averages
+            durations = [r["duration_seconds"] for r in completed_runs if r["duration_seconds"] is not None]
+            costs = [r["api_cost"] for r in completed_runs if r["api_cost"] is not None]
+            success_rates = [r["success_rate"] for r in completed_runs if r["success_rate"] is not None]
+            
+            avg_duration = sum(durations) / len(durations) if durations else 0
+            avg_cost = sum(costs) / len(costs) if costs else 0.0
+            avg_success_rate = sum(success_rates) / len(success_rates) if success_rates else 0.0
+            total_processed = sum(r["feedback_items_processed"] for r in completed_runs)
+        else:
+            avg_duration = 0
+            avg_cost = 0.0
+            avg_success_rate = 0.0
+            total_processed = 0
+
+        # Get total count for has_more calculation
+        count_cursor = await db.execute(
+            f"""
+            SELECT COUNT(*) 
+            FROM optimization_runs opt_run 
+            {where_clause}
+            """,
+            params,
+        )
+        total_count = (await count_cursor.fetchone())[0]
+
+        return {
+            "runs": runs,
+            "total_count": total_count,
+            "has_more": total_count > limit,
+            "performance_trends": {
+                "avg_duration": avg_duration,
+                "avg_cost": avg_cost,
+                "avg_success_rate": avg_success_rate,
+                "total_processed": total_processed
+            }
+        }

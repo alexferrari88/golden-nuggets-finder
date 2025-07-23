@@ -284,7 +284,9 @@ class TestOptimizationIntegration:
 
             # 4. Should be able to get optimization history
             history = await optimization_service.get_optimization_history(db, limit=10)
-            assert isinstance(history, list)
+            assert isinstance(history, dict)
+            assert "runs" in history
+            assert isinstance(history["runs"], list)
 
     @pytest.mark.asyncio
     async def test_concurrent_optimization_handling(self, clean_database):

@@ -88,11 +88,14 @@ def test_optimization_trigger(clean_database):
 
 def test_optimization_history(clean_database):
     """Test getting optimization history"""
-    response = client.get("/optimize/history")
+    response = client.get("/optimization/history")
     assert response.status_code == 200
     data = response.json()
-    assert "data" in data
-    assert isinstance(data["data"], list)
+    assert "runs" in data
+    assert isinstance(data["runs"], list)
+    assert "performance_trends" in data
+    assert "total_count" in data
+    assert "has_more" in data
 
 
 def test_current_prompt(clean_database):
