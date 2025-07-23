@@ -44,7 +44,7 @@ async def setup_test_database():
             id TEXT PRIMARY KEY,
             started_at TEXT NOT NULL,
             api_cost REAL DEFAULT 0,
-            tokens_used INTEGER DEFAULT 0,
+            total_tokens INTEGER DEFAULT 0,
             input_tokens INTEGER DEFAULT 0,
             output_tokens INTEGER DEFAULT 0
         )

@@ -128,7 +128,7 @@ async def create_sample_data():
             """
             INSERT OR IGNORE INTO optimization_runs (
                 id, mode, trigger_type, started_at, status, 
-                feedback_count, tokens_used, api_cost
+                feedback_count, total_tokens, api_cost
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         """,
             (

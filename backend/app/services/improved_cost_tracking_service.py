@@ -114,7 +114,7 @@ class ImprovedCostTrackingService:
         # Get total costs from optimization_runs table
         cursor = await db.execute(
             """
-            SELECT api_cost, tokens_used, input_tokens, output_tokens
+            SELECT api_cost, total_tokens, input_tokens, output_tokens
             FROM optimization_runs
             WHERE id = ?
             """,
@@ -219,7 +219,7 @@ class ImprovedCostTrackingService:
             """
             SELECT 
                 COALESCE(SUM(api_cost), 0) as total_cost,
-                COALESCE(SUM(tokens_used), 0) as total_tokens,
+                COALESCE(SUM(total_tokens), 0) as total_tokens,
                 COUNT(*) as total_runs
             FROM optimization_runs
             WHERE started_at > ?
@@ -235,7 +235,7 @@ class ImprovedCostTrackingService:
             SELECT 
                 DATE(started_at) as date,
                 SUM(api_cost) as daily_cost,
-                SUM(tokens_used) as daily_tokens,
+                SUM(total_tokens) as daily_tokens,
                 COUNT(*) as daily_runs
             FROM optimization_runs
             WHERE started_at > ?
@@ -307,7 +307,7 @@ class ImprovedCostTrackingService:
             await db.execute(
                 """
                 UPDATE optimization_runs
-                SET api_cost = ?, tokens_used = ?, input_tokens = ?, output_tokens = ?
+                SET api_cost = ?, total_tokens = ?, input_tokens = ?, output_tokens = ?
                 WHERE id = ?
                 """,
                 (totals[0], totals[1], totals[2], totals[3], optimization_run_id),
