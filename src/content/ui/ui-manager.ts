@@ -23,6 +23,7 @@ import {
 	type MissingContentFeedback,
 } from "../../shared/types";
 import { ALL_NUGGET_TYPES, GoldenNuggetType } from '../../shared/schemas';
+import { getDisplayContent } from "../../shared/content-reconstruction";
 import { Highlighter } from "./highlighter";
 import { NotificationManager } from "./notifications";
 import { Sidebar } from "./sidebar";
@@ -94,22 +95,39 @@ export class UIManager {
 		);
 	}
 
-	async displayResults(nuggets: GoldenNugget[]): Promise<void> {
+	async displayResults(nuggets: GoldenNugget[], pageContent?: string): Promise<void> {
 		performanceMonitor.startTimer("display_results");
 
 		// Clear any existing highlights and sidebar
 		measureDOMOperation("clear_results", () => this.clearResults());
 
-		// Highlight nuggets on the page
+		// Enhance nuggets with reconstructed full content if page content is available
+		const enhancedNuggets = nuggets.map(nugget => {
+			if (pageContent) {
+				const fullContent = getDisplayContent(nugget, pageContent);
+				// Create an enhanced nugget with full content for display
+				return {
+					...nugget,
+					_fullContent: fullContent,
+					_hasReconstructedContent: fullContent.length > nugget.startContent.length + nugget.endContent.length + 10
+				};
+			}
+			return nugget;
+		});
+
+		// Highlight nuggets on the page (pass page content for reconstruction)
 		const sidebarItems: SidebarNuggetItem[] = [];
 
 		performanceMonitor.startTimer("highlight_nuggets");
-		for (const nugget of nuggets) {
+		for (let i = 0; i < enhancedNuggets.length; i++) {
+			const nugget = enhancedNuggets[i];
+			const originalNugget = nuggets[i];
+			
 			const highlighted = await measureHighlighting("nugget_highlight", () =>
-				this.highlighter.highlightNugget(nugget),
+				this.highlighter.highlightNugget(originalNugget, pageContent),
 			);
 			sidebarItems.push({
-				nugget,
+				nugget: nugget as any, // Use enhanced nugget for sidebar display
 				status: highlighted ? "highlighted" : "not-found",
 			});
 		}
@@ -118,9 +136,9 @@ export class UIManager {
 			`Highlighted ${nuggets.length} nuggets`,
 		);
 
-		// Show sidebar with all nuggets
+		// Show sidebar with all nuggets (pass page content for reconstruction)
 		measureDOMOperation("show_sidebar", () =>
-			this.sidebar.show(sidebarItems, this.highlighter),
+			this.sidebar.show(sidebarItems, this.highlighter, pageContent),
 		);
 
 		performanceMonitor.logTimer("display_results", "Complete results display");

@@ -1,6 +1,7 @@
 import { SidebarNuggetItem, NuggetFeedback, FeedbackRating, MESSAGE_TYPES } from '../../shared/types';
 import { ALL_NUGGET_TYPES, GoldenNuggetType } from '../../shared/schemas';
 import { Highlighter } from './highlighter';
+import { getDisplayContent } from '../../shared/content-reconstruction';
 import { colors, shadows, generateInlineStyles, borderRadius, spacing, typography, zIndex, ui } from '../../shared/design-system';
 
 export class Sidebar {
@@ -16,6 +17,7 @@ export class Sidebar {
   private actionMenuVisible: boolean = false;
   private restEndpointPanel: HTMLElement | null = null;
   private restEndpointExpanded: boolean = false;
+  private pageContent: string | null = null; // Store page content for reconstruction
   private restEndpointConfig = {
     url: '',
     method: 'POST',
@@ -34,12 +36,19 @@ export class Sidebar {
 
   /**
    * Get display content for a nugget in the sidebar
+   * Uses the shared reconstruction utility to show full content when possible
    */
-  private getDisplayContent(nugget: any): string {
-    // If we have both startContent and endContent, show them with ellipsis
-    if (nugget.startContent && nugget.endContent) {
-      return `${nugget.startContent}...${nugget.endContent}`;
+  private getSidebarDisplayContent(nugget: any): string {
+    // Check if we have enhanced content from UIManager
+    if (nugget._fullContent) {
+      return nugget._fullContent;
     }
+    
+    // Try to reconstruct using shared utility if we have page content
+    if (nugget.startContent && nugget.endContent) {
+      return getDisplayContent(nugget, this.pageContent || undefined);
+    }
+    
     // Fallback for legacy content field (during transition)
     return nugget.content || '';
   }
@@ -48,7 +57,7 @@ export class Sidebar {
    * Get truncated display content with proper length checking
    */
   private getTruncatedContent(nugget: any, maxLength: number): { content: string; isTruncated: boolean; fullContent: string } {
-    const fullContent = this.getDisplayContent(nugget);
+    const fullContent = this.getSidebarDisplayContent(nugget);
     const isTruncated = fullContent.length > maxLength;
     const truncatedContent = isTruncated ? fullContent.substring(0, maxLength) : fullContent;
     
@@ -63,11 +72,14 @@ export class Sidebar {
    * Get content for feedback submission (first 200 chars)
    */
   private getFeedbackContent(nugget: any): string {
-    return this.getDisplayContent(nugget).substring(0, 200);
+    return this.getSidebarDisplayContent(nugget).substring(0, 200);
   }
 
-  show(nuggetItems: SidebarNuggetItem[], highlighter?: Highlighter): void {
+  show(nuggetItems: SidebarNuggetItem[], highlighter?: Highlighter, pageContent?: string): void {
     this.hide(); // Remove existing sidebar if any
+    
+    // Store page content for reconstruction
+    this.pageContent = pageContent || null;
     
     // Initialize selection state for all nuggets
     this.allItems = nuggetItems.map(item => ({

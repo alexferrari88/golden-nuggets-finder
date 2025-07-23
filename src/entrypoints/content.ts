@@ -40,6 +40,7 @@ export default defineContentScript({
 		// Only initialize when explicitly activated to avoid auto-running on all pages
 		let isActivated = false;
 		let contentScraper: ContentScraper;
+		let extractedPageContent: string | null = null; // Store extracted content for reconstruction
 		const uiManager = new UIManager();
 
 		function createContentScraper(): ContentScraper {
@@ -405,6 +406,9 @@ export default defineContentScript({
 
 				// Convert structured content to text for AI analysis
 				const content = convertContentToText(structuredContent);
+				
+				// Store the extracted content for reconstruction purposes
+				extractedPageContent = content;
 
 				if (!content || content.trim().length === 0) {
 					if (source !== "popup") {
@@ -542,12 +546,12 @@ export default defineContentScript({
 			if (nuggets.length === 0) {
 				uiManager.showNoResultsBanner();
 				// Still show sidebar with empty state for better UX
-				await uiManager.displayResults([]);
+				await uiManager.displayResults([], extractedPageContent || undefined);
 				return;
 			}
 
-			// Highlight nuggets on the page and show sidebar
-			await uiManager.displayResults(nuggets);
+			// Highlight nuggets on the page and show sidebar with page content for reconstruction
+			await uiManager.displayResults(nuggets, extractedPageContent || undefined);
 		}
 
 		function sendMessageToBackground(type: string, data?: any): Promise<any> {
