@@ -679,6 +679,98 @@ test.describe('Highlighter TDD - Substack Specific Failing Case', () => {
   });
 });
 
+test.describe('Highlighter TDD - Character Mapping Debug', () => {
+  test('should debug character mapping mismatch with simple controlled HTML', async ({ cleanPage }) => {
+    // Create simple HTML that mimics the Substack structure
+    const testHtml = `
+      <html><body>
+        <div>
+          <p>Some intro text here. </p>
+          <p><strong>I think </strong><strong>vision</strong><span> is in short supply today. The ability to formulate a normative, opinionated perspective on what should exist—as applied to the world, to our work, to our relationships, and to ourselves.</span></p>
+          <p>More text after.</p>
+        </div>
+      </body></html>
+    `;
+    
+    await cleanPage.setContent(testHtml);
+    
+    // Inject highlighter
+    await cleanPage.addScriptTag({
+      path: './dist/chrome-mv3/content-scripts/content.js'
+    });
+    await cleanPage.waitForTimeout(500);
+    
+    // Test the problematic nugget in controlled environment
+    const testNugget = {
+      type: "explanation" as const,
+      startContent: "I think vision is",
+      endContent: "and to ourselves.",
+      synthesis: "Test nugget for debugging character mapping"
+    };
+    
+    console.log('Testing character mapping with controlled HTML...');
+    
+    // Get page content details first
+    const pageInfo = await cleanPage.evaluate(() => {
+      const bodyText = document.body.textContent || '';
+      const startIndex = bodyText.indexOf("I think vision is");
+      const endIndex = bodyText.indexOf("and to ourselves.") + "and to ourselves.".length;
+      
+      return {
+        bodyTextLength: bodyText.length,
+        bodyText: bodyText,
+        startIndex,
+        endIndex,
+        expectedText: startIndex !== -1 && endIndex !== -1 ? bodyText.substring(startIndex, endIndex) : 'NOT FOUND'
+      };
+    });
+    
+    console.log('Page info:', {
+      ...pageInfo,
+      bodyText: pageInfo.bodyText.substring(0, 200) + '...'
+    });
+    
+    // Now try highlighting and capture debug info
+    const result = await cleanPage.evaluate((nugget) => {
+      const debugLogs: string[] = [];
+      const originalConsoleLog = console.log;
+      console.log = (...args) => {
+        debugLogs.push(args.join(' '));
+        originalConsoleLog.apply(console, args);
+      };
+      
+      let highlightResult = { success: false, error: 'highlightNugget function not found' };
+      if (typeof window.highlightNugget === 'function') {
+        highlightResult = window.highlightNugget(nugget);
+      }
+      
+      console.log = originalConsoleLog;
+      return { highlightResult, debugLogs };
+    }, testNugget);
+    
+    console.log('Controlled test result:', result.highlightResult);
+    console.log('Debug logs from browser:');
+    result.debugLogs.forEach((log, i) => console.log(`  ${i}: ${log}`));
+    
+    // Check what was actually highlighted
+    const highlightedElements = await cleanPage.locator('.golden-nugget-highlight').count();
+    const highlightedTexts = await cleanPage.locator('.golden-nugget-highlight').allTextContents();
+    
+    console.log(`Found ${highlightedElements} highlighted elements`);
+    console.log('Highlighted texts:', highlightedTexts);
+    
+    // This should work in the controlled environment
+    expect(result.highlightResult.success).toBe(true);
+    expect(highlightedElements).toBeGreaterThan(0);
+    
+    // Verify the highlighted text contains our target
+    const containsTarget = highlightedTexts.some(text => 
+      text.includes('I think') || text.includes('vision') || text.includes('ourselves')
+    );
+    expect(containsTarget).toBe(true);
+  });
+});
+
 test.describe('Highlighter TDD - Cross-Node Text Split Edge Cases', () => {
   test('should handle text split at word boundaries across multiple text nodes', async ({ cleanPage }) => {
     // Create a test page with text specifically split across multiple text nodes

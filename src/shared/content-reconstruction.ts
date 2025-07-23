@@ -21,6 +21,49 @@ export function advancedNormalize(text: string): string {
 }
 
 /**
+ * Map a character position from normalized text back to the original text
+ * This is needed because normalization changes character positions
+ */
+function mapNormalizedPositionToOriginal(
+  normalizedPosition: number, 
+  originalText: string, 
+  normalizedText: string
+): number {
+  // Simple approach: if normalization only changed whitespace and case,
+  // we can find the corresponding position by counting non-whitespace characters
+  
+  let originalIndex = 0;
+  let normalizedIndex = 0;
+  let nonWhitespaceCount = 0;
+  
+  // Count non-whitespace characters to target position in normalized text
+  while (normalizedIndex < normalizedPosition && normalizedIndex < normalizedText.length) {
+    if (normalizedText[normalizedIndex] !== ' ') {
+      nonWhitespaceCount++;
+    }
+    normalizedIndex++;
+  }
+  
+  // Find the same number of non-whitespace characters in original text
+  let foundNonWhitespace = 0;
+  while (originalIndex < originalText.length && foundNonWhitespace < nonWhitespaceCount) {
+    const char = originalText[originalIndex];
+    // Count any non-whitespace character (including normalized variants)
+    if (char !== ' ' && char !== '\t' && char !== '\n' && char !== '\r') {
+      foundNonWhitespace++;
+    }
+    originalIndex++;
+  }
+  
+  // Adjust for final position - we want to be AT the character, not after it
+  if (foundNonWhitespace === nonWhitespaceCount && originalIndex > 0) {
+    originalIndex--; // Back up to be at the character
+  }
+  
+  return originalIndex < originalText.length ? originalIndex : -1;
+}
+
+/**
  * Legacy normalizeText function - kept for backward compatibility
  * @deprecated Use advancedNormalize instead
  */
@@ -130,26 +173,54 @@ export function improvedStartEndMatching(
   endContent: string, 
   pageContent: string
 ): MatchResult {
+  // CRITICAL FIX: Find positions in original text, not normalized text
+  // The bug was that we were normalizing the text and finding positions there,
+  // but then using those positions on the original text
+  
+  // Try exact match first
+  const exactStartIndex = pageContent.indexOf(startContent);
+  if (exactStartIndex !== -1) {
+    const endSearchStart = exactStartIndex + startContent.length;
+    const exactEndIndex = pageContent.indexOf(endContent, endSearchStart);
+    if (exactEndIndex !== -1) {
+      return { 
+        success: true, 
+        startIndex: exactStartIndex, 
+        endIndex: exactEndIndex + endContent.length,
+        matchedContent: pageContent.substring(exactStartIndex, exactEndIndex + endContent.length)
+      };
+    }
+  }
+  
+  // Fallback to normalized matching with position mapping
   const normalizedText = advancedNormalize(pageContent);
   const normalizedStart = advancedNormalize(startContent);
   const normalizedEnd = advancedNormalize(endContent);
   
-  const startIndex = normalizedText.indexOf(normalizedStart);
-  if (startIndex === -1) {
+  const normalizedStartIndex = normalizedText.indexOf(normalizedStart);
+  if (normalizedStartIndex === -1) {
     return { success: false, reason: 'Start content not found' };
   }
   
-  const endSearchStart = startIndex + normalizedStart.length;
-  const endIndex = normalizedText.indexOf(normalizedEnd, endSearchStart);
-  if (endIndex === -1) {
+  const endSearchStart = normalizedStartIndex + normalizedStart.length;
+  const normalizedEndIndex = normalizedText.indexOf(normalizedEnd, endSearchStart);
+  if (normalizedEndIndex === -1) {
     return { success: false, reason: 'End content not found after start' };
+  }
+  
+  // Map positions from normalized text back to original text
+  const originalStartIndex = mapNormalizedPositionToOriginal(normalizedStartIndex, pageContent, normalizedText);
+  const originalEndIndex = mapNormalizedPositionToOriginal(normalizedEndIndex + normalizedEnd.length, pageContent, normalizedText);
+  
+  if (originalStartIndex === -1 || originalEndIndex === -1) {
+    return { success: false, reason: 'Could not map normalized positions back to original text' };
   }
   
   return { 
     success: true, 
-    startIndex, 
-    endIndex: endIndex + normalizedEnd.length,
-    matchedContent: normalizedText.substring(startIndex, endIndex + normalizedEnd.length)
+    startIndex: originalStartIndex, 
+    endIndex: originalEndIndex,
+    matchedContent: pageContent.substring(originalStartIndex, originalEndIndex)
   };
 }
 
