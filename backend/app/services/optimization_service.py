@@ -476,7 +476,7 @@ Return valid JSON with the exact structure: {{"golden_nuggets": [...]}}"""
         await db.execute(
             """
             INSERT INTO optimized_prompts (
-                id, version, prompt, optimization_date, feedback_count,
+                id, version, prompt, created_at, feedback_count,
                 positive_rate, is_current, optimization_run_id
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         """,
@@ -552,7 +552,7 @@ Return valid JSON with the exact structure: {{"golden_nuggets": [...]}}"""
     async def get_current_prompt(self, db: aiosqlite.Connection) -> Optional[dict]:
         """Get the current optimized prompt"""
         cursor = await db.execute("""
-            SELECT id, version, prompt, optimization_date, feedback_count, positive_rate
+            SELECT id, version, prompt, created_at, feedback_count, positive_rate
             FROM optimized_prompts
             WHERE is_current = TRUE
             ORDER BY version DESC

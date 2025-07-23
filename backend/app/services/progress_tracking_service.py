@@ -58,7 +58,7 @@ class ProgressTrackingService:
             """
             INSERT INTO optimization_progress (
                 id, optimization_run_id, phase, progress_percent, 
-                message, timestamp, metadata
+                message, created_at, metadata
             ) VALUES (?, ?, ?, ?, ?, ?, ?)
             """,
             (
@@ -88,10 +88,10 @@ class ProgressTrackingService:
         """
         cursor = await db.execute(
             """
-            SELECT phase, progress_percent, message, timestamp, metadata
+            SELECT phase, progress_percent, message, created_at, metadata
             FROM optimization_progress
             WHERE optimization_run_id = ?
-            ORDER BY timestamp ASC
+            ORDER BY created_at ASC
             """,
             (run_id,),
         )
@@ -180,7 +180,7 @@ class ProgressTrackingService:
         await db.execute(
             """
             DELETE FROM optimization_progress
-            WHERE timestamp < datetime('now', '-{} days')
+            WHERE created_at < datetime('now', '-{} days')
             """.format(days_old)
         )
         await db.commit()
@@ -206,11 +206,11 @@ class ProgressTrackingService:
                 op.phase,
                 op.progress_percent,
                 op.message,
-                op.timestamp,
+                op.created_at,
                 or_main.status as run_status
             FROM optimization_progress op
             LEFT JOIN optimization_runs or_main ON op.optimization_run_id = or_main.id
-            ORDER BY op.timestamp DESC
+            ORDER BY op.created_at DESC
             LIMIT ?
             """,
             (limit,),
@@ -255,10 +255,10 @@ class ProgressTrackingService:
         for (run_id,) in running_runs:
             cursor = await db.execute(
                 """
-                SELECT phase, progress_percent, message, timestamp
+                SELECT phase, progress_percent, message, created_at
                 FROM optimization_progress
                 WHERE optimization_run_id = ?
-                ORDER BY timestamp DESC
+                ORDER BY created_at DESC
                 LIMIT 1
                 """,
                 (run_id,),

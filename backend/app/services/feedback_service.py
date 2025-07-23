@@ -6,7 +6,6 @@ nugget ratings/corrections and missing content submissions.
 """
 
 from datetime import datetime, timezone
-import json
 import uuid
 from typing import Optional
 
@@ -424,67 +423,6 @@ class FeedbackService:
 
         return training_examples
 
-    async def store_training_examples(
-        self, db: aiosqlite.Connection, examples: list[dict]
-    ):
-        """Store training examples in database for DSPy optimization"""
-        for example in examples:
-            await db.execute(
-                """
-                INSERT OR REPLACE INTO training_examples (
-                    id, input_content, expected_output, feedback_score, url, timestamp
-                ) VALUES (?, ?, ?, ?, ?, ?)
-            """,
-                (
-                    example["id"],
-                    example["input_content"],
-                    json.dumps(example["expected_output"]),
-                    example["feedback_score"],
-                    example["url"],
-                    example["timestamp"],
-                ),
-            )
-        await db.commit()
-
-    async def get_stored_training_examples(
-        self, db: aiosqlite.Connection, limit: int = 100
-    ) -> list[dict]:
-        """
-        Retrieve stored training examples from the training_examples table.
-        
-        This method complements get_training_examples() which generates examples
-        from live feedback data. This method retrieves examples that were
-        previously stored via store_training_examples().
-        """
-        cursor = await db.execute(
-            """
-            SELECT id, input_content, expected_output, feedback_score, url, timestamp
-            FROM training_examples
-            ORDER BY timestamp DESC
-            LIMIT ?
-            """,
-            (limit,),
-        )
-        
-        rows = await cursor.fetchall()
-        training_examples = []
-        
-        for row in rows:
-            try:
-                expected_output = json.loads(row[2])  # Parse JSON string
-            except json.JSONDecodeError:
-                expected_output = {"golden_nuggets": []}  # Fallback
-                
-            training_examples.append({
-                "id": row[0],
-                "input_content": row[1], 
-                "expected_output": expected_output,
-                "feedback_score": row[3],
-                "url": row[4],
-                "timestamp": row[5],
-            })
-            
-        return training_examples
 
     async def get_feedback_by_url(self, db: aiosqlite.Connection, url: str) -> dict:
         """Get all feedback for a specific URL"""

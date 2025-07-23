@@ -116,7 +116,9 @@ async def execute_insert(table: str, data: dict):
         "missing_content_feedback",
         "optimization_runs",
         "optimized_prompts",
-        "training_examples",
+        "feedback_usage",
+        "cost_tracking",
+        "optimization_progress",
     }
     if table not in allowed_tables:
         raise ValueError(f"Table '{table}' not allowed")
