@@ -1064,7 +1064,7 @@ export class Highlighter {
       }
     }
     console.log(`❌ [Strategy 1] No exact matches found in ${matchAttempts} text nodes`);
-    this.logStrategyFailureAnalysis('Strategy 1: Exact Match', nugget, textNodes, { 
+    this.logStrategyFailureAnalysis('Strategy 1: Exact Match', nugget, textNodes, pageContent, { 
       matchAttempts, 
       normalizedContentLength: normalizedContent.length 
     });
@@ -1090,7 +1090,7 @@ export class Highlighter {
       }
     }
     console.log('❌ [Strategy 2] No phrase matches found');
-    this.logStrategyFailureAnalysis('Strategy 2: Key Phrase Match', nugget, textNodes, { 
+    this.logStrategyFailureAnalysis('Strategy 2: Key Phrase Match', nugget, textNodes, pageContent, { 
       keyPhrasesCount: keyPhrases.length,
       meaningfulPhrasesCount: keyPhrases.filter(p => this.normalizeText(p).length > 8).length
     });
@@ -1110,7 +1110,7 @@ export class Highlighter {
       }
     }
     console.log(`❌ [Strategy 3] No fuzzy matches found in ${fuzzyAttempts} text nodes`);
-    this.logStrategyFailureAnalysis('Strategy 3: Fuzzy Match', nugget, textNodes, { 
+    this.logStrategyFailureAnalysis('Strategy 3: Fuzzy Match', nugget, textNodes, pageContent, { 
       fuzzyAttempts 
     });
     
@@ -1123,7 +1123,7 @@ export class Highlighter {
       return true;
     }
     console.log('❌ [Strategy 4] Multi-element highlighting failed');
-    this.logStrategyFailureAnalysis('Strategy 4: Multi-Element', nugget, textNodes, { 
+    this.logStrategyFailureAnalysis('Strategy 4: Multi-Element', nugget, textNodes, pageContent, { 
       multiElementAnalysisPerformed: true 
     });
     
@@ -1131,7 +1131,7 @@ export class Highlighter {
     console.log('📦 [Strategy 5] Trying container-based highlighting as last resort...');
     const containerResult = this.tryContainerBasedHighlighting(nugget, pageContent);
     if (!containerResult) {
-      this.logStrategyFailureAnalysis('Strategy 5: Container-Based', nugget, textNodes, { 
+      this.logStrategyFailureAnalysis('Strategy 5: Container-Based', nugget, textNodes, pageContent, { 
         finalStrategy: true 
       });
     }
@@ -2600,10 +2600,10 @@ export class Highlighter {
   /**
    * Enhanced strategy failure analysis
    */
-  private logStrategyFailureAnalysis(strategyName: string, nugget: GoldenNugget, textNodes: Element[], additionalInfo?: any): void {
+  private logStrategyFailureAnalysis(strategyName: string, nugget: GoldenNugget, textNodes: Element[], pageContent?: string, additionalInfo?: any): void {
     console.group(`❌ [${strategyName} Failure Analysis]`);
     
-    const displayContent = getDisplayContent(nugget);
+    const displayContent = getDisplayContent(nugget, pageContent);
     const normalizedContent = this.normalizeText(displayContent);
     
     console.log('🎯 [Target Content Analysis]:', {
