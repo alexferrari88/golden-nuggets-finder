@@ -66,7 +66,7 @@ class FeedbackService:
                 """
                 INSERT INTO nugget_feedback (
                     id, nugget_content, original_type, corrected_type,
-                    rating, timestamp, url, context, created_at,
+                    rating, client_timestamp, url, context, created_at,
                     report_count, first_reported_at, last_reported_at
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
@@ -131,7 +131,7 @@ class FeedbackService:
             await db.execute(
                 """
                 INSERT INTO missing_content_feedback (
-                    id, content, suggested_type, timestamp, url, context, 
+                    id, content, suggested_type, client_timestamp, url, context, 
                     created_at, report_count, first_reported_at, last_reported_at
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
@@ -484,7 +484,7 @@ class FeedbackService:
                     id, nugget_content as content, rating, 
                     original_type, corrected_type, url, 
                     processed, last_used_at, usage_count,
-                    timestamp, created_at
+                    client_timestamp, created_at
                 FROM nugget_feedback 
                 WHERE processed = FALSE
                 ORDER BY created_at DESC
@@ -525,7 +525,7 @@ class FeedbackService:
                     'missing_content' as feedback_type,
                     id, content, suggested_type, url, 
                     processed, last_used_at, usage_count,
-                    timestamp, created_at
+                    client_timestamp, created_at
                 FROM missing_content_feedback 
                 WHERE processed = FALSE
                 ORDER BY created_at DESC
@@ -798,7 +798,7 @@ class FeedbackService:
                 SELECT 
                     id, nugget_content, original_type, corrected_type,
                     rating, url, context, processed, last_used_at,
-                    usage_count, timestamp, created_at
+                    usage_count, client_timestamp, created_at
                 FROM nugget_feedback
                 WHERE id = ?
                 """,
@@ -810,7 +810,7 @@ class FeedbackService:
                 SELECT 
                     id, content, suggested_type, url, context,
                     processed, last_used_at, usage_count, 
-                    timestamp, created_at
+                    client_timestamp, created_at
                 FROM missing_content_feedback
                 WHERE id = ?
                 """,
@@ -1000,3 +1000,84 @@ class FeedbackService:
 
         await db.commit()
         return cursor.rowcount > 0
+
+    # Legacy methods for backward compatibility with tests
+    async def store_training_examples(
+        self, db: aiosqlite.Connection, training_examples: list[dict]
+    ):
+        """
+        Store training examples - compatibility method for tests.
+        
+        In the new schema, we don't store training examples separately,
+        but generate them on-the-fly from feedback data. This method
+        converts training examples into feedback records for testing.
+        """
+        for example in training_examples:
+            # Extract relevant data from training example
+            content = example.get("input_content", "Test content")
+            expected = example.get("expected_output", {})
+            feedback_score = example.get("feedback_score", 1.0)
+            
+            nuggets = expected.get("golden_nuggets", [])
+            
+            if nuggets and feedback_score > 0.5:
+                # Convert to positive nugget feedback
+                for nugget in nuggets:
+                    await db.execute(
+                        """
+                        INSERT INTO nugget_feedback (
+                            id, nugget_content, original_type, rating, 
+                            url, context, client_timestamp, created_at,
+                            report_count, first_reported_at, last_reported_at
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        """,
+                        (
+                            str(uuid.uuid4()),
+                            nugget.get("content", "Test nugget"),
+                            nugget.get("type", "tool"),
+                            "positive",
+                            example.get("url", "https://example.com/test"),
+                            content,
+                            datetime.now(timezone.utc).timestamp() * 1000,
+                            datetime.now(timezone.utc),
+                            1,
+                            datetime.now(timezone.utc),
+                            datetime.now(timezone.utc),
+                        ),
+                    )
+            elif feedback_score <= 0.5:
+                # Convert to negative feedback or missing content
+                await db.execute(
+                    """
+                    INSERT INTO missing_content_feedback (
+                        id, content, suggested_type, url, context,
+                        client_timestamp, created_at, report_count, 
+                        first_reported_at, last_reported_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        str(uuid.uuid4()),
+                        content[:100],  # Truncate for missing content
+                        "explanation",
+                        example.get("url", "https://example.com/test"),
+                        content,
+                        datetime.now(timezone.utc).timestamp() * 1000,
+                        datetime.now(timezone.utc),
+                        1,
+                        datetime.now(timezone.utc),
+                        datetime.now(timezone.utc),
+                    ),
+                )
+        
+        await db.commit()
+
+    async def get_stored_training_examples(
+        self, db: aiosqlite.Connection, limit: int = 100
+    ) -> list[dict]:
+        """
+        Get stored training examples - compatibility method for tests.
+        
+        In the new schema, this calls get_training_examples which generates
+        training examples on-the-fly from feedback data.
+        """
+        return await self.get_training_examples(db, limit)
