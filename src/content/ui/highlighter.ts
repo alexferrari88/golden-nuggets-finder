@@ -1,5 +1,6 @@
 import type { GoldenNugget } from '../../shared/types';
 import { colors, generateInlineStyles } from '../../shared/design-system';
+import { improvedStartEndMatching, advancedNormalize } from '../../shared/content-reconstruction';
 
 /**
  * Highlighter class responsible for highlighting golden nuggets on the page
@@ -52,16 +53,48 @@ export class Highlighter {
     const textNodes = this.getAllTextNodes(document.body);
     console.log(`[Highlighter] Found ${textNodes.length} text nodes to search`);
     
+    // Debug: Show some sample text nodes
+    console.log(`[Highlighter] Sample text nodes:`);
+    textNodes.slice(0, 10).forEach((node, i) => {
+      const text = (node.textContent || '').substring(0, 100);
+      console.log(`  [${i}]: "${text}"`);
+    });
+    
     // Find the start and end positions
     const startResult = this.findTextInNodes(textNodes, startContent);
     if (!startResult) {
       console.log(`[Highlighter] Could not find start content: "${startContent}"`);
+      console.log(`[Highlighter] Normalized search: "${this.normalizeText(startContent)}"`);
+      
+      // Try fuzzy matching as fallback
+      const fuzzyResult = this.findTextFuzzy(textNodes, startContent);
+      if (fuzzyResult) {
+        console.log(`[Highlighter] Found start content via fuzzy matching at node ${fuzzyResult.nodeIndex}`);
+        return this.highlightFuzzyMatch(textNodes, fuzzyResult, startContent, endContent);
+      }
+      
+      // Try content reconstruction approach
+      const reconstructionResult = this.findWithContentReconstruction(startContent, endContent);
+      if (reconstructionResult) {
+        console.log(`[Highlighter] Found content via reconstruction approach`);
+        return reconstructionResult;
+      }
+      
       return false;
     }
     
     const endResult = this.findTextInNodes(textNodes, endContent, startResult.nodeIndex);
     if (!endResult) {
       console.log(`[Highlighter] Could not find end content: "${endContent}"`);
+      console.log(`[Highlighter] Normalized search: "${this.normalizeText(endContent)}"`);
+      
+      // Try fuzzy matching for end content
+      const fuzzyEndResult = this.findTextFuzzy(textNodes, endContent, startResult.nodeIndex);
+      if (fuzzyEndResult) {
+        console.log(`[Highlighter] Found end content via fuzzy matching at node ${fuzzyEndResult.nodeIndex}`);
+        return this.highlightRange(textNodes, startResult, fuzzyEndResult, endContent.length);
+      }
+      
       return false;
     }
     
@@ -73,7 +106,7 @@ export class Highlighter {
   }
 
   /**
-   * Get all text nodes in the document
+   * Get all text nodes in the document - improved to be more inclusive
    */
   private getAllTextNodes(element: Node): Text[] {
     const textNodes: Text[] = [];
@@ -82,7 +115,7 @@ export class Highlighter {
       NodeFilter.SHOW_TEXT,
       {
         acceptNode: (node) => {
-          // Skip text nodes that are only whitespace or in script/style tags
+          // Skip text nodes in script/style tags but be more permissive otherwise
           const parent = node.parentElement;
           if (!parent) return NodeFilter.FILTER_REJECT;
           
@@ -91,12 +124,19 @@ export class Highlighter {
             return NodeFilter.FILTER_REJECT;
           }
           
-          const text = node.textContent?.trim();
-          if (!text || text.length === 0) {
+          const text = node.textContent || '';
+          // Accept nodes with any text content, even if it's just whitespace
+          // We'll handle whitespace normalization later
+          if (text.length === 0) {
             return NodeFilter.FILTER_REJECT;
           }
           
-          return NodeFilter.FILTER_ACCEPT;
+          // Accept if it has any non-whitespace characters OR if it has significant whitespace
+          if (text.trim().length > 0 || text.length > 1) {
+            return NodeFilter.FILTER_ACCEPT;
+          }
+          
+          return NodeFilter.FILTER_REJECT;
         }
       }
     );
@@ -106,6 +146,7 @@ export class Highlighter {
       textNodes.push(node as Text);
     }
     
+    console.log(`[Highlighter] Found ${textNodes.length} text nodes total`);
     return textNodes;
   }
 
@@ -192,17 +233,183 @@ export class Highlighter {
   }
 
   /**
+   * Fuzzy text matching - finds partial matches and word-based matches
+   */
+  private findTextFuzzy(textNodes: Text[], searchText: string, startFromIndex: number = 0): {nodeIndex: number, position: number} | null {
+    const normalizedSearch = this.normalizeText(searchText);
+    const searchWords = normalizedSearch.split(' ').filter(word => word.length > 2); // Only significant words
+    
+    console.log(`[Highlighter] Fuzzy search for: "${normalizedSearch}", words: [${searchWords.join(', ')}]`);
+    
+    // Strategy 1: Look for the first few words
+    if (searchWords.length >= 2) {
+      const firstTwoWords = searchWords.slice(0, 2).join(' ');
+      for (let i = startFromIndex; i < textNodes.length; i++) {
+        const node = textNodes[i];
+        const nodeText = this.normalizeText(node.textContent || '');
+        const position = nodeText.indexOf(firstTwoWords);
+        
+        if (position !== -1) {
+          console.log(`[Highlighter] Found first two words "${firstTwoWords}" at node ${i}, pos ${position}`);
+          return { nodeIndex: i, position };
+        }
+      }
+    }
+    
+    // Strategy 2: Look for just the first word
+    if (searchWords.length >= 1) {
+      const firstWord = searchWords[0];
+      for (let i = startFromIndex; i < textNodes.length; i++) {
+        const node = textNodes[i];
+        const nodeText = this.normalizeText(node.textContent || '');
+        const position = nodeText.indexOf(firstWord);
+        
+        if (position !== -1) {
+          console.log(`[Highlighter] Found first word "${firstWord}" at node ${i}, pos ${position}`);
+          return { nodeIndex: i, position };
+        }
+      }
+    }
+    
+    // Strategy 3: Case-sensitive partial match
+    for (let i = startFromIndex; i < textNodes.length; i++) {
+      const node = textNodes[i];
+      const nodeText = node.textContent || '';
+      const position = nodeText.indexOf(searchText);
+      
+      if (position !== -1) {
+        console.log(`[Highlighter] Found case-sensitive match at node ${i}, pos ${position}`);
+        return { nodeIndex: i, position };
+      }
+    }
+    
+    return null;
+  }
+
+  /**
+   * Highlight a fuzzy match
+   */
+  private highlightFuzzyMatch(
+    textNodes: Text[],
+    startResult: {nodeIndex: number, position: number},
+    startContent: string,
+    endContent: string
+  ): boolean {
+    console.log(`[Highlighter] Attempting fuzzy match highlighting`);
+    
+    // For fuzzy matches, try to find end content near the start
+    const maxSearchNodes = Math.min(20, textNodes.length - startResult.nodeIndex);
+    
+    for (let offset = 0; offset < maxSearchNodes; offset++) {
+      const nodeIndex = startResult.nodeIndex + offset;
+      if (nodeIndex >= textNodes.length) break;
+      
+      const endResult = this.findTextFuzzy(textNodes, endContent, nodeIndex);
+      if (endResult) {
+        console.log(`[Highlighter] Found end content via fuzzy matching`);
+        return this.highlightRange(textNodes, startResult, endResult, endContent.length);
+      }
+    }
+    
+    // If we can't find end content, highlight just a reasonable portion from start
+    console.log(`[Highlighter] Could not find end content, highlighting start portion`);
+    const startNode = textNodes[startResult.nodeIndex];
+    const startText = startNode.textContent || '';
+    const endPos = Math.min(startText.length, startResult.position + Math.max(50, startContent.length * 2));
+    
+    return this.highlightSingleNode(startNode, startResult.position, endPos);
+  }
+
+  /**
+   * Use content reconstruction approach to find and highlight content
+   */
+  private findWithContentReconstruction(startContent: string, endContent: string): boolean {
+    console.log(`[Highlighter] Trying content reconstruction approach`);
+    
+    // Get the full page text content
+    const pageContent = document.body.textContent || '';
+    console.log(`[Highlighter] Page content length: ${pageContent.length} chars`);
+    
+    // Use the improved matching from content-reconstruction
+    const matchResult = improvedStartEndMatching(startContent, endContent, pageContent);
+    
+    if (matchResult.success && matchResult.startIndex !== undefined && matchResult.endIndex !== undefined) {
+      console.log(`[Highlighter] Content reconstruction found match at positions ${matchResult.startIndex}-${matchResult.endIndex}`);
+      
+      // Now we need to find these character positions in the DOM and highlight them
+      return this.highlightByCharacterRange(matchResult.startIndex, matchResult.endIndex);
+    }
+    
+    console.log(`[Highlighter] Content reconstruction failed: ${matchResult.reason}`);
+    return false;
+  }
+
+  /**
+   * Highlight content by character range in the full page text
+   */
+  private highlightByCharacterRange(startIndex: number, endIndex: number): boolean {
+    console.log(`[Highlighter] Highlighting character range ${startIndex}-${endIndex}`);
+    
+    const textNodes = this.getAllTextNodes(document.body);
+    let currentIndex = 0;
+    let startNode: Text | null = null;
+    let startPos = 0;
+    let endNode: Text | null = null;
+    let endPos = 0;
+    
+    // Find the text nodes that contain our start and end positions
+    for (const node of textNodes) {
+      const nodeText = node.textContent || '';
+      const nodeLength = nodeText.length;
+      
+      // Check if start position is in this node
+      if (startNode === null && currentIndex + nodeLength > startIndex) {
+        startNode = node;
+        startPos = startIndex - currentIndex;
+        console.log(`[Highlighter] Found start position in node, pos: ${startPos}`);
+      }
+      
+      // Check if end position is in this node
+      if (currentIndex + nodeLength >= endIndex) {
+        endNode = node;
+        endPos = endIndex - currentIndex;
+        console.log(`[Highlighter] Found end position in node, pos: ${endPos}`);
+        break;
+      }
+      
+      currentIndex += nodeLength;
+    }
+    
+    if (startNode && endNode) {
+      if (startNode === endNode) {
+        // Single node highlighting
+        return this.highlightSingleNode(startNode, startPos, endPos);
+      } else {
+        // Multi-node highlighting
+        const startNodeIndex = textNodes.indexOf(startNode);
+        const endNodeIndex = textNodes.indexOf(endNode);
+        
+        if (startNodeIndex !== -1 && endNodeIndex !== -1) {
+          return this.highlightMultipleNodes(
+            textNodes,
+            { nodeIndex: startNodeIndex, position: startPos },
+            { nodeIndex: endNodeIndex, position: endPos }, // End position in end node
+            0 // endContentLength not needed for character range
+          );
+        }
+      }
+    }
+    
+    console.log(`[Highlighter] Could not map character range to DOM nodes`);
+    return false;
+  }
+
+  /**
    * Normalize text for matching (handle unicode variants, etc.)
+   * Uses advanced normalization from content-reconstruction module
    */
   private normalizeText(text: string): string {
-    return text
-      .toLowerCase()
-      .replace(/[''`´]/g, "'")
-      .replace(/[""«»]/g, '"')
-      .replace(/[–—−]/g, '-')
-      .replace(/[…]/g, '...')
-      .replace(/\s+/g, ' ')
-      .trim();
+    return advancedNormalize(text);
   }
 
   /**
