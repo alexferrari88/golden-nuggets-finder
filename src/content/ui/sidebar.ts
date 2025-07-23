@@ -32,6 +32,40 @@ export class Sidebar {
   };
   private keyboardHandler: ((e: KeyboardEvent) => void) | null = null;
 
+  /**
+   * Get display content for a nugget in the sidebar
+   */
+  private getDisplayContent(nugget: any): string {
+    // If we have both startContent and endContent, show them with ellipsis
+    if (nugget.startContent && nugget.endContent) {
+      return `${nugget.startContent}...${nugget.endContent}`;
+    }
+    // Fallback for legacy content field (during transition)
+    return nugget.content || '';
+  }
+
+  /**
+   * Get truncated display content with proper length checking
+   */
+  private getTruncatedContent(nugget: any, maxLength: number): { content: string; isTruncated: boolean; fullContent: string } {
+    const fullContent = this.getDisplayContent(nugget);
+    const isTruncated = fullContent.length > maxLength;
+    const truncatedContent = isTruncated ? fullContent.substring(0, maxLength) : fullContent;
+    
+    return {
+      content: truncatedContent,
+      isTruncated,
+      fullContent
+    };
+  }
+
+  /**
+   * Get content for feedback submission (first 200 chars)
+   */
+  private getFeedbackContent(nugget: any): string {
+    return this.getDisplayContent(nugget).substring(0, 200);
+  }
+
   show(nuggetItems: SidebarNuggetItem[], highlighter?: Highlighter): void {
     this.hide(); // Remove existing sidebar if any
     
@@ -710,13 +744,11 @@ export class Sidebar {
     `;
     
     const maxLength = 200;
-    const isTruncated = item.nugget.content.length > maxLength;
+    const contentInfo = this.getTruncatedContent(item.nugget, maxLength);
     
-    if (isTruncated) {
-      const truncatedContent = item.nugget.content.substring(0, maxLength);
-      
+    if (contentInfo.isTruncated) {
       const textSpan = document.createElement('span');
-      textSpan.textContent = truncatedContent + '…';
+      textSpan.textContent = contentInfo.content + '…';
       
       const expandButton = document.createElement('button');
       expandButton.textContent = 'Show more';
@@ -739,10 +771,10 @@ export class Sidebar {
         isExpanded = !isExpanded;
         
         if (isExpanded) {
-          textSpan.textContent = item.nugget.content;
+          textSpan.textContent = contentInfo.fullContent;
           expandButton.textContent = 'Show less';
         } else {
-          textSpan.textContent = truncatedContent + '…';
+          textSpan.textContent = contentInfo.content + '…';
           expandButton.textContent = 'Show more';
         }
       });
@@ -750,7 +782,7 @@ export class Sidebar {
       contentPreview.appendChild(textSpan);
       contentPreview.appendChild(expandButton);
     } else {
-      contentPreview.textContent = item.nugget.content;
+      contentPreview.textContent = contentInfo.fullContent;
     }
     
     // Synthesis - more subtle presentation
@@ -950,7 +982,7 @@ export class Sidebar {
 
     // Create or update feedback
     const feedbackId = `feedback_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    const nuggetContent = item.nugget.content.substring(0, 200);
+    const nuggetContent = this.getFeedbackContent(item.nugget);
     const context = document.title + ' - ' + window.location.href;
 
     const feedback: NuggetFeedback = {
@@ -984,7 +1016,7 @@ export class Sidebar {
     // Create feedback if it doesn't exist, or update existing
     if (!item.feedback) {
       const feedbackId = `feedback_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      const nuggetContent = item.nugget.content.substring(0, 200);
+      const nuggetContent = this.getFeedbackContent(item.nugget);
       const context = document.title + ' - ' + window.location.href;
 
       item.feedback = {
@@ -1211,7 +1243,8 @@ export class Sidebar {
       url,
       nuggets: nuggets.map(item => ({
         type: item.nugget.type,
-        content: item.nugget.content,
+        startContent: item.nugget.startContent,
+        endContent: item.nugget.endContent,
         synthesis: item.nugget.synthesis
       }))
     };
@@ -1239,7 +1272,7 @@ ${data.nuggets.map((nugget: any) => `
 ## ${nugget.type.toUpperCase()}
 
 **Content:**
-${nugget.content}
+${nugget.startContent}...${nugget.endContent}
 
 **Synthesis:**
 ${nugget.synthesis}
@@ -1736,7 +1769,8 @@ ${nugget.synthesis}
         }
         
         if (this.restEndpointConfig.nuggetParts.content) {
-          nugget.content = item.nugget.content;
+          nugget.startContent = item.nugget.startContent;
+          nugget.endContent = item.nugget.endContent;
         }
         
         if (this.restEndpointConfig.nuggetParts.synthesis) {

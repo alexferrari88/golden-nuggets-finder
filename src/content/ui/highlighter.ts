@@ -16,12 +16,110 @@ export class Highlighter {
     this.siteType = this.detectSiteType();
   }
 
+  /**
+   * Helper function to reconstruct full content from startContent and endContent
+   * by finding matching text in the given searchText
+   */
+  private reconstructFullContent(nugget: GoldenNugget, searchText: string): string {
+    const foundText = this.findTextBetweenStartAndEnd(nugget.startContent, nugget.endContent, searchText);
+    return foundText || `${nugget.startContent}...${nugget.endContent}`;
+  }
+
+  /**
+   * Find text that starts with startContent and ends with endContent within searchText
+   */
+  private findTextBetweenStartAndEnd(startContent: string, endContent: string, searchText: string): string | null {
+    const normalizedSearch = this.normalizeText(searchText);
+    const normalizedStart = this.normalizeText(startContent);
+    const normalizedEnd = this.normalizeText(endContent);
+
+    // Find start position
+    const startIndex = normalizedSearch.indexOf(normalizedStart);
+    if (startIndex === -1) return null;
+
+    // Find end position, searching from after the start
+    const searchFromIndex = startIndex + normalizedStart.length;
+    const endIndex = normalizedSearch.indexOf(normalizedEnd, searchFromIndex);
+    if (endIndex === -1) return null;
+
+    // Extract the text between start and end (inclusive)
+    const endEndIndex = endIndex + normalizedEnd.length;
+    return normalizedSearch.substring(startIndex, endEndIndex);
+  }
+
+  /**
+   * Get display content for a nugget (reconstructed from start/end or fallback)
+   */
+  private getDisplayContent(nugget: GoldenNugget, containerText?: string): string {
+    if (containerText) {
+      const reconstructed = this.reconstructFullContent(nugget, containerText);
+      if (reconstructed && reconstructed.length > nugget.startContent.length + nugget.endContent.length + 10) {
+        return reconstructed;
+      }
+    }
+    return `${nugget.startContent}...${nugget.endContent}`;
+  }
+
+  /**
+   * Get normalized content for a nugget (tries to reconstruct or falls back to start...end)
+   */
+  private getNormalizedContent(nugget: GoldenNugget, containerText?: string): string {
+    if (containerText) {
+      const reconstructed = this.reconstructFullContent(nugget, containerText);
+      if (reconstructed && reconstructed.length > nugget.startContent.length + nugget.endContent.length + 10) {
+        return this.normalizeText(reconstructed);
+      }
+    }
+    // Fallback: normalize the start...end pattern
+    return this.normalizeText(`${nugget.startContent} ${nugget.endContent}`);
+  }
+
+  /**
+   * Updated text matching using start/end content approach
+   */
+  private improvedStartEndTextMatching(nugget: GoldenNugget, searchText: string): boolean {
+    const normalizedSearch = this.normalizeText(searchText);
+    const normalizedStart = this.normalizeText(nugget.startContent);
+    const normalizedEnd = this.normalizeText(nugget.endContent);
+
+    // Strategy 1: Check if both start and end content exist in the text
+    const hasStart = normalizedSearch.includes(normalizedStart);
+    const hasEnd = normalizedSearch.includes(normalizedEnd);
+    
+    if (hasStart && hasEnd) {
+      // Verify they appear in the correct order
+      const startIndex = normalizedSearch.indexOf(normalizedStart);
+      const endIndex = normalizedSearch.lastIndexOf(normalizedEnd);
+      return startIndex < endIndex;
+    }
+
+    // Strategy 2: If we can't find both, try the full reconstructed content approach
+    const reconstructed = this.findTextBetweenStartAndEnd(nugget.startContent, nugget.endContent, searchText);
+    if (reconstructed) {
+      return true;
+    }
+
+    // Strategy 3: Fallback to partial matching - at least 80% of start words and 80% of end words
+    const startWords = normalizedStart.split(' ').filter(word => word.length > 2);
+    const endWords = normalizedEnd.split(' ').filter(word => word.length > 2);
+    const searchWords = normalizedSearch.split(' ');
+
+    const startMatches = startWords.filter(word => searchWords.includes(word));
+    const endMatches = endWords.filter(word => searchWords.includes(word));
+
+    const startMatchRatio = startMatches.length / Math.max(startWords.length, 1);
+    const endMatchRatio = endMatches.length / Math.max(endWords.length, 1);
+
+    return startMatchRatio >= 0.8 && endMatchRatio >= 0.8;
+  }
+
   async highlightNugget(nugget: GoldenNugget): Promise<boolean> {
     console.log('🔍 [Highlighter Debug] Starting highlightNugget:', {
       siteType: this.siteType,
       isThreadedSite: this.isThreadedSite(),
       nuggetType: nugget.type,
-      contentPreview: nugget.content.substring(0, 100) + '...',
+      startContent: nugget.startContent.substring(0, 50) + '...',
+      endContent: nugget.endContent.substring(0, 50) + '...',
       url: window.location.href
     });
     
@@ -32,7 +130,8 @@ export class Highlighter {
     if (this.highlightedNuggets.has(contentKey)) {
       console.log('⚠️ [Deduplication] Nugget already highlighted, skipping:', {
         contentKey,
-        contentPreview: nugget.content.substring(0, 100) + '...'
+        startContent: nugget.startContent.substring(0, 50) + '...',
+        endContent: nugget.endContent.substring(0, 50) + '...'
       });
       return false;
     }
@@ -123,13 +222,12 @@ export class Highlighter {
   }
 
   private createContentKey(nugget: GoldenNugget): string {
-    // Create a unique key based on normalized content for deduplication
-    // Use the first 200 characters of normalized content to handle very long nuggets
-    const normalizedContent = this.normalizeText(nugget.content);
-    const contentSnippet = normalizedContent.substring(0, 200);
+    // Create a unique key based on normalized start and end content for deduplication
+    const normalizedStart = this.normalizeText(nugget.startContent);
+    const normalizedEnd = this.normalizeText(nugget.endContent);
     
     // Include nugget type to allow same content with different types (rare but possible)
-    return `${nugget.type}:${contentSnippet}`;
+    return `${nugget.type}:${normalizedStart}|${normalizedEnd}`;
   }
 
   private isThreadedSite(): boolean {
@@ -158,7 +256,7 @@ export class Highlighter {
       return null;
     }
     
-    const normalizedContent = this.normalizeText(nugget.content);
+    const normalizedContent = this.getNormalizedContent(nugget);
     
     // Strategy 1: Try to find highlight by exact content match
     for (const highlight of existingHighlights) {
@@ -173,7 +271,7 @@ export class Highlighter {
     }
     
     // Strategy 2: Try to find by key phrases
-    const keyPhrases = this.extractKeyPhrases(nugget.content);
+    const keyPhrases = this.extractKeyPhrases(this.getDisplayContent(nugget));
     for (const phrase of keyPhrases) {
       const normalizedPhrase = this.normalizeText(phrase);
       if (normalizedPhrase.length > 8) {
@@ -213,7 +311,7 @@ export class Highlighter {
       return null;
     }
     
-    const normalizedContent = this.normalizeText(nugget.content);
+    const normalizedContent = this.getNormalizedContent(nugget);
     
     // Find comment highlight that contains the nugget content
     for (const highlight of existingHighlights) {
@@ -286,7 +384,7 @@ export class Highlighter {
   }
 
   private highlightCommentContainer(nugget: GoldenNugget): boolean {
-    const normalizedContent = this.normalizeText(nugget.content);
+    const normalizedContent = this.getNormalizedContent(nugget);
     
     // Early return if content is too short
     if (normalizedContent.length < 5) {
@@ -313,12 +411,13 @@ export class Highlighter {
         const containerText = container.textContent || '';
         
         // Use improved text matching algorithm
-        const shouldHighlight = this.improvedTextMatching(nugget.content, containerText);
+        const shouldHighlight = this.improvedStartEndTextMatching(nugget, containerText);
         
         console.log('🎯 Highlighting Debug:', {
           site: this.siteType,
           selector,
-          contentToFind: nugget.content.substring(0, 100) + '...',
+          startContent: nugget.startContent.substring(0, 50) + '...',
+        endContent: nugget.endContent.substring(0, 50) + '...',
           normalizedContent: normalizedContent.substring(0, 100) + '...',
           containerText: containerText.substring(0, 100) + '...',
           normalizedContainer: this.normalizeText(containerText).substring(0, 100) + '...',
@@ -339,7 +438,7 @@ export class Highlighter {
     }
     
     // Fallback to text highlighting if comment detection fails
-    console.log('🔄 Falling back to text highlighting for:', nugget.content.substring(0, 100) + '...');
+    console.log('🔄 Falling back to text highlighting for:', `${nugget.startContent}...${nugget.endContent}`);
     return this.findAndHighlightText(nugget);
   }
 
@@ -352,10 +451,11 @@ export class Highlighter {
       const normalizedCommentText = this.normalizeText(commentText);
       
       // Use improved text matching algorithm
-      const shouldHighlight = this.improvedTextMatching(nugget.content, commentText);
+      const shouldHighlight = this.improvedStartEndTextMatching(nugget, commentText);
       
       console.log('🎯 HackerNews Comment Debug:', {
-        contentToFind: nugget.content.substring(0, 100) + '...',
+        startContent: nugget.startContent.substring(0, 50) + '...',
+        endContent: nugget.endContent.substring(0, 50) + '...',
         normalizedContent: normalizedContent.substring(0, 100) + '...',
         commentText: commentText.substring(0, 100) + '...',
         normalizedCommentText: normalizedCommentText.substring(0, 100) + '...',
@@ -420,7 +520,7 @@ export class Highlighter {
         const containerText = container.textContent || '';
         
         // Use improved text matching algorithm
-        const shouldHighlight = this.improvedTextMatching(nugget.content, containerText);
+        const shouldHighlight = this.improvedStartEndTextMatching(nugget, containerText);
         
         if (shouldHighlight) {
           this.highlightCommentElement(container as HTMLElement, nugget);
@@ -724,10 +824,11 @@ export class Highlighter {
   }
 
   private findAndHighlightText(nugget: GoldenNugget): boolean {
-    const normalizedContent = this.normalizeText(nugget.content);
+    const normalizedContent = this.getNormalizedContent(nugget);
     
     console.log('🎯 [Generic Highlighting Debug] Starting findAndHighlightText:', {
-      originalContent: nugget.content.substring(0, 150) + '...',
+      startContent: nugget.startContent.substring(0, 50) + '...',
+      endContent: nugget.endContent.substring(0, 50) + '...',
       normalizedContent: normalizedContent.substring(0, 150) + '...',
       normalizedLength: normalizedContent.length
     });
@@ -1009,7 +1110,7 @@ export class Highlighter {
   }
   
   private tryMultipleMatchingStrategies(textNodes: Element[], nugget: GoldenNugget, normalizedContent: string): boolean {
-    const originalContent = nugget.content;
+    const originalContent = this.getDisplayContent(nugget);
     
     console.log('🎲 [Matching Strategies Debug] Starting strategies for:', {
       nuggetType: nugget.type,
@@ -1149,14 +1250,14 @@ export class Highlighter {
     const text = textNode.textContent || '';
     const normalizedText = this.normalizeText(text);
     const normalizedPhrase = this.normalizeText(targetPhrase);
-    const normalizedNugget = this.normalizeText(nugget.content);
+    const normalizedNugget = this.getNormalizedContent(nugget);
     
     // Find the best position to highlight - prioritize content from the beginning of the nugget
     let startIndex = 0;
     let endIndex = text.length;
     
     // Check if this text contains the beginning of the nugget
-    const nuggetStart = this.normalizeText(nugget.content.split(' ').slice(0, 8).join(' '));
+    const nuggetStart = this.normalizeText(nugget.startContent);
     const containsNuggetStart = normalizedText.includes(nuggetStart);
     
     // Look for sentence boundaries to highlight complete thoughts
@@ -1371,7 +1472,7 @@ export class Highlighter {
   }
 
   private tryGenericContainerHighlighting(nugget: GoldenNugget): boolean {
-    const normalizedContent = this.normalizeText(nugget.content);
+    const normalizedContent = this.getNormalizedContent(nugget);
     
     console.log('🏗️ [Generic Container Debug] Starting generic container highlighting:', {
       normalizedContent: normalizedContent.substring(0, 100) + '...'
@@ -1413,7 +1514,7 @@ export class Highlighter {
         }
         
         // Use improved text matching algorithm (same as comment highlighting)
-        if (this.improvedTextMatching(nugget.content, containerText)) {
+        if (this.improvedStartEndTextMatching(nugget, containerText)) {
           console.log('✅ [Generic Container Debug] Found matching container! Highlighting with key phrase approach...');
           
           // For large containers (like article), try to find the best specific text
@@ -1466,7 +1567,7 @@ export class Highlighter {
       const textNode = textNodes[0] as Text;
       const text = textNode.textContent || '';
       if (text.trim().length > 20) {
-        this.highlightSubstantialText(textNode, nugget, nugget.content);
+        this.highlightSubstantialText(textNode, nugget, this.getDisplayContent(nugget));
         return true;
       }
     }
@@ -1478,7 +1579,7 @@ export class Highlighter {
     for (const textNode of textNodes) {
       const text = textNode.textContent || '';
       const normalizedText = this.normalizeText(text);
-      const score = this.getOverlapScore(normalizedText, this.normalizeText(nugget.content));
+      const score = this.getOverlapScore(normalizedText, this.getNormalizedContent(nugget));
       
       if (score > bestScore && text.trim().length > 15) {
         bestScore = score;
@@ -1487,7 +1588,7 @@ export class Highlighter {
     }
     
     if (bestTextNode && bestScore > 0.2) {
-      this.highlightSubstantialText(bestTextNode, nugget, nugget.content);
+      this.highlightSubstantialText(bestTextNode, nugget, this.getDisplayContent(nugget));
       return true;
     }
     
@@ -1499,7 +1600,7 @@ export class Highlighter {
     
     const containerText = container.textContent || '';
     const normalizedContainer = this.normalizeText(containerText);
-    const normalizedNugget = this.normalizeText(nugget.content);
+    const normalizedNugget = this.getNormalizedContent(nugget);
     
     // NEW STRATEGY: Try to highlight multiple text nodes that together contain more of the nugget
     console.log('🔗 [Multi-Node Strategy] Attempting to find multiple text nodes that together contain more nugget content...');
@@ -1508,7 +1609,7 @@ export class Highlighter {
     }
     
     // Extract key phrases from the nugget content
-    const keyPhrases = this.extractKeyPhrases(nugget.content);
+    const keyPhrases = this.extractKeyPhrases(this.getDisplayContent(nugget));
     console.log('🗝️ [Best Text Debug] Key phrases:', keyPhrases.slice(0, 3).map(p => p.substring(0, 50) + '...'));
     
     // Find text nodes within the container
@@ -1516,7 +1617,7 @@ export class Highlighter {
     console.log('📝 [Best Text Debug] Found text nodes in container:', textNodes.length);
     
     // Strategy 1: Try to find text nodes with substantial content, prioritize longer matches
-    const nuggetStart = this.normalizeText(nugget.content.split(' ').slice(0, 8).join(' ')); // First 8 words
+    const nuggetStart = this.normalizeText(nugget.startContent); // First 8 words
     
     // Sort phrases by length descending to prioritize longer, more complete content
     const sortedPhrases = keyPhrases.sort((a, b) => b.length - a.length);
@@ -1573,7 +1674,7 @@ export class Highlighter {
     }
     
     // Strategy 3: Try to find any text node that contains the beginning of the nugget
-    const nuggetWords = this.normalizeText(nugget.content).split(' ');
+    const nuggetWords = this.getNormalizedContent(nugget).split(' ');
     const firstSignificantWords = nuggetWords.slice(0, 12).join(' '); // More words for better context
     
     for (const textNode of textNodes) {
@@ -1582,7 +1683,7 @@ export class Highlighter {
       
       if (normalizedText.includes(firstSignificantWords) && text.trim().length > 20) {
         console.log('✅ [Best Text Debug] Found text node with beginning words, highlighting...');
-        this.highlightMaximalText(textNode as Text, nugget, nugget.content);
+        this.highlightMaximalText(textNode as Text, nugget, this.getDisplayContent(nugget));
         return true;
       }
     }
@@ -1596,7 +1697,7 @@ export class Highlighter {
     
     const containerText = container.textContent || '';
     const normalizedContainer = this.normalizeText(containerText);
-    const normalizedNugget = this.normalizeText(nugget.content);
+    const normalizedNugget = this.getNormalizedContent(nugget);
     
     // Check if the container has enough of the nugget content to warrant multi-node highlighting
     const overlap = this.getOverlapScore(normalizedContainer, normalizedNugget);
@@ -1620,7 +1721,7 @@ export class Highlighter {
     // Try to find a sequence of text nodes that together contain a substantial portion of the nugget
     console.log('🔍 [Multi-Node Debug] Looking for sequences of text nodes...');
     
-    const nuggetWords = this.normalizeText(nugget.content).split(' ');
+    const nuggetWords = this.getNormalizedContent(nugget).split(' ');
     const minWordsToMatch = Math.max(6, Math.floor(nuggetWords.length * 0.4)); // Lowered threshold: 40% of words or 6 words
     
     for (let i = 0; i < textNodes.length; i++) {
@@ -1662,7 +1763,7 @@ export class Highlighter {
       return false;
     }
     
-    const normalizedNugget = this.normalizeText(nugget.content);
+    const normalizedNugget = this.getNormalizedContent(nugget);
     const nuggetWords = normalizedNugget.split(' ');
     const minWordsToMatch = Math.max(6, Math.floor(nuggetWords.length * 0.4));
     
@@ -1701,7 +1802,7 @@ export class Highlighter {
   private highlightBestParagraphFromSequence(paragraphs: Element[], nugget: GoldenNugget, combinedText: string): boolean {
     console.log('🎯 [Paragraph Highlight] Selecting best paragraph from sequence of', paragraphs.length);
     
-    const normalizedNugget = this.normalizeText(nugget.content);
+    const normalizedNugget = this.getNormalizedContent(nugget);
     let bestParagraph: Element | null = null;
     let bestScore = 0;
     
@@ -1725,7 +1826,7 @@ export class Highlighter {
       if (textNodes.length > 1) {
         return this.highlightNodeSequence(textNodes.slice(0, 3) as Text[], nugget, combinedText);
       } else if (textNodes.length === 1) {
-        this.highlightMaximalText(textNodes[0] as Text, nugget, nugget.content);
+        this.highlightMaximalText(textNodes[0] as Text, nugget, this.getDisplayContent(nugget));
         return true;
       }
     }
@@ -1951,7 +2052,7 @@ export class Highlighter {
 
   private tryContainerBasedHighlighting(nugget: GoldenNugget): boolean {
     // Only for HTML fragmentation cases - find containers with full content
-    const normalizedContent = this.normalizeText(nugget.content);
+    const normalizedContent = this.getNormalizedContent(nugget);
     
     console.log('📦 [Container Strategy Debug] Starting container-based highlighting:', {
       normalizedContent: normalizedContent.substring(0, 100) + '...'
