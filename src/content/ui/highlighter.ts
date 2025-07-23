@@ -4,10 +4,18 @@ import { SITE_SELECTORS } from 'threads-harvester';
 import { 
   getDisplayContent, 
   getNormalizedContent, 
-  improvedStartEndTextMatching 
+  improvedStartEndMatching,
+  advancedNormalize
 } from '../../shared/content-reconstruction';
+import { fuzzyMatch } from '../../shared/fuzzy-matching';
 
 type SiteType = 'twitter' | 'reddit' | 'hackernews' | 'generic';
+
+interface ContainerMatch {
+  element: Element;
+  confidence: number;
+  textLength: number;
+}
 
 export class Highlighter {
   private highlights: HTMLElement[] = [];
@@ -296,6 +304,43 @@ export class Highlighter {
     console.log('🧹 [Deduplication] Cleared all highlights and tracking');
   }
 
+  private findInContainers(nugget: GoldenNugget): ContainerMatch[] {
+    const containers = document.querySelectorAll('p, article, section, div[role="main"], main');
+    const results: ContainerMatch[] = [];
+    
+    Array.from(containers).forEach(container => {
+      const containerText = container.textContent || '';
+      const startMatch = fuzzyMatch(containerText, nugget.startContent, 0.8);
+      const endMatch = fuzzyMatch(containerText, nugget.endContent, 0.8);
+      
+      if (startMatch && endMatch) {
+        results.push({
+          element: container,
+          confidence: this.calculateConfidence(containerText, nugget),
+          textLength: containerText.length
+        });
+      }
+    });
+    
+    return results.sort((a, b) => b.confidence - a.confidence);
+  }
+
+  private calculateConfidence(text: string, nugget: GoldenNugget): number {
+    const startWords = advancedNormalize(nugget.startContent).split(' ');
+    const endWords = advancedNormalize(nugget.endContent).split(' ');
+    const normalizedText = advancedNormalize(text);
+    
+    const startMatches = startWords.filter(word => 
+      word.length > 2 && normalizedText.includes(word)
+    ).length / startWords.length;
+    
+    const endMatches = endWords.filter(word => 
+      word.length > 2 && normalizedText.includes(word)
+    ).length / endWords.length;
+    
+    return (startMatches + endMatches) / 2;
+  }
+
   private highlightCommentContainer(nugget: GoldenNugget, pageContent?: string): boolean {
     const normalizedContent = getNormalizedContent(nugget, pageContent);
     
@@ -324,7 +369,8 @@ export class Highlighter {
         const containerText = container.textContent || '';
         
         // Use improved text matching algorithm
-        const shouldHighlight = improvedStartEndTextMatching(nugget, containerText);
+        const result = improvedStartEndMatching(nugget.startContent, nugget.endContent, containerText);
+        const shouldHighlight = result.success;
         
         console.log('🎯 Highlighting Debug:', {
           site: this.siteType,
@@ -364,7 +410,8 @@ export class Highlighter {
       const normalizedCommentText = this.normalizeText(commentText);
       
       // Use improved text matching algorithm
-      const shouldHighlight = improvedStartEndTextMatching(nugget, commentText);
+      const result = improvedStartEndMatching(nugget.startContent, nugget.endContent, commentText);
+      const shouldHighlight = result.success;
       
       console.log('🎯 HackerNews Comment Debug:', {
         startContent: nugget.startContent.substring(0, 50) + '...',
@@ -433,7 +480,8 @@ export class Highlighter {
         const containerText = container.textContent || '';
         
         // Use improved text matching algorithm
-        const shouldHighlight = improvedStartEndTextMatching(nugget, containerText);
+        const result = improvedStartEndMatching(nugget.startContent, nugget.endContent, containerText);
+        const shouldHighlight = result.success;
         
         if (shouldHighlight) {
           this.highlightCommentElement(container as HTMLElement, nugget);
@@ -2226,7 +2274,8 @@ export class Highlighter {
         }
         
         // Use improved text matching algorithm (same as comment highlighting)
-        if (improvedStartEndTextMatching(nugget, containerText)) {
+        const result = improvedStartEndMatching(nugget.startContent, nugget.endContent, containerText);
+        if (result.success) {
           console.log('✅ [Generic Container Debug] Found matching container! Highlighting with key phrase approach...');
           
           // For large containers (like article), try to find the best specific text
