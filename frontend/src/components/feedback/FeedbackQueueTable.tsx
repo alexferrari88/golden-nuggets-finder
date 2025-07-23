@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { 
   ChevronDown, 
@@ -10,7 +10,9 @@ import {
   Clock,
   RefreshCw,
   Edit3,
-  Trash2
+  Trash2,
+  CheckSquare,
+  Square
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Badge } from '../ui/badge';
@@ -28,6 +30,7 @@ import { AdvancedFilters, defaultFilters } from '../common/AdvancedFilters';
 import type { FilterState } from '../common/AdvancedFilters';
 import { EditFeedbackDialog } from './EditFeedbackDialog';
 import { DeleteFeedbackDialog } from './DeleteFeedbackDialog';
+import { BulkDeleteFeedbackDialog } from './BulkDeleteFeedbackDialog';
 import api from '../../lib/api';
 import type { PendingFeedback, FeedbackItem, ApiError } from '../../types';
 
@@ -43,6 +46,7 @@ export function FeedbackQueueTable({
   const [filters, setFilters] = useState<FilterState>(defaultFilters);
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [page, setPage] = useState(0);
+  const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
 
   const {
     data: feedbackData,
@@ -86,6 +90,11 @@ export function FeedbackQueueTable({
     staleTime: 5000,
   });
 
+  const filteredItems = useMemo(() => {
+    if (!feedbackData?.items) return [];
+    return feedbackData.items;
+  }, [feedbackData]);
+
   const toggleRowExpansion = useCallback((id: string) => {
     setExpandedRows(prev => {
       const newSet = new Set(prev);
@@ -98,10 +107,50 @@ export function FeedbackQueueTable({
     });
   }, []);
 
-  const filteredItems = useMemo(() => {
-    if (!feedbackData?.items) return [];
-    return feedbackData.items;
-  }, [feedbackData]);
+  const toggleItemSelection = useCallback((id: string) => {
+    setSelectedItems(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(id)) {
+        newSet.delete(id);
+      } else {
+        newSet.add(id);
+      }
+      return newSet;
+    });
+  }, []);
+
+  const toggleSelectAll = useCallback(() => {
+    if (selectedItems.size === filteredItems.length) {
+      setSelectedItems(new Set());
+    } else {
+      setSelectedItems(new Set(filteredItems.map(item => item.id)));
+    }
+  }, [selectedItems.size, filteredItems]);
+
+  const clearSelection = useCallback(() => {
+    setSelectedItems(new Set());
+  }, []);
+
+  // Clean up selection when items are deleted
+  useEffect(() => {
+    if (selectedItems.size > 0) {
+      const currentItemIds = new Set(filteredItems.map(item => item.id));
+      const validSelectedItems = new Set(
+        Array.from(selectedItems).filter(id => currentItemIds.has(id))
+      );
+      
+      if (validSelectedItems.size !== selectedItems.size) {
+        setSelectedItems(validSelectedItems);
+      }
+    }
+  }, [filteredItems, selectedItems]);
+
+  const selectedItemsData = useMemo(() => {
+    return filteredItems.filter(item => selectedItems.has(item.id));
+  }, [filteredItems, selectedItems]);
+
+  const isAllSelected = selectedItems.size > 0 && selectedItems.size === filteredItems.length;
+  const isPartiallySelected = selectedItems.size > 0 && selectedItems.size < filteredItems.length;
 
   const getTypeIcon = (type: FeedbackItem['type']) => {
     switch (type) {
@@ -204,15 +253,42 @@ export function FeedbackQueueTable({
                   {feedbackData.total_count} items
                 </Badge>
               )}
+              {selectedItems.size > 0 && (
+                <Badge variant="outline">
+                  {selectedItems.size} selected
+                </Badge>
+              )}
             </CardTitle>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={() => refetch()}
-              disabled={isLoading}
-            >
-              <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
-            </Button>
+            <div className="flex items-center gap-2">
+              {selectedItems.size > 0 && (
+                <>
+                  <BulkDeleteFeedbackDialog 
+                    items={selectedItemsData}
+                    onSuccess={clearSelection}
+                  >
+                    <Button variant="destructive" size="sm">
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Delete {selectedItems.size}
+                    </Button>
+                  </BulkDeleteFeedbackDialog>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={clearSelection}
+                  >
+                    Clear Selection
+                  </Button>
+                </>
+              )}
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => refetch()}
+                disabled={isLoading}
+              >
+                <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+              </Button>
+            </div>
           </div>
         </CardHeader>
       <CardContent>
@@ -233,6 +309,21 @@ export function FeedbackQueueTable({
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-10">
+                    <button
+                      onClick={toggleSelectAll}
+                      className="flex items-center justify-center w-full h-full"
+                      disabled={filteredItems.length === 0}
+                    >
+                      {isAllSelected ? (
+                        <CheckSquare className="h-4 w-4 text-blue-600" />
+                      ) : isPartiallySelected ? (
+                        <CheckSquare className="h-4 w-4 text-blue-400" fill="currentColor" fillOpacity={0.5} />
+                      ) : (
+                        <Square className="h-4 w-4 text-gray-400" />
+                      )}
+                    </button>
+                  </TableHead>
                   <TableHead className="w-10"></TableHead>
                   <TableHead>Type</TableHead>
                   <TableHead>Content</TableHead>
@@ -248,10 +339,24 @@ export function FeedbackQueueTable({
                   <>
                     <TableRow 
                       key={item.id} 
-                      className="cursor-pointer hover:bg-gray-50"
-                      onClick={() => toggleRowExpansion(item.id)}
+                      className={`hover:bg-gray-50 ${selectedItems.has(item.id) ? 'bg-blue-50' : ''}`}
                     >
-                      <TableCell>
+                      <TableCell onClick={(e) => e.stopPropagation()}>
+                        <button
+                          onClick={() => toggleItemSelection(item.id)}
+                          className="flex items-center justify-center w-full h-full"
+                        >
+                          {selectedItems.has(item.id) ? (
+                            <CheckSquare className="h-4 w-4 text-blue-600" />
+                          ) : (
+                            <Square className="h-4 w-4 text-gray-400 hover:text-gray-600" />
+                          )}
+                        </button>
+                      </TableCell>
+                      <TableCell 
+                        className="cursor-pointer"
+                        onClick={() => toggleRowExpansion(item.id)}
+                      >
                         {expandedRows.has(item.id) ? (
                           <ChevronDown className="h-4 w-4" />
                         ) : (
@@ -316,7 +421,7 @@ export function FeedbackQueueTable({
                     {/* Expanded content row */}
                     {expandedRows.has(item.id) && (
                       <TableRow>
-                        <TableCell colSpan={8}>
+                        <TableCell colSpan={9}>
                           <div className="py-4 px-4 bg-gray-50 rounded-lg">
                             <h4 className="font-medium mb-2">Full Content:</h4>
                             <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">

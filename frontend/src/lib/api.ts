@@ -156,6 +156,27 @@ export const apiClient = {
       params: { feedback_type: feedbackType },
     }),
 
+  bulkDeleteFeedbackItems: async (items: Array<{ id: string; feedbackType: 'nugget' | 'missing_content' }>) => {
+    // Use individual delete calls since bulk endpoint doesn't exist yet
+    const deletePromises = items.map(item => 
+      makeRequest({
+        method: 'DELETE',
+        url: `/feedback/${item.id}`,
+        params: { feedback_type: item.feedbackType },
+      })
+    );
+    
+    const results = await Promise.allSettled(deletePromises);
+    
+    // Check if any failed
+    const failures = results.filter(result => result.status === 'rejected');
+    if (failures.length > 0) {
+      throw new Error(`Failed to delete ${failures.length} of ${items.length} items`);
+    }
+    
+    return { success: true, deleted: items.length };
+  },
+
   // Optimization Progress - Live tracking
   getOptimizationProgress: (runId: string): Promise<OptimizationProgress[]> =>
     makeRequest<OptimizationProgress[]>({
