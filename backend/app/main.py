@@ -723,11 +723,11 @@ async def get_dashboard_stats():
                 "pending_missing_feedback": stats[1],
                 "processed_nugget_feedback": stats[2],
                 "processed_missing_feedback": stats[3],
-                "active_optimizations": stats[4],
-                "completed_optimizations": stats[5],
-                "failed_optimizations": stats[6],
-                "monthly_costs": stats[7],
-                "monthly_tokens": stats[8],
+                "active_optimizations": stats[8],
+                "completed_optimizations": stats[9],
+                "failed_optimizations": stats[10],
+                "monthly_costs": stats[11],
+                "monthly_tokens": stats[12],
             }
     except Exception as e:
         raise HTTPException(
