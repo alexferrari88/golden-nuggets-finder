@@ -1,3 +1,5 @@
+import { describe } from "vitest";
+
 export type GoldenNuggetType =
 	| "tool"
 	| "media"
@@ -28,10 +30,15 @@ export const GOLDEN_NUGGET_SCHEMA = {
 						description: "The category of the extracted golden nugget.",
 						enum: ["tool", "media", "explanation", "analogy", "model"],
 					},
-					content: {
+					startContent: {
 						type: "string",
 						description:
-							"The original comment(s) verbatim, without any changes to wording or symbols.",
+							"The first few words of the original content verbatim, without any changes to wording or symbols.",
+					},
+					endContent: {
+						type: "string",
+						description:
+							"The last few words of the original content verbatim, without any changes to wording or symbols.",
 					},
 					synthesis: {
 						type: "string",
@@ -39,8 +46,8 @@ export const GOLDEN_NUGGET_SCHEMA = {
 							"A concise explanation of why this is relevant to the persona, connecting it to their core interests or cognitive profile.",
 					},
 				},
-				required: ["type", "content", "synthesis"],
-				propertyOrdering: ["type", "content", "synthesis"],
+				required: ["type", "startContent", "endContent", "synthesis"],
+				propertyOrdering: ["type", "startContent", "endContent", "synthesis"],
 			},
 		},
 	},
@@ -64,10 +71,15 @@ export function generateGoldenNuggetSchema(selectedTypes: GoldenNuggetType[]) {
 							description: "The category of the extracted golden nugget.",
 							enum: selectedTypes.length > 0 ? selectedTypes : ALL_NUGGET_TYPES,
 						},
-						content: {
+						startContent: {
 							type: "string",
 							description:
-								"The original comment(s) verbatim, without any changes to wording or symbols.",
+								"The first few words of the original content verbatim, without any changes to wording or symbols.",
+						},
+						endContent: {
+							type: "string",
+							description:
+								"The last few words of the original content verbatim, without any changes to wording or symbols.",
 						},
 						synthesis: {
 							type: "string",
@@ -75,8 +87,8 @@ export function generateGoldenNuggetSchema(selectedTypes: GoldenNuggetType[]) {
 								"A concise explanation of why this is relevant to the persona, connecting it to their core interests or cognitive profile.",
 						},
 					},
-					required: ["type", "content", "synthesis"],
-					propertyOrdering: ["type", "content", "synthesis"],
+					required: ["type", "startContent", "endContent", "synthesis"],
+					propertyOrdering: ["type", "startContent", "endContent", "synthesis"],
 				},
 			},
 		},
