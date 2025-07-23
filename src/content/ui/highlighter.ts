@@ -1323,7 +1323,17 @@ export class Highlighter {
   }
 
   private tryMultiElementHighlighting(textNodes: Element[], nugget: GoldenNugget, pageContent?: string): boolean {
-    console.log('🔗 [Multi-Element Debug] Starting multi-element highlighting');
+    console.log('🔗 [Multi-Element Debug] Starting new flattened text multi-element highlighting');
+    
+    // First try the new flattened text approach
+    const flattenedResult = this.tryFlattenedTextHighlighting(nugget, pageContent);
+    if (flattenedResult) {
+      console.log('✅ [Multi-Element Debug] Flattened text highlighting succeeded!');
+      return true;
+    }
+    
+    // Fallback to original multi-element approach
+    console.log('🔗 [Multi-Element Debug] Flattened approach failed, trying original multi-element approach');
     
     // Get the full reconstructed content
     const fullContent = getDisplayContent(nugget, pageContent);
@@ -1416,6 +1426,354 @@ export class Highlighter {
     
     console.log('❌ [Multi-Element Debug] Insufficient coverage or matches');
     return false;
+  }
+
+  /**
+   * New flattened text highlighting approach that handles multi-element nuggets
+   * by creating a continuous text representation with element position mapping
+   */
+  private tryFlattenedTextHighlighting(nugget: GoldenNugget, pageContent?: string): boolean {
+    console.log('🌟 [Flattened Text Debug] Starting flattened text highlighting approach');
+    
+    // Find the main content container (works for Substack and other sites)
+    const contentContainer = this.findMainContentContainer();
+    if (!contentContainer) {
+      console.log('❌ [Flattened Text Debug] No content container found');
+      return false;
+    }
+    
+    console.log('🏗️ [Flattened Text Debug] Found content container:', {
+      tagName: contentContainer.tagName,
+      className: contentContainer.className.substring(0, 50),
+      textPreview: contentContainer.textContent?.substring(0, 100) + '...'
+    });
+    
+    // Create flattened text representation with element mapping
+    const textMap = this.createFlattenedTextMap(contentContainer);
+    console.log('📋 [Flattened Text Debug] Created text map:', {
+      totalText: textMap.flattenedText.substring(0, 100) + '...',
+      textLength: textMap.flattenedText.length,
+      elementsCount: textMap.elements.length
+    });
+    
+    // Get the nugget content to search for
+    const nuggetContent = getDisplayContent(nugget, pageContent);
+    const normalizedNugget = this.normalizeText(nuggetContent);
+    const normalizedFlattened = this.normalizeText(textMap.flattenedText);
+    
+    console.log('🎯 [Flattened Text Debug] Searching for nugget:', {
+      nuggetContent: nuggetContent.substring(0, 100) + '...',
+      normalizedLength: normalizedNugget.length
+    });
+    
+    // Find the nugget in the flattened text (case-insensitive, fuzzy matching)
+    const range = this.findNuggetRange(normalizedFlattened, nugget, normalizedNugget);
+    if (!range) {
+      console.log('❌ [Flattened Text Debug] Nugget not found in flattened text');
+      return false;
+    }
+    
+    console.log('✅ [Flattened Text Debug] Found nugget range:', {
+      start: range.start,
+      end: range.end,
+      length: range.end - range.start,
+      matchedText: normalizedFlattened.substring(range.start, range.end).substring(0, 100) + '...'
+    });
+    
+    // Map the range back to DOM elements
+    const elementsToHighlight = this.mapRangeToElements(textMap, range.start, range.end);
+    console.log('🗺️ [Flattened Text Debug] Elements to highlight:', elementsToHighlight.length);
+    
+    if (elementsToHighlight.length === 0) {
+      console.log('❌ [Flattened Text Debug] No elements mapped for highlighting');
+      return false;
+    }
+    
+    // Highlight all the elements
+    let highlightedCount = 0;
+    for (const elementInfo of elementsToHighlight) {
+      try {
+        const textNode = elementInfo.element;
+        const highlightText = elementInfo.textPortion;
+        
+        // Use existing highlighting infrastructure but with the specific text portion
+        this.highlightSpecificTextInNode(textNode, highlightText, nugget);
+        highlightedCount++;
+        
+        console.log('✅ [Flattened Text Debug] Highlighted element:', {
+          tagName: textNode.parentElement?.tagName,
+          textPreview: highlightText.substring(0, 50) + '...'
+        });
+      } catch (error) {
+        console.warn('⚠️ [Flattened Text Debug] Failed to highlight element:', error);
+      }
+    }
+    
+    console.log('🌟 [Flattened Text Debug] Highlighting complete:', {
+      elementsFound: elementsToHighlight.length,
+      highlightedCount: highlightedCount,
+      success: highlightedCount > 0
+    });
+    
+    return highlightedCount > 0;
+  }
+  
+  /**
+   * Find the main content container on the page
+   */
+  private findMainContentContainer(): Element | null {
+    // Ordered by preference - most specific to least specific
+    const selectors = [
+      '.body.markup',      // Substack main content
+      '.available-content', // Substack content area
+      'article',           // Generic articles
+      'main',              // Main content areas
+      '.post-content',     // Blog posts
+      '.content',          // Generic content
+      '[class*="content"]' // Any content-related class
+    ];
+    
+    for (const selector of selectors) {
+      const element = document.querySelector(selector);
+      if (element && element.textContent && element.textContent.length > 500) {
+        return element;
+      }
+    }
+    
+    return null;
+  }
+  
+  /**
+   * Create a flattened text representation with element position mapping
+   */
+  private createFlattenedTextMap(container: Element): {
+    flattenedText: string,
+    elements: Array<{
+      element: Text,
+      start: number,
+      end: number,
+      originalText: string
+    }>
+  } {
+    const walker = document.createTreeWalker(
+      container,
+      NodeFilter.SHOW_TEXT,
+      {
+        acceptNode: (node) => {
+          // Skip our own UI elements and empty text nodes
+          const parent = node.parentElement;
+          if (!parent || 
+              parent.classList.contains('nugget-sidebar') ||
+              parent.classList.contains('nugget-highlight') ||
+              !node.textContent?.trim()) {
+            return NodeFilter.FILTER_REJECT;
+          }
+          return NodeFilter.FILTER_ACCEPT;
+        }
+      },
+      false
+    );
+    
+    const elements: Array<{
+      element: Text,
+      start: number,
+      end: number,
+      originalText: string
+    }> = [];
+    
+    let flattenedText = '';
+    let node: Text | null;
+    
+    while (node = walker.nextNode() as Text) {
+      const text = node.textContent || '';
+      if (text.trim().length === 0) continue;
+      
+      const start = flattenedText.length;
+      
+      // Add text with normalized spacing (single spaces between words)
+      const normalizedText = text.replace(/\s+/g, ' ').trim();
+      if (normalizedText) {
+        // Add space separator if this isn't the first text and doesn't start with punctuation
+        if (flattenedText.length > 0 && 
+            !normalizedText.match(/^[.!?,:;]/) && 
+            !flattenedText.match(/\s$/)) {
+          flattenedText += ' ';
+        }
+        
+        const textStart = flattenedText.length;
+        flattenedText += normalizedText;
+        const textEnd = flattenedText.length;
+        
+        elements.push({
+          element: node,
+          start: textStart,
+          end: textEnd,
+          originalText: text
+        });
+      }
+    }
+    
+    return {
+      flattenedText,
+      elements
+    };
+  }
+  
+  /**
+   * Find the nugget range in the flattened text using fuzzy matching
+   */
+  private findNuggetRange(flattenedText: string, nugget: GoldenNugget, normalizedNugget: string): {
+    start: number,
+    end: number
+  } | null {
+    // First try exact match
+    const exactMatch = flattenedText.indexOf(normalizedNugget);
+    if (exactMatch !== -1) {
+      return {
+        start: exactMatch,
+        end: exactMatch + normalizedNugget.length
+      };
+    }
+    
+    // Try matching based on start and end content
+    const normalizedStart = this.normalizeText(nugget.startContent);
+    const normalizedEnd = this.normalizeText(nugget.endContent);
+    
+    // Find start position
+    let startPos = -1;
+    const startWords = normalizedStart.split(/\s+/).filter(w => w.length > 2);
+    
+    if (startWords.length > 0) {
+      // Look for the first few words of the start content
+      const startPattern = startWords.slice(0, Math.min(5, startWords.length)).join('\\s+');
+      const startRegex = new RegExp(startPattern, 'i');
+      const startMatch = flattenedText.match(startRegex);
+      if (startMatch) {
+        startPos = startMatch.index || 0;
+      }
+    }
+    
+    // Find end position
+    let endPos = -1;
+    const endWords = normalizedEnd.split(/\s+/).filter(w => w.length > 2);
+    
+    if (endWords.length > 0) {
+      // Look for the last few words of the end content
+      const endPattern = endWords.slice(-Math.min(5, endWords.length)).join('\\s+');
+      const endRegex = new RegExp(endPattern, 'i');
+      const endMatch = flattenedText.match(endRegex);
+      if (endMatch) {
+        endPos = (endMatch.index || 0) + endMatch[0].length;
+      }
+    }
+    
+    // If we found both start and end, create the range
+    if (startPos !== -1 && endPos !== -1 && endPos > startPos) {
+      // Expand the range slightly to capture more context
+      const expandedStart = Math.max(0, startPos - 10);
+      const expandedEnd = Math.min(flattenedText.length, endPos + 10);
+      
+      return {
+        start: expandedStart,
+        end: expandedEnd
+      };
+    }
+    
+    // Try partial matching with just the start content if available
+    if (startPos !== -1) {
+      // Estimate end position based on nugget length
+      const estimatedEnd = Math.min(flattenedText.length, startPos + normalizedNugget.length * 1.5);
+      return {
+        start: startPos,
+        end: estimatedEnd
+      };
+    }
+    
+    return null;
+  }
+  
+  /**
+   * Map a character range back to DOM text elements
+   */
+  private mapRangeToElements(
+    textMap: {
+      flattenedText: string,
+      elements: Array<{
+        element: Text,
+        start: number,
+        end: number,
+        originalText: string
+      }>
+    },
+    rangeStart: number,
+    rangeEnd: number
+  ): Array<{
+    element: Text,
+    textPortion: string,
+    startOffset: number,
+    endOffset: number
+  }> {
+    const result: Array<{
+      element: Text,
+      textPortion: string,
+      startOffset: number,
+      endOffset: number
+    }> = [];
+    
+    for (const elementInfo of textMap.elements) {
+      // Check if this element overlaps with our range
+      const elementStart = elementInfo.start;
+      const elementEnd = elementInfo.end;
+      
+      if (elementEnd <= rangeStart || elementStart >= rangeEnd) {
+        continue; // No overlap
+      }
+      
+      // Calculate the overlapping portion
+      const overlapStart = Math.max(elementStart, rangeStart);
+      const overlapEnd = Math.min(elementEnd, rangeEnd);
+      
+      // Map back to original element text positions
+      const relativeStart = overlapStart - elementStart;
+      const relativeEnd = overlapEnd - elementStart;
+      
+      const textPortion = textMap.flattenedText.substring(overlapStart, overlapEnd);
+      
+      if (textPortion.trim().length > 0) {
+        result.push({
+          element: elementInfo.element,
+          textPortion: textPortion,
+          startOffset: relativeStart,
+          endOffset: relativeEnd
+        });
+      }
+    }
+    
+    return result;
+  }
+  
+  /**
+   * Highlight specific text within a text node
+   */
+  private highlightSpecificTextInNode(textNode: Text, textPortion: string, nugget: GoldenNugget): void {
+    const fullText = textNode.textContent || '';
+    const normalizedFullText = this.normalizeText(fullText);
+    const normalizedPortion = this.normalizeText(textPortion);
+    
+    // Find where the text portion appears in the full text
+    const index = normalizedFullText.indexOf(normalizedPortion);
+    if (index === -1) {
+      // Fallback: highlight the entire text node if we can't find the specific portion
+      this.highlightTextNodeImproved(textNode, nugget, normalizedFullText, undefined);
+      return;
+    }
+    
+    // Map back to original text positions (accounting for normalization differences)
+    const beforeText = fullText.substring(0, index);
+    const highlightText = fullText.substring(index, index + textPortion.length);
+    const afterText = fullText.substring(index + textPortion.length);
+    
+    this.createHighlightElement(textNode, beforeText, highlightText, afterText, nugget);
   }
 
   private extractMeaningfulChunks(content: string): string[] {
