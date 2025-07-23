@@ -19,7 +19,8 @@ _IS_TESTING = (
     "pytest" in sys.modules or
     "PYTEST_CURRENT_TEST" in os.environ or 
     "pytest" in os.environ.get("_", "") or
-    any("pytest" in arg for arg in sys.argv)
+    any("pytest" in arg for arg in sys.argv) or
+    os.environ.get("FORCE_TEST_DB", "").lower() in ("1", "true", "yes")
 )
 
 # Use different database paths for testing vs production

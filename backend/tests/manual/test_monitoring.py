@@ -6,9 +6,14 @@ This script demonstrates the enhanced logging and monitoring API endpoints.
 """
 
 import asyncio
+import os
+import sys
 import requests
 from datetime import datetime
 import time
+
+# Add the backend directory to Python path
+sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
 
 
 def test_monitoring_endpoints():

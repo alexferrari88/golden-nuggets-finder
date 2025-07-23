@@ -11,9 +11,9 @@ import json
 from datetime import datetime
 
 # Add the backend directory to Python path
-sys.path.append(os.path.join(os.path.dirname(__file__), "app"))
+sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
 
-from app.database import get_db
+from app.database import get_db, init_database
 from app.services.feedback_service import FeedbackService
 from app.services.progress_tracking_service import ProgressTrackingService
 from app.services.cost_tracking_service import CostTrackingService
@@ -22,6 +22,9 @@ from app.services.cost_tracking_service import CostTrackingService
 async def test_dashboard_functionality():
     """Test all new dashboard functionality"""
     print("🧪 Testing Dashboard Backend Functionality\n")
+    
+    # Initialize database first (needed for test environment)
+    await init_database()
 
     # Initialize services
     feedback_service = FeedbackService()
@@ -108,6 +111,9 @@ async def test_dashboard_functionality():
 async def create_sample_data():
     """Create some sample data for testing (optional)"""
     print("📝 Creating sample data for testing...\n")
+    
+    # Initialize database first (needed for test environment)
+    await init_database()
 
     feedback_service = FeedbackService()
     progress_service = ProgressTrackingService()
