@@ -93,16 +93,57 @@ python run.py
 ```
 
 ### Testing
+
+The backend has three types of tests with different database isolation requirements:
+
+#### Automated Tests (Recommended)
 ```bash
-# Run all tests
-pytest tests/
+# Run integration and unit tests (automatic database isolation)
+pytest tests/integration tests/unit
+
+# Run all automated tests
+pytest tests/ --ignore=tests/manual/
 
 # Run specific test file
-pytest tests/test_main.py -v
+pytest tests/integration/test_main.py -v
 
 # Run with coverage
-pytest --cov=app tests/
+pytest --cov=app tests/integration tests/unit
 ```
+
+#### Manual Tests (Development & Debugging)
+Manual test scripts require explicit database isolation to prevent production database pollution:
+
+```bash
+# Run manual tests with isolated test database (REQUIRED)
+FORCE_TEST_DB=1 python3 tests/manual/test_dashboard_backend.py
+FORCE_TEST_DB=1 python3 tests/manual/test_monitoring.py
+FORCE_TEST_DB=1 python3 tests/manual/test_improved_cost_tracking.py
+
+# Run with sample data for testing
+FORCE_TEST_DB=1 python3 tests/manual/test_dashboard_backend.py --with-sample-data
+```
+
+**⚠️ CRITICAL**: Always use `FORCE_TEST_DB=1` with manual tests to prevent production database pollution.
+
+#### Test Database Isolation
+
+The system automatically detects test environments and uses isolated databases:
+
+- **Pytest tests**: Automatic isolation using temporary databases per test
+- **Manual tests**: Must use `FORCE_TEST_DB=1` environment variable  
+- **Production safety**: Multiple detection mechanisms prevent accidental pollution
+
+**Environment Detection:**
+- `pytest` in sys.modules (automatic)
+- `PYTEST_CURRENT_TEST` environment variable (pytest runner)
+- `FORCE_TEST_DB=1` environment variable (manual tests)
+
+#### Test Categories
+
+1. **Integration Tests** (`tests/integration/`): API endpoints with real database
+2. **Unit Tests** (`tests/unit/`): Individual service classes with mocked dependencies  
+3. **Manual Tests** (`tests/manual/`): Development scripts for debugging and performance testing
 
 ### Code Quality
 ```bash

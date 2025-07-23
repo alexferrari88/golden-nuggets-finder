@@ -67,9 +67,23 @@ pytest -m "unit"
 
 ### Manual Tests (`tests/manual/`)
 - Scripts for manual testing and debugging
-- Performance benchmarking
+- Performance benchmarking  
 - Integration with external APIs (Gemini, DSPy)
 - **Not run in automated CI**
+- **⚠️ Require `FORCE_TEST_DB=1` to prevent production database pollution**
+
+#### Running Manual Tests Safely
+```bash
+# ALWAYS use FORCE_TEST_DB=1 with manual tests
+FORCE_TEST_DB=1 python3 tests/manual/test_dashboard_backend.py
+FORCE_TEST_DB=1 python3 tests/manual/test_monitoring.py
+FORCE_TEST_DB=1 python3 tests/manual/test_improved_cost_tracking.py
+
+# With sample data (where supported)
+FORCE_TEST_DB=1 python3 tests/manual/test_dashboard_backend.py --with-sample-data
+```
+
+**Critical**: Manual tests will use the production database (`data/feedback.db`) if run without `FORCE_TEST_DB=1`, potentially corrupting your data.
 
 ## Configuration
 
@@ -82,8 +96,15 @@ Test configuration is defined in `pyproject.toml`:
 ## Fixtures
 
 Shared fixtures are defined in `conftest.py`:
-- `setup_database`: Initializes test database
+- `clean_database`: Provides isolated test database with automatic cleanup
+- `setup_database`: Legacy fixture name (uses `clean_database` internally)
 - `event_loop`: Manages async event loop for tests
+- `verify_test_environment`: Safety check ensuring tests run in test environment
+
+### Test Database Isolation
+- **Pytest tests**: Automatic isolation using temporary databases per test
+- **Manual tests**: Must use `FORCE_TEST_DB=1` environment variable
+- **Safety mechanisms**: Multiple environment detection methods prevent production database access
 
 ## Coverage
 
@@ -100,16 +121,23 @@ Areas needing improvement:
 
 ## Best Practices
 
-1. **Use unique IDs**: Tests use `uuid.uuid4()` for unique test data
-2. **Async fixtures**: Use `@pytest_asyncio.fixture` for async setup
-3. **Proper cleanup**: Database is initialized per test as needed
-4. **Clear test names**: Descriptive test function names
-5. **Organized by purpose**: Clear separation of unit vs integration tests
+1. **Database Isolation**: 
+   - Always use `FORCE_TEST_DB=1` for manual tests
+   - Use `clean_database` fixture for pytest tests
+   - Never run tests against production database
+
+2. **Use unique IDs**: Tests use `uuid.uuid4()` for unique test data
+3. **Async fixtures**: Use `@pytest_asyncio.fixture` for async setup  
+4. **Proper cleanup**: Database is initialized per test as needed
+5. **Clear test names**: Descriptive test function names
+6. **Organized by purpose**: Clear separation of unit vs integration tests
+7. **Environment safety**: Verify test environment detection before database operations
 
 ## Common Commands
 
+### Automated Tests
 ```bash
-# Quick test run
+# Quick test run (recommended)
 pytest tests/integration tests/unit
 
 # With verbose output
@@ -120,4 +148,17 @@ pytest tests/integration/test_main.py::test_health_check
 
 # Generate HTML coverage report
 pytest tests/integration tests/unit --cov=app --cov-report=html
+
+# Exclude manual tests from all runs
+pytest tests/ --ignore=tests/manual/
+```
+
+### Manual Tests  
+```bash
+# ALWAYS use FORCE_TEST_DB=1 for manual tests
+FORCE_TEST_DB=1 python3 tests/manual/test_dashboard_backend.py
+FORCE_TEST_DB=1 python3 tests/manual/test_monitoring.py
+
+# Check environment detection
+python3 -c "from app.database import is_test_environment; print('Test env:', is_test_environment())"
 ```

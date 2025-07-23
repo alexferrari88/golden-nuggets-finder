@@ -151,7 +151,7 @@ Use the included test script to demonstrate monitoring capabilities:
 
 ```bash
 cd backend
-python test_monitoring.py
+FORCE_TEST_DB=1 python3 tests/manual/test_monitoring.py
 ```
 
 This script:
@@ -171,9 +171,31 @@ The backend is designed to work with the Golden Nuggets Finder Chrome extension.
 ## Development
 
 ### Running Tests
+
+#### Automated Tests (Recommended)
 ```bash
-pytest tests/
+# Run integration and unit tests with automatic database isolation
+pytest tests/integration tests/unit
+
+# Run all tests except manual ones
+pytest tests/ --ignore=tests/manual/
+
+# Run with coverage
+pytest --cov=app tests/integration tests/unit
 ```
+
+#### Manual Tests (Development)
+Manual test scripts require database isolation to prevent production database pollution:
+
+```bash
+# Always use FORCE_TEST_DB=1 for manual tests
+FORCE_TEST_DB=1 python3 tests/manual/test_dashboard_backend.py
+FORCE_TEST_DB=1 python3 tests/manual/test_monitoring.py
+
+# See tests/README.md for complete documentation
+```
+
+**⚠️ Important**: Manual tests will pollute your production database if run without `FORCE_TEST_DB=1`.
 
 ### Database Management
 The database is automatically initialized on first startup. SQLite file is created at `data/feedback.db`.
