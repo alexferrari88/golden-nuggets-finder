@@ -1620,7 +1620,8 @@ export class Highlighter {
   }
   
   /**
-   * Find the nugget range in the flattened text using fuzzy matching
+   * Find the nugget range in the flattened text using improved fuzzy matching
+   * that handles cases where end content appears before start content
    */
   private findNuggetRange(flattenedText: string, nugget: GoldenNugget, normalizedNugget: string): {
     start: number,
@@ -1635,54 +1636,104 @@ export class Highlighter {
       };
     }
     
-    // Try matching based on start and end content
+    // Try matching based on start and end content with improved logic
     const normalizedStart = this.normalizeText(nugget.startContent);
     const normalizedEnd = this.normalizeText(nugget.endContent);
     
-    // Find start position
-    let startPos = -1;
-    const startWords = normalizedStart.split(/\s+/).filter(w => w.length > 2);
+    // Find all occurrences of start and end content
+    const startPositions: number[] = [];
+    const endPositions: number[] = [];
     
-    if (startWords.length > 0) {
-      // Look for the first few words of the start content
-      const startPattern = startWords.slice(0, Math.min(5, startWords.length)).join('\\s+');
-      const startRegex = new RegExp(startPattern, 'i');
-      const startMatch = flattenedText.match(startRegex);
-      if (startMatch) {
-        startPos = startMatch.index || 0;
+    // Find all start positions
+    let pos = 0;
+    while ((pos = flattenedText.indexOf(normalizedStart, pos)) !== -1) {
+      startPositions.push(pos);
+      pos += normalizedStart.length;
+    }
+    
+    // Find all end positions
+    pos = 0;
+    while ((pos = flattenedText.indexOf(normalizedEnd, pos)) !== -1) {
+      endPositions.push(pos);
+      pos += normalizedEnd.length;
+    }
+    
+    console.log('🔍 [Flattened Text Debug] Position search results:', {
+      startPositions,
+      endPositions,
+      startContent: normalizedStart.substring(0, 30) + '...',
+      endContent: normalizedEnd.substring(0, 30) + '...'
+    });
+    
+    if (startPositions.length === 0 || endPositions.length === 0) {
+      return null;
+    }
+    
+    // Find the best start-end pair using scoring
+    let bestRange: { start: number, end: number } | null = null;
+    let bestScore = -1;
+    
+    for (const startPos of startPositions) {
+      for (const endPos of endPositions) {
+        if (endPos > startPos) {
+          // Normal order: end after start (preferred)
+          const length = endPos + normalizedEnd.length - startPos;
+          const score = 1000000 - length; // Prefer shorter spans
+          
+          console.log('✅ [Flattened Text Debug] Normal order range:', {
+            startPos,
+            endPos,
+            length,
+            score
+          });
+          
+          if (score > bestScore) {
+            bestRange = { start: startPos, end: endPos + normalizedEnd.length };
+            bestScore = score;
+          }
+        } else if (endPos < startPos) {
+          // Reverse order: end before start (handle gracefully)
+          const length = startPos + normalizedStart.length - endPos;
+          const score = 500000 - length; // Lower base score for reverse order
+          
+          console.log('🔄 [Flattened Text Debug] Reverse order range:', {
+            startPos,
+            endPos,
+            length,
+            score
+          });
+          
+          if (score > bestScore) {
+            bestRange = { start: endPos, end: startPos + normalizedStart.length };
+            bestScore = score;
+          }
+        }
       }
     }
     
-    // Find end position
-    let endPos = -1;
-    const endWords = normalizedEnd.split(/\s+/).filter(w => w.length > 2);
-    
-    if (endWords.length > 0) {
-      // Look for the last few words of the end content
-      const endPattern = endWords.slice(-Math.min(5, endWords.length)).join('\\s+');
-      const endRegex = new RegExp(endPattern, 'i');
-      const endMatch = flattenedText.match(endRegex);
-      if (endMatch) {
-        endPos = (endMatch.index || 0) + endMatch[0].length;
-      }
-    }
-    
-    // If we found both start and end, create the range
-    if (startPos !== -1 && endPos !== -1 && endPos > startPos) {
-      // Expand the range slightly to capture more context
-      const expandedStart = Math.max(0, startPos - 10);
-      const expandedEnd = Math.min(flattenedText.length, endPos + 10);
+    if (bestRange) {
+      console.log('🏆 [Flattened Text Debug] Best range selected:', bestRange);
+      
+      // Add some context padding
+      const paddedStart = Math.max(0, bestRange.start - 20);
+      const paddedEnd = Math.min(flattenedText.length, bestRange.end + 20);
       
       return {
-        start: expandedStart,
-        end: expandedEnd
+        start: paddedStart,
+        end: paddedEnd
       };
     }
     
-    // Try partial matching with just the start content if available
-    if (startPos !== -1) {
-      // Estimate end position based on nugget length
+    // Fallback: try partial matching with just the start content
+    if (startPositions.length > 0) {
+      const startPos = startPositions[0];
       const estimatedEnd = Math.min(flattenedText.length, startPos + normalizedNugget.length * 1.5);
+      
+      console.log('📝 [Flattened Text Debug] Using fallback start-only range:', {
+        startPos,
+        estimatedEnd
+      });
+      
       return {
         start: startPos,
         end: estimatedEnd
@@ -1760,18 +1811,56 @@ export class Highlighter {
     const normalizedFullText = this.normalizeText(fullText);
     const normalizedPortion = this.normalizeText(textPortion);
     
+    console.log('🎨 [Specific Text Debug] Highlighting text node:', {
+      fullTextPreview: fullText.substring(0, 50) + '...',
+      textPortionPreview: textPortion.substring(0, 50) + '...',
+      parentTag: textNode.parentElement?.tagName
+    });
+    
     // Find where the text portion appears in the full text
     const index = normalizedFullText.indexOf(normalizedPortion);
     if (index === -1) {
-      // Fallback: highlight the entire text node if we can't find the specific portion
+      console.log('⚠️ [Specific Text Debug] Exact portion not found, using fuzzy matching');
+      
+      // Try to find the best matching substring
+      const words = normalizedPortion.split(/\s+/).filter(w => w.length > 2);
+      if (words.length > 0) {
+        // Look for the first few words of the portion
+        const firstWords = words.slice(0, Math.min(3, words.length)).join('\\s+');
+        const regex = new RegExp(firstWords, 'i');
+        const match = normalizedFullText.match(regex);
+        
+        if (match && match.index !== undefined) {
+          console.log('✅ [Specific Text Debug] Found fuzzy match');
+          const beforeText = fullText.substring(0, match.index);
+          const highlightText = fullText.substring(match.index, match.index + match[0].length);
+          const afterText = fullText.substring(match.index + match[0].length);
+          
+          this.createHighlightElement(textNode, beforeText, highlightText, afterText, nugget);
+          return;
+        }
+      }
+      
+      // Final fallback: highlight the entire text node
+      console.log('🔄 [Specific Text Debug] Using full text node fallback');
       this.highlightTextNodeImproved(textNode, nugget, normalizedFullText, undefined);
       return;
     }
     
-    // Map back to original text positions (accounting for normalization differences)
+    // Found exact match - map back to original text positions
+    console.log('✅ [Specific Text Debug] Found exact match at index:', index);
+    
+    // Simple approach: use normalized index directly (works for most cases)
     const beforeText = fullText.substring(0, index);
-    const highlightText = fullText.substring(index, index + textPortion.length);
-    const afterText = fullText.substring(index + textPortion.length);
+    const estimatedHighlightLength = Math.min(textPortion.length, fullText.length - index);
+    const highlightText = fullText.substring(index, index + estimatedHighlightLength);
+    const afterText = fullText.substring(index + estimatedHighlightLength);
+    
+    console.log('🎯 [Specific Text Debug] Text split:', {
+      beforeLength: beforeText.length,
+      highlightLength: highlightText.length,
+      afterLength: afterText.length
+    });
     
     this.createHighlightElement(textNode, beforeText, highlightText, afterText, nugget);
   }
