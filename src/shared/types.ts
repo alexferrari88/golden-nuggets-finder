@@ -2,7 +2,8 @@ import type { GoldenNuggetType } from "./schemas";
 
 export interface GoldenNugget {
 	type: GoldenNuggetType;
-	content: string;
+	startContent: string;
+	endContent: string;
 	synthesis: string;
 }
 
@@ -79,7 +80,8 @@ export interface ExportData {
 	url: string;
 	nuggets: Array<{
 		type: string;
-		content: string;
+		startContent: string;
+		endContent: string;
 		synthesis: string;
 	}>;
 }
@@ -113,7 +115,8 @@ export interface NuggetFeedback {
 
 export interface MissingContentFeedback {
 	id: string;
-	content: string;
+	startContent: string;
+	endContent: string;
 	suggestedType: GoldenNuggetType;
 	timestamp: number;
 	url: string;
