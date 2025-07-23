@@ -42,6 +42,7 @@ export class Highlighter {
 
   /**
    * Find and highlight content between startContent and endContent
+   * Prioritizes content reconstruction for cross-node reliability
    * @param startContent - The starting text to find
    * @param endContent - The ending text to find
    * @returns true if content was found and highlighted, false otherwise
@@ -49,60 +50,39 @@ export class Highlighter {
   private findAndHighlightContent(startContent: string, endContent: string): boolean {
     console.log(`[Highlighter] Looking for content from "${startContent}" to "${endContent}"`);
     
-    // Get all text nodes in the document
+    // STRATEGY 1: Content reconstruction (most robust for cross-node splits)
+    console.log(`[Highlighter] Trying content reconstruction approach first`);
+    const reconstructionResult = this.findWithContentReconstruction(startContent, endContent);
+    if (reconstructionResult) {
+      console.log(`[Highlighter] Success with content reconstruction approach`);
+      return true;
+    }
+    console.log(`[Highlighter] Content reconstruction failed, trying text node approaches`);
+    
+    // STRATEGY 2: Text node based approaches (legacy fallbacks)
     const textNodes = this.getAllTextNodes(document.body);
     console.log(`[Highlighter] Found ${textNodes.length} text nodes to search`);
     
-    // Debug: Show some sample text nodes
-    console.log(`[Highlighter] Sample text nodes:`);
-    textNodes.slice(0, 10).forEach((node, i) => {
-      const text = (node.textContent || '').substring(0, 100);
-      console.log(`  [${i}]: "${text}"`);
-    });
-    
-    // Find the start and end positions
+    // Try exact text node matching
     const startResult = this.findTextInNodes(textNodes, startContent);
-    if (!startResult) {
-      console.log(`[Highlighter] Could not find start content: "${startContent}"`);
-      console.log(`[Highlighter] Normalized search: "${this.normalizeText(startContent)}"`);
-      
-      // Try fuzzy matching as fallback
-      const fuzzyResult = this.findTextFuzzy(textNodes, startContent);
-      if (fuzzyResult) {
-        console.log(`[Highlighter] Found start content via fuzzy matching at node ${fuzzyResult.nodeIndex}`);
-        return this.highlightFuzzyMatch(textNodes, fuzzyResult, startContent, endContent);
+    if (startResult) {
+      const endResult = this.findTextInNodes(textNodes, endContent, startResult.nodeIndex);
+      if (endResult) {
+        console.log(`[Highlighter] Found via exact text node matching`);
+        return this.highlightRange(textNodes, startResult, endResult, endContent.length);
       }
-      
-      // Try content reconstruction approach
-      const reconstructionResult = this.findWithContentReconstruction(startContent, endContent);
-      if (reconstructionResult) {
-        console.log(`[Highlighter] Found content via reconstruction approach`);
-        return reconstructionResult;
-      }
-      
-      return false;
     }
     
-    const endResult = this.findTextInNodes(textNodes, endContent, startResult.nodeIndex);
-    if (!endResult) {
-      console.log(`[Highlighter] Could not find end content: "${endContent}"`);
-      console.log(`[Highlighter] Normalized search: "${this.normalizeText(endContent)}"`);
-      
-      // Try fuzzy matching for end content
-      const fuzzyEndResult = this.findTextFuzzy(textNodes, endContent, startResult.nodeIndex);
-      if (fuzzyEndResult) {
-        console.log(`[Highlighter] Found end content via fuzzy matching at node ${fuzzyEndResult.nodeIndex}`);
-        return this.highlightRange(textNodes, startResult, fuzzyEndResult, endContent.length);
-      }
-      
-      return false;
+    // Try fuzzy matching as final fallback
+    console.log(`[Highlighter] Trying fuzzy matching as final fallback`);
+    const fuzzyResult = this.findTextFuzzy(textNodes, startContent);
+    if (fuzzyResult) {
+      console.log(`[Highlighter] Found start content via fuzzy matching at node ${fuzzyResult.nodeIndex}`);
+      return this.highlightFuzzyMatch(textNodes, fuzzyResult, startContent, endContent);
     }
     
-    console.log(`[Highlighter] Found start at node ${startResult.nodeIndex}, pos ${startResult.position}`);
-    console.log(`[Highlighter] Found end at node ${endResult.nodeIndex}, pos ${endResult.position + endContent.length}`);
-    
-    // Highlight the content between start and end
-    return this.highlightRange(textNodes, startResult, endResult, endContent.length);
+    console.log(`[Highlighter] All highlighting strategies failed`);
+    return false;
   }
 
   /**
@@ -330,11 +310,26 @@ export class Highlighter {
     const pageContent = document.body.textContent || '';
     console.log(`[Highlighter] Page content length: ${pageContent.length} chars`);
     
+    // Debug: show context around expected content
+    const startPos = pageContent.indexOf(startContent);
+    const endPos = pageContent.indexOf(endContent);
+    if (startPos !== -1 && endPos !== -1) {
+      console.log(`[Highlighter] Found raw positions - start: ${startPos}, end: ${endPos + endContent.length}`);
+      console.log(`[Highlighter] Raw content slice: "${pageContent.substring(startPos, endPos + endContent.length).substring(0, 100)}..."`);
+    } else {
+      console.log(`[Highlighter] Could not find raw positions - startPos: ${startPos}, endPos: ${endPos}`);
+    }
+    
     // Use the improved matching from content-reconstruction
     const matchResult = improvedStartEndMatching(startContent, endContent, pageContent);
+    console.log(`[Highlighter] Content reconstruction result:`, matchResult);
     
     if (matchResult.success && matchResult.startIndex !== undefined && matchResult.endIndex !== undefined) {
       console.log(`[Highlighter] Content reconstruction found match at positions ${matchResult.startIndex}-${matchResult.endIndex}`);
+      
+      // Debug: show what text is at those positions
+      const foundText = pageContent.substring(matchResult.startIndex, matchResult.endIndex);
+      console.log(`[Highlighter] Text at found positions: "${foundText.substring(0, 100)}..."`);
       
       // Now we need to find these character positions in the DOM and highlight them
       return this.highlightByCharacterRange(matchResult.startIndex, matchResult.endIndex);
@@ -346,62 +341,140 @@ export class Highlighter {
 
   /**
    * Highlight content by character range in the full page text
+   * Completely rewritten to handle cross-node splits properly
    */
   private highlightByCharacterRange(startIndex: number, endIndex: number): boolean {
     console.log(`[Highlighter] Highlighting character range ${startIndex}-${endIndex}`);
     
-    const textNodes = this.getAllTextNodes(document.body);
-    let currentIndex = 0;
-    let startNode: Text | null = null;
-    let startPos = 0;
-    let endNode: Text | null = null;
-    let endPos = 0;
+    // First, let's verify what text we expect to find
+    const pageContent = document.body.textContent || '';
+    const expectedText = pageContent.substring(startIndex, endIndex);
+    console.log(`[Highlighter] Expected text from range: "${expectedText.substring(0, 100)}..."`);
     
-    // Find the text nodes that contain our start and end positions
-    for (const node of textNodes) {
+    const textNodes = this.getAllTextNodes(document.body);
+    const nodesToHighlight: Array<{
+      node: Text,
+      startPos: number,
+      endPos: number,
+      parent: Element
+    }> = [];
+    
+    let currentIndex = 0;
+    let foundAnyRelevantNodes = false;
+    
+    // First pass: identify all nodes that intersect with our target range
+    for (let i = 0; i < textNodes.length; i++) {
+      const node = textNodes[i];
       const nodeText = node.textContent || '';
       const nodeLength = nodeText.length;
+      const nodeStartIndex = currentIndex;
+      const nodeEndIndex = currentIndex + nodeLength;
       
-      // Check if start position is in this node
-      if (startNode === null && currentIndex + nodeLength > startIndex) {
-        startNode = node;
-        startPos = startIndex - currentIndex;
-        console.log(`[Highlighter] Found start position in node, pos: ${startPos}`);
+      // Debug logging for nodes around our target range
+      if (nodeStartIndex <= endIndex + 100 && nodeEndIndex >= startIndex - 100) {
+        console.log(`[Highlighter] Node ${i} (${nodeStartIndex}-${nodeEndIndex}): "${nodeText.substring(0, 80)}..."`);
       }
       
-      // Check if end position is in this node
-      if (currentIndex + nodeLength >= endIndex) {
-        endNode = node;
-        endPos = endIndex - currentIndex;
-        console.log(`[Highlighter] Found end position in node, pos: ${endPos}`);
-        break;
+      // Check if this node intersects with our target range
+      if (nodeStartIndex < endIndex && nodeEndIndex > startIndex) {
+        const parent = node.parentElement;
+        if (!parent) {
+          currentIndex += nodeLength;
+          continue;
+        }
+        
+        foundAnyRelevantNodes = true;
+        
+        // Calculate the intersection
+        const highlightStart = Math.max(0, startIndex - nodeStartIndex);
+        const highlightEnd = Math.min(nodeLength, endIndex - nodeStartIndex);
+        
+        const highlightText = nodeText.substring(highlightStart, highlightEnd);
+        console.log(`[Highlighter] Node ${i} intersects (${nodeStartIndex}-${nodeEndIndex}): highlighting "${highlightText}"`);
+        
+        nodesToHighlight.push({
+          node,
+          startPos: highlightStart,
+          endPos: highlightEnd,
+          parent
+        });
       }
       
       currentIndex += nodeLength;
     }
     
-    if (startNode && endNode) {
-      if (startNode === endNode) {
-        // Single node highlighting
-        return this.highlightSingleNode(startNode, startPos, endPos);
-      } else {
-        // Multi-node highlighting
-        const startNodeIndex = textNodes.indexOf(startNode);
-        const endNodeIndex = textNodes.indexOf(endNode);
+    if (!foundAnyRelevantNodes) {
+      console.log(`[Highlighter] No nodes found intersecting range ${startIndex}-${endIndex}`);
+      console.log(`[Highlighter] Total page content length: ${pageContent.length}`);
+      console.log(`[Highlighter] Total accumulated text node length: ${currentIndex}`);
+      return false;
+    }
+    
+    console.log(`[Highlighter] Found ${nodesToHighlight.length} nodes to highlight`);
+    
+    // Second pass: safely highlight all nodes without DOM invalidation
+    return this.safeMultiNodeHighlight(nodesToHighlight);
+  }
+
+  /**
+   * Safely highlight multiple nodes without DOM invalidation
+   */
+  private safeMultiNodeHighlight(nodesToHighlight: Array<{
+    node: Text,
+    startPos: number,
+    endPos: number,
+    parent: Element
+  }>): boolean {
+    console.log(`[Highlighter] Safely highlighting ${nodesToHighlight.length} nodes`);
+    
+    let successCount = 0;
+    
+    // Process nodes in reverse order to avoid DOM invalidation
+    // When we modify later nodes first, it doesn't affect the positions of earlier nodes
+    for (let i = nodesToHighlight.length - 1; i >= 0; i--) {
+      const { node, startPos, endPos, parent } = nodesToHighlight[i];
+      
+      try {
+        const originalText = node.textContent || '';
+        const beforeText = originalText.substring(0, startPos);
+        const highlightText = originalText.substring(startPos, endPos);
+        const afterText = originalText.substring(endPos);
         
-        if (startNodeIndex !== -1 && endNodeIndex !== -1) {
-          return this.highlightMultipleNodes(
-            textNodes,
-            { nodeIndex: startNodeIndex, position: startPos },
-            { nodeIndex: endNodeIndex, position: endPos }, // End position in end node
-            0 // endContentLength not needed for character range
-          );
+        console.log(`[Highlighter] Processing node ${i}: highlighting "${highlightText}"`);
+        
+        // Create highlight span
+        const span = document.createElement('span');
+        span.className = this.highlightClass;
+        span.textContent = highlightText;
+        
+        // Build replacement content
+        const replacementNodes: Node[] = [];
+        if (beforeText) {
+          replacementNodes.push(document.createTextNode(beforeText));
         }
+        replacementNodes.push(span);
+        if (afterText) {
+          replacementNodes.push(document.createTextNode(afterText));
+        }
+        
+        // Replace the original node with the new content
+        const nextSibling = node.nextSibling;
+        parent.removeChild(node);
+        
+        for (const newNode of replacementNodes) {
+          parent.insertBefore(newNode, nextSibling);
+        }
+        
+        this.highlightedElements.add(span);
+        successCount++;
+        
+      } catch (error) {
+        console.error(`[Highlighter] Error highlighting node ${i}:`, error);
       }
     }
     
-    console.log(`[Highlighter] Could not map character range to DOM nodes`);
-    return false;
+    console.log(`[Highlighter] Successfully highlighted ${successCount}/${nodesToHighlight.length} nodes`);
+    return successCount > 0;
   }
 
   /**

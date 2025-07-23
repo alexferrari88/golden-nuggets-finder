@@ -518,3 +518,375 @@ test.describe('Highlighter TDD - Substack Article Highlighting', () => {
     expect(debugInfo.targetTextNodes >= 0).toBe(true); // More lenient for now
   });
 });
+
+test.describe('Highlighter TDD - Substack Specific Failing Case', () => {
+  const substackUrl = 'https://nanransohoff.substack.com/p/what-virtue-is-undersupplied-today';
+  
+  test('should properly highlight the broken "I think vision is" nugget', async ({ cleanPage }) => {
+    await cleanPage.goto(substackUrl, { 
+      waitUntil: 'domcontentloaded',
+      timeout: 60000 
+    });
+    await cleanPage.waitForTimeout(8000);
+    
+    // Inject highlighter
+    await cleanPage.addScriptTag({
+      path: './dist/chrome-mv3/content-scripts/content.js'
+    });
+    await cleanPage.waitForTimeout(1000);
+    
+    // The specific nugget that's broken
+    const brokenNugget = {
+      type: "explanation" as const,
+      startContent: "I think vision is",
+      endContent: "and to ourselves.",
+      synthesis: "Defines 'vision' as a critical, undersupplied virtue, crucial for entrepreneurs and knowledge workers to articulate desired future states for projects, products, and personal growth, moving beyond problem identification to proactive creation."
+    };
+    
+    console.log('Testing the specific broken Substack nugget...');
+    
+    // First verify the content exists in the page
+    const contentExists = await cleanPage.evaluate(({ startContent, endContent }) => {
+      const bodyText = document.body.textContent || '';
+      const hasStart = bodyText.includes(startContent);
+      const hasEnd = bodyText.includes(endContent);
+      console.log(`Content check - hasStart: ${hasStart}, hasEnd: ${hasEnd}`);
+      console.log(`Body text sample around start: "${bodyText.substring(bodyText.indexOf(startContent) - 50, bodyText.indexOf(startContent) + 100)}"`);
+      return { hasStart, hasEnd, bodyText: bodyText.substring(0, 1000) };
+    }, { startContent: brokenNugget.startContent, endContent: brokenNugget.endContent });
+    
+    console.log('Content existence check:', contentExists);
+    expect(contentExists.hasStart).toBe(true);
+    expect(contentExists.hasEnd).toBe(true);
+    
+    // Now test the highlighting
+    const result = await cleanPage.evaluate((nugget) => {
+      if (typeof window.highlightNugget === 'function') {
+        return window.highlightNugget(nugget);
+      }
+      return { success: false, error: 'highlightNugget function not found' };
+    }, brokenNugget);
+    
+    console.log('Broken nugget highlighting result:', result);
+    
+    // The function claims success, but let's verify actual highlighting
+    const highlightedElements = await cleanPage.locator('.golden-nugget-highlight').count();
+    console.log(`Found ${highlightedElements} highlighted elements`);
+    
+    if (result.success) {
+      // If the function claims success, there MUST be visible highlighting
+      expect(highlightedElements).toBeGreaterThan(0);
+      
+      // Additional verification: check if any of the highlighted text contains our target
+      const highlightedTexts = await cleanPage.locator('.golden-nugget-highlight').allTextContents();
+      console.log('Highlighted texts:', highlightedTexts);
+      
+      const containsStartContent = highlightedTexts.some(text => 
+        text.includes(brokenNugget.startContent) || 
+        brokenNugget.startContent.includes(text.trim())
+      );
+      
+      expect(containsStartContent).toBe(true);
+    } else {
+      // If it fails, that's actually honest - but we want it to pass
+      console.log('Highlighting honestly failed - this is what we need to fix');
+      expect(result.success).toBe(true); // This will fail, forcing us to fix the issue
+    }
+  });
+  
+  test('should debug text node structure for the broken nugget', async ({ cleanPage }) => {
+    await cleanPage.goto(substackUrl, { 
+      waitUntil: 'domcontentloaded',
+      timeout: 60000 
+    });
+    await cleanPage.waitForTimeout(8000);
+    
+    // Inject highlighter
+    await cleanPage.addScriptTag({
+      path: './dist/chrome-mv3/content-scripts/content.js'
+    });
+    await cleanPage.waitForTimeout(1000);
+    
+    // Debug the specific text structure around our broken nugget
+    const debugInfo = await cleanPage.evaluate(() => {
+      const searchText = "I think vision is";
+      const endText = "and to ourselves.";
+      const bodyText = document.body.textContent || '';
+      
+      // Find the full text
+      const startIndex = bodyText.indexOf(searchText);
+      const endIndex = bodyText.indexOf(endText) + endText.length;
+      
+      if (startIndex === -1 || endIndex === -1) {
+        return { error: 'Target text not found in body' };
+      }
+      
+      const fullTarget = bodyText.substring(startIndex, endIndex);
+      console.log(`Full target text: "${fullTarget}"`);
+      
+      // Now examine the text nodes
+      const walker = document.createTreeWalker(
+        document.body,
+        NodeFilter.SHOW_TEXT,
+        {
+          acceptNode: (node) => {
+            const parent = node.parentElement;
+            if (!parent) return NodeFilter.FILTER_REJECT;
+            
+            const tagName = parent.tagName?.toLowerCase();
+            if (tagName === 'script' || tagName === 'style' || tagName === 'noscript') {
+              return NodeFilter.FILTER_REJECT;
+            }
+            
+            const text = node.textContent || '';
+            if (text.trim().length === 0) {
+              return NodeFilter.FILTER_REJECT;
+            }
+            
+            return NodeFilter.FILTER_ACCEPT;
+          }
+        }
+      );
+      
+      const relevantNodes = [];
+      let node;
+      while (node = walker.nextNode()) {
+        const text = node.textContent || '';
+        // Look for nodes that contain part of our target text
+        if (text.includes('vision') || text.includes('think') || text.includes('ourselves')) {
+          relevantNodes.push({
+            text: text,
+            parent: node.parentElement?.tagName || 'unknown',
+            className: node.parentElement?.className || '',
+            fullText: text
+          });
+        }
+      }
+      
+      return {
+        fullTargetText: fullTarget,
+        startIndex,
+        endIndex,
+        relevantNodesCount: relevantNodes.length,
+        relevantNodes: relevantNodes.slice(0, 10), // First 10 relevant nodes
+        bodyTextLength: bodyText.length
+      };
+    });
+    
+    console.log('Broken nugget debug info:', JSON.stringify(debugInfo, null, 2));
+    
+    expect(debugInfo.relevantNodesCount).toBeGreaterThan(0);
+  });
+});
+
+test.describe('Highlighter TDD - Cross-Node Text Split Edge Cases', () => {
+  test('should handle text split at word boundaries across multiple text nodes', async ({ cleanPage }) => {
+    // Create a test page with text specifically split across multiple text nodes
+    const testHtml = `
+      <html><body>
+        <div id="test-content">
+          <p id="split-text">
+            <span>Project </span><span>CETI is a large-scale </span><span>multidisciplinary effort </span><span>to talk to whales.</span>
+          </p>
+        </div>
+      </body></html>
+    `;
+    
+    await cleanPage.setContent(testHtml);
+    
+    // Inject highlighter
+    await cleanPage.addScriptTag({
+      path: './dist/chrome-mv3/content-scripts/content.js'
+    });
+    
+    await cleanPage.waitForTimeout(500);
+    
+    // Test nugget that spans across the split boundaries
+    const testNugget = {
+      type: "tool" as const,
+      startContent: "Project CETI is a large-scale",
+      endContent: "to talk to whales.",
+      synthesis: "Test nugget for cross-node splitting"
+    };
+    
+    console.log('Testing cross-node split highlighting...');
+    
+    const result = await cleanPage.evaluate((nugget) => {
+      if (typeof window.highlightNugget === 'function') {
+        return window.highlightNugget(nugget);
+      }
+      return { success: false, error: 'highlightNugget function not found' };
+    }, testNugget);
+    
+    console.log('Cross-node split result:', result);
+    
+    // This should pass but currently fails due to cross-node issues
+    expect(result.success).toBe(true);
+    
+    if (result.success) {
+      const highlightedElements = await cleanPage.locator('.golden-nugget-highlight').count();
+      expect(highlightedElements).toBeGreaterThan(0);
+    }
+  });
+  
+  test('should handle text split mid-word across text nodes', async ({ cleanPage }) => {
+    // Create an extreme case where words are split mid-character
+    const testHtml = `
+      <html><body>
+        <div id="test-content">
+          <p id="split-text">
+            The <span>proj</span><span>ect involves using advanced </span><span>AI techno</span><span>logy for communication.</span>
+          </p>
+        </div>
+      </body></html>
+    `;
+    
+    await cleanPage.setContent(testHtml);
+    
+    // Inject highlighter
+    await cleanPage.addScriptTag({
+      path: './dist/chrome-mv3/content-scripts/content.js'
+    });
+    
+    await cleanPage.waitForTimeout(500);
+    
+    // Test nugget that spans the mid-word splits
+    const testNugget = {
+      type: "explanation" as const,
+      startContent: "project involves using",
+      endContent: "technology for communication.",
+      synthesis: "Test nugget for mid-word splitting"
+    };
+    
+    console.log('Testing mid-word split highlighting...');
+    
+    const result = await cleanPage.evaluate((nugget) => {
+      if (typeof window.highlightNugget === 'function') {
+        return window.highlightNugget(nugget);
+      }
+      return { success: false, error: 'highlightNugget function not found' };
+    }, testNugget);
+    
+    console.log('Mid-word split result:', result);
+    
+    // This should pass but currently fails due to mid-word splitting
+    expect(result.success).toBe(true);
+    
+    if (result.success) {
+      const highlightedElements = await cleanPage.locator('.golden-nugget-highlight').count();
+      expect(highlightedElements).toBeGreaterThan(0);
+    }
+  });
+  
+  test('should handle multiple DOM modifications without invalidating node references', async ({ cleanPage }) => {
+    // Create content that would require multiple sequential DOM modifications
+    const testHtml = `
+      <html><body>
+        <div id="test-content">
+          <p id="multi-nugget">
+            <span>First </span><span>nugget spans </span><span>multiple nodes. </span>
+            <span>Second </span><span>nugget also </span><span>spans nodes.</span>
+          </p>
+        </div>
+      </body></html>
+    `;
+    
+    await cleanPage.setContent(testHtml);
+    
+    // Inject highlighter
+    await cleanPage.addScriptTag({
+      path: './dist/chrome-mv3/content-scripts/content.js'
+    });
+    
+    await cleanPage.waitForTimeout(500);
+    
+    // Multiple nuggets that would cause DOM invalidation issues
+    const testNuggets = [
+      {
+        type: "tool" as const,
+        startContent: "First nugget spans",
+        endContent: "multiple nodes.",
+        synthesis: "First test nugget"
+      },
+      {
+        type: "explanation" as const,
+        startContent: "Second nugget also",
+        endContent: "spans nodes.",
+        synthesis: "Second test nugget"
+      }
+    ];
+    
+    console.log('Testing multiple DOM modifications...');
+    
+    let successCount = 0;
+    for (const nugget of testNuggets) {
+      const result = await cleanPage.evaluate((nugget) => {
+        if (typeof window.highlightNugget === 'function') {
+          return window.highlightNugget(nugget);
+        }
+        return { success: false, error: 'highlightNugget function not found' };
+      }, nugget);
+      
+      console.log(`Multiple DOM modifications result for "${nugget.startContent}":`, result);
+      
+      if (result.success) {
+        successCount++;
+      }
+    }
+    
+    // Both nuggets should be highlighted successfully
+    expect(successCount).toBe(testNuggets.length);
+    
+    const totalHighlightedElements = await cleanPage.locator('.golden-nugget-highlight').count();
+    expect(totalHighlightedElements).toBeGreaterThanOrEqual(testNuggets.length);
+  });
+  
+  test('should handle whitespace and normalization differences across nodes', async ({ cleanPage }) => {
+    // Create content with inconsistent whitespace across text nodes
+    const testHtml = `
+      <html><body>
+        <div id="test-content">
+          <p id="whitespace-test">
+            <span>Content   with </span><span>  irregular</span><span> whitespace   </span><span>patterns here.</span>
+          </p>
+        </div>
+      </body></html>
+    `;
+    
+    await cleanPage.setContent(testHtml);
+    
+    // Inject highlighter
+    await cleanPage.addScriptTag({
+      path: './dist/chrome-mv3/content-scripts/content.js'
+    });
+    
+    await cleanPage.waitForTimeout(500);
+    
+    // Test nugget with normalized whitespace that doesn't match the DOM exactly
+    const testNugget = {
+      type: "model" as const,
+      startContent: "Content with irregular",
+      endContent: "whitespace patterns here.",
+      synthesis: "Test nugget for whitespace normalization"
+    };
+    
+    console.log('Testing whitespace normalization...');
+    
+    const result = await cleanPage.evaluate((nugget) => {
+      if (typeof window.highlightNugget === 'function') {
+        return window.highlightNugget(nugget);
+      }
+      return { success: false, error: 'highlightNugget function not found' };
+    }, testNugget);
+    
+    console.log('Whitespace normalization result:', result);
+    
+    // This should pass with proper normalization
+    expect(result.success).toBe(true);
+    
+    if (result.success) {
+      const highlightedElements = await cleanPage.locator('.golden-nugget-highlight').count();
+      expect(highlightedElements).toBeGreaterThan(0);
+    }
+  });
+});
