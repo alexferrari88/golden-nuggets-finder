@@ -2456,7 +2456,7 @@ export class Highlighter {
           });
           
           // Highlight each node in the sequence with a slightly different approach
-          return this.highlightNodeSequence(sequenceNodes as Text[], nugget, combinedText);
+          return this.highlightNodeSequence(sequenceNodes as Text[], nugget, combinedText, pageContent);
         }
       }
     }
@@ -2536,7 +2536,7 @@ export class Highlighter {
       // Get text nodes from the best paragraph and highlight multiple nodes if beneficial
       const textNodes = this.getTextNodesInElement(bestParagraph);
       if (textNodes.length > 1) {
-        return this.highlightNodeSequence(textNodes.slice(0, 3) as Text[], nugget, combinedText);
+        return this.highlightNodeSequence(textNodes.slice(0, 3) as Text[], nugget, combinedText, pageContent);
       } else if (textNodes.length === 1) {
         this.highlightMaximalText(textNodes[0] as Text, nugget, getDisplayContent(nugget, pageContent), pageContent);
         return true;
@@ -2547,7 +2547,7 @@ export class Highlighter {
     return false;
   }
   
-  private highlightNodeSequence(nodes: Text[], nugget: GoldenNugget, combinedText: string): boolean {
+  private highlightNodeSequence(nodes: Text[], nugget: GoldenNugget, combinedText: string, pageContent?: string): boolean {
     console.log('🎨 [Sequence Highlight] Highlighting', nodes.length, 'nodes in sequence');
     
     let highlightedCount = 0;
