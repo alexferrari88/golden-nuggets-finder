@@ -303,7 +303,7 @@ export class Highlighter {
     
     // Use specialized highlighting for HackerNews
     if (this.siteType === 'hackernews') {
-      return this.highlightHackerNewsComment(nugget, normalizedContent);
+      return this.highlightHackerNewsComment(nugget, normalizedContent, pageContent);
     }
     
     const commentSelectors = this.getCommentSelectors();
@@ -352,7 +352,7 @@ export class Highlighter {
     return this.findAndHighlightText(nugget, pageContent);
   }
 
-  private highlightHackerNewsComment(nugget: GoldenNugget, normalizedContent: string): boolean {
+  private highlightHackerNewsComment(nugget: GoldenNugget, normalizedContent: string, pageContent?: string): boolean {
     // For HackerNews, search for content in .commtext but highlight the parent .comtr container
     const commtextElements = document.querySelectorAll(SITE_SELECTORS.HACKER_NEWS.COMMENTS);
     
@@ -412,10 +412,10 @@ export class Highlighter {
     
     // Fallback to generic container search
     console.log('🔄 HackerNews: Falling back to generic container search');
-    return this.highlightGenericCommentContainer(nugget, normalizedContent);
+    return this.highlightGenericCommentContainer(nugget, normalizedContent, pageContent);
   }
 
-  private highlightGenericCommentContainer(nugget: GoldenNugget, normalizedContent: string): boolean {
+  private highlightGenericCommentContainer(nugget: GoldenNugget, normalizedContent: string, pageContent?: string): boolean {
     const commentSelectors = this.getCommentSelectors();
     
     for (const selector of commentSelectors) {
