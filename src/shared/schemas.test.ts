@@ -22,14 +22,14 @@ describe('GOLDEN_NUGGET_SCHEMA', () => {
       
       expect(itemsSchema.type).toBe('object');
       expect(itemsSchema.properties).toBeDefined();
-      expect(itemsSchema.required).toEqual(['type', 'content', 'synthesis']);
+      expect(itemsSchema.required).toEqual(['type', 'startContent', 'endContent', 'synthesis']);
     });
 
     it('should have correct property ordering', () => {
       expect(GOLDEN_NUGGET_SCHEMA.propertyOrdering).toEqual(['golden_nuggets']);
       
       const itemsSchema = GOLDEN_NUGGET_SCHEMA.properties.golden_nuggets.items;
-      expect(itemsSchema.propertyOrdering).toEqual(['type', 'content', 'synthesis']);
+      expect(itemsSchema.propertyOrdering).toEqual(['type', 'startContent', 'endContent', 'synthesis']);
     });
   });
 
@@ -56,13 +56,21 @@ describe('GOLDEN_NUGGET_SCHEMA', () => {
     });
   });
 
-  describe('Content Property', () => {
-    it('should have correct content property structure', () => {
+  describe('Content Properties', () => {
+    it('should have correct startContent property structure', () => {
       const itemsSchema = GOLDEN_NUGGET_SCHEMA.properties.golden_nuggets.items;
-      const contentProperty = itemsSchema.properties.content;
+      const startContentProperty = itemsSchema.properties.startContent;
       
-      expect(contentProperty.type).toBe('string');
-      expect(contentProperty.description).toBe('The original comment(s) verbatim, without any changes to wording or symbols.');
+      expect(startContentProperty.type).toBe('string');
+      expect(startContentProperty.description).toBe('The first few words of the original content verbatim, without any changes to wording or symbols.');
+    });
+
+    it('should have correct endContent property structure', () => {
+      const itemsSchema = GOLDEN_NUGGET_SCHEMA.properties.golden_nuggets.items;
+      const endContentProperty = itemsSchema.properties.endContent;
+      
+      expect(endContentProperty.type).toBe('string');
+      expect(endContentProperty.description).toBe('The last few words of the original content verbatim, without any changes to wording or symbols.');
     });
   });
 
@@ -80,7 +88,8 @@ describe('GOLDEN_NUGGET_SCHEMA', () => {
     it('should validate a correct golden nugget structure', () => {
       const validNugget = {
         type: 'tool',
-        content: 'Use this amazing tool for productivity',
+        startContent: 'Use this amazing tool',
+        endContent: 'for productivity',
         synthesis: 'This tool aligns with the user\'s preference for efficient workflows'
       };
 
@@ -90,7 +99,8 @@ describe('GOLDEN_NUGGET_SCHEMA', () => {
 
       // This test validates the schema structure matches expected format
       expect(GOLDEN_NUGGET_SCHEMA.properties.golden_nuggets.items.properties.type.enum).toContain(validNugget.type);
-      expect(GOLDEN_NUGGET_SCHEMA.properties.golden_nuggets.items.properties.content.type).toBe('string');
+      expect(GOLDEN_NUGGET_SCHEMA.properties.golden_nuggets.items.properties.startContent.type).toBe('string');
+      expect(GOLDEN_NUGGET_SCHEMA.properties.golden_nuggets.items.properties.endContent.type).toBe('string');
       expect(GOLDEN_NUGGET_SCHEMA.properties.golden_nuggets.items.properties.synthesis.type).toBe('string');
     });
 
@@ -107,17 +117,20 @@ describe('GOLDEN_NUGGET_SCHEMA', () => {
         golden_nuggets: [
           {
             type: 'tool',
-            content: 'Tool content',
+            startContent: 'Tool',
+            endContent: 'content',
             synthesis: 'Tool synthesis'
           },
           {
             type: 'explanation',
-            content: 'Explanation content',
+            startContent: 'Explanation',
+            endContent: 'content',
             synthesis: 'Explanation synthesis'
           },
           {
             type: 'analogy',
-            content: 'Analogy content',
+            startContent: 'Analogy',
+            endContent: 'content',
             synthesis: 'Analogy synthesis'
           }
         ]
@@ -131,7 +144,8 @@ describe('GOLDEN_NUGGET_SCHEMA', () => {
       const itemsSchema = GOLDEN_NUGGET_SCHEMA.properties.golden_nuggets.items;
       
       expect(itemsSchema.required).toContain('type');
-      expect(itemsSchema.required).toContain('content');
+      expect(itemsSchema.required).toContain('startContent');
+      expect(itemsSchema.required).toContain('endContent');
       expect(itemsSchema.required).toContain('synthesis');
     });
   });
@@ -181,7 +195,8 @@ describe('GOLDEN_NUGGET_SCHEMA', () => {
 
       // Property level
       expect(itemsSchema.properties).toHaveProperty('type');
-      expect(itemsSchema.properties).toHaveProperty('content');
+      expect(itemsSchema.properties).toHaveProperty('startContent');
+      expect(itemsSchema.properties).toHaveProperty('endContent');
       expect(itemsSchema.properties).toHaveProperty('synthesis');
     });
 
@@ -191,7 +206,8 @@ describe('GOLDEN_NUGGET_SCHEMA', () => {
       
       const itemsSchema = goldenNuggetsProperty.items;
       expect(itemsSchema.properties.type.description).toBeTruthy();
-      expect(itemsSchema.properties.content.description).toBeTruthy();
+      expect(itemsSchema.properties.startContent.description).toBeTruthy();
+      expect(itemsSchema.properties.endContent.description).toBeTruthy();
       expect(itemsSchema.properties.synthesis.description).toBeTruthy();
     });
   });

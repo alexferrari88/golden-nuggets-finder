@@ -5,11 +5,25 @@ import { GoldenNugget } from '../../shared/types';
 describe('Highlighter - Comment Highlighting', () => {
   let highlighter: Highlighter;
 
-  const createMockNugget = (content: string, type: 'tool' | 'media' | 'explanation' | 'analogy' | 'model' = 'explanation'): GoldenNugget => ({
+  const createMockNugget = (startContent: string, endContent: string, type: 'tool' | 'media' | 'explanation' | 'analogy' | 'model' = 'explanation'): GoldenNugget => ({
     type,
-    content,
+    startContent,
+    endContent,
     synthesis: 'Test synthesis'
   });
+
+  // Helper for creating nuggets from old content format (for test compatibility)
+  const createMockNuggetFromContent = (content: string, type: 'tool' | 'media' | 'explanation' | 'analogy' | 'model' = 'explanation'): GoldenNugget => {
+    const words = content.split(' ');
+    const startWords = words.slice(0, Math.min(3, Math.floor(words.length / 2)));
+    const endWords = words.slice(Math.max(3, words.length - 3));
+    
+    return createMockNugget(
+      startWords.join(' '),
+      endWords.join(' '),
+      type
+    );
+  };
 
   beforeEach(() => {
     document.body.innerHTML = '';
@@ -76,7 +90,7 @@ describe('Highlighter - Comment Highlighting', () => {
     });
 
     it('should highlight comment container on Reddit', async () => {
-      const nugget = createMockNugget('test comment content', 'tool');
+      const nugget = createMockNuggetFromContent('test comment content', 'tool');
       document.body.innerHTML = `
         <div slot="comment">This is test comment content that should be highlighted</div>
         <div slot="comment">This is another comment</div>
@@ -91,7 +105,7 @@ describe('Highlighter - Comment Highlighting', () => {
     });
 
     it('should add corner indicator to highlighted comment', async () => {
-      const nugget = createMockNugget('test comment content', 'analogy');
+      const nugget = createMockNuggetFromContent('test comment content', 'analogy');
       document.body.innerHTML = `
         <div slot="comment">This is test comment content that should be highlighted</div>
       `;
@@ -104,7 +118,7 @@ describe('Highlighter - Comment Highlighting', () => {
     });
 
     it('should apply site-specific styling to Reddit comments', async () => {
-      const nugget = createMockNugget('test comment content');
+      const nugget = createMockNuggetFromContent('test comment content');
       document.body.innerHTML = `
         <div slot="comment">This is test comment content that should be highlighted</div>
       `;
@@ -118,7 +132,7 @@ describe('Highlighter - Comment Highlighting', () => {
     });
 
     it('should apply hover effects to comment highlights', async () => {
-      const nugget = createMockNugget('test comment content');
+      const nugget = createMockNuggetFromContent('test comment content');
       document.body.innerHTML = `
         <div slot="comment">This is test comment content that should be highlighted</div>
       `;
@@ -136,7 +150,7 @@ describe('Highlighter - Comment Highlighting', () => {
     });
 
     it('should fallback to text highlighting if comment detection fails', async () => {
-      const nugget = createMockNugget('text not in any comment');
+      const nugget = createMockNuggetFromContent('text not in any comment');
       document.body.innerHTML = `
         <div slot="comment">Some other content</div>
         <p>This paragraph contains text not in any comment</p>
@@ -151,8 +165,8 @@ describe('Highlighter - Comment Highlighting', () => {
     });
 
     it('should skip already highlighted comments', async () => {
-      const nugget1 = createMockNugget('test comment content', 'tool');
-      const nugget2 = createMockNugget('test comment content', 'explanation');
+      const nugget1 = createMockNuggetFromContent('test comment content', 'tool');
+      const nugget2 = createMockNuggetFromContent('test comment content', 'explanation');
       
       document.body.innerHTML = `
         <div slot="comment">This is test comment content that should be highlighted</div>
@@ -176,7 +190,7 @@ describe('Highlighter - Comment Highlighting', () => {
       });
       highlighter = new Highlighter();
 
-      const nugget = createMockNugget('tweet content here');
+      const nugget = createMockNuggetFromContent('tweet content here');
       document.body.innerHTML = `
         <article data-testid="tweet">
           <div data-testid="tweetText">This tweet contains tweet content here</div>
@@ -197,7 +211,7 @@ describe('Highlighter - Comment Highlighting', () => {
       });
       highlighter = new Highlighter();
 
-      const nugget = createMockNugget('hacker news comment');
+      const nugget = createMockNuggetFromContent('hacker news comment');
       document.body.innerHTML = `
         <div class="comment-tree">
           <div class="comtr">
@@ -229,7 +243,7 @@ describe('Highlighter - Comment Highlighting', () => {
       });
       highlighter = new Highlighter();
 
-      const nugget = createMockNugget('test comment content');
+      const nugget = createMockNuggetFromContent('test comment content');
       document.body.innerHTML = `
         <div slot="comment">This is test comment content that should be highlighted</div>
       `;
@@ -255,7 +269,7 @@ describe('Highlighter - Comment Highlighting', () => {
       });
       highlighter = new Highlighter();
 
-      const nugget = createMockNugget('test content');
+      const nugget = createMockNuggetFromContent('test content');
       document.body.innerHTML = '<p>This is test content for highlighting</p>';
 
       await highlighter.highlightNugget(nugget);
@@ -280,7 +294,7 @@ describe('Highlighter - Comment Highlighting', () => {
       });
       highlighter = new Highlighter();
 
-      const nugget = createMockNugget('test comment content');
+      const nugget = createMockNuggetFromContent('test comment content');
       document.body.innerHTML = `
         <div slot="comment">This is test comment content that should be highlighted</div>
       `;
@@ -310,8 +324,8 @@ describe('Highlighter - Comment Highlighting', () => {
       });
       highlighter = new Highlighter();
 
-      const commentNugget = createMockNugget('comment content');
-      const textNugget = createMockNugget('text content');
+      const commentNugget = createMockNuggetFromContent('comment content');
+      const textNugget = createMockNuggetFromContent('text content');
       
       document.body.innerHTML = `
         <div slot="comment">This has comment content</div>
@@ -353,7 +367,7 @@ describe('Highlighter - Comment Highlighting', () => {
     });
 
     it('should show synthesis popup when corner indicator is clicked', async () => {
-      const nugget = createMockNugget('test comment content', 'tool');
+      const nugget = createMockNuggetFromContent('test comment content', 'tool');
       document.body.innerHTML = `
         <div slot="comment">This is test comment content that should be highlighted</div>
       `;
@@ -369,7 +383,7 @@ describe('Highlighter - Comment Highlighting', () => {
     });
 
     it('should apply hover effects to corner indicator', async () => {
-      const nugget = createMockNugget('test comment content');
+      const nugget = createMockNuggetFromContent('test comment content');
       document.body.innerHTML = `
         <div slot="comment">This is test comment content that should be highlighted</div>
       `;

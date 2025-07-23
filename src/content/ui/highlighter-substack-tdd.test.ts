@@ -28,15 +28,29 @@ describe('Substack Page Highlighting (TDD)', () => {
     highlighter = new Highlighter();
   });
 
-  const createMockNugget = (content: string, type: 'tool' | 'media' | 'explanation' | 'analogy' | 'model' = 'explanation'): GoldenNugget => ({
+  const createMockNugget = (startContent: string, endContent: string, type: 'tool' | 'media' | 'explanation' | 'analogy' | 'model' = 'explanation'): GoldenNugget => ({
     type,
-    content,
+    startContent,
+    endContent,
     synthesis: 'Test synthesis'
   });
 
+  // Helper for creating nuggets from old content format (for test compatibility)
+  const createMockNuggetFromContent = (content: string, type: 'tool' | 'media' | 'explanation' | 'analogy' | 'model' = 'explanation'): GoldenNugget => {
+    const words = content.split(' ');
+    const startWords = words.slice(0, Math.min(5, Math.floor(words.length / 3)));
+    const endWords = words.slice(Math.max(5, words.length - 5));
+    
+    return createMockNugget(
+      startWords.join(' '),
+      endWords.join(' '),
+      type
+    );
+  };
+
   describe('Actual Golden Nuggets from the problematic page', () => {
     it('should highlight the Mussolini/Bread analogy nugget with substantial content', async () => {
-      const nugget = createMockNugget(
+      const nugget = createMockNuggetFromContent(
         'Mussolini or Bread only works because you and I have a shared sense of semantics. Before we played this game, we never talked about whether Claude Shannon is semantically \'closer\' to Mussolini or Beckham. We never even talked about what it means for two things to be \'close\', even, or agreed on rules to the game. As you might imagine, the edge cases in M or B can be controversial. But I\'ve played this game with many people and people tend to "just get it" on their first try. How is that possible?',
         'analogy'
       );
@@ -78,7 +92,7 @@ describe('Substack Page Highlighting (TDD)', () => {
     });
 
     it('should highlight the compression/intelligence explanation nugget', async () => {
-      const nugget = createMockNugget(
+      const nugget = createMockNuggetFromContent(
         'One perspective on AI is that we\'re just learning to compress all the data in the world. In fact, the task of language modeling (predicting the next word) can be seen as a compression task, ever since Shannon\'s source coding theorem formalized the relationship between probability distributions and compression algorithms. In recent years, we\'ve developed much more accurate probability distributions of the world; this turned out to be easy, since bigger and bigger language models give us better and better probability distributions. Intelligence is compression, and compression follows scaling laws. And thus there is a duality between compression and intelligence. Compression is intelligence. Some have even said compression may be the way to AGI.',
         'explanation'
       );
@@ -113,7 +127,7 @@ describe('Substack Page Highlighting (TDD)', () => {
     });
 
     it('should highlight the generalization explanation nugget', async () => {
-      const nugget = createMockNugget(
+      const nugget = createMockNuggetFromContent(
         'Generalization only begins when compression is no longer possible, since the model can\'t store data points separately and is forced to combine things. When a model can fit the training dataset perfectly (left side of both graphs) we see that it memorizes data really well, and totally fails to generalize. But when the dataset gets too big, and the model can no longer fit all of the data in its parameters, it\'s forced to "combine" information from multiple datapoints in order to get the best training loss. This is where generalization occurs. And the central idea I\'ll push here is that when generalization occurs, it usually occurs in the same way, even within different models. From the compression perspective, under a given architecture and within a fixed number of parameters, there is only one way to compress the data well.',
         'explanation'
       );
@@ -144,7 +158,7 @@ describe('Substack Page Highlighting (TDD)', () => {
     });
 
     it('should handle the Platonic Representation Hypothesis nugget', async () => {
-      const nugget = createMockNugget(
+      const nugget = createMockNuggetFromContent(
         'The theory that models are converging to a shared underlying representation space was formalized in The Platonic Representation Hypothesis, a position paper written by a group of MIT researchers in 2024. The Platonic Representation Hypothesis argues that as models get bigger, they\'re learning more and more of the same features. They provide evidence for this in vision and language. The Platonic Representation Hypothesis argues that models are converging to a shared representation space, and this is becoming more true as we make models bigger and smarter. This is true in text and language, at a minimum, Remember the trends in scaling show that models are getting all three of bigger, smarter, and more efficient every year. That means that we can expect models to get more similar, too, as the years go on.',
         'model'
       );
@@ -177,7 +191,7 @@ describe('Substack Page Highlighting (TDD)', () => {
 
   describe('Container-based highlighting effectiveness', () => {
     it('should use container-based approach for article content effectively', async () => {
-      const nugget = createMockNugget('test content for container highlighting');
+      const nugget = createMockNuggetFromContent('test content for container highlighting');
       
       document.body.innerHTML = `
         <article>
@@ -197,7 +211,7 @@ describe('Substack Page Highlighting (TDD)', () => {
     });
 
     it('should prioritize article containers over paragraph fragments', async () => {
-      const nugget = createMockNugget('important content spans multiple elements');
+      const nugget = createMockNuggetFromContent('important content spans multiple elements');
       
       document.body.innerHTML = `
         <div>
@@ -232,7 +246,7 @@ describe('Substack Page Highlighting (TDD)', () => {
 
   describe('Visual styling requirements', () => {
     it('should apply highly visible styling that overrides site CSS', async () => {
-      const nugget = createMockNugget('visible content');
+      const nugget = createMockNuggetFromContent('visible content');
       
       // Simulate Substack's potentially aggressive CSS
       document.body.innerHTML = `
@@ -265,7 +279,7 @@ describe('Substack Page Highlighting (TDD)', () => {
     });
 
     it('should create highlights with strong visual contrast', async () => {
-      const nugget = createMockNugget('contrast test');
+      const nugget = createMockNuggetFromContent('contrast test');
       
       document.body.innerHTML = `<p>This is contrast test content.</p>`;
 
@@ -295,7 +309,7 @@ describe('Substack Page Highlighting (TDD)', () => {
 
   describe('Key phrase extraction and highlighting', () => {
     it('should extract and highlight meaningful key phrases from complex nuggets', async () => {
-      const nugget = createMockNugget(
+      const nugget = createMockNuggetFromContent(
         'We realized after a while that this problem has been solved at least once in the deep learning world: work on a model called CycleGAN proposed a way to translate between spaces without correspondence using a method called cycle consistency. And, after at least a year of ruthlessly debugging our own embedding-specific version of CycleGAN, we started to see signs of life.',
         'tool'
       );
@@ -326,7 +340,7 @@ describe('Substack Page Highlighting (TDD)', () => {
     });
 
     it('should prioritize highlighting substantial content over tiny matches', async () => {
-      const nugget = createMockNugget('vision and strategy');
+      const nugget = createMockNuggetFromContent('vision and strategy');
       
       document.body.innerHTML = `
         <div>

@@ -3,27 +3,32 @@ import { GoldenNugget, GeminiResponse, SavedPrompt, ExtensionConfig } from '../.
 export const mockGoldenNuggets: GoldenNugget[] = [
   {
     type: 'tool',
-    content: 'Use regex101.com for testing regular expressions',
+    startContent: 'Use regex101.com for testing',
+    endContent: 'regular expressions',
     synthesis: 'Perfect for someone who values precision and testing - allows you to validate patterns before implementation'
   },
   {
     type: 'explanation',
-    content: 'React hooks follow the principle of composition over inheritance, making code more modular and reusable',
+    startContent: 'React hooks follow the principle',
+    endContent: 'modular and reusable',
     synthesis: 'Aligns with first-principles thinking - explains the fundamental design philosophy behind React hooks'
   },
   {
     type: 'analogy',
-    content: 'Database indexing is like having a phone book organized alphabetically - you can find what you need quickly without scanning every page',
+    startContent: 'Database indexing is like having',
+    endContent: 'without scanning every page',
     synthesis: 'Excellent mental model for understanding database performance optimization'
   },
   {
     type: 'model',
-    content: 'The MVC pattern separates concerns: Model (data), View (presentation), Controller (logic)',
+    startContent: 'The MVC pattern separates concerns:',
+    endContent: 'Controller (logic)',
     synthesis: 'Fundamental architectural pattern that provides clear mental framework for organizing code'
   },
   {
     type: 'media',
-    content: 'Check out this video on system design fundamentals: https://youtube.com/watch?v=example',
+    startContent: 'Check out this video on system',
+    endContent: 'https://youtube.com/watch?v=example',
     synthesis: 'Visual learning resource that complements theoretical understanding of system architecture'
   }
 ];

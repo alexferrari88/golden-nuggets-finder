@@ -21,15 +21,29 @@ describe('Highlighter', () => {
     highlighter = new Highlighter();
   });
 
-  const createMockNugget = (content: string, type: 'tool' | 'media' | 'explanation' | 'analogy' | 'model' = 'explanation'): GoldenNugget => ({
+  const createMockNugget = (startContent: string, endContent: string, type: 'tool' | 'media' | 'explanation' | 'analogy' | 'model' = 'explanation'): GoldenNugget => ({
     type,
-    content,
+    startContent,
+    endContent,
     synthesis: 'Test synthesis'
   });
 
+  // Helper for creating nuggets from old content format (for test compatibility)
+  const createMockNuggetFromContent = (content: string, type: 'tool' | 'media' | 'explanation' | 'analogy' | 'model' = 'explanation'): GoldenNugget => {
+    const words = content.split(' ');
+    const startWords = words.slice(0, Math.min(3, Math.floor(words.length / 2)));
+    const endWords = words.slice(Math.max(3, words.length - 3));
+    
+    return createMockNugget(
+      startWords.join(' '),
+      endWords.join(' '),
+      type
+    );
+  };
+
   describe('highlightNugget', () => {
     it('should highlight nugget content in text', async () => {
-      const nugget = createMockNugget('test content');
+      const nugget = createMockNuggetFromContent('test content');
       document.body.innerHTML = '<p>This is test content for highlighting</p>';
 
       const result = await highlighter.highlightNugget(nugget);
@@ -41,7 +55,7 @@ describe('Highlighter', () => {
     });
 
     it('should not highlight if content not found', async () => {
-      const nugget = createMockNugget('completely different words here');
+      const nugget = createMockNuggetFromContent('completely different words here');
       document.body.innerHTML = '<p>This is some other text</p>';
 
       const result = await highlighter.highlightNugget(nugget);
@@ -52,7 +66,7 @@ describe('Highlighter', () => {
     });
 
     it('should handle normalized text matching', async () => {
-      const nugget = createMockNugget('test content');
+      const nugget = createMockNuggetFromContent('test content');
       document.body.innerHTML = '<p>This is    test   content    with extra spaces</p>';
 
       const result = await highlighter.highlightNugget(nugget);
@@ -63,7 +77,7 @@ describe('Highlighter', () => {
     });
 
     it('should handle case insensitive matching', async () => {
-      const nugget = createMockNugget('Test Content');
+      const nugget = createMockNuggetFromContent('Test Content');
       document.body.innerHTML = '<p>This is test content for highlighting</p>';
 
       const result = await highlighter.highlightNugget(nugget);
@@ -74,7 +88,7 @@ describe('Highlighter', () => {
     });
 
     it('should handle punctuation in text matching', async () => {
-      const nugget = createMockNugget('test content');
+      const nugget = createMockNuggetFromContent('test content');
       document.body.innerHTML = '<p>This is test, content! for highlighting</p>';
 
       const result = await highlighter.highlightNugget(nugget);
@@ -85,7 +99,7 @@ describe('Highlighter', () => {
     });
 
     it('should skip already highlighted content', async () => {
-      const nugget = createMockNugget('test content');
+      const nugget = createMockNuggetFromContent('test content');
       document.body.innerHTML = '<p>This is <span class="nugget-highlight">test content</span> already highlighted</p>';
 
       const result = await highlighter.highlightNugget(nugget);
@@ -94,7 +108,7 @@ describe('Highlighter', () => {
     });
 
     it('should skip UI elements', async () => {
-      const nugget = createMockNugget('test content');
+      const nugget = createMockNuggetFromContent('test content');
       document.body.innerHTML = `
         <div class="nugget-sidebar">test content</div>
         <div class="nugget-notification-banner">test content</div>
@@ -110,7 +124,7 @@ describe('Highlighter', () => {
     });
 
     it('should only highlight first occurrence', async () => {
-      const nugget = createMockNugget('test content');
+      const nugget = createMockNuggetFromContent('test content');
       document.body.innerHTML = '<p>This is test content and also test content again</p>';
 
       const result = await highlighter.highlightNugget(nugget);
@@ -121,7 +135,7 @@ describe('Highlighter', () => {
     });
 
     it('should add clickable indicator', async () => {
-      const nugget = createMockNugget('test content');
+      const nugget = createMockNuggetFromContent('test content');
       document.body.innerHTML = '<p>This is test content for highlighting</p>';
 
       await highlighter.highlightNugget(nugget);
@@ -136,7 +150,7 @@ describe('Highlighter', () => {
         writable: true
       });
 
-      const nugget = createMockNugget('test content', 'tool');
+      const nugget = createMockNuggetFromContent('test content', 'tool');
       document.body.innerHTML = '<p>This is test content for highlighting</p>';
 
       await highlighter.highlightNugget(nugget);
@@ -151,7 +165,7 @@ describe('Highlighter', () => {
         writable: true
       });
 
-      const nugget = createMockNugget('test content');
+      const nugget = createMockNuggetFromContent('test content');
       document.body.innerHTML = '<p>This is test content for highlighting</p>';
 
       await highlighter.highlightNugget(nugget);
@@ -161,7 +175,7 @@ describe('Highlighter', () => {
     });
 
     it('should set nugget type in dataset', async () => {
-      const nugget = createMockNugget('test content', 'analogy');
+      const nugget = createMockNuggetFromContent('test content', 'analogy');
       document.body.innerHTML = '<p>This is test content for highlighting</p>';
 
       await highlighter.highlightNugget(nugget);
@@ -173,7 +187,7 @@ describe('Highlighter', () => {
 
   describe('clearHighlights', () => {
     it('should remove all highlights', async () => {
-      const nugget = createMockNugget('test content');
+      const nugget = createMockNuggetFromContent('test content');
       document.body.innerHTML = '<p>This is test content for highlighting</p>';
 
       await highlighter.highlightNugget(nugget);
@@ -184,7 +198,7 @@ describe('Highlighter', () => {
     });
 
     it('should restore original text', async () => {
-      const nugget = createMockNugget('test content');
+      const nugget = createMockNuggetFromContent('test content');
       document.body.innerHTML = '<p>This is test content for highlighting</p>';
 
       await highlighter.highlightNugget(nugget);
@@ -205,7 +219,7 @@ describe('Highlighter', () => {
     });
 
     it('should remove popups', async () => {
-      const nugget = createMockNugget('test content');
+      const nugget = createMockNuggetFromContent('test content');
       document.body.innerHTML = '<p>This is test content for highlighting</p>';
 
       await highlighter.highlightNugget(nugget);
@@ -227,7 +241,7 @@ describe('Highlighter', () => {
 
   describe('showSynthesisPopup', () => {
     it('should show popup when indicator is clicked', async () => {
-      const nugget = createMockNugget('test content');
+      const nugget = createMockNuggetFromContent('test content');
       document.body.innerHTML = '<p>This is test content for highlighting</p>';
 
       await highlighter.highlightNugget(nugget);
@@ -241,7 +255,7 @@ describe('Highlighter', () => {
     });
 
     it('should remove existing popups when showing new one', async () => {
-      const nugget = createMockNugget('test content');
+      const nugget = createMockNuggetFromContent('test content');
       document.body.innerHTML = '<p>This is test content for highlighting</p>';
 
       await highlighter.highlightNugget(nugget);
@@ -257,7 +271,7 @@ describe('Highlighter', () => {
     });
 
     it('should close popup when close button is clicked', async () => {
-      const nugget = createMockNugget('test content');
+      const nugget = createMockNuggetFromContent('test content');
       document.body.innerHTML = '<p>This is test content for highlighting</p>';
 
       await highlighter.highlightNugget(nugget);
@@ -310,7 +324,7 @@ describe('Highlighter', () => {
 
   describe('positionPopup', () => {
     it('should position popup correctly', async () => {
-      const nugget = createMockNugget('test content');
+      const nugget = createMockNuggetFromContent('test content');
       document.body.innerHTML = '<p>This is test content for highlighting</p>';
 
       await highlighter.highlightNugget(nugget);
@@ -327,7 +341,7 @@ describe('Highlighter', () => {
 
   describe('Duplicate Highlighting Prevention (TDD)', () => {
     it('should not create duplicate highlights when called multiple times with same nugget', async () => {
-      const nugget = createMockNugget('test content to highlight');
+      const nugget = createMockNuggetFromContent('test content to highlight');
       document.body.innerHTML = '<article><p>This is test content to highlight in the page.</p></article>';
 
       // First highlighting attempt
@@ -346,7 +360,7 @@ describe('Highlighter', () => {
     });
 
     it('should not modify DOM when attempting to highlight already highlighted content', async () => {
-      const nugget = createMockNugget('important vision content');
+      const nugget = createMockNuggetFromContent('important vision content');
       document.body.innerHTML = '<article><p>This contains important vision content that needs highlighting.</p></article>';
 
       // First highlighting
@@ -366,9 +380,9 @@ describe('Highlighter', () => {
     });
 
     it('should track highlighted nuggets to prevent re-highlighting', async () => {
-      const nugget1 = createMockNugget('first content');
-      const nugget2 = createMockNugget('second content'); 
-      const nugget1Duplicate = createMockNugget('first content'); // Same content as nugget1
+      const nugget1 = createMockNuggetFromContent('first content');
+      const nugget2 = createMockNuggetFromContent('second content'); 
+      const nugget1Duplicate = createMockNuggetFromContent('first content'); // Same content as nugget1
       
       document.body.innerHTML = `
         <article>
@@ -395,7 +409,7 @@ describe('Highlighter', () => {
     });
 
     it('should handle rapid successive highlighting calls gracefully', async () => {
-      const nugget = createMockNugget('rapid highlight test');
+      const nugget = createMockNuggetFromContent('rapid highlight test');
       document.body.innerHTML = '<article><p>This is rapid highlight test content for testing.</p></article>';
 
       // Simulate rapid successive calls (like in the bug logs)
@@ -419,7 +433,7 @@ describe('Highlighter', () => {
     });
 
     it('should allow re-highlighting after clearing highlights', async () => {
-      const nugget = createMockNugget('test content');
+      const nugget = createMockNuggetFromContent('test content');
       document.body.innerHTML = '<article><p>This is test content for highlighting.</p></article>';
 
       // First highlighting
@@ -441,7 +455,7 @@ describe('Highlighter', () => {
 
   describe('Visual Highlighting Issues (TDD)', () => {
     it('should apply golden yellow highlight styles with high visibility', async () => {
-      const nugget = createMockNugget('important vision content');
+      const nugget = createMockNuggetFromContent('important vision content');
       document.body.innerHTML = '<article><p>I think vision is in short supply today. The ability to formulate important vision content that should be highlighted.</p></article>';
 
       const result = await highlighter.highlightNugget(nugget);
@@ -461,7 +475,7 @@ describe('Highlighter', () => {
     });
 
     it('should handle Substack-style container highlighting', async () => {
-      const nugget = createMockNugget('I think vision is in short supply today . The ability to formulate a normative, opinionated perspective on what should exist—as applied to the world, to our work, to our relationships, and to ourselves. Having to articulate what a great future version of something looks like forces us to work through what we care about.');
+      const nugget = createMockNuggetFromContent('I think vision is in short supply today . The ability to formulate a normative, opinionated perspective on what should exist—as applied to the world, to our work, to our relationships, and to ourselves. Having to articulate what a great future version of something looks like forces us to work through what we care about.');
       
       // Simulate Substack article structure
       document.body.innerHTML = `
@@ -485,7 +499,7 @@ describe('Highlighter', () => {
     });
 
     it('should not highlight tiny or meaningless text fragments', async () => {
-      const nugget = createMockNugget('vision');
+      const nugget = createMockNuggetFromContent('vision');
       document.body.innerHTML = `
         <div>
           <span>a</span>
@@ -509,7 +523,7 @@ describe('Highlighter', () => {
     });
 
     it('should have visible styling that stands out from page content', async () => {
-      const nugget = createMockNugget('test content');
+      const nugget = createMockNuggetFromContent('test content');
       document.body.innerHTML = '<p>This is test content for highlighting</p>';
 
       await highlighter.highlightNugget(nugget);
@@ -529,7 +543,7 @@ describe('Highlighter', () => {
     });
 
     it('FAILING: should override aggressive site CSS with !important styles', async () => {
-      const nugget = createMockNugget('vision is undersupplied');
+      const nugget = createMockNuggetFromContent('vision is undersupplied');
       
       // Simulate Substack's aggressive CSS that might override our highlighting
       document.body.innerHTML = `
@@ -558,7 +572,7 @@ describe('Highlighter', () => {
     });
 
     it('FAILING: should highlight meaningful content chunks, not tiny fragments', async () => {
-      const nugget = createMockNugget('I think vision is in short supply today . The ability to formulate a normative, opinionated perspective on what should exist—as applied to the world, to our work, to our relationships, and to ourselves.');
+      const nugget = createMockNuggetFromContent('I think vision is in short supply today . The ability to formulate a normative, opinionated perspective on what should exist—as applied to the world, to our work, to our relationships, and to ourselves.');
       
       // Simulate Substack's fragmented HTML structure
       document.body.innerHTML = `
@@ -594,7 +608,7 @@ describe('Highlighter', () => {
     });
 
     it('FAILING: should handle container-based highlighting for Substack articles', async () => {
-      const nugget = createMockNugget('I think culturally, many millennials were sold a very different bag of goods... I don\'t think many of us gave much thought about what we were running towards.');
+      const nugget = createMockNuggetFromContent('I think culturally, many millennials were sold a very different bag of goods... I don\'t think many of us gave much thought about what we were running towards.');
       
       // Simulate real Substack structure where text is spread across multiple elements
       document.body.innerHTML = `
@@ -628,7 +642,7 @@ describe('Highlighter', () => {
     });
 
     it('FAILING: should create clearly visible highlights on real Substack content', async () => {
-      const nugget = createMockNugget('Here are some prompts that I\'ve found generative for myself in case they spark something for you');
+      const nugget = createMockNuggetFromContent('Here are some prompts that I\'ve found generative for myself in case they spark something for you');
       
       // Real Substack HTML structure (simplified)
       document.body.innerHTML = `
