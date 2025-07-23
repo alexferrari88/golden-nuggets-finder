@@ -41,42 +41,8 @@ export class Highlighter {
       url: window.location.href
     });
 
-    // Enhanced logging for content reconstruction analysis
-    this.logContentReconstructionDebug(nugget, pageContent);
-    
-    // Create a normalized content key for deduplication
-    const contentKey = this.createContentKey(nugget);
-    
-    // Check if this nugget content has already been highlighted
-    if (this.highlightedNuggets.has(contentKey)) {
-      console.log('⚠️ [Deduplication] Nugget already highlighted, skipping:', {
-        contentKey,
-        startContent: nugget.startContent.substring(0, 50) + '...',
-        endContent: nugget.endContent.substring(0, 50) + '...'
-      });
-      return false;
-    }
-    
-    // Attempt highlighting
-    let result: boolean;
-    if (this.isThreadedSite()) {
-      console.log('📝 [Highlighter Debug] Using comment-based highlighting for threaded site');
-      result = this.highlightCommentContainer(nugget, pageContent);
-    } else {
-      console.log('📄 [Highlighter Debug] Using text-based highlighting for generic site');
-      result = this.findAndHighlightText(nugget, pageContent);
-    }
-    
-    // Track successful highlights to prevent duplicates
-    if (result) {
-      this.highlightedNuggets.add(contentKey);
-      console.log('✅ [Deduplication] Nugget highlighted and tracked:', {
-        contentKey,
-        totalTracked: this.highlightedNuggets.size
-      });
-    }
-    
-    return result;
+    // Use the new multi-strategy approach for DOM-based highlighting
+    return this.highlightNuggetWithStrategies(nugget, pageContent);
   }
 
   getHighlightElement(nugget: GoldenNugget): HTMLElement | null {
@@ -3249,5 +3215,260 @@ export class Highlighter {
     }
     
     console.groupEnd();
+  }
+
+  // ========================================================================
+  // PHASE 3: DOM-BASED ARCHITECTURE METHODS
+  // ========================================================================
+
+  /**
+   * Creates DOM-based highlighting using Range API to avoid text position mapping issues.
+   * This method replaces text position logic with direct DOM range manipulation.
+   */
+  private createDOMHighlight(nugget: GoldenNugget, container: Element): boolean {
+    const walker = document.createTreeWalker(
+      container,
+      NodeFilter.SHOW_TEXT,
+      null,
+      false
+    );
+    
+    const textNodes: Text[] = [];
+    let node;
+    while (node = walker.nextNode()) {
+      textNodes.push(node as Text);
+    }
+    
+    const range = this.findTextRange(textNodes, nugget.startContent, nugget.endContent);
+    if (!range) return false;
+    
+    return this.highlightRange(range, nugget);
+  }
+
+  /**
+   * Finds text range within DOM text nodes for precise highlighting.
+   * Maps text positions to actual DOM nodes to avoid character offset issues.
+   */
+  private findTextRange(textNodes: Text[], startContent: string, endContent: string): Range | null {
+    let allText = '';
+    const nodeMap: { start: number; end: number; node: Text }[] = [];
+    
+    textNodes.forEach(node => {
+      const start = allText.length;
+      const content = node.textContent || '';
+      allText += content;
+      nodeMap.push({ start, end: start + content.length, node });
+    });
+    
+    const result = improvedStartEndMatching(startContent, endContent, allText);
+    if (!result.success) return null;
+    
+    const range = document.createRange();
+    
+    // Find start node and offset
+    const startNodeInfo = nodeMap.find(info => 
+      result.startIndex >= info.start && result.startIndex < info.end
+    );
+    if (!startNodeInfo) return null;
+    
+    // Find end node and offset
+    const endNodeInfo = nodeMap.find(info => 
+      result.endIndex >= info.start && result.endIndex <= info.end
+    );
+    if (!endNodeInfo) return null;
+    
+    range.setStart(startNodeInfo.node, result.startIndex - startNodeInfo.start);
+    range.setEnd(endNodeInfo.node, result.endIndex - endNodeInfo.start);
+    
+    return range;
+  }
+
+  /**
+   * Highlights DOM range with proper error handling for cross-element spans.
+   * Falls back to fragment approach for complex DOM structures.
+   */
+  private highlightRange(range: Range, nugget: GoldenNugget): boolean {
+    try {
+      const highlightSpan = document.createElement('span');
+      highlightSpan.className = 'golden-nugget-highlight';
+      highlightSpan.style.cssText = generateInlineStyles.highlightStyle(nugget.type);
+      highlightSpan.setAttribute('data-nugget-type', nugget.type);
+      
+      range.surroundContents(highlightSpan);
+      this.highlights.push(highlightSpan);
+      return true;
+    } catch (error) {
+      // Handle cross-element spans with fragment approach
+      return this.highlightFragmentedRange(range, nugget);
+    }
+  }
+
+  /**
+   * Handles fragmented ranges that span multiple DOM elements.
+   * Uses extractContents and insertNode for complex highlighting scenarios.
+   */
+  private highlightFragmentedRange(range: Range, nugget: GoldenNugget): boolean {
+    try {
+      const contents = range.extractContents();
+      const highlightSpan = document.createElement('span');
+      highlightSpan.className = 'golden-nugget-highlight';
+      highlightSpan.style.cssText = generateInlineStyles.highlightStyle(nugget.type);
+      highlightSpan.setAttribute('data-nugget-type', nugget.type);
+      
+      highlightSpan.appendChild(contents);
+      range.insertNode(highlightSpan);
+      
+      this.highlights.push(highlightSpan);
+      return true;
+    } catch (error) {
+      console.warn('Failed to highlight fragmented range:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Multi-strategy highlighting system with fallback approaches.
+   * Replaces the existing highlightNugget method with comprehensive strategy system.
+   */
+  async highlightNuggetWithStrategies(nugget: GoldenNugget, pageContent?: string): Promise<boolean> {
+    // Enhanced logging for content reconstruction analysis
+    this.logContentReconstructionDebug(nugget, pageContent);
+    
+    // Create a normalized content key for deduplication
+    const contentKey = this.createContentKey(nugget);
+    
+    // Check if this nugget content has already been highlighted
+    if (this.highlightedNuggets.has(contentKey)) {
+      console.log('⚠️ [Deduplication] Nugget already highlighted, skipping');
+      return false;
+    }
+    
+    const strategies = [
+      { name: 'exact', fn: () => this.exactMatchStrategy(nugget, pageContent) },
+      { name: 'container', fn: () => this.containerBasedStrategy(nugget) },
+      { name: 'fuzzy', fn: () => this.fuzzyMatchStrategy(nugget) },
+      { name: 'partial', fn: () => this.partialWordStrategy(nugget) }
+    ];
+    
+    for (const strategy of strategies) {
+      try {
+        console.log(`🔍 [Highlighting] Trying ${strategy.name} strategy for ${nugget.type}`);
+        const result = await strategy.fn();
+        if (result) {
+          console.log(`✅ [Highlighting] ${strategy.name} strategy succeeded for ${nugget.type}`);
+          this.highlightedNuggets.add(contentKey);
+          return true;
+        }
+      } catch (error) {
+        console.warn(`⚠️ [Highlighting] ${strategy.name} strategy failed:`, error);
+        continue;
+      }
+    }
+    
+    // Final fallback: Highlight best matching container
+    console.log(`🔄 [Highlighting] All strategies failed, trying fallback for ${nugget.type}`);
+    const fallbackResult = this.fallbackContainerHighlight(nugget);
+    if (fallbackResult) {
+      this.highlightedNuggets.add(contentKey);
+    }
+    return fallbackResult;
+  }
+
+  /**
+   * Exact matching strategy using improved algorithm with DOM highlighting.
+   */
+  private exactMatchStrategy(nugget: GoldenNugget, pageContent?: string): boolean {
+    const content = pageContent || document.body.textContent || '';
+    const result = improvedStartEndMatching(nugget.startContent, nugget.endContent, content);
+    
+    if (!result.success) return false;
+    
+    // Use existing highlighting logic but with improved search
+    if (this.isThreadedSite()) {
+      return this.highlightCommentContainer(nugget, pageContent);
+    } else {
+      return this.createDOMHighlight(nugget, document.body);
+    }
+  }
+
+  /**
+   * Container-based strategy using confidence scoring.
+   */
+  private containerBasedStrategy(nugget: GoldenNugget): boolean {
+    const containerMatches = this.findInContainers(nugget);
+    if (containerMatches.length === 0) return false;
+    
+    const bestMatch = containerMatches[0];
+    return this.createDOMHighlight(nugget, bestMatch.element);
+  }
+
+  /**
+   * Fuzzy matching strategy with reduced tolerance.
+   */
+  private fuzzyMatchStrategy(nugget: GoldenNugget): boolean {
+    const containers = document.querySelectorAll('p, article, section');
+    
+    for (const container of Array.from(containers)) {
+      const text = container.textContent || '';
+      const startFuzzy = fuzzyMatch(text, nugget.startContent, 0.7);
+      const endFuzzy = fuzzyMatch(text, nugget.endContent, 0.7);
+      
+      if (startFuzzy && endFuzzy) {
+        return this.createDOMHighlight(nugget, container);
+      }
+    }
+    
+    return false;
+  }
+
+  /**
+   * Partial word matching strategy for handling incomplete content.
+   */
+  private partialWordStrategy(nugget: GoldenNugget): boolean {
+    // Extract key words from start and end content
+    const startWords = advancedNormalize(nugget.startContent).split(' ').filter(w => w.length > 3);
+    const endWords = advancedNormalize(nugget.endContent).split(' ').filter(w => w.length > 3);
+    
+    const containers = document.querySelectorAll('p, article, section, div');
+    
+    for (const container of Array.from(containers)) {
+      const text = advancedNormalize(container.textContent || '');
+      
+      const startWordMatches = startWords.filter(word => text.includes(word)).length;
+      const endWordMatches = endWords.filter(word => text.includes(word)).length;
+      
+      // Require at least 50% word matches for both start and end
+      if ((startWordMatches / startWords.length) >= 0.5 && 
+          (endWordMatches / endWords.length) >= 0.5) {
+        return this.createDOMHighlight(nugget, container);
+      }
+    }
+    
+    return false;
+  }
+
+  /**
+   * Final fallback strategy that highlights the best matching container.
+   */
+  private fallbackContainerHighlight(nugget: GoldenNugget): boolean {
+    const containers = this.findInContainers(nugget);
+    if (containers.length === 0) return false;
+    
+    // Highlight the container with highest confidence
+    const bestContainer = containers[0];
+    const highlightSpan = document.createElement('div');
+    highlightSpan.className = 'golden-nugget-container-highlight';
+    highlightSpan.style.cssText = `
+      border-left: 3px solid ${colors.accent};
+      background: ${colors.background.secondary};
+      padding: ${spacing.sm};
+      margin: ${spacing.xs} 0;
+      border-radius: 4px;
+    `;
+    
+    bestContainer.element.style.cssText += highlightSpan.style.cssText;
+    this.highlights.push(bestContainer.element as HTMLElement);
+    
+    return true;
   }
 }

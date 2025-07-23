@@ -6,19 +6,26 @@ import type { GoldenNugget } from './types';
  */
 
 /**
- * Normalizes text for comparison by:
- * - Converting to lowercase
- * - Removing extra whitespace
- * - Removing newlines and tabs
- * - Removing special characters that might interfere with matching
+ * Advanced text normalization for matching with comprehensive Unicode handling.
+ * Handles all common Unicode character variants that can cause matching failures.
  */
-function normalizeText(text: string): string {
+export function advancedNormalize(text: string): string {
   return text
     .toLowerCase()
-    .replace(/\s+/g, ' ')
-    .replace(/[''""]/g, '"')
-    .replace(/[–—]/g, '-')
+    .replace(/[''`´]/g, "'")        // All apostrophe variants
+    .replace(/[""«»]/g, '"')       // All quote variants  
+    .replace(/[–—−]/g, '-')        // All dash variants
+    .replace(/[…]/g, '...')        // Ellipsis normalization
+    .replace(/\s+/g, ' ')          // Normalize whitespace
     .trim();
+}
+
+/**
+ * Legacy normalizeText function - kept for backward compatibility
+ * @deprecated Use advancedNormalize instead
+ */
+function normalizeText(text: string): string {
+  return advancedNormalize(text);
 }
 
 /**
@@ -99,11 +106,60 @@ export function getNormalizedContent(nugget: GoldenNugget, pageContent?: string)
 }
 
 /**
+ * Match result interface for the improved search algorithm
+ */
+export interface MatchResult {
+  success: boolean;
+  reason?: string;
+  startIndex?: number;
+  endIndex?: number;
+  matchedContent?: string;
+}
+
+/**
+ * Improved start/end matching algorithm with enhanced search logic.
+ * Fixes algorithm bugs and handles Unicode character variants.
+ * 
+ * @param startContent - The start content to find
+ * @param endContent - The end content to find
+ * @param pageContent - The page content to search within
+ * @returns MatchResult with success status and match details
+ */
+export function improvedStartEndMatching(
+  startContent: string, 
+  endContent: string, 
+  pageContent: string
+): MatchResult {
+  const normalizedText = advancedNormalize(pageContent);
+  const normalizedStart = advancedNormalize(startContent);
+  const normalizedEnd = advancedNormalize(endContent);
+  
+  const startIndex = normalizedText.indexOf(normalizedStart);
+  if (startIndex === -1) {
+    return { success: false, reason: 'Start content not found' };
+  }
+  
+  const endSearchStart = startIndex + normalizedStart.length;
+  const endIndex = normalizedText.indexOf(normalizedEnd, endSearchStart);
+  if (endIndex === -1) {
+    return { success: false, reason: 'End content not found after start' };
+  }
+  
+  return { 
+    success: true, 
+    startIndex, 
+    endIndex: endIndex + normalizedEnd.length,
+    matchedContent: normalizedText.substring(startIndex, endIndex + normalizedEnd.length)
+  };
+}
+
+/**
  * Enhanced text matching using start/end content approach with multiple strategies.
  * 
  * @param nugget - The golden nugget to match
  * @param searchText - The text to search within
  * @returns True if the nugget content matches the search text
+ * @deprecated Use improvedStartEndMatching instead for better error reporting
  */
 export function improvedStartEndTextMatching(nugget: GoldenNugget, searchText: string): boolean {
   const normalizedSearch = normalizeText(searchText);
