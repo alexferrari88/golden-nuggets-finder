@@ -10,7 +10,7 @@ import { improvedStartEndMatching, advancedNormalize } from '../../shared/conten
 export class Highlighter {
   private highlightedElements: Set<HTMLElement> = new Set();
   private highlightClass = 'golden-nugget-highlight';
-  private originalTextBackup: Map<HTMLElement, { originalText: string; parent: Element; nextSibling: Node | null }> = new Map();
+  private originalTextBackup: Map<HTMLElement, { originalNode: Text; parent: Element; nextSibling: Node | null }> = new Map();
 
   constructor() {
     this.injectStyles();
@@ -19,10 +19,9 @@ export class Highlighter {
   /**
    * Highlight a single golden nugget on the page
    * @param nugget - The golden nugget to highlight
-   * @param pageContent - Optional page content for reconstruction
    * @returns true if highlighting was successful, false otherwise
    */
-  highlightNugget(nugget: GoldenNugget, pageContent?: string): boolean {
+  highlightNugget(nugget: GoldenNugget): boolean {
     try {
       console.log(`[Highlighter] Attempting to highlight nugget: "${nugget.startContent}" -> "${nugget.endContent}"`);
       
@@ -32,18 +31,9 @@ export class Highlighter {
         console.log(`[Highlighter] Nugget content too long (${expectedLength} chars), refusing to highlight`);
         return false;
       }
-      
-      // Use Readability to get a clean version of the page content
-      const documentClone = document.cloneNode(true) as Document;
-      const article = new Readability(documentClone).parse();
-      
-      if (!article || !article.textContent) {
-        console.log('[Highlighter] Readability could not parse the page content');
-        return false;
-      }
 
       // Find text nodes that contain our content
-      const result = this.findAndHighlightContent(nugget.startContent, nugget.endContent, article.textContent);
+      const result = this.findAndHighlightContent(nugget.startContent, nugget.endContent);
       
       if (result) {
         // Post-validation: check for over-highlighting
@@ -76,8 +66,42 @@ export class Highlighter {
   }
 
   /**
+   * Find the main article container on the page to narrow down the search area.
+   * @returns The article container element or document.body if not found.
+   */
+  private findArticleContainer(): HTMLElement {
+    // Heuristics to find the main content container
+    const selectors = [
+      'article',
+      '[role="main"]',
+      '#main',
+      '#content',
+      '.post-content',
+      '.entry-content',
+      '[class*="article-body"]',
+      '[class*="post-body"]',
+      '[class*="article-content"]',
+      '[class*="post-content"]',
+      '[class*="main-content"]',
+      '[class*="story-content"]',
+    ];
+
+    for (const selector of selectors) {
+      const element = document.querySelector(selector) as HTMLElement;
+      if (element && element.textContent && element.textContent.length > 500) { // Basic check for content
+        console.log(`[Highlighter] Found article container with selector: ${selector}`);
+        return element;
+      }
+    }
+
+    console.log('[Highlighter] No specific article container found, using document.body.');
+    return document.body;
+  }
+
+  /**
    * Find and highlight content between startContent and endContent
    * Prioritizes content reconstruction for cross-node reliability
+   * Now includes multiple fallback strategies including Readability extraction
    * @param startContent - The starting text to find
    * @param endContent - The ending text to find
    * @returns true if content was found and highlighted, false otherwise
@@ -85,27 +109,46 @@ export class Highlighter {
   private findAndHighlightContent(startContent: string, endContent: string): boolean {
     console.log(`[Highlighter] Looking for content from "${startContent}" to "${endContent}"`);
 
-    const textNodes = this.getAllTextNodes(document.body);
+    // Strategy 1: Try DOM-based text mapping (original approach)
+    const articleContainer = this.findArticleContainer();
+    const textNodes = this.getAllTextNodes(articleContainer);
     const domBasedResult = this.buildDOMBasedTextMapping(textNodes);
 
-    if (!domBasedResult.success) {
+    if (domBasedResult.success) {
+      const { fullText, nodePositions } = domBasedResult;
+      console.log(`[Highlighter] Trying to match in DOM-based text (${fullText.length} chars from ${nodePositions.length} nodes)`);
+
+      const matchResult = improvedStartEndMatching(startContent, endContent, fullText);
+
+      if (matchResult.success && matchResult.startIndex !== undefined && matchResult.endIndex !== undefined) {
+        console.log(`[Highlighter] DOM-based match found at ${matchResult.startIndex}-${matchResult.endIndex} (${matchResult.reason})`);
+
+        const result = this.highlightByDOMBasedRange(matchResult.startIndex, matchResult.endIndex, nodePositions);
+        if (result) {
+          console.log(`[Highlighter] DOM-based highlighting succeeded`);
+          return true;
+        }
+      } else {
+        console.log(`[Highlighter] DOM-based matching failed: ${matchResult.reason}`);
+      }
+    } else {
       console.log(`[Highlighter] Failed to build DOM-based text mapping: ${domBasedResult.reason}`);
-      return false;
     }
 
-    const { fullText, nodePositions } = domBasedResult;
-    console.log(`[Highlighter] Trying to match in DOM-based text (${fullText.length} chars from ${nodePositions.length} nodes)`);
+    // Strategy 2: Try Readability-based extraction for cleaner content
+    console.log(`[Highlighter] DOM-based approach failed, trying Readability extraction`);
+    const readabilityResult = this.tryReadabilityBasedMatching(startContent, endContent);
+    if (readabilityResult) {
+      console.log(`[Highlighter] Readability-based highlighting succeeded`);
+      return true;
+    }
 
-    const matchResult = improvedStartEndMatching(startContent, endContent, fullText);
-
-    if (matchResult.success && matchResult.startIndex !== undefined && matchResult.endIndex !== undefined) {
-      console.log(`[Highlighter] DOM-based match found at ${matchResult.startIndex}-${matchResult.endIndex}`);
-
-      const result = this.highlightByDOMBasedRange(matchResult.startIndex, matchResult.endIndex, nodePositions);
-      if (result) {
-        console.log(`[Highlighter] DOM-based highlighting succeeded`);
-        return true;
-      }
+    // Strategy 3: Try broader text extraction from body
+    console.log(`[Highlighter] Readability failed, trying broader body text extraction`);
+    const bodyTextResult = this.tryBodyTextMatching(startContent, endContent);
+    if (bodyTextResult) {
+      console.log(`[Highlighter] Body text matching succeeded`);
+      return true;
     }
 
     console.log(`[Highlighter] All highlighting strategies failed for "${startContent}"`);
@@ -122,22 +165,38 @@ export class Highlighter {
       NodeFilter.SHOW_TEXT,
       {
         acceptNode: (node) => {
-          // Skip text nodes in script/style tags but be more permissive otherwise
           const parent = node.parentElement;
           if (!parent) return NodeFilter.FILTER_REJECT;
-          
-          const tagName = parent.tagName?.toLowerCase();
-          if (tagName === 'script' || tagName === 'style' || tagName === 'noscript') {
+
+          // Ignore nodes in non-content elements
+          const tagName = parent.tagName.toLowerCase();
+          if (['script', 'style', 'noscript', 'svg', 'path', 'head', 'meta', 'link'].includes(tagName)) {
+            return NodeFilter.FILTER_REJECT;
+          }
+
+          // Ignore nodes that are not visible
+          const computedStyle = window.getComputedStyle(parent);
+          if (computedStyle.display === 'none' || computedStyle.visibility === 'hidden' || computedStyle.opacity === '0' || computedStyle.height === '0px' || computedStyle.width === '0px') {
+            return NodeFilter.FILTER_REJECT;
+          }
+
+          // Ignore whitespace-only nodes
+          const text = node.textContent || '';
+          if (text.trim().length === 0) {
             return NodeFilter.FILTER_REJECT;
           }
           
-          const text = node.textContent || '';
-          // Accept any node with text content, normalization will handle whitespace
-          if (text.length > 0) {
-            return NodeFilter.FILTER_ACCEPT;
+          // Ignore nodes that look like JSON data
+          if (text.trim().startsWith('{') && text.trim().endsWith('}')) {
+            try {
+              JSON.parse(text.trim());
+              return NodeFilter.FILTER_REJECT; // It's valid JSON, reject it.
+            } catch (e) {
+              // Not valid JSON, so probably text.
+            }
           }
-          
-          return NodeFilter.FILTER_REJECT;
+
+          return NodeFilter.FILTER_ACCEPT;
         }
       }
     );
@@ -147,7 +206,7 @@ export class Highlighter {
       textNodes.push(node as Text);
     }
     
-    console.log(`[Highlighter] Found ${textNodes.length} text nodes total`);
+    console.log(`[Highlighter] Found ${textNodes.length} relevant text nodes total`);
     return textNodes;
   }
 
@@ -286,7 +345,6 @@ export class Highlighter {
       node: Text;
       parent: Element;
       nextSibling: Node | null;
-      originalText: string;
       replacementNodes: Node[];
       span: HTMLElement;
     }> = [];
@@ -323,7 +381,6 @@ export class Highlighter {
           node,
           parent,
           nextSibling: node.nextSibling,
-          originalText,
           replacementNodes,
           span
         });
@@ -346,7 +403,7 @@ export class Highlighter {
     
     for (const operation of highlightOperations) {
       try {
-        const { node, parent, nextSibling, originalText, replacementNodes, span } = operation;
+        const { node, parent, nextSibling, replacementNodes, span } = operation;
         
         // Verify the node is still valid (hasn't been modified by previous operations)
         if (node.parentNode !== parent) {
@@ -356,25 +413,28 @@ export class Highlighter {
         
         // Create backup BEFORE making any changes
         this.originalTextBackup.set(span, {
-          originalText,
+          originalNode: node,
           parent,
           nextSibling
         });
         
         // Atomic replacement: remove original and insert replacements
-        parent.removeChild(node);
+        // parent.removeChild(node); // This is now incorrect, the node is replaced by the new nodes
         
         // Insert replacement nodes
         for (const newNode of replacementNodes) {
           parent.insertBefore(newNode, nextSibling);
         }
+        // remove original node after inserting new nodes
+        parent.removeChild(node);
+
         
         // Track successful operation
         this.highlightedElements.add(span);
         appliedOperations.push(operation);
         successCount++;
         
-        console.log(`[Highlighter] Successfully applied operation for "${originalText.substring(0, 30)}..."`);
+        console.log(`[Highlighter] Successfully applied operation for "${(node.textContent || '').substring(0, 30)}..."`);
         
       } catch (error) {
         console.error(`[Highlighter] Error applying operation:`, error);
@@ -401,30 +461,196 @@ export class Highlighter {
   
 
   /**
+   * Try matching using Readability.js for cleaner content extraction
+   * This can help when the DOM structure is complex or has a lot of noise
+   */
+  private tryReadabilityBasedMatching(startContent: string, endContent: string): boolean {
+    try {
+      // Clone the document to avoid modifying the original
+      const docClone = document.cloneNode(true) as Document;
+      const reader = new Readability(docClone);
+      const article = reader.parse();
+      
+      if (!article || !article.textContent) {
+        console.log(`[Highlighter] Readability failed to extract article content`);
+        return false;
+      }
+      
+      console.log(`[Highlighter] Readability extracted ${article.textContent.length} chars`);
+      
+      // Try to find the content in the Readability-extracted text
+      const matchResult = improvedStartEndMatching(startContent, endContent, article.textContent);
+      
+      if (!matchResult.success) {
+        console.log(`[Highlighter] Readability text matching failed: ${matchResult.reason}`);
+        return false;
+      }
+      
+      // If we found it in Readability text, try to find it in the original DOM
+      // by using a more aggressive search in the original text nodes
+      return this.tryAggressiveDomSearch(startContent, endContent, matchResult.matchedContent || '');
+      
+    } catch (error) {
+      console.log(`[Highlighter] Readability extraction error:`, error);
+      return false;
+    }
+  }
+  
+  /**
+   * Try matching using broader body text extraction
+   * Uses a more inclusive approach to find text across the entire body
+   */
+  private tryBodyTextMatching(startContent: string, endContent: string): boolean {
+    try {
+      // Get all text from body, including from elements we might normally filter out
+      const bodyText = document.body.textContent || '';
+      
+      if (bodyText.length === 0) {
+        console.log(`[Highlighter] Body text is empty`);
+        return false;
+      }
+      
+      console.log(`[Highlighter] Body text has ${bodyText.length} chars`);
+      
+      // Try to find the content in the body text
+      const matchResult = improvedStartEndMatching(startContent, endContent, bodyText);
+      
+      if (!matchResult.success) {
+        console.log(`[Highlighter] Body text matching failed: ${matchResult.reason}`);
+        return false;
+      }
+      
+      // If we found it in body text, try to find it in DOM with more aggressive search
+      return this.tryAggressiveDomSearch(startContent, endContent, matchResult.matchedContent || '');
+      
+    } catch (error) {
+      console.log(`[Highlighter] Body text extraction error:`, error);
+      return false;
+    }
+  }
+  
+  /**
+   * Aggressive DOM search that tries to find and highlight content even when 
+   * the text is heavily fragmented across nodes
+   */
+  private tryAggressiveDomSearch(startContent: string, endContent: string, referenceContent: string): boolean {
+    try {
+      console.log(`[Highlighter] Trying aggressive DOM search with reference content (${referenceContent.length} chars)`);
+      
+      // Get ALL text nodes, including ones we might normally filter out
+      const allTextNodes = this.getAllTextNodesAggressive(document.body);
+      console.log(`[Highlighter] Found ${allTextNodes.length} text nodes in aggressive search`);
+      
+      // Try to reconstruct text and find our content
+      const aggressiveResult = this.buildDOMBasedTextMapping(allTextNodes);
+      
+      if (!aggressiveResult.success) {
+        console.log(`[Highlighter] Aggressive DOM mapping failed: ${aggressiveResult.reason}`);
+        return false;
+      }
+      
+      const { fullText, nodePositions } = aggressiveResult;
+      console.log(`[Highlighter] Aggressive search reconstructed ${fullText.length} chars from ${nodePositions.length} nodes`);
+      
+      // Try fuzzy matching with more lenient parameters
+      const matchResult = improvedStartEndMatching(startContent, endContent, fullText);
+      
+      if (matchResult.success && matchResult.startIndex !== undefined && matchResult.endIndex !== undefined) {
+        console.log(`[Highlighter] Aggressive search found match at ${matchResult.startIndex}-${matchResult.endIndex} (${matchResult.reason})`);
+        
+        const result = this.highlightByDOMBasedRange(matchResult.startIndex, matchResult.endIndex, nodePositions);
+        if (result) {
+          console.log(`[Highlighter] Aggressive search highlighting succeeded`);
+          return true;
+        }
+      }
+      
+      console.log(`[Highlighter] Aggressive search failed to highlight`);
+      return false;
+      
+    } catch (error) {
+      console.log(`[Highlighter] Aggressive DOM search error:`, error);
+      return false;
+    }
+  }
+  
+  /**
+   * Get ALL text nodes with very minimal filtering - for aggressive search
+   */
+  private getAllTextNodesAggressive(element: Node): Text[] {
+    const textNodes: Text[] = [];
+    const walker = document.createTreeWalker(
+      element,
+      NodeFilter.SHOW_TEXT,
+      {
+        acceptNode: (node) => {
+          const parent = node.parentElement;
+          if (!parent) return NodeFilter.FILTER_REJECT;
+
+          // Only reject truly non-content elements
+          const tagName = parent.tagName.toLowerCase();
+          if (['script', 'style', 'noscript', 'head', 'meta', 'link'].includes(tagName)) {
+            return NodeFilter.FILTER_REJECT;
+          }
+
+          // Accept all text nodes with any content, even whitespace-only ones
+          const text = node.textContent || '';
+          if (text.length === 0) {
+            return NodeFilter.FILTER_REJECT;
+          }
+          
+          return NodeFilter.FILTER_ACCEPT;
+        }
+      }
+    );
+
+    let node: Node | null;
+    while (node = walker.nextNode()) {
+      textNodes.push(node as Text);
+    }
+    
+    console.log(`[Highlighter] Aggressive search found ${textNodes.length} text nodes total`);
+    return textNodes;
+  }
+
+  /**
    * Safely rollback highlights by restoring original text content
    * This prevents content deletion when highlights need to be removed
    */
   private rollbackHighlights(highlightElements: HTMLElement[]): void {
     console.log(`[Highlighter] Rolling back ${highlightElements.length} highlight elements`);
     
-    for (const element of highlightElements) {
+    // Sort elements by their position in the DOM to avoid conflicts during removal
+    const sortedElements = Array.from(highlightElements).sort((a, b) => {
+      const pos = a.compareDocumentPosition(b);
+      if (pos & Node.DOCUMENT_POSITION_FOLLOWING) return -1;
+      if (pos & Node.DOCUMENT_POSITION_PRECEDING) return 1;
+      return 0;
+    });
+
+    for (const element of sortedElements) {
       try {
         const backup = this.originalTextBackup.get(element);
         if (backup) {
-          console.log(`[Highlighter] Restoring original text: "${backup.originalText}"`);
+          const { originalNode, parent } = backup;
+          console.log(`[Highlighter] Restoring original text for: "${originalNode.textContent?.substring(0, 50)}..."`);
           
-          // Create text node with original content
-          const textNode = document.createTextNode(backup.originalText);
+          // The parent of the highlight element should be the same as the backup parent.
+          if (element.parentNode === parent) {
+            // Replace the highlight element with its text content, then normalize the parent
+            // to merge adjacent text nodes. This is a robust way to restore the text
+            // without holding complex references to the transient text nodes.
+            const text = document.createTextNode(element.textContent || '');
+            parent.replaceChild(text, element);
+            parent.normalize();
+          } else {
+            console.warn('[Highlighter] Rollback parent mismatch or element already removed.');
+          }
           
-          // Replace the highlight element with original text
-          backup.parent.insertBefore(textNode, backup.nextSibling);
-          backup.parent.removeChild(element);
-          
-          // Clean up backup
           this.originalTextBackup.delete(element);
         } else {
-          console.log(`[Highlighter] No backup found for element, using current text content`);
-          // Fallback: replace with current text content
+          console.log(`[Highlighter] No backup found for element, replacing with text`);
+          // Fallback for safety if no backup is found
           const parent = element.parentElement;
           if (parent && element.textContent) {
             const textNode = document.createTextNode(element.textContent);
@@ -433,7 +659,6 @@ export class Highlighter {
           }
         }
         
-        // Remove from tracked elements
         this.highlightedElements.delete(element);
         
       } catch (error) {

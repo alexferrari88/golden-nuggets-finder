@@ -1154,6 +1154,204 @@ test.describe('Highlighter TDD - Character Mapping Debug', () => {
   });
 });
 
+test.describe('Highlighter TDD - Debug Content Extraction', () => {
+  test('should debug fuzzy matching for failing nugget', async ({ cleanPage }) => {
+    const testUrl = 'https://blog.jxmo.io/p/there-is-only-one-model';
+    await cleanPage.goto(testUrl, { waitUntil: 'networkidle' });
+    await cleanPage.waitForTimeout(3000);
+    
+    // Inject highlighter
+    await cleanPage.addScriptTag({
+      path: './dist/chrome-mv3-dev/content-scripts/content.js'
+    });
+    await cleanPage.waitForTimeout(1000);
+    
+    // Debug the failing nugget by capturing all console logs
+    const failingNugget = {
+      type: "analogy" as const,
+      startContent: "Mussolini or Bread only",
+      endContent: "almost anything.",
+      synthesis: "Debug nugget"
+    };
+    
+    // Enable console log capture
+    cleanPage.on('console', msg => {
+      console.log(`BROWSER ${msg.type()}: ${msg.text()}`);
+    });
+    
+    // Enable error capture
+    cleanPage.on('pageerror', error => {
+      console.log(`BROWSER ERROR: ${error.message}`);
+    });
+    
+    const result = await cleanPage.evaluate((nugget) => {
+      const debugLogs: string[] = [];
+      const originalConsoleLog = console.log;
+      console.log = (...args) => {
+        debugLogs.push(args.join(' '));
+        originalConsoleLog.apply(console, args);
+      };
+      
+      let highlightResult = { success: false, error: 'highlightNugget function not found' };
+      try {
+        if (typeof window.highlightNugget === 'function') {
+          highlightResult = window.highlightNugget(nugget);
+        }
+      } catch (error) {
+        highlightResult = { success: false, error: `Exception: ${error.message}` };
+        debugLogs.push(`Exception caught: ${error.message}`);
+        debugLogs.push(`Stack: ${error.stack}`);
+      }
+      
+      console.log = originalConsoleLog;
+      return { highlightResult, debugLogs };
+    }, failingNugget);
+    
+    console.log('\n=== FUZZY MATCHING DEBUG RESULTS ===');
+    console.log('Highlight result:', result.highlightResult);
+    console.log('\n=== DEBUG LOGS FROM BROWSER ===');
+    result.debugLogs.forEach((log, i) => console.log(`${i}: ${log}`));
+    
+    // This test is just for debugging - we want to see what's happening
+    expect(typeof result.highlightResult.success).toBe('boolean');
+  });
+  
+  test('should debug exact content extraction differences', async ({ cleanPage }) => {
+    const testUrl = 'https://blog.jxmo.io/p/there-is-only-one-model';
+    await cleanPage.goto(testUrl, { waitUntil: 'networkidle' });
+    await cleanPage.waitForTimeout(3000);
+    
+    // Inject highlighter
+    await cleanPage.addScriptTag({
+      path: './dist/chrome-mv3-dev/content-scripts/content.js'
+    });
+    await cleanPage.waitForTimeout(1000);
+    
+    // Debug the failing nugget by examining all extraction methods
+    const failingNugget = {
+      type: "analogy" as const,
+      startContent: "Mussolini or Bread only",
+      endContent: "almost anything.",
+      synthesis: "Debug nugget"
+    };
+    
+    const debugInfo = await cleanPage.evaluate((nugget) => {
+      // Method 1: Body text content
+      const bodyText = document.body.textContent || '';
+      const bodyHasStart = bodyText.includes(nugget.startContent);
+      const bodyHasEnd = bodyText.includes(nugget.endContent);
+      
+      // Method 2: DOM-based text mapping (highlighter's method)
+      const walker = document.createTreeWalker(
+        document.body,
+        NodeFilter.SHOW_TEXT,
+        {
+          acceptNode: (node) => {
+            const parent = node.parentElement;
+            if (!parent) return NodeFilter.FILTER_REJECT;
+            const tagName = parent.tagName.toLowerCase();
+            if (['script', 'style', 'noscript', 'svg', 'path', 'head', 'meta', 'link'].includes(tagName)) {
+              return NodeFilter.FILTER_REJECT;
+            }
+            const computedStyle = window.getComputedStyle(parent);
+            if (computedStyle.display === 'none' || computedStyle.visibility === 'hidden') {
+              return NodeFilter.FILTER_REJECT;
+            }
+            const text = node.textContent || '';
+            if (text.trim().length === 0) {
+              return NodeFilter.FILTER_REJECT;
+            }
+            return NodeFilter.FILTER_ACCEPT;
+          }
+        }
+      );
+      
+      let domBasedText = '';
+      let node;
+      const textNodeSamples = [];
+      while (node = walker.nextNode()) {
+        const text = node.textContent || '';
+        domBasedText += text;
+        
+        // Collect samples of text nodes that might contain our target
+        if (text.includes('Mussolini') || text.includes('Bread') || text.includes('almost') || text.includes('anything')) {
+          textNodeSamples.push({
+            text: text.substring(0, 100),
+            parent: node.parentElement?.tagName,
+            className: node.parentElement?.className
+          });
+        }
+      }
+      
+      const domBasedHasStart = domBasedText.includes(nugget.startContent);
+      const domBasedHasEnd = domBasedText.includes(nugget.endContent);
+      
+      // Method 3: Try to find the expected full content
+      const expectedFullText = "Mussolini or Bread only describes a specific location in some concept space. But if the space is shared, then it becomes possible to navigate to almost anything.";
+      const bodyHasExpectedFull = bodyText.includes(expectedFullText);
+      const domBasedHasExpectedFull = domBasedText.includes(expectedFullText);
+      
+      // Method 4: Search for individual key words
+      const keyWords = ['Mussolini', 'Bread', 'describes', 'location', 'concept', 'space', 'shared', 'navigate', 'almost', 'anything'];
+      const bodyWordCounts = keyWords.map(word => ({
+        word,
+        count: (bodyText.match(new RegExp(word, 'gi')) || []).length
+      }));
+      const domBasedWordCounts = keyWords.map(word => ({
+        word,
+        count: (domBasedText.match(new RegExp(word, 'gi')) || []).length
+      }));
+      
+      return {
+        nugget,
+        bodyText: {
+          length: bodyText.length,
+          hasStart: bodyHasStart,
+          hasEnd: bodyHasEnd,
+          hasExpectedFull: bodyHasExpectedFull,
+          wordCounts: bodyWordCounts,
+          sample: bodyText.substring(bodyText.indexOf('Mussolini') - 50, bodyText.indexOf('Mussolini') + 200)
+        },
+        domBasedText: {
+          length: domBasedText.length,
+          hasStart: domBasedHasStart,
+          hasEnd: domBasedHasEnd,
+          hasExpectedFull: domBasedHasExpectedFull,
+          wordCounts: domBasedWordCounts,
+          sample: domBasedText.substring(domBasedText.indexOf('Mussolini') - 50, domBasedText.indexOf('Mussolini') + 200)
+        },
+        textNodeSamples,
+        expectedFullText
+      };
+    }, failingNugget);
+    
+    console.log('Detailed content extraction debug:', JSON.stringify(debugInfo, null, 2));
+    
+    // Log the comparison
+    console.log('\n=== CONTENT EXTRACTION COMPARISON ===');
+    console.log(`Body text length: ${debugInfo.bodyText.length}`);
+    console.log(`DOM-based text length: ${debugInfo.domBasedText.length}`);
+    console.log(`Body has start: ${debugInfo.bodyText.hasStart}`);
+    console.log(`DOM-based has start: ${debugInfo.domBasedText.hasStart}`);
+    console.log(`Body has end: ${debugInfo.bodyText.hasEnd}`);
+    console.log(`DOM-based has end: ${debugInfo.domBasedText.hasEnd}`);
+    console.log(`Body has expected full: ${debugInfo.bodyText.hasExpectedFull}`);
+    console.log(`DOM-based has expected full: ${debugInfo.domBasedText.hasExpectedFull}`);
+    
+    console.log('\n=== TEXT SAMPLES ===');
+    console.log('Body text sample:', debugInfo.bodyText.sample);
+    console.log('DOM-based text sample:', debugInfo.domBasedText.sample);
+    
+    console.log('\n=== TEXT NODE SAMPLES ===');
+    debugInfo.textNodeSamples.forEach((sample, i) => {
+      console.log(`Node ${i}: "${sample.text}" (${sample.parent}.${sample.className})`);
+    });
+    
+    // This test is just for debugging - we expect it to reveal the issue
+    expect(debugInfo.bodyText.hasStart || debugInfo.domBasedText.hasStart).toBe(true);
+  });
+});
+
 test.describe('Highlighter TDD - Cross-Node Text Split Edge Cases', () => {
   test('should handle text split at word boundaries across multiple text nodes', async ({ cleanPage }) => {
     // Create a test page with text specifically split across multiple text nodes

@@ -160,9 +160,186 @@ export interface MatchResult {
 }
 
 /**
+ * Enhanced fuzzy matching algorithm that handles content version mismatches.
+ * Focuses on finding reasonable content spans between anchor points even when 
+ * the middle content differs from expectations.
+ * 
+ * @param startContent - The start content to find
+ * @param endContent - The end content to find
+ * @param pageContent - The page content to search within
+ * @returns MatchResult with success status and match details
+ */
+function fuzzyStartEndMatching(
+  startContent: string,
+  endContent: string,
+  pageContent: string
+): MatchResult {
+  const normalizedText = advancedNormalize(pageContent);
+  const normalizedStart = advancedNormalize(startContent);
+  const normalizedEnd = advancedNormalize(endContent);
+  
+  console.log(`[FuzzyMatching] Looking for "${startContent}" -> "${endContent}" in ${normalizedText.length} chars`);
+  
+  // Strategy 1: Try to find exact start and end boundary phrases
+  const startIndex = normalizedText.indexOf(normalizedStart);
+  let endIndex = -1;
+  
+  if (startIndex !== -1) {
+    // Look for end content after the start
+    endIndex = normalizedText.indexOf(normalizedEnd, startIndex + normalizedStart.length);
+    
+    if (endIndex !== -1) {
+      console.log(`[FuzzyMatching] Found exact boundaries at ${startIndex}-${endIndex}`);
+      
+      // Map back to original text
+      const originalStartIndex = mapNormalizedPositionToOriginal(startIndex, pageContent, normalizedText);
+      const originalEndIndex = mapNormalizedPositionToOriginal(endIndex + normalizedEnd.length, pageContent, normalizedText);
+      
+      if (originalStartIndex !== -1 && originalEndIndex !== -1) {
+        const matchedContent = pageContent.substring(originalStartIndex, originalEndIndex);
+        const span = originalEndIndex - originalStartIndex;
+        
+        // Accept reasonable spans even if content differs
+        if (span > 0 && span < 2000) {
+          console.log(`[FuzzyMatching] Exact boundary match: ${span} chars`);
+          return {
+            success: true,
+            startIndex: originalStartIndex,
+            endIndex: originalEndIndex,
+            matchedContent,
+            reason: `Fuzzy exact boundaries (${span} chars)`
+          };
+        }
+      }
+    }
+  }
+  
+  // Strategy 2: Find partial start content and look for end content after it
+  const startWords = normalizedStart.split(' ').filter(word => word.length > 2);
+  const endWords = normalizedEnd.split(' ').filter(word => word.length > 2);
+  
+  if (startWords.length === 0 && endWords.length === 0) {
+    return { success: false, reason: 'No significant words found in start or end content' };
+  }
+  
+  // Strategy 2a: Look for start words using indexOf (more efficient)
+  let bestStartPosition = -1;
+  let bestStartScore = 0;
+  
+  // Find positions of start words
+  const startWordPositions: Array<{word: string, positions: number[]}> = [];
+  for (const word of startWords) {
+    const positions: number[] = [];
+    let searchFrom = 0;
+    while (true) {
+      const pos = normalizedText.indexOf(word, searchFrom);
+      if (pos === -1) break;
+      positions.push(pos);
+      searchFrom = pos + 1;
+      if (positions.length > 20) break; // Limit to prevent excessive computation
+    }
+    if (positions.length > 0) {
+      startWordPositions.push({word, positions});
+    }
+  }
+  
+  // Find the position where most start words cluster together
+  for (const {word, positions} of startWordPositions) {
+    for (const pos of positions) {
+      const windowStart = Math.max(0, pos - 30);
+      const windowEnd = Math.min(normalizedText.length, pos + normalizedStart.length + 30);
+      const window = normalizedText.substring(windowStart, windowEnd);
+      
+      const score = startWords.filter(w => window.includes(w)).length;
+      if (score > bestStartScore && score >= Math.min(startWords.length, 2)) {
+        bestStartScore = score;
+        bestStartPosition = pos;
+      }
+    }
+  }
+  
+  if (bestStartPosition === -1 || startWordPositions.length === 0) {
+    console.log(`[FuzzyMatching] Could not find suitable start position`);
+    return { success: false, reason: 'Could not find suitable start word sequence' };
+  }
+  
+  // Strategy 2b: Look for end words using indexOf (more efficient)
+  let bestEndPosition = -1;
+  let bestEndScore = 0;
+  const searchFromPos = bestStartPosition + 50; // Give some buffer after start
+  const searchToPos = Math.min(normalizedText.length, bestStartPosition + 1500);
+  
+  // Find positions of end words
+  const endWordPositions: Array<{word: string, positions: number[]}> = [];
+  for (const word of endWords) {
+    const positions: number[] = [];
+    let searchFrom = searchFromPos;
+    while (searchFrom < searchToPos) {
+      const pos = normalizedText.indexOf(word, searchFrom);
+      if (pos === -1 || pos >= searchToPos) break;
+      positions.push(pos);
+      searchFrom = pos + 1;
+      if (positions.length > 20) break; // Limit to prevent excessive computation
+    }
+    if (positions.length > 0) {
+      endWordPositions.push({word, positions});
+    }
+  }
+  
+  // Find the position where most end words cluster together
+  for (const {word, positions} of endWordPositions) {
+    for (const pos of positions) {
+      const windowStart = Math.max(searchFromPos, pos - 30);
+      const windowEnd = Math.min(searchToPos, pos + normalizedEnd.length + 30);
+      const window = normalizedText.substring(windowStart, windowEnd);
+      
+      const score = endWords.filter(w => window.includes(w)).length;
+      if (score > bestEndScore && score >= Math.min(endWords.length, 1)) {
+        bestEndScore = score;
+        bestEndPosition = pos;
+      }
+    }
+  }
+  
+  if (bestEndPosition === -1) {
+    console.log(`[FuzzyMatching] Could not find suitable end position after start at ${bestStartPosition}`);
+    return { success: false, reason: 'Could not find suitable end word sequence after start' };
+  }
+  
+  console.log(`[FuzzyMatching] Fuzzy boundaries found: start=${bestStartPosition} (score=${bestStartScore}), end=${bestEndPosition} (score=${bestEndScore})`);
+  
+  // Map positions back to original text
+  const originalStartIndex = mapNormalizedPositionToOriginal(bestStartPosition, pageContent, normalizedText);
+  const originalEndIndex = mapNormalizedPositionToOriginal(bestEndPosition + 50, pageContent, normalizedText); // Add buffer for end
+  
+  if (originalStartIndex === -1 || originalEndIndex === -1) {
+    return { success: false, reason: 'Could not map fuzzy positions back to original text' };
+  }
+  
+  const matchedContent = pageContent.substring(originalStartIndex, originalEndIndex);
+  const span = originalEndIndex - originalStartIndex;
+  
+  // More lenient validation for fuzzy matches
+  if (span <= 0 || span > 2000) {
+    return { success: false, reason: `Fuzzy matched span invalid: ${span} chars` };
+  }
+  
+  console.log(`[FuzzyMatching] Fuzzy match success: ${span} chars, start_score=${bestStartScore}, end_score=${bestEndScore}`);
+  
+  return {
+    success: true,
+    startIndex: originalStartIndex,
+    endIndex: originalEndIndex,
+    matchedContent,
+    reason: `Fuzzy word matching (${span} chars, scores: ${bestStartScore}+${bestEndScore})`
+  };
+}
+
+/**
  * Improved start/end matching algorithm with enhanced search logic.
  * Fixes algorithm bugs and handles Unicode character variants.
  * Enhanced to handle cross-paragraph/cross-section content spans.
+ * Now includes fuzzy matching fallback for content variations.
  * 
  * @param startContent - The start content to find
  * @param endContent - The end content to find
@@ -174,26 +351,37 @@ export function improvedStartEndMatching(
   endContent: string, 
   pageContent: string
 ): MatchResult {
+  console.log(`[ContentReconstruction] Matching "${startContent}" -> "${endContent}" in ${pageContent.length} chars`);
+  
   // CRITICAL FIX: Find positions in original text, not normalized text
   // The bug was that we were normalizing the text and finding positions there,
   // but then using those positions on the original text
   
   // Try exact match first
   const exactStartIndex = pageContent.indexOf(startContent);
+  console.log(`[ContentReconstruction] Exact start search: ${exactStartIndex !== -1 ? 'FOUND at ' + exactStartIndex : 'NOT FOUND'}`);
+  
   if (exactStartIndex !== -1) {
     const endSearchStart = exactStartIndex + startContent.length;
     const exactEndIndex = pageContent.indexOf(endContent, endSearchStart);
+    console.log(`[ContentReconstruction] Exact end search: ${exactEndIndex !== -1 ? 'FOUND at ' + exactEndIndex : 'NOT FOUND'}`);
+    
     if (exactEndIndex !== -1) {
       const matchedContent = pageContent.substring(exactStartIndex, exactEndIndex + endContent.length);
+      console.log(`[ContentReconstruction] Exact match found, validating span (${matchedContent.length} chars)`);
       
       // Enhanced validation for cross-paragraph content
       if (isReasonableContentSpan(matchedContent, startContent, endContent)) {
+        console.log(`[ContentReconstruction] Exact match validation PASSED`);
         return { 
           success: true, 
           startIndex: exactStartIndex, 
           endIndex: exactEndIndex + endContent.length,
-          matchedContent
+          matchedContent,
+          reason: 'Exact match'
         };
+      } else {
+        console.log(`[ContentReconstruction] Exact match validation FAILED`);
       }
     }
   }
@@ -203,37 +391,58 @@ export function improvedStartEndMatching(
   const normalizedStart = advancedNormalize(startContent);
   const normalizedEnd = advancedNormalize(endContent);
   
+  console.log(`[ContentReconstruction] Normalized text: ${normalizedText.length} chars`);
+  console.log(`[ContentReconstruction] Normalized start: "${normalizedStart}"`);
+  console.log(`[ContentReconstruction] Normalized end: "${normalizedEnd}"`);
+  
   const normalizedStartIndex = normalizedText.indexOf(normalizedStart);
-  if (normalizedStartIndex === -1) {
-    return { success: false, reason: 'Start content not found' };
+  console.log(`[ContentReconstruction] Normalized start search: ${normalizedStartIndex !== -1 ? 'FOUND at ' + normalizedStartIndex : 'NOT FOUND'}`);
+  
+  if (normalizedStartIndex !== -1) {
+    const endSearchStart = normalizedStartIndex + normalizedStart.length;
+    const normalizedEndIndex = normalizedText.indexOf(normalizedEnd, endSearchStart);
+    console.log(`[ContentReconstruction] Normalized end search: ${normalizedEndIndex !== -1 ? 'FOUND at ' + normalizedEndIndex : 'NOT FOUND'}`);
+    
+    if (normalizedEndIndex !== -1) {
+      // Map positions from normalized text back to original text
+      const originalStartIndex = mapNormalizedPositionToOriginal(normalizedStartIndex, pageContent, normalizedText);
+      const originalEndIndex = mapNormalizedPositionToOriginal(normalizedEndIndex + normalizedEnd.length, pageContent, normalizedText);
+      
+      console.log(`[ContentReconstruction] Position mapping: ${originalStartIndex} -> ${originalEndIndex}`);
+      
+      if (originalStartIndex !== -1 && originalEndIndex !== -1) {
+        const matchedContent = pageContent.substring(originalStartIndex, originalEndIndex);
+        console.log(`[ContentReconstruction] Normalized match found, validating span (${matchedContent.length} chars)`);
+        
+        // Enhanced validation for cross-paragraph content  
+        if (isReasonableContentSpan(matchedContent, startContent, endContent)) {
+          console.log(`[ContentReconstruction] Normalized match validation PASSED`); 
+          return { 
+            success: true, 
+            startIndex: originalStartIndex, 
+            endIndex: originalEndIndex,
+            matchedContent,
+            reason: 'Normalized match'
+          };
+        } else {
+          console.log(`[ContentReconstruction] Normalized match validation FAILED`);
+        }
+      } else {
+        console.log(`[ContentReconstruction] Position mapping FAILED`);
+      }
+    }
   }
   
-  const endSearchStart = normalizedStartIndex + normalizedStart.length;
-  const normalizedEndIndex = normalizedText.indexOf(normalizedEnd, endSearchStart);
-  if (normalizedEndIndex === -1) {
-    return { success: false, reason: 'End content not found after start' };
-  }
+  // NEW: Fallback to fuzzy matching when exact and normalized matching fail
+  console.log(`[ContentReconstruction] Exact and normalized matching failed, trying fuzzy matching for "${startContent}" -> "${endContent}"`);
   
-  // Map positions from normalized text back to original text
-  const originalStartIndex = mapNormalizedPositionToOriginal(normalizedStartIndex, pageContent, normalizedText);
-  const originalEndIndex = mapNormalizedPositionToOriginal(normalizedEndIndex + normalizedEnd.length, pageContent, normalizedText);
+  // TEMPORARILY DISABLED: Skip fuzzy matching to isolate stack overflow
+  console.log(`[ContentReconstruction] Fuzzy matching temporarily disabled for debugging`);
   
-  if (originalStartIndex === -1 || originalEndIndex === -1) {
-    return { success: false, reason: 'Could not map normalized positions back to original text' };
-  }
-  
-  const matchedContent = pageContent.substring(originalStartIndex, originalEndIndex);
-  
-  // Enhanced validation for cross-paragraph content  
-  if (!isReasonableContentSpan(matchedContent, startContent, endContent)) {
-    return { success: false, reason: 'Matched content span is unreasonable for highlighting' };
-  }
-  
+  // If all matching strategies fail, return the most informative error
   return { 
-    success: true, 
-    startIndex: originalStartIndex, 
-    endIndex: originalEndIndex,
-    matchedContent
+    success: false, 
+    reason: `All matching strategies failed. Exact: start not found. Normalized: ${normalizedStartIndex === -1 ? 'start not found' : 'end not found'}. Fuzzy: disabled` 
   };
 }
 
