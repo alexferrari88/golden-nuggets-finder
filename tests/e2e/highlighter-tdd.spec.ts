@@ -136,7 +136,7 @@ test.describe('Highlighter TDD - Blog Post Highlighting', () => {
     
     // Try to inject and use highlighter
     await cleanPage.addScriptTag({
-      path: './dist/chrome-mv3/content-scripts/content.js'
+      path: './dist/chrome-mv3-dev/content-scripts/content.js'
     });
     
     // Wait for scripts to load
@@ -182,7 +182,7 @@ test.describe('Highlighter TDD - Blog Post Highlighting', () => {
     
     // Inject highlighter
     await cleanPage.addScriptTag({
-      path: './dist/chrome-mv3/content-scripts/content.js'
+      path: './dist/chrome-mv3-dev/content-scripts/content.js'
     });
     await cleanPage.waitForTimeout(1000);
     
@@ -287,7 +287,7 @@ test.describe('Highlighter TDD - Blog Post Highlighting', () => {
     
     // Inject highlighter
     await cleanPage.addScriptTag({
-      path: './dist/chrome-mv3/content-scripts/content.js'
+      path: './dist/chrome-mv3-dev/content-scripts/content.js'
     });
     await cleanPage.waitForTimeout(1000);
     
@@ -409,7 +409,7 @@ test.describe('Highlighter TDD - Blog Post Highlighting', () => {
     
     // Inject the content script
     await cleanPage.addScriptTag({
-      path: './dist/chrome-mv3/content-scripts/content.js'
+      path: './dist/chrome-mv3-dev/content-scripts/content.js'
     });
     
     // Wait for scripts to load
@@ -705,7 +705,7 @@ test.describe('Highlighter TDD - Substack Article Highlighting', () => {
     
     // Inject highlighter
     await cleanPage.addScriptTag({
-      path: './dist/chrome-mv3/content-scripts/content.js'
+      path: './dist/chrome-mv3-dev/content-scripts/content.js'
     });
     
     // Wait for scripts to load
@@ -757,7 +757,7 @@ test.describe('Highlighter TDD - Substack Article Highlighting', () => {
     
     // Inject highlighter
     await cleanPage.addScriptTag({
-      path: './dist/chrome-mv3/content-scripts/content.js'
+      path: './dist/chrome-mv3-dev/content-scripts/content.js'
     });
     
     await cleanPage.waitForTimeout(1000);
@@ -792,7 +792,7 @@ test.describe('Highlighter TDD - Substack Article Highlighting', () => {
     
     // Inject highlighter
     await stealthPage.addScriptTag({
-      path: './dist/chrome-mv3/content-scripts/content.js'
+      path: './dist/chrome-mv3-dev/content-scripts/content.js'
     });
     
     await stealthPage.waitForTimeout(1000);
@@ -914,7 +914,7 @@ test.describe('Highlighter TDD - Substack Specific Failing Case', () => {
     
     // Inject highlighter
     await cleanPage.addScriptTag({
-      path: './dist/chrome-mv3/content-scripts/content.js'
+      path: './dist/chrome-mv3-dev/content-scripts/content.js'
     });
     await cleanPage.waitForTimeout(1000);
     
@@ -986,7 +986,7 @@ test.describe('Highlighter TDD - Substack Specific Failing Case', () => {
     
     // Inject highlighter
     await cleanPage.addScriptTag({
-      path: './dist/chrome-mv3/content-scripts/content.js'
+      path: './dist/chrome-mv3-dev/content-scripts/content.js'
     });
     await cleanPage.waitForTimeout(1000);
     
@@ -1079,7 +1079,7 @@ test.describe('Highlighter TDD - Character Mapping Debug', () => {
     
     // Inject highlighter
     await cleanPage.addScriptTag({
-      path: './dist/chrome-mv3/content-scripts/content.js'
+      path: './dist/chrome-mv3-dev/content-scripts/content.js'
     });
     await cleanPage.waitForTimeout(500);
     
@@ -1171,7 +1171,7 @@ test.describe('Highlighter TDD - Cross-Node Text Split Edge Cases', () => {
     
     // Inject highlighter
     await cleanPage.addScriptTag({
-      path: './dist/chrome-mv3/content-scripts/content.js'
+      path: './dist/chrome-mv3-dev/content-scripts/content.js'
     });
     
     await cleanPage.waitForTimeout(500);
@@ -1220,7 +1220,7 @@ test.describe('Highlighter TDD - Cross-Node Text Split Edge Cases', () => {
     
     // Inject highlighter
     await cleanPage.addScriptTag({
-      path: './dist/chrome-mv3/content-scripts/content.js'
+      path: './dist/chrome-mv3-dev/content-scripts/content.js'
     });
     
     await cleanPage.waitForTimeout(500);
@@ -1270,7 +1270,7 @@ test.describe('Highlighter TDD - Cross-Node Text Split Edge Cases', () => {
     
     // Inject highlighter
     await cleanPage.addScriptTag({
-      path: './dist/chrome-mv3/content-scripts/content.js'
+      path: './dist/chrome-mv3-dev/content-scripts/content.js'
     });
     
     await cleanPage.waitForTimeout(500);
@@ -1332,7 +1332,7 @@ test.describe('Highlighter TDD - Cross-Node Text Split Edge Cases', () => {
     
     // Inject highlighter
     await cleanPage.addScriptTag({
-      path: './dist/chrome-mv3/content-scripts/content.js'
+      path: './dist/chrome-mv3-dev/content-scripts/content.js'
     });
     
     await cleanPage.waitForTimeout(500);
