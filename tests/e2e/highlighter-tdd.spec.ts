@@ -269,6 +269,31 @@ test.describe('Highlighter TDD - Substack Article Highlighting', () => {
       startContent: "Demand more from others,",
       endContent: "want to help.",
       synthesis: "Advocates for proactively demanding clear, inspiring visions from leaders, which is vital for entrepreneurs and knowledge workers to evaluate potential collaborators, investors, or policymakers based on their ability to articulate a compelling future."
+    },
+    // Additional nuggets from user feedback that are failing
+    {
+      type: "model",
+      startContent: "A more specific question might",
+      endContent: "cultivate more of it?",
+      synthesis: "Provides a practical, actionable framework for entrepreneurs and knowledge workers to identify and cultivate critical virtues or traits needed in their organizations or society, offering a structured approach to problem-solving and positive change beyond abstract ethical debates."
+    },
+    {
+      type: "analogy",
+      startContent: "At the individual level, visualizing",
+      endContent: "manifest that future.",
+      synthesis: "Leverages the powerful analogy of elite athletes visualizing success to demonstrate how articulated vision makes daunting goals seem achievable, both individually and collectively. It highlights vision's role in motivation and aligning teams (velocity and force), directly relevant for leaders and project managers."
+    },
+    {
+      type: "explanation",
+      startContent: "Why is it in such",
+      endContent: "resolve and practice.",
+      synthesis: "Provides a candid explanation of a common challenge for modern knowledge workers: the pursuit of external validation ('gold stars') without a clear, internally-driven vision, leading to burnout and existential questioning. This insight is crucial for self-aware career development and avoiding common entrepreneurial pitfalls."
+    },
+    {
+      type: "model",
+      startContent: "How do we cultivate",
+      endContent: "or president, etc.)",
+      synthesis: "Offers a concrete, actionable framework with specific prompts ([Self], [Relationships], [World or work]) for individuals to cultivate a strong sense of vision. This directly helps software developers, entrepreneurs, and knowledge workers in personal goal setting, relationship building, and strategic problem-solving."
     }
   ];
 

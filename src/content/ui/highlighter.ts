@@ -341,7 +341,7 @@ export class Highlighter {
 
   /**
    * Highlight content by character range in the full page text
-   * Completely rewritten to handle cross-node splits properly
+   * Enhanced to handle cross-node splits and fragmented text properly
    */
   private highlightByCharacterRange(startIndex: number, endIndex: number): boolean {
     console.log(`[Highlighter] Highlighting character range ${startIndex}-${endIndex}`);
@@ -351,6 +351,41 @@ export class Highlighter {
     const expectedText = pageContent.substring(startIndex, endIndex);
     console.log(`[Highlighter] Expected text from range: "${expectedText.substring(0, 100)}..."`);
     
+    // Use a more robust approach to find text nodes
+    const result = this.findTextNodesForCharacterRange(startIndex, endIndex, pageContent);
+    
+    if (!result.success) {
+      console.log(`[Highlighter] Failed to find text nodes: ${result.reason}`);
+      return false;
+    }
+    
+    console.log(`[Highlighter] Found ${result.nodesToHighlight.length} nodes to highlight`);
+    
+    // Highlight all nodes without DOM invalidation
+    return this.safeMultiNodeHighlight(result.nodesToHighlight);
+  }
+
+  /**
+   * Find text nodes that correspond to a character range in the full page text
+   * Uses a more accurate approach that handles cross-node splits and fragmentation
+   */
+  private findTextNodesForCharacterRange(
+    startIndex: number, 
+    endIndex: number, 
+    pageContent: string
+  ): {
+    success: boolean;
+    reason?: string;
+    nodesToHighlight: Array<{
+      node: Text,
+      startPos: number,
+      endPos: number,
+      parent: Element
+    }>;
+  } {
+    const expectedText = pageContent.substring(startIndex, endIndex);
+    console.log(`[Highlighter] Looking for text: "${expectedText.substring(0, 50)}..."`);
+    
     const textNodes = this.getAllTextNodes(document.body);
     const nodesToHighlight: Array<{
       node: Text,
@@ -359,10 +394,48 @@ export class Highlighter {
       parent: Element
     }> = [];
     
-    let currentIndex = 0;
-    let foundAnyRelevantNodes = false;
+    // Try character-by-character mapping approach first
+    const charMappingResult = this.mapCharacterRangeToNodes(startIndex, endIndex, textNodes, pageContent);
+    if (charMappingResult.success) {
+      return charMappingResult;
+    }
     
-    // First pass: identify all nodes that intersect with our target range
+    console.log(`[Highlighter] Character mapping failed: ${charMappingResult.reason}`);
+    console.log(`[Highlighter] Trying content-based matching approach`);
+    
+    // Fallback: Find nodes that contain parts of our expected text
+    return this.findNodesByContentMatching(expectedText, textNodes);
+  }
+
+  /**
+   * Map character range to DOM nodes using precise character counting
+   */
+  private mapCharacterRangeToNodes(
+    startIndex: number,
+    endIndex: number,
+    textNodes: Text[],
+    pageContent: string
+  ): {
+    success: boolean;
+    reason?: string;
+    nodesToHighlight: Array<{
+      node: Text,
+      startPos: number,
+      endPos: number,
+      parent: Element
+    }>;
+  } {
+    const nodesToHighlight: Array<{
+      node: Text,
+      startPos: number,
+      endPos: number,
+      parent: Element
+    }> = [];
+    
+    let currentIndex = 0;
+    let foundStart = false;
+    let foundEnd = false;
+    
     for (let i = 0; i < textNodes.length; i++) {
       const node = textNodes[i];
       const nodeText = node.textContent || '';
@@ -370,9 +443,9 @@ export class Highlighter {
       const nodeStartIndex = currentIndex;
       const nodeEndIndex = currentIndex + nodeLength;
       
-      // Debug logging for nodes around our target range
-      if (nodeStartIndex <= endIndex + 100 && nodeEndIndex >= startIndex - 100) {
-        console.log(`[Highlighter] Node ${i} (${nodeStartIndex}-${nodeEndIndex}): "${nodeText.substring(0, 80)}..."`);
+      // Skip empty nodes
+      if (nodeLength === 0) {
+        continue;
       }
       
       // Check if this node intersects with our target range
@@ -383,11 +456,16 @@ export class Highlighter {
           continue;
         }
         
-        foundAnyRelevantNodes = true;
-        
-        // Calculate the intersection
+        // Calculate intersection boundaries
         const highlightStart = Math.max(0, startIndex - nodeStartIndex);
         const highlightEnd = Math.min(nodeLength, endIndex - nodeStartIndex);
+        
+        // Validate the intersection makes sense
+        if (highlightStart >= highlightEnd || highlightStart < 0 || highlightEnd > nodeLength) {
+          console.log(`[Highlighter] Invalid intersection for node ${i}: start=${highlightStart}, end=${highlightEnd}, nodeLength=${nodeLength}`);
+          currentIndex += nodeLength;
+          continue;
+        }
         
         const highlightText = nodeText.substring(highlightStart, highlightEnd);
         console.log(`[Highlighter] Node ${i} intersects (${nodeStartIndex}-${nodeEndIndex}): highlighting "${highlightText}"`);
@@ -398,22 +476,171 @@ export class Highlighter {
           endPos: highlightEnd,
           parent
         });
+        
+        if (!foundStart && nodeStartIndex <= startIndex && nodeEndIndex > startIndex) {
+          foundStart = true;
+        }
+        if (!foundEnd && nodeStartIndex < endIndex && nodeEndIndex >= endIndex) {
+          foundEnd = true;
+        }
       }
       
       currentIndex += nodeLength;
     }
     
-    if (!foundAnyRelevantNodes) {
-      console.log(`[Highlighter] No nodes found intersecting range ${startIndex}-${endIndex}`);
-      console.log(`[Highlighter] Total page content length: ${pageContent.length}`);
-      console.log(`[Highlighter] Total accumulated text node length: ${currentIndex}`);
-      return false;
+    // Verify we have reasonable coverage
+    if (nodesToHighlight.length === 0) {
+      return {
+        success: false,
+        reason: `No intersecting nodes found for range ${startIndex}-${endIndex}`,
+        nodesToHighlight: []
+      };
     }
     
-    console.log(`[Highlighter] Found ${nodesToHighlight.length} nodes to highlight`);
+    // Additional validation: check if the accumulated text makes sense
+    const accumulatedText = nodesToHighlight.map(item => 
+      item.node.textContent?.substring(item.startPos, item.endPos) || ''
+    ).join('');
     
-    // Second pass: safely highlight all nodes without DOM invalidation
-    return this.safeMultiNodeHighlight(nodesToHighlight);
+    const expectedText = pageContent.substring(startIndex, endIndex);
+    const normalizedAccumulated = this.normalizeText(accumulatedText);
+    const normalizedExpected = this.normalizeText(expectedText);
+    
+    // Allow some flexibility in matching
+    const similarity = this.calculateTextSimilarity(normalizedAccumulated, normalizedExpected);
+    console.log(`[Highlighter] Text similarity: ${similarity.toFixed(2)} (accumulated: "${normalizedAccumulated.substring(0, 50)}...", expected: "${normalizedExpected.substring(0, 50)}...")`);
+    
+    if (similarity < 0.7) {
+      return {
+        success: false,
+        reason: `Text similarity too low: ${similarity.toFixed(2)}`,
+        nodesToHighlight: []
+      };
+    }
+    
+    return {
+      success: true,
+      nodesToHighlight
+    };
+  }
+
+  /**
+   * Fallback approach: find nodes by matching content directly
+   */
+  private findNodesByContentMatching(
+    expectedText: string,
+    textNodes: Text[]
+  ): {
+    success: boolean;
+    reason?: string;
+    nodesToHighlight: Array<{
+      node: Text,
+      startPos: number,
+      endPos: number,
+      parent: Element
+    }>;
+  } {
+    const normalizedExpected = this.normalizeText(expectedText);
+    const expectedWords = normalizedExpected.split(' ').filter(word => word.length > 2);
+    
+    if (expectedWords.length === 0) {
+      return {
+        success: false,
+        reason: 'No significant words in expected text',
+        nodesToHighlight: []
+      };
+    }
+    
+    console.log(`[Highlighter] Content matching for words: [${expectedWords.slice(0, 5).join(', ')}]${expectedWords.length > 5 ? '...' : ''}`);
+    
+    const nodesToHighlight: Array<{
+      node: Text,
+      startPos: number,
+      endPos: number,
+      parent: Element
+    }> = [];
+    
+    // Find the first word to establish starting point
+    const firstWord = expectedWords[0];
+    let startNodeIndex = -1;
+    
+    for (let i = 0; i < textNodes.length; i++) {
+      const node = textNodes[i];
+      const nodeText = this.normalizeText(node.textContent || '');
+      
+      if (nodeText.includes(firstWord)) {
+        startNodeIndex = i;
+        console.log(`[Highlighter] Found first word "${firstWord}" in node ${i}`);
+        break;
+      }
+    }
+    
+    if (startNodeIndex === -1) {
+      return {
+        success: false,
+        reason: `First word "${firstWord}" not found in any node`,
+        nodesToHighlight: []
+      };
+    }
+    
+    // Collect nodes that contain significant portions of our text
+    const maxNodesToCheck = Math.min(20, textNodes.length - startNodeIndex);
+    let collectedText = '';
+    
+    for (let offset = 0; offset < maxNodesToCheck; offset++) {
+      const nodeIndex = startNodeIndex + offset;
+      if (nodeIndex >= textNodes.length) break;
+      
+      const node = textNodes[nodeIndex];
+      const parent = node.parentElement;
+      if (!parent) continue;
+      
+      const nodeText = node.textContent || '';
+      const normalizedNodeText = this.normalizeText(nodeText);
+      
+      // Check if this node contains relevant content
+      const relevantWords = expectedWords.filter(word => normalizedNodeText.includes(word));
+      if (relevantWords.length > 0 || offset === 0) {
+        // For first node or nodes with relevant words, include the whole node
+        nodesToHighlight.push({
+          node,
+          startPos: 0,
+          endPos: nodeText.length,
+          parent
+        });
+        
+        collectedText += ' ' + normalizedNodeText;
+        console.log(`[Highlighter] Including node ${nodeIndex} with ${relevantWords.length} relevant words`);
+      }
+      
+      // Check if we have enough content
+      const similarity = this.calculateTextSimilarity(collectedText.trim(), normalizedExpected);
+      if (similarity > 0.8 && collectedText.length >= normalizedExpected.length * 0.8) {
+        console.log(`[Highlighter] Content matching successful with similarity ${similarity.toFixed(2)}`);
+        break;
+      }
+    }
+    
+    return {
+      success: nodesToHighlight.length > 0,
+      reason: nodesToHighlight.length === 0 ? 'No nodes with relevant content found' : undefined,
+      nodesToHighlight
+    };
+  }
+
+  /**
+   * Calculate text similarity using simple word overlap
+   */
+  private calculateTextSimilarity(text1: string, text2: string): number {
+    const words1 = text1.split(' ').filter(word => word.length > 2);
+    const words2 = text2.split(' ').filter(word => word.length > 2);
+    
+    if (words1.length === 0 || words2.length === 0) {
+      return 0;
+    }
+    
+    const commonWords = words1.filter(word => words2.includes(word));
+    return commonWords.length / Math.max(words1.length, words2.length);
   }
 
   /**
