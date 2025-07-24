@@ -33,12 +33,12 @@ export const GOLDEN_NUGGET_SCHEMA = {
 					startContent: {
 						type: "string",
 						description:
-							"The first few words (max 5) of the original content of the golden nugget verbatim, without any changes to wording/symbols/casing.",
+							"The first (max 5) words of the golden nugget verbatim, without any changes to wording/symbols/casing.",
 					},
 					endContent: {
 						type: "string",
 						description:
-							"The last few words (max 5) of the original content of the golden nugget verbatim, without any changes to wording/symbols/casing.",
+							"The last (max 5) words of the golden nugget verbatim, without any changes to wording/symbols/casing.",
 					},
 					synthesis: {
 						type: "string",

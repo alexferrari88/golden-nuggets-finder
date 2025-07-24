@@ -62,7 +62,7 @@ describe('GOLDEN_NUGGET_SCHEMA', () => {
       const startContentProperty = itemsSchema.properties.startContent;
       
       expect(startContentProperty.type).toBe('string');
-      expect(startContentProperty.description).toBe('The first few words (max 5) of the original content of the golden nugget verbatim, without any changes to wording/symbols/casing.');
+      expect(startContentProperty.description).toBe('The first (max 5) words of the golden nugget verbatim, without any changes to wording/symbols/casing.');
     });
 
     it('should have correct endContent property structure', () => {
@@ -70,7 +70,7 @@ describe('GOLDEN_NUGGET_SCHEMA', () => {
       const endContentProperty = itemsSchema.properties.endContent;
       
       expect(endContentProperty.type).toBe('string');
-      expect(endContentProperty.description).toBe('The last few words (max 5) of the original content of the golden nugget verbatim, without any changes to wording/symbols/casing.');
+      expect(endContentProperty.description).toBe('The last (max 5) words of the golden nugget verbatim, without any changes to wording/symbols/casing.');
     });
   });
 

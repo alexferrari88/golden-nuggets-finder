@@ -9,6 +9,7 @@ import { improvedStartEndMatching, advancedNormalize } from '../../shared/conten
 export class Highlighter {
   private highlightedElements: Set<HTMLElement> = new Set();
   private highlightClass = 'golden-nugget-highlight';
+  private originalTextBackup: Map<HTMLElement, { originalText: string; parent: Element; nextSibling: Node | null }> = new Map();
 
   constructor() {
     this.injectStyles();
@@ -24,10 +25,32 @@ export class Highlighter {
     try {
       console.log(`[Highlighter] Attempting to highlight nugget: "${nugget.startContent}" -> "${nugget.endContent}"`);
       
+      // Pre-validation: ensure content isn't unreasonably long
+      const expectedLength = nugget.startContent.length + nugget.endContent.length;
+      if (expectedLength > 500) {
+        console.log(`[Highlighter] Nugget content too long (${expectedLength} chars), refusing to highlight`);
+        return false;
+      }
+      
       // Find text nodes that contain our content
       const result = this.findAndHighlightContent(nugget.startContent, nugget.endContent);
       
       if (result) {
+        // Post-validation: check if we highlighted too much (only for extreme cases)
+        const highlightedElements = document.querySelectorAll('.golden-nugget-highlight');
+        const totalHighlighted = Array.from(highlightedElements).reduce((sum, el) => 
+          sum + (el.textContent?.length || 0), 0
+        );
+        
+        console.log(`[Highlighter] Total highlighted: ${totalHighlighted} chars across ${highlightedElements.length} elements`);
+        
+        // Only reject if highlighting is EXTREMELY excessive (>1500 chars or >15 elements)
+        if (totalHighlighted > 1500 || highlightedElements.length > 15) {
+          console.log(`[Highlighter] Extremely over-highlighted (${totalHighlighted} chars, ${highlightedElements.length} elements), rolling back highlights`);
+          this.rollbackHighlights(Array.from(highlightedElements));
+          return false;
+        }
+        
         console.log(`[Highlighter] Successfully highlighted nugget`);
         return true;
       } else {
@@ -302,41 +325,174 @@ export class Highlighter {
 
   /**
    * Use content reconstruction approach to find and highlight content
+   * Hybrid approach: try precise DOM-based first, fall back to original method
    */
   private findWithContentReconstruction(startContent: string, endContent: string): boolean {
     console.log(`[Highlighter] Trying content reconstruction approach`);
     
-    // Get the full page text content
-    const pageContent = document.body.textContent || '';
-    console.log(`[Highlighter] Page content length: ${pageContent.length} chars`);
+    // STRATEGY 1: Try precise DOM-based approach first
+    const textNodes = this.getAllTextNodes(document.body);
+    const domBasedResult = this.buildDOMBasedTextMapping(textNodes);
     
-    // Debug: show context around expected content
-    const startPos = pageContent.indexOf(startContent);
-    const endPos = pageContent.indexOf(endContent);
-    if (startPos !== -1 && endPos !== -1) {
-      console.log(`[Highlighter] Found raw positions - start: ${startPos}, end: ${endPos + endContent.length}`);
-      console.log(`[Highlighter] Raw content slice: "${pageContent.substring(startPos, endPos + endContent.length).substring(0, 100)}..."`);
-    } else {
-      console.log(`[Highlighter] Could not find raw positions - startPos: ${startPos}, endPos: ${endPos}`);
+    if (domBasedResult.success) {
+      const { fullText, nodePositions } = domBasedResult;
+      console.log(`[Highlighter] Trying DOM-based approach (${fullText.length} chars from ${nodePositions.length} nodes)`);
+      
+      const matchResult = improvedStartEndMatching(startContent, endContent, fullText);
+      
+      if (matchResult.success && matchResult.startIndex !== undefined && matchResult.endIndex !== undefined) {
+        console.log(`[Highlighter] DOM-based match found at ${matchResult.startIndex}-${matchResult.endIndex}`);
+        
+        const result = this.highlightByDOMBasedRange(matchResult.startIndex, matchResult.endIndex, nodePositions);
+        if (result) {
+          console.log(`[Highlighter] DOM-based highlighting succeeded`);
+          return true;
+        }
+      }
     }
     
-    // Use the improved matching from content-reconstruction
+    console.log(`[Highlighter] DOM-based approach failed, trying original method`);
+    
+    // STRATEGY 2: Fall back to original approach with safety validation
+    const pageContent = document.body.textContent || '';
+    console.log(`[Highlighter] Trying original content reconstruction (${pageContent.length} chars)`);
+    
     const matchResult = improvedStartEndMatching(startContent, endContent, pageContent);
-    console.log(`[Highlighter] Content reconstruction result:`, matchResult);
+    console.log(`[Highlighter] Original matching result:`, matchResult);
     
     if (matchResult.success && matchResult.startIndex !== undefined && matchResult.endIndex !== undefined) {
-      console.log(`[Highlighter] Content reconstruction found match at positions ${matchResult.startIndex}-${matchResult.endIndex}`);
+      console.log(`[Highlighter] Original method found match at ${matchResult.startIndex}-${matchResult.endIndex}`);
       
-      // Debug: show what text is at those positions
-      const foundText = pageContent.substring(matchResult.startIndex, matchResult.endIndex);
-      console.log(`[Highlighter] Text at found positions: "${foundText.substring(0, 100)}..."`);
-      
-      // Now we need to find these character positions in the DOM and highlight them
+      // Use original character range mapping but with safety checks
       return this.highlightByCharacterRange(matchResult.startIndex, matchResult.endIndex);
     }
     
-    console.log(`[Highlighter] Content reconstruction failed: ${matchResult.reason}`);
+    console.log(`[Highlighter] All content reconstruction strategies failed`);
     return false;
+  }
+
+  /**
+   * Build text content and position mapping directly from DOM nodes
+   * This eliminates DOM/textContent mismatch issues
+   */
+  private buildDOMBasedTextMapping(textNodes: Text[]): {
+    success: boolean;
+    reason?: string;
+    fullText: string;
+    nodePositions: Array<{
+      node: Text;
+      parent: Element;
+      startIndex: number;
+      endIndex: number;
+    }>;
+  } {
+    const nodePositions: Array<{
+      node: Text;
+      parent: Element;
+      startIndex: number;
+      endIndex: number;
+    }> = [];
+    
+    let fullText = '';
+    
+    for (const node of textNodes) {
+      const parent = node.parentElement;
+      if (!parent) continue;
+      
+      const nodeText = node.textContent || '';
+      if (nodeText.length === 0) continue;
+      
+      const startIndex = fullText.length;
+      const endIndex = startIndex + nodeText.length;
+      
+      nodePositions.push({
+        node,
+        parent,
+        startIndex,
+        endIndex
+      });
+      
+      fullText += nodeText;
+    }
+    
+    if (nodePositions.length === 0) {
+      return {
+        success: false,
+        reason: 'No valid text nodes found',
+        fullText: '',
+        nodePositions: []
+      };
+    }
+    
+    return {
+      success: true,
+      fullText,
+      nodePositions
+    };
+  }
+
+  /**
+   * Highlight content by character range using precise DOM-based mapping
+   */
+  private highlightByDOMBasedRange(
+    startIndex: number, 
+    endIndex: number, 
+    nodePositions: Array<{
+      node: Text;
+      parent: Element;
+      startIndex: number;
+      endIndex: number;
+    }>
+  ): boolean {
+    console.log(`[Highlighter] Highlighting DOM-based range ${startIndex}-${endIndex}`);
+    
+    const nodesToHighlight: Array<{
+      node: Text,
+      startPos: number,
+      endPos: number,
+      parent: Element
+    }> = [];
+    
+    // Find nodes that intersect with our target range
+    for (const nodePos of nodePositions) {
+      if (nodePos.startIndex < endIndex && nodePos.endIndex > startIndex) {
+        // Calculate precise intersection
+        const highlightStart = Math.max(0, startIndex - nodePos.startIndex);
+        const highlightEnd = Math.min(nodePos.node.textContent?.length || 0, endIndex - nodePos.startIndex);
+        
+        if (highlightStart < highlightEnd && highlightStart >= 0) {
+          const highlightText = (nodePos.node.textContent || '').substring(highlightStart, highlightEnd);
+          console.log(`[Highlighter] DOM node intersects: highlighting "${highlightText}"`);
+          
+          nodesToHighlight.push({
+            node: nodePos.node,
+            startPos: highlightStart,
+            endPos: highlightEnd,
+            parent: nodePos.parent
+          });
+        }
+      }
+    }
+    
+    if (nodesToHighlight.length === 0) {
+      console.log(`[Highlighter] No DOM nodes intersect with range ${startIndex}-${endIndex}`);
+      return false;
+    }
+    
+    // Validate that we're not highlighting too much content
+    const totalHighlightLength = nodesToHighlight.reduce((sum, item) => 
+      sum + (item.endPos - item.startPos), 0
+    );
+    
+    console.log(`[Highlighter] Will highlight ${nodesToHighlight.length} nodes, ${totalHighlightLength} chars total`);
+    
+    // Safety check: don't highlight excessively long content
+    if (totalHighlightLength > 1000) {
+      console.log(`[Highlighter] Refusing to highlight ${totalHighlightLength} chars (too long)`);
+      return false;
+    }
+    
+    return this.safeMultiNodeHighlight(nodesToHighlight);
   }
 
   /**
@@ -409,6 +565,7 @@ export class Highlighter {
 
   /**
    * Map character range to DOM nodes using precise character counting
+   * Fixed to handle text content extraction more accurately
    */
   private mapCharacterRangeToNodes(
     startIndex: number,
@@ -432,63 +589,81 @@ export class Highlighter {
       parent: Element
     }> = [];
     
-    let currentIndex = 0;
-    let foundStart = false;
-    let foundEnd = false;
+    console.log(`[Highlighter] Mapping character range ${startIndex}-${endIndex} to DOM nodes`);
     
+    // Build a more accurate mapping by reconstructing text from DOM
+    let currentIndex = 0;
+    const nodePositions: Array<{
+      node: Text,
+      startIndex: number,
+      endIndex: number,
+      parent: Element
+    }> = [];
+    
+    // First pass: build accurate position mapping
     for (let i = 0; i < textNodes.length; i++) {
       const node = textNodes[i];
       const nodeText = node.textContent || '';
-      const nodeLength = nodeText.length;
-      const nodeStartIndex = currentIndex;
-      const nodeEndIndex = currentIndex + nodeLength;
+      const parent = node.parentElement;
       
-      // Skip empty nodes
-      if (nodeLength === 0) {
+      if (!parent || nodeText.length === 0) {
         continue;
       }
       
-      // Check if this node intersects with our target range
-      if (nodeStartIndex < endIndex && nodeEndIndex > startIndex) {
-        const parent = node.parentElement;
-        if (!parent) {
-          currentIndex += nodeLength;
-          continue;
-        }
-        
-        // Calculate intersection boundaries
-        const highlightStart = Math.max(0, startIndex - nodeStartIndex);
-        const highlightEnd = Math.min(nodeLength, endIndex - nodeStartIndex);
-        
-        // Validate the intersection makes sense
-        if (highlightStart >= highlightEnd || highlightStart < 0 || highlightEnd > nodeLength) {
-          console.log(`[Highlighter] Invalid intersection for node ${i}: start=${highlightStart}, end=${highlightEnd}, nodeLength=${nodeLength}`);
-          currentIndex += nodeLength;
-          continue;
-        }
-        
-        const highlightText = nodeText.substring(highlightStart, highlightEnd);
-        console.log(`[Highlighter] Node ${i} intersects (${nodeStartIndex}-${nodeEndIndex}): highlighting "${highlightText}"`);
-        
-        nodesToHighlight.push({
-          node,
-          startPos: highlightStart,
-          endPos: highlightEnd,
-          parent
-        });
-        
-        if (!foundStart && nodeStartIndex <= startIndex && nodeEndIndex > startIndex) {
-          foundStart = true;
-        }
-        if (!foundEnd && nodeStartIndex < endIndex && nodeEndIndex >= endIndex) {
-          foundEnd = true;
-        }
-      }
+      nodePositions.push({
+        node,
+        startIndex: currentIndex,
+        endIndex: currentIndex + nodeText.length,
+        parent
+      });
       
-      currentIndex += nodeLength;
+      currentIndex += nodeText.length;
     }
     
-    // Verify we have reasonable coverage
+    console.log(`[Highlighter] Built position mapping: ${nodePositions.length} nodes, total length: ${currentIndex}`);
+    console.log(`[Highlighter] Page content length: ${pageContent.length}`);
+    
+    // Verify the reconstructed text matches the expected page content structure
+    const reconstructedText = nodePositions.map(pos => pos.node.textContent || '').join('');
+    const similarity = this.calculateTextSimilarity(
+      this.normalizeText(reconstructedText), 
+      this.normalizeText(pageContent)
+    );
+    
+    console.log(`[Highlighter] DOM text vs page content similarity: ${similarity.toFixed(2)}`);
+    
+    if (similarity < 0.8) {
+      console.log(`[Highlighter] DOM text doesn't match page content well enough (${similarity.toFixed(2)})`);
+      return {
+        success: false,
+        reason: `DOM reconstruction similarity too low: ${similarity.toFixed(2)}`,
+        nodesToHighlight: []
+      };
+    }
+    
+    // Second pass: find nodes that intersect with our target range
+    for (const nodePos of nodePositions) {
+      // Check if this node intersects with our target range
+      if (nodePos.startIndex < endIndex && nodePos.endIndex > startIndex) {
+        // Calculate precise intersection boundaries
+        const highlightStart = Math.max(0, startIndex - nodePos.startIndex);
+        const highlightEnd = Math.min(nodePos.node.textContent?.length || 0, endIndex - nodePos.startIndex);
+        
+        // Validate the intersection
+        if (highlightStart < highlightEnd && highlightStart >= 0) {
+          const highlightText = (nodePos.node.textContent || '').substring(highlightStart, highlightEnd);
+          console.log(`[Highlighter] Node intersects (${nodePos.startIndex}-${nodePos.endIndex}): highlighting "${highlightText}"`);
+          
+          nodesToHighlight.push({
+            node: nodePos.node,
+            startPos: highlightStart,
+            endPos: highlightEnd,
+            parent: nodePos.parent
+          });
+        }
+      }
+    }
+    
     if (nodesToHighlight.length === 0) {
       return {
         success: false,
@@ -497,23 +672,24 @@ export class Highlighter {
       };
     }
     
-    // Additional validation: check if the accumulated text makes sense
+    // Final validation: check if the accumulated highlighted text makes sense
     const accumulatedText = nodesToHighlight.map(item => 
-      item.node.textContent?.substring(item.startPos, item.endPos) || ''
+      (item.node.textContent || '').substring(item.startPos, item.endPos)
     ).join('');
     
     const expectedText = pageContent.substring(startIndex, endIndex);
     const normalizedAccumulated = this.normalizeText(accumulatedText);
     const normalizedExpected = this.normalizeText(expectedText);
     
-    // Allow some flexibility in matching
-    const similarity = this.calculateTextSimilarity(normalizedAccumulated, normalizedExpected);
-    console.log(`[Highlighter] Text similarity: ${similarity.toFixed(2)} (accumulated: "${normalizedAccumulated.substring(0, 50)}...", expected: "${normalizedExpected.substring(0, 50)}...")`);
+    const textSimilarity = this.calculateTextSimilarity(normalizedAccumulated, normalizedExpected);
+    console.log(`[Highlighter] Final text similarity: ${textSimilarity.toFixed(2)}`);
+    console.log(`[Highlighter] Accumulated: "${normalizedAccumulated.substring(0, 80)}..."`);
+    console.log(`[Highlighter] Expected: "${normalizedExpected.substring(0, 80)}..."`);
     
-    if (similarity < 0.7) {
+    if (textSimilarity < 0.7) {
       return {
         success: false,
-        reason: `Text similarity too low: ${similarity.toFixed(2)}`,
+        reason: `Final text similarity too low: ${textSimilarity.toFixed(2)}`,
         nodesToHighlight: []
       };
     }
@@ -526,6 +702,7 @@ export class Highlighter {
 
   /**
    * Fallback approach: find nodes by matching content directly
+   * Fixed to be more precise and avoid highlighting entire nodes unnecessarily
    */
   private findNodesByContentMatching(
     expectedText: string,
@@ -552,7 +729,10 @@ export class Highlighter {
     }
     
     console.log(`[Highlighter] Content matching for words: [${expectedWords.slice(0, 5).join(', ')}]${expectedWords.length > 5 ? '...' : ''}`);
+    console.log(`[Highlighter] Expected text: "${normalizedExpected.substring(0, 100)}..."`);
     
+    // Strategy: Find nodes that contain a significant portion of our expected text
+    // and try to extract just the relevant portions
     const nodesToHighlight: Array<{
       node: Text,
       startPos: number,
@@ -560,70 +740,139 @@ export class Highlighter {
       parent: Element
     }> = [];
     
-    // Find the first word to establish starting point
-    const firstWord = expectedWords[0];
-    let startNodeIndex = -1;
+    // Look for the start of our expected text by finding nodes containing the first few words
+    const firstFewWords = expectedWords.slice(0, Math.min(3, expectedWords.length)).join(' ');
+    console.log(`[Highlighter] Looking for start pattern: "${firstFewWords}"`);
+    
+    let bestStartNode = -1;
+    let bestStartPos = -1;
+    let bestStartScore = 0;
     
     for (let i = 0; i < textNodes.length; i++) {
       const node = textNodes[i];
       const nodeText = this.normalizeText(node.textContent || '');
       
-      if (nodeText.includes(firstWord)) {
-        startNodeIndex = i;
-        console.log(`[Highlighter] Found first word "${firstWord}" in node ${i}`);
-        break;
+      // Check if this node contains the start pattern
+      const startPos = nodeText.indexOf(firstFewWords);
+      if (startPos !== -1) {
+        // Calculate how much of our expected text this node covers
+        const score = this.calculateTextSimilarity(nodeText, normalizedExpected);
+        console.log(`[Highlighter] Node ${i} contains start pattern at pos ${startPos}, score: ${score.toFixed(2)}`);
+        
+        if (score > bestStartScore) {
+          bestStartScore = score;
+          bestStartNode = i;
+          bestStartPos = startPos;
+        }
       }
     }
     
-    if (startNodeIndex === -1) {
+    if (bestStartNode === -1 || bestStartScore < 0.3) {
+      console.log(`[Highlighter] Could not find good start node (best score: ${bestStartScore.toFixed(2)})`);
       return {
         success: false,
-        reason: `First word "${firstWord}" not found in any node`,
+        reason: `Could not find start pattern "${firstFewWords}" with sufficient similarity`,
         nodesToHighlight: []
       };
     }
     
-    // Collect nodes that contain significant portions of our text
-    const maxNodesToCheck = Math.min(20, textNodes.length - startNodeIndex);
-    let collectedText = '';
+    console.log(`[Highlighter] Best start node: ${bestStartNode} at position ${bestStartPos} with score ${bestStartScore.toFixed(2)}`);
     
-    for (let offset = 0; offset < maxNodesToCheck; offset++) {
-      const nodeIndex = startNodeIndex + offset;
-      if (nodeIndex >= textNodes.length) break;
-      
-      const node = textNodes[nodeIndex];
+    // From the best start node, try to find a reasonable span that covers our expected text
+    let accumulatedText = '';
+    let wordCount = 0;
+    const targetWordCount = expectedWords.length;
+    
+    for (let i = bestStartNode; i < Math.min(bestStartNode + 10, textNodes.length); i++) {
+      const node = textNodes[i];
       const parent = node.parentElement;
       if (!parent) continue;
       
       const nodeText = node.textContent || '';
       const normalizedNodeText = this.normalizeText(nodeText);
       
-      // Check if this node contains relevant content
-      const relevantWords = expectedWords.filter(word => normalizedNodeText.includes(word));
-      if (relevantWords.length > 0 || offset === 0) {
-        // For first node or nodes with relevant words, include the whole node
+      // For the first node, start from the best position we found
+      let nodeStartPos = (i === bestStartNode) ? bestStartPos : 0;
+      let nodeEndPos = nodeText.length;
+      
+      // For start node, try to find more precise boundaries
+      if (i === bestStartNode) {
+        // Try to find where our expected text ends in this node
+        const lastExpectedWords = expectedWords.slice(-Math.min(2, expectedWords.length)).join(' ');
+        const endSearchPos = normalizedNodeText.indexOf(lastExpectedWords);
+        
+        if (endSearchPos !== -1 && endSearchPos > nodeStartPos) {
+          nodeEndPos = Math.min(nodeEndPos, endSearchPos + lastExpectedWords.length + 10);
+        } else {
+          // Fallback: limit to reasonable length from start position
+          const maxLength = Math.max(100, normalizedExpected.length * 1.5);
+          nodeEndPos = Math.min(nodeEndPos, nodeStartPos + maxLength);
+        }
+      } else {
+        // For subsequent nodes, be more conservative
+        const maxLength = Math.max(50, normalizedExpected.length);
+        nodeEndPos = Math.min(nodeEndPos, nodeStartPos + maxLength);
+      }
+      
+      const nodeSlice = nodeText.substring(nodeStartPos, nodeEndPos);
+      const normalizedSlice = this.normalizeText(nodeSlice);
+      
+      // Count relevant words in this slice
+      const sliceWords = normalizedSlice.split(' ').filter(word => word.length > 2);
+      const relevantWords = sliceWords.filter(word => expectedWords.includes(word));
+      
+      console.log(`[Highlighter] Node ${i}: ${relevantWords.length}/${sliceWords.length} relevant words`);
+      console.log(`[Highlighter] Node slice (${nodeStartPos}-${nodeEndPos}): "${nodeSlice.substring(0, 80)}..."`);
+      
+      // Be more selective about what nodes to include
+      const relevanceRatio = relevantWords.length / Math.max(sliceWords.length, 1);
+      if ((relevantWords.length > 0 && relevanceRatio > 0.3) || i === bestStartNode) {
+        // Additional check: don't add if the slice is too long without good relevance
+        if (nodeSlice.length > 200 && relevanceRatio < 0.5) {
+          console.log(`[Highlighter] Skipping node ${i}: too long (${nodeSlice.length}) with low relevance (${relevanceRatio.toFixed(2)})`);
+          continue;
+        }
+        
         nodesToHighlight.push({
           node,
-          startPos: 0,
-          endPos: nodeText.length,
+          startPos: nodeStartPos,
+          endPos: nodeEndPos,
           parent
         });
         
-        collectedText += ' ' + normalizedNodeText;
-        console.log(`[Highlighter] Including node ${nodeIndex} with ${relevantWords.length} relevant words`);
+        accumulatedText += ' ' + normalizedSlice;
+        wordCount += sliceWords.length;
+        
+        console.log(`[Highlighter] Added node ${i} (${nodeStartPos}-${nodeEndPos}): "${nodeSlice.substring(0, 50)}..."`);
+      } else {
+        console.log(`[Highlighter] Skipping node ${i}: insufficient relevance (${relevanceRatio.toFixed(2)})`);
       }
       
-      // Check if we have enough content
-      const similarity = this.calculateTextSimilarity(collectedText.trim(), normalizedExpected);
-      if (similarity > 0.8 && collectedText.length >= normalizedExpected.length * 0.8) {
-        console.log(`[Highlighter] Content matching successful with similarity ${similarity.toFixed(2)}`);
+      // Stop early if we have enough content and good similarity
+      const currentSimilarity = this.calculateTextSimilarity(accumulatedText.trim(), normalizedExpected);
+      if (currentSimilarity > 0.7 && wordCount >= targetWordCount * 0.8) {
+        console.log(`[Highlighter] Early stop: similarity ${currentSimilarity.toFixed(2)}, words ${wordCount}/${targetWordCount}`);
+        break;
+      }
+      
+      // Hard stop if we've covered too much content
+      if (wordCount >= targetWordCount * 2 || accumulatedText.length > normalizedExpected.length * 3) {
+        console.log(`[Highlighter] Hard stop: too much content (${wordCount} words, ${accumulatedText.length} chars)`);
         break;
       }
     }
     
+    if (nodesToHighlight.length === 0) {
+      return {
+        success: false,
+        reason: 'No nodes with sufficient relevant content found',
+        nodesToHighlight: []
+      };
+    }
+    
+    console.log(`[Highlighter] Content matching found ${nodesToHighlight.length} nodes to highlight`);
     return {
-      success: nodesToHighlight.length > 0,
-      reason: nodesToHighlight.length === 0 ? 'No nodes with relevant content found' : undefined,
+      success: true,
       nodesToHighlight
     };
   }
@@ -645,6 +894,7 @@ export class Highlighter {
 
   /**
    * Safely highlight multiple nodes without DOM invalidation
+   * Uses atomic replacement with backup for rollback safety
    */
   private safeMultiNodeHighlight(nodesToHighlight: Array<{
     node: Text,
@@ -654,10 +904,16 @@ export class Highlighter {
   }>): boolean {
     console.log(`[Highlighter] Safely highlighting ${nodesToHighlight.length} nodes`);
     
-    let successCount = 0;
+    const highlightOperations: Array<{
+      node: Text;
+      parent: Element;
+      nextSibling: Node | null;
+      originalText: string;
+      replacementNodes: Node[];
+      span: HTMLElement;
+    }> = [];
     
-    // Process nodes in reverse order to avoid DOM invalidation
-    // When we modify later nodes first, it doesn't affect the positions of earlier nodes
+    // PHASE 1: Prepare all operations without modifying DOM
     for (let i = nodesToHighlight.length - 1; i >= 0; i--) {
       const { node, startPos, endPos, parent } = nodesToHighlight[i];
       
@@ -667,7 +923,7 @@ export class Highlighter {
         const highlightText = originalText.substring(startPos, endPos);
         const afterText = originalText.substring(endPos);
         
-        console.log(`[Highlighter] Processing node ${i}: highlighting "${highlightText}"`);
+        console.log(`[Highlighter] Preparing node ${i}: highlighting "${highlightText.substring(0, 50)}..."`);
         
         // Create highlight span
         const span = document.createElement('span');
@@ -684,19 +940,71 @@ export class Highlighter {
           replacementNodes.push(document.createTextNode(afterText));
         }
         
-        // Replace the original node with the new content
-        const nextSibling = node.nextSibling;
+        // Store operation details
+        highlightOperations.push({
+          node,
+          parent,
+          nextSibling: node.nextSibling,
+          originalText,
+          replacementNodes,
+          span
+        });
+        
+      } catch (error) {
+        console.error(`[Highlighter] Error preparing node ${i}:`, error);
+        // Clean up any prepared spans from failed operations
+        highlightOperations.forEach(op => {
+          if (op.span.parentNode) {
+            op.span.parentNode.removeChild(op.span);
+          }
+        });
+        return false;
+      }
+    }
+    
+    // PHASE 2: Execute all operations atomically
+    let successCount = 0;
+    const appliedOperations: typeof highlightOperations = [];
+    
+    for (const operation of highlightOperations) {
+      try {
+        const { node, parent, nextSibling, originalText, replacementNodes, span } = operation;
+        
+        // Verify the node is still valid (hasn't been modified by previous operations)
+        if (node.parentNode !== parent) {
+          console.warn(`[Highlighter] Node parent changed, skipping operation`);
+          continue;
+        }
+        
+        // Create backup BEFORE making any changes
+        this.originalTextBackup.set(span, {
+          originalText,
+          parent,
+          nextSibling
+        });
+        
+        // Atomic replacement: remove original and insert replacements
         parent.removeChild(node);
         
+        // Insert replacement nodes
         for (const newNode of replacementNodes) {
           parent.insertBefore(newNode, nextSibling);
         }
         
+        // Track successful operation
         this.highlightedElements.add(span);
+        appliedOperations.push(operation);
         successCount++;
         
+        console.log(`[Highlighter] Successfully applied operation for "${originalText.substring(0, 30)}..."`);
+        
       } catch (error) {
-        console.error(`[Highlighter] Error highlighting node ${i}:`, error);
+        console.error(`[Highlighter] Error applying operation:`, error);
+        
+        // ROLLBACK: If any operation fails, rollback all applied operations
+        console.log(`[Highlighter] Rolling back ${appliedOperations.length} applied operations due to error`);
+        this.rollbackHighlights(appliedOperations.map(op => op.span));
+        return false;
       }
     }
     
@@ -742,6 +1050,7 @@ export class Highlighter {
 
   /**
    * Highlight content within a single text node
+   * Uses safe atomic replacement with backup for rollback
    */
   private highlightSingleNode(textNode: Text, startPos: number, endPos: number): boolean {
     try {
@@ -753,27 +1062,54 @@ export class Highlighter {
       const highlightText = originalText.substring(startPos, endPos);
       const afterText = originalText.substring(endPos);
 
-      console.log(`[Highlighter] Highlighting single node: "${highlightText}"`);
+      console.log(`[Highlighter] Highlighting single node: "${highlightText.substring(0, 50)}..."`);
 
       // Create highlight span
       const span = document.createElement('span');
       span.className = this.highlightClass;
       span.textContent = highlightText;
       
-      // Replace the text node with highlighted content
+      // Prepare replacement nodes
+      const replacementNodes: Node[] = [];
       if (beforeText) {
-        parent.insertBefore(document.createTextNode(beforeText), textNode);
+        replacementNodes.push(document.createTextNode(beforeText));
       }
-      parent.insertBefore(span, textNode);
+      replacementNodes.push(span);
       if (afterText) {
-        parent.insertBefore(document.createTextNode(afterText), textNode);
+        replacementNodes.push(document.createTextNode(afterText));
       }
+      
+      // Create backup BEFORE making any changes
+      const nextSibling = textNode.nextSibling;
+      this.originalTextBackup.set(span, {
+        originalText,
+        parent,
+        nextSibling
+      });
+      
+      // Atomic replacement
       parent.removeChild(textNode);
+      
+      // Insert replacement nodes
+      for (const newNode of replacementNodes) {
+        parent.insertBefore(newNode, nextSibling);
+      }
 
+      // Track successful operation
       this.highlightedElements.add(span);
+      console.log(`[Highlighter] Successfully highlighted single node`);
       return true;
+      
     } catch (error) {
       console.error('[Highlighter] Error highlighting single node:', error);
+      
+      // Attempt to rollback if span was created
+      const span = error.span;
+      if (span && this.originalTextBackup.has(span)) {
+        console.log(`[Highlighter] Rolling back failed single node highlighting`);
+        this.rollbackHighlights([span]);
+      }
+      
       return false;
     }
   }
@@ -831,19 +1167,57 @@ export class Highlighter {
   }
 
   /**
+   * Safely rollback highlights by restoring original text content
+   * This prevents content deletion when highlights need to be removed
+   */
+  private rollbackHighlights(highlightElements: HTMLElement[]): void {
+    console.log(`[Highlighter] Rolling back ${highlightElements.length} highlight elements`);
+    
+    for (const element of highlightElements) {
+      try {
+        const backup = this.originalTextBackup.get(element);
+        if (backup) {
+          console.log(`[Highlighter] Restoring original text: "${backup.originalText}"`);
+          
+          // Create text node with original content
+          const textNode = document.createTextNode(backup.originalText);
+          
+          // Replace the highlight element with original text
+          backup.parent.insertBefore(textNode, backup.nextSibling);
+          backup.parent.removeChild(element);
+          
+          // Clean up backup
+          this.originalTextBackup.delete(element);
+        } else {
+          console.log(`[Highlighter] No backup found for element, using current text content`);
+          // Fallback: replace with current text content
+          const parent = element.parentElement;
+          if (parent && element.textContent) {
+            const textNode = document.createTextNode(element.textContent);
+            parent.insertBefore(textNode, element);
+            parent.removeChild(element);
+          }
+        }
+        
+        // Remove from tracked elements
+        this.highlightedElements.delete(element);
+        
+      } catch (error) {
+        console.error(`[Highlighter] Error rolling back highlight element:`, error);
+      }
+    }
+  }
+
+  /**
    * Clear all highlights from the page
    */
   clearHighlights(): void {
-    // Remove all highlighted elements
-    this.highlightedElements.forEach(element => {
-      element.classList.remove(this.highlightClass);
-      element.style.removeProperty('background-color');
-      element.style.removeProperty('border-radius');
-      element.style.removeProperty('padding');
-      element.style.removeProperty('border');
-      element.style.removeProperty('box-shadow');
-    });
+    // Use rollback to safely restore original content
+    this.rollbackHighlights(Array.from(this.highlightedElements));
+    
+    // Clear any remaining elements and cleanup
     this.highlightedElements.clear();
+    this.originalTextBackup.clear();
   }
 
   /**

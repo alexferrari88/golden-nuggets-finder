@@ -34,6 +34,43 @@ test.describe('Highlighter TDD - Blog Post Highlighting', () => {
       startContent: "The theory that models",
       endContent: "bigger and smarter.",
       synthesis: "Introduces a significant new model suggesting that AI models converge to a shared universal representation space as they scale. This provides a valuable framework for understanding model interoperability, transfer learning, and the future of AI."
+    },
+    // Additional failing nuggets that need to be fixed
+    {
+      type: "analogy",
+      startContent: "Mussolini or Bread only",
+      endContent: "almost anything.",
+      synthesis: "This analogy clearly illustrates how a shared semantic space allows for efficient navigation and identification of concepts, providing a mental model for understanding high-dimensional embedding spaces and concept relationships in AI."
+    },
+    {
+      type: "explanation",
+      startContent: "One perspective on AI",
+      endContent: "scaling laws.",
+      synthesis: "This provides a fundamental conceptual model for understanding AI, especially large language models, by linking intelligence directly to data compression and highlighting the critical role of scaling laws. This is essential for developers and entrepreneurs designing or investing in AI systems."
+    },
+    {
+      type: "model",
+      startContent: "The Platonic Representation Hypothesis,",
+      endContent: "in vision and language.",
+      synthesis: "This introduces a significant theoretical framework (The Platonic Representation Hypothesis) which posits that as AI models grow, they converge to shared, universal underlying representations. This is a crucial concept for software developers building interoperable AI systems, and for knowledge workers trying to understand the fundamental nature of AI learning."
+    },
+    {
+      type: "explanation",
+      startContent: "This had a whole",
+      endContent: "those vectors represent.",
+      synthesis: "This highlights a critical implication for software developers and entrepreneurs working with vector databases: sharing embedding vectors can be equivalent to sharing the original text. This has profound consequences for data privacy, security, and the design of information systems."
+    },
+    {
+      type: "tool",
+      startContent: "CycleGAN proposed a way",
+      endContent: "cycle consistency:",
+      synthesis: "This identifies CycleGAN as a powerful deep learning architecture and 'cycle consistency' as a method for translating between different data spaces *without corresponding input-output pairs*. This is highly valuable for developers and researchers tackling unsupervised domain adaptation or cross-model alignment challenges."
+    },
+    {
+      type: "tool",
+      startContent: "sparse autoencoders (SAEs). SAEs",
+      endContent: "minimal loss.",
+      synthesis: "This introduces Sparse Autoencoders (SAEs) as a specific tool for achieving model interpretability by learning a dictionary of interpretable features from embeddings. This is highly valuable for software developers and knowledge workers who need to understand, debug, and explain the behavior of complex AI models."
     }
   ];
 
@@ -137,6 +174,327 @@ test.describe('Highlighter TDD - Blog Post Highlighting', () => {
     
     // For now, we expect at least 1 nugget to be highlighted successfully
     expect(successCount).toBeGreaterThan(0);
+  });
+
+  test('should verify highlighted content matches expected nuggets (detect false positives)', async ({ cleanPage }) => {
+    await cleanPage.goto(testUrl, { waitUntil: 'networkidle' });
+    await cleanPage.waitForTimeout(3000);
+    
+    // Inject highlighter
+    await cleanPage.addScriptTag({
+      path: './dist/chrome-mv3/content-scripts/content.js'
+    });
+    await cleanPage.waitForTimeout(1000);
+    
+    // Test a few specific nuggets that were reported as failing
+    const problematicNuggets = [
+      {
+        type: "analogy" as const,
+        startContent: "Mussolini or Bread only",
+        endContent: "almost anything.",
+        synthesis: "Test nugget"
+      },
+      {
+        type: "model" as const,
+        startContent: "The Platonic Representation Hypothesis,",
+        endContent: "in vision and language.",
+        synthesis: "Test nugget"
+      },
+      {
+        type: "explanation" as const,
+        startContent: "This had a whole",
+        endContent: "those vectors represent.",
+        synthesis: "Test nugget"
+      },
+      {
+        type: "tool" as const,
+        startContent: "sparse autoencoders (SAEs). SAEs",
+        endContent: "minimal loss.",
+        synthesis: "Test nugget"
+      }
+    ];
+    
+    for (const nugget of problematicNuggets) {
+      console.log(`Testing detailed highlighting for: "${nugget.startContent}" -> "${nugget.endContent}"`);
+      
+      // Clear previous highlights
+      await cleanPage.evaluate(() => {
+        document.querySelectorAll('.golden-nugget-highlight').forEach(el => el.remove());
+      });
+      
+      // Highlight this specific nugget
+      const result = await cleanPage.evaluate((nugget) => {
+        if (typeof window.highlightNugget === 'function') {
+          return window.highlightNugget(nugget);
+        }
+        return { success: false, error: 'highlightNugget function not found' };
+      }, nugget);
+      
+      console.log(`Highlighting result: ${JSON.stringify(result)}`);
+      
+      if (result.success) {
+        // Get all highlighted elements and their content
+        const highlightedData = await cleanPage.evaluate(() => {
+          const elements = Array.from(document.querySelectorAll('.golden-nugget-highlight'));
+          return elements.map(el => ({
+            text: el.textContent || '',
+            innerHTML: el.innerHTML,
+            className: el.className
+          }));
+        });
+        
+        console.log(`Found ${highlightedData.length} highlighted elements:`);
+        highlightedData.forEach((data, i) => {
+          console.log(`  ${i}: "${data.text}" (${data.text.length} chars)`);
+        });
+        
+        // Verify that the highlighted content makes sense
+        expect(highlightedData.length).toBeGreaterThan(0);
+        
+        // Check if any highlighted element contains part of our start or end content
+        const combinedHighlightedText = highlightedData.map(d => d.text).join(' ');
+        const startWords = nugget.startContent.split(' ').filter(w => w.length > 2);
+        const endWords = nugget.endContent.split(' ').filter(w => w.length > 2);
+        
+        const hasStartWords = startWords.some(word => 
+          combinedHighlightedText.toLowerCase().includes(word.toLowerCase())
+        );
+        const hasEndWords = endWords.some(word => 
+          combinedHighlightedText.toLowerCase().includes(word.toLowerCase())
+        );
+        
+        console.log(`Content verification - hasStartWords: ${hasStartWords}, hasEndWords: ${hasEndWords}`);
+        console.log(`Combined highlighted text: "${combinedHighlightedText.substring(0, 100)}..."`);
+        
+        // At least one of start or end words should be present in highlighted content
+        expect(hasStartWords || hasEndWords).toBe(true);
+        
+        // Additional check: highlighted text should not be too short (avoid highlighting just punctuation)
+        const totalHighlightedLength = combinedHighlightedText.replace(/\s+/g, '').length;
+        expect(totalHighlightedLength).toBeGreaterThan(10); // At least 10 non-whitespace characters
+        
+      } else {
+        console.log(`Highlighting failed: ${result.error}`);
+        // For now, we'll accept failures but we want to fix them
+        expect(result.success).toBe(true); // This will fail and show us what to fix
+      }
+    }
+  });
+
+  test('should NOT over-highlight - validate precise highlighting boundaries (TDD)', async ({ cleanPage }) => {
+    await cleanPage.goto(testUrl, { waitUntil: 'networkidle' });
+    await cleanPage.waitForTimeout(3000);
+    
+    // Inject highlighter
+    await cleanPage.addScriptTag({
+      path: './dist/chrome-mv3/content-scripts/content.js'
+    });
+    await cleanPage.waitForTimeout(1000);
+    
+    // Test nuggets that are working to verify precision improvements
+    const precisionTestNuggets = [
+      {
+        type: "model" as const,
+        startContent: "The Platonic Representation Hypothesis,",
+        endContent: "in vision and language.",
+        synthesis: "Test nugget", 
+        expectedMaxLength: 500,
+        expectedMaxElements: 5
+      },
+      {
+        type: "tool" as const, 
+        startContent: "sparse autoencoders (SAEs). SAEs",
+        endContent: "minimal loss.",
+        synthesis: "Test nugget",
+        expectedMaxLength: 300,
+        expectedMaxElements: 3
+      }
+    ];
+    
+    for (const nugget of precisionTestNuggets) {
+      console.log(`Testing precision for: "${nugget.startContent}" -> "${nugget.endContent}"`);
+      
+      // Clear previous highlights
+      await cleanPage.evaluate(() => {
+        document.querySelectorAll('.golden-nugget-highlight').forEach(el => el.remove());
+      });
+      
+      // Highlight this specific nugget
+      const result = await cleanPage.evaluate((nugget) => {
+        if (typeof window.highlightNugget === 'function') {
+          return window.highlightNugget(nugget);
+        }
+        return { success: false, error: 'highlightNugget function not found' };
+      }, nugget);
+      
+      expect(result.success).toBe(true);
+      
+      // Get highlighted content details
+      const highlightDetails = await cleanPage.evaluate(() => {
+        const elements = Array.from(document.querySelectorAll('.golden-nugget-highlight'));
+        const totalText = elements.map(el => el.textContent || '').join(' ');
+        return {
+          elementCount: elements.length,
+          totalLength: totalText.length,
+          totalText: totalText.substring(0, 150) + '...',
+          elements: elements.map(el => ({
+            text: el.textContent || '',
+            length: (el.textContent || '').length
+          }))
+        };
+      });
+      
+      console.log(`Highlight details: ${highlightDetails.elementCount} elements, ${highlightDetails.totalLength} chars`);
+      console.log(`Total text: "${highlightDetails.totalText}"`);
+      
+      // PRECISION VALIDATIONS - These should fail with current over-highlighting
+      
+      // 1. Number of highlighted elements should be reasonable
+      expect(highlightDetails.elementCount).toBeLessThanOrEqual(nugget.expectedMaxElements);
+      
+      // 2. Total highlighted length should be reasonable (not 10x the expected content)
+      const expectedContentLength = nugget.startContent.length + nugget.endContent.length;
+      const maxReasonableLength = Math.max(nugget.expectedMaxLength, expectedContentLength * 3);
+      expect(highlightDetails.totalLength).toBeLessThanOrEqual(maxReasonableLength);
+      
+      // 3. Each individual highlighted element shouldn't be excessively long
+      const maxSingleElementLength = Math.max(200, expectedContentLength * 2);
+      for (const element of highlightDetails.elements) {
+        expect(element.length).toBeLessThanOrEqual(maxSingleElementLength);
+      }
+      
+      // 4. The highlighted content should contain at least the start content (end content is ideal but not mandatory for precision)
+      const normalizedHighlighted = highlightDetails.totalText.toLowerCase();
+      const normalizedStart = nugget.startContent.toLowerCase();
+      const normalizedEnd = nugget.endContent.toLowerCase();
+      
+      expect(normalizedHighlighted).toContain(normalizedStart.substring(0, Math.min(20, normalizedStart.length)));
+      
+      // End content is preferred but not required for precision test (main goal is preventing over-highlighting)
+      const hasEndContent = normalizedHighlighted.includes(normalizedEnd.substring(normalizedEnd.length - Math.min(20, normalizedEnd.length)));
+      console.log(`Contains end content: ${hasEndContent}`);
+      
+      console.log(`✓ Precision validation passed for "${nugget.startContent}"`);
+    }
+  });
+
+  test('should NEVER delete original page content - content preservation test (TDD)', async ({ cleanPage }) => {
+    console.log('🚨 CRITICAL TEST: Verifying no content deletion occurs during highlighting');
+    
+    await cleanPage.goto(testUrl, { waitUntil: 'networkidle' });
+    await cleanPage.waitForTimeout(3000);
+    
+    // Capture original page content BEFORE any highlighting
+    const originalContent = await cleanPage.evaluate(() => {
+      return {
+        fullText: document.body.textContent || '',
+        textLength: (document.body.textContent || '').length,
+        // Capture specific content chunks that should NEVER disappear
+        criticalChunks: [
+          'Mussolini or Bread only',
+          'almost anything',
+          'The Platonic Representation Hypothesis',
+          'sparse autoencoders (SAEs)',
+          'Project CETI is a large-scale',
+          'One perspective on AI'
+        ].map(chunk => ({
+          text: chunk,
+          exists: (document.body.textContent || '').includes(chunk)
+        }))
+      };
+    });
+    
+    console.log(`Original page content: ${originalContent.textLength} characters`);
+    console.log('Original critical chunks:', originalContent.criticalChunks.filter(chunk => chunk.exists).map(chunk => chunk.text));
+    
+    // Inject the content script
+    await cleanPage.addScriptTag({
+      path: './dist/chrome-mv3/content-scripts/content.js'
+    });
+    
+    // Wait for scripts to load
+    await cleanPage.waitForTimeout(1000);
+    
+    // Test with ALL failing nuggets that were causing problems
+    const testNuggets = [
+      {
+        type: "analogy" as const,
+        startContent: "Mussolini or Bread only",
+        endContent: "almost anything.",
+        synthesis: "Test nugget that should not delete content"
+      },
+      {
+        type: "explanation" as const,
+        startContent: "The Platonic Representation Hypothesis",
+        endContent: "sparse autoencoders (SAEs).",
+        synthesis: "Test nugget that should not delete content"
+      },
+      {
+        type: "tool" as const,
+        startContent: "Project CETI is a large-scale",
+        endContent: "that we're studying.",
+        synthesis: "Test nugget that should not delete content"
+      },
+      {
+        type: "model" as const,
+        startContent: "One perspective on AI",
+        endContent: "really matters.",
+        synthesis: "Test nugget that should not delete content"
+      }
+    ];
+    
+    // Attempt to highlight each nugget
+    for (const nugget of testNuggets) {
+      console.log(`🔍 Testing content preservation for: "${nugget.startContent}" -> "${nugget.endContent}"`);
+      
+      const highlightResult = await cleanPage.evaluate((nugget) => {
+        if (typeof window.highlightNugget === 'function') {
+          return window.highlightNugget(nugget);
+        }
+        return { success: false, error: 'highlightNugget function not found' };
+      }, nugget);
+      
+      console.log(`Highlight result: ${highlightResult.success ? 'SUCCESS' : 'FAILED'} - ${highlightResult.error || 'No error'}`);
+      
+      // CRITICAL CHECK: Verify no content was deleted after each highlighting attempt
+      const currentContent = await cleanPage.evaluate(() => {
+        return {
+          fullText: document.body.textContent || '',
+          textLength: (document.body.textContent || '').length,
+          criticalChunks: [
+            'Mussolini or Bread only',
+            'almost anything',
+            'The Platonic Representation Hypothesis',
+            'sparse autoencoders (SAEs)',
+            'Project CETI is a large-scale',
+            'One perspective on AI'
+          ].map(chunk => ({
+            text: chunk,
+            exists: (document.body.textContent || '').includes(chunk)
+          }))
+        };
+      });
+      
+      // Verify text length hasn't decreased significantly
+      const lengthDifference = originalContent.textLength - currentContent.textLength;
+      console.log(`Content length change: ${lengthDifference} characters (original: ${originalContent.textLength}, current: ${currentContent.textLength})`);
+      
+      // FAIL if content length decreased by more than 50 characters (allowing for minor DOM changes)
+      expect(lengthDifference).toBeLessThan(50);
+      
+      // CRITICAL: Verify all originally existing critical chunks still exist
+      for (let i = 0; i < originalContent.criticalChunks.length; i++) {
+        const originalChunk = originalContent.criticalChunks[i];
+        const currentChunk = currentContent.criticalChunks[i];
+        
+        if (originalChunk.exists) {
+          console.log(`Checking critical chunk: "${originalChunk.text}" - ${currentChunk.exists ? '✅ PRESERVED' : '❌ DELETED'}`);
+          expect(currentChunk.exists).toBe(true); // FAIL if critical content was deleted
+        }
+      }
+    }
+    
+    console.log('✅ Content preservation test completed - no content was deleted');
   });
 
   test('should verify highlighted elements have correct styling', async ({ cleanPage }) => {
