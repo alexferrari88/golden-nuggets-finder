@@ -21,7 +21,8 @@ declare global {
 
 export class Highlighter {
 	private highlightedElements: HTMLElement[] = [];
-	private cssHighlights: Map<string, { highlight: Highlight; range: Range; nugget: GoldenNugget }> = new Map();
+	private cssHighlights: Map<string, { range: Range; nugget: GoldenNugget }> = new Map();
+	private globalHighlight: Highlight | null = null;
 	private highlightClassName = 'golden-nugget-highlight';
 	private cssHighlightSupported: boolean;
 	private static highlightCounter = 0;
@@ -76,11 +77,11 @@ export class Highlighter {
 	scrollToHighlight(nugget: GoldenNugget): void {
 		// For CSS highlights, find the range and scroll to it
 		const cssHighlightKey = this.getNuggetKey(nugget);
-		const cssHighlight = this.cssHighlights.get(cssHighlightKey);
+		const cssHighlightInfo = this.cssHighlights.get(cssHighlightKey);
 		
-		if (cssHighlight) {
+		if (cssHighlightInfo) {
 			// Create a temporary element at the range position for scrolling
-			const range = cssHighlight.range.cloneRange();
+			const range = cssHighlightInfo.range.cloneRange();
 			const tempElement = document.createElement('span');
 			tempElement.style.position = 'absolute';
 			tempElement.style.visibility = 'hidden';
@@ -124,9 +125,11 @@ export class Highlighter {
 	clearHighlights(): void {
 		// Clear CSS highlights
 		if (this.cssHighlightSupported && CSS.highlights) {
-			this.cssHighlights.forEach((_, key) => {
-				CSS.highlights.delete(key);
-			});
+			if (this.globalHighlight) {
+				this.globalHighlight.clear();
+				CSS.highlights.delete('golden-nugget');
+				this.globalHighlight = null;
+			}
 			this.cssHighlights.clear();
 		}
 		
@@ -346,21 +349,24 @@ export class Highlighter {
 				return false;
 			}
 
-			// Create a Highlight object
-			const highlight = new Highlight(range.cloneRange());
+			// Create global highlight object if it doesn't exist
+			if (!this.globalHighlight) {
+				this.globalHighlight = new Highlight();
+				CSS.highlights.set('golden-nugget', this.globalHighlight);
+			}
+
+			// Add this range to the global highlight
+			const clonedRange = range.cloneRange();
+			this.globalHighlight.add(clonedRange);
+			
+			// Store the range info for management
 			const highlightKey = this.getNuggetKey(nugget);
-			
-			// Register the highlight
-			CSS.highlights.set(highlightKey, highlight);
-			
-			// Store the highlight info for management
 			this.cssHighlights.set(highlightKey, {
-				highlight,
-				range: range.cloneRange(),
+				range: clonedRange,
 				nugget
 			});
 			
-			console.log('Successfully created CSS highlight:', highlightKey);
+			console.log('Successfully added CSS highlight:', highlightKey);
 			return true;
 		} catch (error) {
 			console.error('Error creating CSS highlight:', error);

@@ -134,6 +134,7 @@ test.describe('Highlighter Substack TDD', () => {
           constructor() {
             this.highlightedElements = [];
             this.cssHighlights = new Map();
+            this.globalHighlight = null;
             this.highlightClassName = 'golden-nugget-highlight';
             this.cssHighlightSupported = this.checkCSSHighlightSupport();
             console.log('Highlighter constructor - CSS support:', this.cssHighlightSupported);
@@ -208,10 +209,10 @@ test.describe('Highlighter Substack TDD', () => {
           scrollToHighlight(nugget) {
             // For CSS highlights, find the range and scroll to it
             const cssHighlightKey = this.getNuggetKey(nugget);
-            const cssHighlight = this.cssHighlights.get(cssHighlightKey);
+            const cssHighlightInfo = this.cssHighlights.get(cssHighlightKey);
             
-            if (cssHighlight) {
-              const range = cssHighlight.range.cloneRange();
+            if (cssHighlightInfo) {
+              const range = cssHighlightInfo.range.cloneRange();
               const tempElement = document.createElement('span');
               tempElement.style.position = 'absolute';
               tempElement.style.visibility = 'hidden';
@@ -252,9 +253,11 @@ test.describe('Highlighter Substack TDD', () => {
           clearHighlights() {
             // Clear CSS highlights
             if (this.cssHighlightSupported && CSS.highlights) {
-              this.cssHighlights.forEach((_, key) => {
-                CSS.highlights.delete(key);
-              });
+              if (this.globalHighlight) {
+                this.globalHighlight.clear();
+                CSS.highlights.delete('golden-nugget');
+                this.globalHighlight = null;
+              }
               this.cssHighlights.clear();
             }
             
@@ -313,23 +316,26 @@ test.describe('Highlighter Substack TDD', () => {
                 return false;
               }
 
-              console.log('Creating highlight with constructor:', typeof Highlight);
-              const highlight = new Highlight(range.cloneRange());
-              console.log('Created highlight object:', highlight);
+              // Create global highlight object if it doesn't exist
+              if (!this.globalHighlight) {
+                console.log('Creating global highlight object');
+                this.globalHighlight = new Highlight();
+                CSS.highlights.set('golden-nugget', this.globalHighlight);
+                console.log('Registered global highlight with name "golden-nugget"');
+              }
+
+              // Add this range to the global highlight
+              const clonedRange = range.cloneRange();
+              this.globalHighlight.add(clonedRange);
               
+              // Store the range info for management
               const highlightKey = this.getNuggetKey(nugget);
-              
-              console.log('Setting CSS highlight with key:', highlightKey);
-              console.log('CSS.highlights type:', CSS.highlights);
-              CSS.highlights.set(highlightKey, highlight);
-              
               this.cssHighlights.set(highlightKey, {
-                highlight,
-                range: range.cloneRange(),
+                range: clonedRange,
                 nugget
               });
               
-              console.log('Successfully created CSS highlight:', highlightKey);
+              console.log('Successfully added CSS highlight:', highlightKey);
               console.log('CSS.highlights size:', CSS.highlights.size);
               return true;
             } catch (error) {
