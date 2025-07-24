@@ -245,7 +245,7 @@ export class Highlighter {
 
 	/**
 	 * Wrap a range with a highlight element
-	 * Handles ranges that span multiple DOM nodes
+	 * Handles ranges that span multiple DOM nodes with robust insertion
 	 */
 	private highlightRange(range: Range, nugget?: GoldenNugget): HTMLElement | null {
 		try {
@@ -255,8 +255,27 @@ export class Highlighter {
 				return null;
 			}
 
+			// Store insertion context before extracting (range will collapse after extraction)
+			const startContainer = range.startContainer;
+			const startOffset = range.startOffset;
+			const endContainer = range.endContainer;
+			const endOffset = range.endOffset;
+			
+			console.log('Highlighting range:', {
+				startContainer: startContainer.nodeName,
+				startOffset,
+				endContainer: endContainer.nodeName, 
+				endOffset,
+				nugget: nugget ? `${nugget.startContent}...${nugget.endContent}` : 'unknown'
+			});
+
 			// Extract the contents of the range
 			const contents = range.extractContents();
+			
+			if (!contents || contents.childNodes.length === 0) {
+				console.warn('No contents extracted from range');
+				return null;
+			}
 			
 			// Create a highlight element with nugget key for duplicate prevention
 			const highlightElement = this.createHighlightElement(nugget);
@@ -264,9 +283,39 @@ export class Highlighter {
 			// Put the extracted contents inside the highlight element
 			highlightElement.appendChild(contents);
 			
-			// Insert the highlight element at the range position
-			range.insertNode(highlightElement);
+			// Use robust insertion instead of relying on collapsed range
+			// The range is now collapsed to the start position after extraction
+			try {
+				// First try the standard approach with the collapsed range
+				range.insertNode(highlightElement);
+				console.log('Successfully inserted highlight using range.insertNode');
+			} catch (insertError) {
+				console.warn('Range insertion failed, using fallback method:', insertError);
+				
+				// Fallback: Insert using DOM methods at the original start position
+				if (startContainer.nodeType === Node.TEXT_NODE) {
+					// Insert at text node position
+					const parent = startContainer.parentNode;
+					if (parent) {
+						parent.insertBefore(highlightElement, startContainer.nextSibling);
+						console.log('Successfully inserted highlight using DOM fallback at text node');
+					} else {
+						throw new Error('Cannot find parent node for insertion');
+					}
+				} else {
+					// Insert at element position
+					startContainer.insertBefore(highlightElement, startContainer.childNodes[startOffset] || null);
+					console.log('Successfully inserted highlight using DOM fallback at element');
+				}
+			}
 			
+			// Verify the highlight element is in the DOM
+			if (!highlightElement.parentNode) {
+				console.error('Highlight element was not properly inserted into DOM');
+				return null;
+			}
+			
+			console.log('Successfully highlighted content, element in DOM:', highlightElement.textContent?.substring(0, 50) + '...');
 			return highlightElement;
 		} catch (error) {
 			console.error('Error highlighting range:', error);
