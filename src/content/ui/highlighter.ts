@@ -1,14 +1,35 @@
 /**
- * Highlighter for Golden Nuggets - TDD Implementation
- * This implementation will be built incrementally using TDD
+ * Highlighter for Golden Nuggets - CSS Custom Highlight API Implementation
+ * Uses modern CSS Custom Highlight API with DOM fallback for cross-browser compatibility
  */
 
 import { generateInlineStyles, colors } from '../../shared/design-system';
 import type { GoldenNugget } from '../../shared/types';
 
+// Type declarations for CSS Custom Highlight API
+declare global {
+	interface Window {
+		Highlight: typeof Highlight;
+	}
+	class Highlight {
+		constructor(...ranges: Range[]);
+	}
+	interface CSS {
+		highlights: Map<string, Highlight>;
+	}
+}
+
 export class Highlighter {
 	private highlightedElements: HTMLElement[] = [];
+	private cssHighlights: Map<string, { highlight: Highlight; range: Range; nugget: GoldenNugget }> = new Map();
 	private highlightClassName = 'golden-nugget-highlight';
+	private cssHighlightSupported: boolean;
+	private static highlightCounter = 0;
+
+	constructor() {
+		this.cssHighlightSupported = this.checkCSSHighlightSupport();
+		this.setupCSSHighlightStyles();
+	}
 
 	/**
 	 * Highlight a golden nugget on the page
@@ -30,16 +51,16 @@ export class Highlighter {
 				return false;
 			}
 
-			// Highlight the range
-			const highlightElement = this.highlightRange(range, nugget);
-			if (!highlightElement) {
+			// Use CSS Custom Highlight API if supported, otherwise fallback to DOM manipulation
+			const success = this.cssHighlightSupported 
+				? this.highlightWithCSS(range, nugget)
+				: this.highlightWithDOM(range, nugget);
+			
+			if (!success) {
 				console.warn('Could not create highlight for nugget:', nugget);
 				return false;
 			}
 
-			// Store the highlighted element
-			this.highlightedElements.push(highlightElement);
-			
 			console.log('Successfully highlighted nugget:', nugget);
 			return true;
 		} catch (error) {
@@ -53,14 +74,40 @@ export class Highlighter {
 	 * @param nugget The nugget to scroll to
 	 */
 	scrollToHighlight(nugget: GoldenNugget): void {
-		// Find the highlight element for this nugget
+		// For CSS highlights, find the range and scroll to it
+		const cssHighlightKey = this.getNuggetKey(nugget);
+		const cssHighlight = this.cssHighlights.get(cssHighlightKey);
+		
+		if (cssHighlight) {
+			// Create a temporary element at the range position for scrolling
+			const range = cssHighlight.range.cloneRange();
+			const tempElement = document.createElement('span');
+			tempElement.style.position = 'absolute';
+			tempElement.style.visibility = 'hidden';
+			tempElement.style.pointerEvents = 'none';
+			
+			try {
+				range.insertNode(tempElement);
+				tempElement.scrollIntoView({
+					behavior: 'smooth',
+					block: 'center',
+					inline: 'nearest'
+				});
+				tempElement.remove();
+			} catch (error) {
+				console.warn('Could not scroll to CSS highlight:', error);
+				tempElement.remove();
+			}
+			return;
+		}
+		
+		// Fallback to DOM element-based scrolling
 		const highlightElement = this.highlightedElements.find(element => {
 			const elementText = element.textContent || '';
 			return elementText.includes(nugget.startContent) && elementText.includes(nugget.endContent);
 		});
 
 		if (highlightElement) {
-			// Scroll to the element with some padding
 			highlightElement.scrollIntoView({
 				behavior: 'smooth',
 				block: 'center',
@@ -75,7 +122,15 @@ export class Highlighter {
 	 * Clear all highlights from the page
 	 */
 	clearHighlights(): void {
-		// Remove all highlighted elements
+		// Clear CSS highlights
+		if (this.cssHighlightSupported && CSS.highlights) {
+			this.cssHighlights.forEach((_, key) => {
+				CSS.highlights.delete(key);
+			});
+			this.cssHighlights.clear();
+		}
+		
+		// Clear DOM-based highlights (fallback)
 		this.highlightedElements.forEach(element => {
 			if (element.parentNode) {
 				// Unwrap the highlighted element, preserving the text content
@@ -94,7 +149,7 @@ export class Highlighter {
 	 * Get the number of currently highlighted elements
 	 */
 	getHighlightCount(): number {
-		return this.highlightedElements.length;
+		return this.cssHighlights.size + this.highlightedElements.length;
 	}
 
 	/**
@@ -102,14 +157,16 @@ export class Highlighter {
 	 * Uses a more robust approach to prevent duplicates
 	 */
 	private isAlreadyHighlighted(nugget: GoldenNugget): boolean {
-		// Create a unique key for this nugget based on start and end content
-		const nuggetKey = `${nugget.startContent}→${nugget.endContent}`;
+		const nuggetKey = this.getNuggetKey(nugget);
 		
-		// Check if we've already highlighted this exact nugget
+		// Check CSS highlights first
+		if (this.cssHighlights.has(nuggetKey)) {
+			return true;
+		}
+		
+		// Check DOM-based highlights (fallback)
 		return this.highlightedElements.some(element => {
 			const elementText = element.textContent || '';
-			// Check if the highlighted element contains exactly this nugget's text span
-			const elementKey = `${nugget.startContent}→${nugget.endContent}`;
 			return elementText.includes(nugget.startContent) && 
 			       elementText.includes(nugget.endContent) &&
 			       element.hasAttribute('data-nugget-key') &&
@@ -118,18 +175,16 @@ export class Highlighter {
 	}
 
 	/**
-	 * Create a highlight element with proper styling
+	 * Create a highlight element with proper styling (for DOM fallback)
 	 */
-	private createHighlightElement(nugget?: GoldenNugget): HTMLSpanElement {
+	private createHighlightElement(nugget: GoldenNugget): HTMLSpanElement {
 		const span = document.createElement('span');
 		span.className = this.highlightClassName;
 		span.setAttribute('data-golden-nugget-highlight', 'true');
 		
 		// Add unique nugget key to prevent duplicates
-		if (nugget) {
-			const nuggetKey = `${nugget.startContent}→${nugget.endContent}`;
-			span.setAttribute('data-nugget-key', nuggetKey);
-		}
+		const nuggetKey = this.getNuggetKey(nugget);
+		span.setAttribute('data-nugget-key', nuggetKey);
 		
 		// Apply highlighting styles from design system
 		span.style.cssText = generateInlineStyles.highlightStyle();
@@ -244,82 +299,119 @@ export class Highlighter {
 	}
 
 	/**
-	 * Wrap a range with a highlight element
-	 * Handles ranges that span multiple DOM nodes with robust insertion
+	 * Check if CSS Custom Highlight API is supported
 	 */
-	private highlightRange(range: Range, nugget?: GoldenNugget): HTMLElement | null {
+	private checkCSSHighlightSupport(): boolean {
+		return typeof CSS !== 'undefined' && 
+		       CSS.highlights !== undefined && 
+		       typeof Highlight !== 'undefined';
+	}
+
+	/**
+	 * Setup CSS styles for highlights
+	 */
+	private setupCSSHighlightStyles(): void {
+		if (!this.cssHighlightSupported) return;
+		
+		// Check if styles are already added
+		if (document.querySelector('#golden-nugget-highlight-styles')) return;
+		
+		const styleSheet = document.createElement('style');
+		styleSheet.id = 'golden-nugget-highlight-styles';
+		styleSheet.textContent = `
+			::highlight(golden-nugget) {
+				background-color: ${colors.highlight.background} !important;
+				border-radius: 3px !important;
+				box-shadow: 0 0 0 1px ${colors.highlight.border} !important;
+				color: inherit !important;
+			}
+		`;
+		document.head.appendChild(styleSheet);
+	}
+
+	/**
+	 * Generate a unique key for a nugget
+	 */
+	private getNuggetKey(nugget: GoldenNugget): string {
+		return `nugget-${nugget.startContent}-${nugget.endContent}`.replace(/[^a-zA-Z0-9-_]/g, '_');
+	}
+
+	/**
+	 * Highlight using CSS Custom Highlight API (preferred method)
+	 */
+	private highlightWithCSS(range: Range, nugget: GoldenNugget): boolean {
 		try {
-			// Check if range is collapsed (start and end are the same)
 			if (range.collapsed) {
 				console.warn('Cannot highlight collapsed range');
-				return null;
+				return false;
 			}
 
-			// Store insertion context before extracting (range will collapse after extraction)
-			const startContainer = range.startContainer;
-			const startOffset = range.startOffset;
-			const endContainer = range.endContainer;
-			const endOffset = range.endOffset;
+			// Create a Highlight object
+			const highlight = new Highlight(range.cloneRange());
+			const highlightKey = this.getNuggetKey(nugget);
 			
-			console.log('Highlighting range:', {
-				startContainer: startContainer.nodeName,
-				startOffset,
-				endContainer: endContainer.nodeName, 
-				endOffset,
-				nugget: nugget ? `${nugget.startContent}...${nugget.endContent}` : 'unknown'
+			// Register the highlight
+			CSS.highlights.set(highlightKey, highlight);
+			
+			// Store the highlight info for management
+			this.cssHighlights.set(highlightKey, {
+				highlight,
+				range: range.cloneRange(),
+				nugget
 			});
+			
+			console.log('Successfully created CSS highlight:', highlightKey);
+			return true;
+		} catch (error) {
+			console.error('Error creating CSS highlight:', error);
+			return false;
+		}
+	}
 
-			// Extract the contents of the range
-			const contents = range.extractContents();
+	/**
+	 * Highlight using DOM manipulation (fallback method)
+	 * Uses cloneContents instead of extractContents to avoid data loss
+	 */
+	private highlightWithDOM(range: Range, nugget: GoldenNugget): boolean {
+		try {
+			if (range.collapsed) {
+				console.warn('Cannot highlight collapsed range');
+				return false;
+			}
+
+			// Use cloneContents instead of extractContents to preserve original content
+			const contents = range.cloneContents();
 			
 			if (!contents || contents.childNodes.length === 0) {
-				console.warn('No contents extracted from range');
-				return null;
+				console.warn('No contents cloned from range');
+				return false;
 			}
 			
-			// Create a highlight element with nugget key for duplicate prevention
+			// Create a highlight element
 			const highlightElement = this.createHighlightElement(nugget);
-			
-			// Put the extracted contents inside the highlight element
 			highlightElement.appendChild(contents);
 			
-			// Use robust insertion instead of relying on collapsed range
-			// The range is now collapsed to the start position after extraction
+			// Now safely extract and replace with highlighted version
 			try {
-				// First try the standard approach with the collapsed range
+				range.deleteContents();
 				range.insertNode(highlightElement);
-				console.log('Successfully inserted highlight using range.insertNode');
 			} catch (insertError) {
-				console.warn('Range insertion failed, using fallback method:', insertError);
-				
-				// Fallback: Insert using DOM methods at the original start position
-				if (startContainer.nodeType === Node.TEXT_NODE) {
-					// Insert at text node position
-					const parent = startContainer.parentNode;
-					if (parent) {
-						parent.insertBefore(highlightElement, startContainer.nextSibling);
-						console.log('Successfully inserted highlight using DOM fallback at text node');
-					} else {
-						throw new Error('Cannot find parent node for insertion');
-					}
-				} else {
-					// Insert at element position
-					startContainer.insertBefore(highlightElement, startContainer.childNodes[startOffset] || null);
-					console.log('Successfully inserted highlight using DOM fallback at element');
-				}
+				console.error('DOM insertion failed:', insertError);
+				return false;
 			}
 			
 			// Verify the highlight element is in the DOM
 			if (!highlightElement.parentNode) {
 				console.error('Highlight element was not properly inserted into DOM');
-				return null;
+				return false;
 			}
 			
-			console.log('Successfully highlighted content, element in DOM:', highlightElement.textContent?.substring(0, 50) + '...');
-			return highlightElement;
+			this.highlightedElements.push(highlightElement);
+			console.log('Successfully created DOM highlight');
+			return true;
 		} catch (error) {
-			console.error('Error highlighting range:', error);
-			return null;
+			console.error('Error highlighting with DOM:', error);
+			return false;
 		}
 	}
 }
