@@ -162,6 +162,7 @@ export interface MatchResult {
 /**
  * Improved start/end matching algorithm with enhanced search logic.
  * Fixes algorithm bugs and handles Unicode character variants.
+ * Enhanced to handle cross-paragraph/cross-section content spans.
  * 
  * @param startContent - The start content to find
  * @param endContent - The end content to find
@@ -183,12 +184,17 @@ export function improvedStartEndMatching(
     const endSearchStart = exactStartIndex + startContent.length;
     const exactEndIndex = pageContent.indexOf(endContent, endSearchStart);
     if (exactEndIndex !== -1) {
-      return { 
-        success: true, 
-        startIndex: exactStartIndex, 
-        endIndex: exactEndIndex + endContent.length,
-        matchedContent: pageContent.substring(exactStartIndex, exactEndIndex + endContent.length)
-      };
+      const matchedContent = pageContent.substring(exactStartIndex, exactEndIndex + endContent.length);
+      
+      // Enhanced validation for cross-paragraph content
+      if (isReasonableContentSpan(matchedContent, startContent, endContent)) {
+        return { 
+          success: true, 
+          startIndex: exactStartIndex, 
+          endIndex: exactEndIndex + endContent.length,
+          matchedContent
+        };
+      }
     }
   }
   
@@ -216,12 +222,86 @@ export function improvedStartEndMatching(
     return { success: false, reason: 'Could not map normalized positions back to original text' };
   }
   
+  const matchedContent = pageContent.substring(originalStartIndex, originalEndIndex);
+  
+  // Enhanced validation for cross-paragraph content  
+  if (!isReasonableContentSpan(matchedContent, startContent, endContent)) {
+    return { success: false, reason: 'Matched content span is unreasonable for highlighting' };
+  }
+  
   return { 
     success: true, 
     startIndex: originalStartIndex, 
     endIndex: originalEndIndex,
-    matchedContent: pageContent.substring(originalStartIndex, originalEndIndex)
+    matchedContent
   };
+}
+
+/**
+ * Validates if a matched content span is reasonable for highlighting.
+ * Prevents over-highlighting while allowing legitimate cross-paragraph content.
+ * 
+ * @param matchedContent - The content that would be highlighted
+ * @param startContent - The original start content
+ * @param endContent - The original end content
+ * @returns true if the span is reasonable to highlight
+ */
+function isReasonableContentSpan(matchedContent: string, startContent: string, endContent: string): boolean {
+  // Basic length checks
+  const matchedLength = matchedContent.length;
+  const expectedMinLength = startContent.length + endContent.length;
+  
+  // Allow reasonable expansion for cross-paragraph content
+  const maxReasonableLength = Math.max(1000, expectedMinLength * 8); // Allow 8x expansion or 1000 chars minimum
+  
+  if (matchedLength > maxReasonableLength) {
+    console.log(`[ContentReconstruction] Matched content too long: ${matchedLength} chars (max: ${maxReasonableLength})`);
+    return false;
+  }
+  
+  // Check for excessive repetition (might indicate matching across unrelated sections)
+  const words = matchedContent.toLowerCase().split(/\s+/);
+  const uniqueWords = new Set(words);
+  const repetitionRatio = words.length / uniqueWords.size;
+  
+  if (repetitionRatio > 3 && matchedLength > 200) {
+    console.log(`[ContentReconstruction] Excessive repetition detected: ratio ${repetitionRatio.toFixed(2)}`);
+    return false;
+  }
+  
+  // Check content coherence - ensure start and end content appear reasonably close to the boundaries
+  const normalizedMatched = advancedNormalize(matchedContent);
+  const normalizedStart = advancedNormalize(startContent);
+  const normalizedEnd = advancedNormalize(endContent);
+  
+  const startPosInMatched = normalizedMatched.indexOf(normalizedStart);
+  const endPosInMatched = normalizedMatched.lastIndexOf(normalizedEnd);
+  
+  // Start should be near the beginning (within first 20% or 100 chars)
+  const startThreshold = Math.min(matchedLength * 0.2, 100);
+  if (startPosInMatched > startThreshold) {
+    console.log(`[ContentReconstruction] Start content not near beginning: pos ${startPosInMatched} (threshold: ${startThreshold})`);
+    return false;
+  }
+  
+  // End should be near the end (within last 20% or 100 chars)
+  const endThreshold = matchedLength * 0.8;
+  if (endPosInMatched < endThreshold && matchedLength > 200) {
+    console.log(`[ContentReconstruction] End content not near end: pos ${endPosInMatched} (threshold: ${endThreshold})`);
+    return false;
+  }
+  
+  // Check for reasonable content density (not too much whitespace or markup)
+  const nonWhitespaceChars = matchedContent.replace(/\s/g, '').length;
+  const contentDensity = nonWhitespaceChars / matchedLength;
+  
+  if (contentDensity < 0.3 && matchedLength > 300) {
+    console.log(`[ContentReconstruction] Content density too low: ${contentDensity.toFixed(2)} (min: 0.3 for length > 300)`);
+    return false;
+  }
+  
+  console.log(`[ContentReconstruction] Content span validated: ${matchedLength} chars, density: ${contentDensity.toFixed(2)}`);
+  return true;
 }
 
 /**
