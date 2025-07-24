@@ -31,7 +31,7 @@ export class Highlighter {
 			}
 
 			// Highlight the range
-			const highlightElement = this.highlightRange(range);
+			const highlightElement = this.highlightRange(range, nugget);
 			if (!highlightElement) {
 				console.warn('Could not create highlight for nugget:', nugget);
 				return false;
@@ -99,22 +99,37 @@ export class Highlighter {
 
 	/**
 	 * Check if a nugget is already highlighted
+	 * Uses a more robust approach to prevent duplicates
 	 */
 	private isAlreadyHighlighted(nugget: GoldenNugget): boolean {
-		// Check if any existing highlight contains this nugget's content
+		// Create a unique key for this nugget based on start and end content
+		const nuggetKey = `${nugget.startContent}→${nugget.endContent}`;
+		
+		// Check if we've already highlighted this exact nugget
 		return this.highlightedElements.some(element => {
 			const elementText = element.textContent || '';
-			return elementText.includes(nugget.startContent) && elementText.includes(nugget.endContent);
+			// Check if the highlighted element contains exactly this nugget's text span
+			const elementKey = `${nugget.startContent}→${nugget.endContent}`;
+			return elementText.includes(nugget.startContent) && 
+			       elementText.includes(nugget.endContent) &&
+			       element.hasAttribute('data-nugget-key') &&
+			       element.getAttribute('data-nugget-key') === nuggetKey;
 		});
 	}
 
 	/**
 	 * Create a highlight element with proper styling
 	 */
-	private createHighlightElement(): HTMLSpanElement {
+	private createHighlightElement(nugget?: GoldenNugget): HTMLSpanElement {
 		const span = document.createElement('span');
 		span.className = this.highlightClassName;
 		span.setAttribute('data-golden-nugget-highlight', 'true');
+		
+		// Add unique nugget key to prevent duplicates
+		if (nugget) {
+			const nuggetKey = `${nugget.startContent}→${nugget.endContent}`;
+			span.setAttribute('data-nugget-key', nuggetKey);
+		}
 		
 		// Apply highlighting styles from design system
 		span.style.cssText = generateInlineStyles.highlightStyle();
@@ -125,6 +140,7 @@ export class Highlighter {
 	/**
 	 * Find text content in the DOM tree
 	 * Creates a Range that spans from startContent to endContent
+	 * Uses more intelligent matching to avoid duplicates
 	 */
 	private findTextInDOM(startContent: string, endContent: string): Range | null {
 		try {
@@ -169,27 +185,39 @@ export class Highlighter {
 				currentNode = walker.nextNode() as Text;
 			}
 
-			// Find start and end positions in the full text
-			const startIndex = fullText.indexOf(startContent);
-			if (startIndex === -1) {
-				console.warn('Start content not found:', startContent);
+			// Find all possible start positions
+			let startIndex = -1;
+			let searchFrom = 0;
+			const possibleRanges: Array<{ start: number; end: number }> = [];
+
+			// Look for all combinations of startContent -> endContent
+			while ((startIndex = fullText.indexOf(startContent, searchFrom)) !== -1) {
+				const endContentIndex = fullText.indexOf(endContent, startIndex + startContent.length);
+				if (endContentIndex !== -1) {
+					const endIndex = endContentIndex + endContent.length;
+					possibleRanges.push({ start: startIndex, end: endIndex });
+				}
+				searchFrom = startIndex + 1;
+			}
+
+			if (possibleRanges.length === 0) {
+				console.warn('No valid range found for:', startContent, '→', endContent);
 				return null;
 			}
 
-			const endContentIndex = fullText.indexOf(endContent, startIndex);
-			if (endContentIndex === -1) {
-				console.warn('End content not found:', endContent);
-				return null;
-			}
-
-			const endIndex = endContentIndex + endContent.length;
+			// If multiple ranges found, prefer the shortest one (most specific)
+			const bestRange = possibleRanges.reduce((shortest, current) => {
+				const currentLength = current.end - current.start;
+				const shortestLength = shortest.end - shortest.start;
+				return currentLength < shortestLength ? current : shortest;
+			});
 
 			// Find the DOM nodes that contain the start and end positions
 			const startNodeInfo = textNodeMap.find(info => 
-				startIndex >= info.startIndex && startIndex < info.endIndex
+				bestRange.start >= info.startIndex && bestRange.start < info.endIndex
 			);
 			const endNodeInfo = textNodeMap.find(info => 
-				endIndex > info.startIndex && endIndex <= info.endIndex
+				bestRange.end > info.startIndex && bestRange.end <= info.endIndex
 			);
 
 			if (!startNodeInfo || !endNodeInfo) {
@@ -201,11 +229,11 @@ export class Highlighter {
 			const range = document.createRange();
 			
 			// Set start position
-			const startOffset = startIndex - startNodeInfo.startIndex;
+			const startOffset = bestRange.start - startNodeInfo.startIndex;
 			range.setStart(startNodeInfo.node, startOffset);
 			
 			// Set end position
-			const endOffset = endIndex - endNodeInfo.startIndex;
+			const endOffset = bestRange.end - endNodeInfo.startIndex;
 			range.setEnd(endNodeInfo.node, endOffset);
 
 			return range;
@@ -219,7 +247,7 @@ export class Highlighter {
 	 * Wrap a range with a highlight element
 	 * Handles ranges that span multiple DOM nodes
 	 */
-	private highlightRange(range: Range): HTMLElement | null {
+	private highlightRange(range: Range, nugget?: GoldenNugget): HTMLElement | null {
 		try {
 			// Check if range is collapsed (start and end are the same)
 			if (range.collapsed) {
@@ -230,8 +258,8 @@ export class Highlighter {
 			// Extract the contents of the range
 			const contents = range.extractContents();
 			
-			// Create a highlight element
-			const highlightElement = this.createHighlightElement();
+			// Create a highlight element with nugget key for duplicate prevention
+			const highlightElement = this.createHighlightElement(nugget);
 			
 			// Put the extracted contents inside the highlight element
 			highlightElement.appendChild(contents);
