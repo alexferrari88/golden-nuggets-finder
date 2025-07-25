@@ -87,7 +87,7 @@ The Golden Nuggets Dashboard is designed to monitor and manage an AI-powered con
 ### Available Scripts
 
 - `pnpm dev` - Start development server with hot reloading
-- `pnpm build` - Build for production  
+- `pnpm build` - Build for production (runs TypeScript check first)  
 - `pnpm preview` - Preview production build
 - `pnpm lint` - Run ESLint
 
@@ -97,12 +97,14 @@ The Golden Nuggets Dashboard is designed to monitor and manage an AI-powered con
 src/
 ├── components/           # Reusable UI components
 │   ├── analytics/       # Cost and performance analytics
+│   ├── common/          # Shared utility components
 │   ├── dashboard/       # Dashboard-specific widgets  
+│   ├── export/          # Data export functionality
 │   ├── feedback/        # Feedback management components
 │   ├── layout/          # Layout and responsive containers
 │   ├── operations/      # Operations progress tracking
 │   └── ui/              # shadcn/ui components
-├── hooks/               # Custom React hooks
+├── hooks/               # Custom React hooks (currently empty)
 ├── lib/                 # Utilities and configurations
 │   ├── api.ts          # API client with retry logic
 │   ├── queryClient.ts  # TanStack Query configuration
@@ -122,8 +124,15 @@ src/
 
 ### Feedback Management  
 - **FeedbackQueueTable** - Comprehensive feedback queue with filtering
+- **BulkDeleteFeedbackDialog** - Batch deletion of multiple feedback items
+- **DeleteFeedbackDialog** - Individual feedback item deletion
+- **EditFeedbackDialog** - Edit feedback content and metadata
+- **AdvancedFilters** - Advanced filtering and search capabilities
 - Supports both nugget feedback and missing content feedback
 - Real-time updates with configurable refresh intervals
+
+### Data Export
+- **DataExporter** - Export feedback and analytics data to various formats
 
 ### Analytics
 - **CostAnalytics** - Financial tracking with daily breakdowns
