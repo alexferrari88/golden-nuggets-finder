@@ -554,12 +554,21 @@ export class Sidebar {
     const totalPages = Math.ceil(this.allItems.length / this.itemsPerPage);
     
     const paginationDiv = document.createElement('div');
+    paginationDiv.className = 'nugget-pagination';
     paginationDiv.style.cssText = `
       display: flex;
       justify-content: center;
-      gap: 10px;
-      margin-top: 20px;
-      padding: 20px;
+      align-items: center;
+      gap: ${spacing.md};
+      margin-top: ${spacing.xl};
+      padding: ${spacing.lg} ${spacing.md};
+      background: ${colors.background.secondary};
+      border: 1px solid ${colors.border.light};
+      border-radius: ${borderRadius.lg};
+      box-shadow: ${shadows.md};
+      position: sticky;
+      bottom: ${spacing.md};
+      z-index: 10;
     `;
     
     // Previous button
@@ -577,8 +586,11 @@ export class Sidebar {
     pageInfo.textContent = `Page ${this.currentPage + 1} of ${totalPages}`;
     pageInfo.style.cssText = `
       align-self: center;
-      color: ${colors.text.secondary};
-      font-size: 14px;
+      color: ${colors.text.primary};
+      font-size: ${typography.fontSize.sm};
+      font-weight: ${typography.fontWeight.semibold};
+      min-width: 80px;
+      text-align: center;
     `;
     paginationDiv.appendChild(pageInfo);
     
@@ -598,32 +610,42 @@ export class Sidebar {
   private createPageButton(text: string, onClick: () => void): HTMLElement {
     const button = document.createElement('button');
     button.textContent = text;
+    button.className = 'pagination-button';
     button.style.cssText = `
       background: ${colors.text.accent};
-      color: white;
-      border: none;
-      padding: 8px 16px;
-      border-radius: 8px;
+      color: ${colors.white};
+      border: 1px solid ${colors.text.accent};
+      padding: ${spacing.sm} ${spacing.lg};
+      border-radius: ${borderRadius.md};
       cursor: pointer;
-      font-size: 14px;
-      transition: background-color 0.2s;
-      font-weight: 500;
+      font-size: ${typography.fontSize.sm};
+      font-weight: ${typography.fontWeight.semibold};
+      font-family: ${typography.fontFamily.sans};
+      transition: all 0.2s ease;
+      min-width: 80px;
+      box-shadow: ${shadows.md};
     `;
     
     button.addEventListener('click', onClick);
-    button.addEventListener('mouseover', () => {
-      button.style.backgroundColor = '${colors.text.accent}';
+    button.addEventListener('mouseenter', () => {
+      button.style.backgroundColor = colors.text.primary;
+      button.style.borderColor = colors.text.primary;
+      button.style.transform = 'translateY(-1px)';
+      button.style.boxShadow = '0 6px 12px rgba(0, 0, 0, 0.15)';
     });
-    button.addEventListener('mouseout', () => {
-      button.style.backgroundColor = '${colors.text.accent}';
+    button.addEventListener('mouseleave', () => {
+      button.style.backgroundColor = colors.text.accent;
+      button.style.borderColor = colors.text.accent;
+      button.style.transform = 'translateY(0)';
+      button.style.boxShadow = shadows.md;
     });
     
     return button;
   }
   
   private updatePagination(container: HTMLElement): void {
-    const existingPagination = container.querySelector('div:last-child');
-    if (existingPagination && existingPagination.style.display === 'flex') {
+    const existingPagination = container.querySelector('.nugget-pagination');
+    if (existingPagination) {
       existingPagination.remove();
     }
     this.addPagination(container);
