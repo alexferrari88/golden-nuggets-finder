@@ -44,7 +44,7 @@ export function DeleteFeedbackDialog({ item, children }: DeleteFeedbackDialogPro
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         {children || (
-          <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-700">
+          <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-700 cursor-pointer">
             <Trash2 className="h-4 w-4" />
           </Button>
         )}
@@ -94,6 +94,7 @@ export function DeleteFeedbackDialog({ item, children }: DeleteFeedbackDialogPro
               variant="outline"
               onClick={() => setOpen(false)}
               disabled={deleteMutation.isPending}
+              className="cursor-pointer"
             >
               Cancel
             </Button>
@@ -101,6 +102,7 @@ export function DeleteFeedbackDialog({ item, children }: DeleteFeedbackDialogPro
               variant="destructive"
               onClick={handleDelete}
               disabled={deleteMutation.isPending}
+              className="cursor-pointer"
             >
               {deleteMutation.isPending ? 'Deleting...' : 'Delete'}
             </Button>

@@ -95,7 +95,7 @@ export function EditFeedbackDialog({ item, children }: EditFeedbackDialogProps) 
                   variant={rating === 'positive' ? 'default' : 'outline'}
                   size="sm"
                   onClick={() => setRating(rating === 'positive' ? null : 'positive')}
-                  className="flex items-center gap-2"
+                  className="flex items-center gap-2 cursor-pointer"
                 >
                   <ThumbsUp className="h-4 w-4" />
                   Positive
@@ -105,7 +105,7 @@ export function EditFeedbackDialog({ item, children }: EditFeedbackDialogProps) 
                   variant={rating === 'negative' ? 'default' : 'outline'}
                   size="sm"
                   onClick={() => setRating(rating === 'negative' ? null : 'negative')}
-                  className="flex items-center gap-2"
+                  className="flex items-center gap-2 cursor-pointer"
                 >
                   <ThumbsDown className="h-4 w-4" />
                   Negative
@@ -116,7 +116,7 @@ export function EditFeedbackDialog({ item, children }: EditFeedbackDialogProps) 
                     variant="ghost"
                     size="sm"
                     onClick={() => setRating(null)}
-                    className="flex items-center gap-2"
+                    className="flex items-center gap-2 cursor-pointer"
                   >
                     <X className="h-4 w-4" />
                     Clear
@@ -140,12 +140,14 @@ export function EditFeedbackDialog({ item, children }: EditFeedbackDialogProps) 
               variant="outline"
               onClick={() => setOpen(false)}
               disabled={updateMutation.isPending}
+              className="cursor-pointer"
             >
               Cancel
             </Button>
             <Button
               type="submit"
               disabled={!hasChanges || updateMutation.isPending || !content.trim()}
+              className="cursor-pointer"
             >
               {updateMutation.isPending ? 'Updating...' : 'Update'}
             </Button>
