@@ -10,6 +10,9 @@ export default defineBackground(() => {
 
 	// Track analysis completion state per tab
 	const analysisCompletedTabs = new Set<number>();
+	
+	// Prevent concurrent context menu setup
+	let isSettingUpContextMenu = false;
 
 	// Set up message listeners
 	chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
@@ -107,6 +110,14 @@ export default defineBackground(() => {
 	}
 
 	async function setupContextMenu(showReportMissedNugget: boolean = false): Promise<void> {
+		// Prevent concurrent executions to avoid duplicate ID errors
+		if (isSettingUpContextMenu) {
+			console.log("[Background] Context menu setup already in progress, skipping");
+			return;
+		}
+		
+		isSettingUpContextMenu = true;
+		
 		try {
 			// Clear existing menu items
 			await chrome.contextMenus.removeAll();
@@ -177,6 +188,8 @@ export default defineBackground(() => {
 			}
 		} catch (error) {
 			console.error("Failed to setup context menu:", error);
+		} finally {
+			isSettingUpContextMenu = false;
 		}
 	}
 
