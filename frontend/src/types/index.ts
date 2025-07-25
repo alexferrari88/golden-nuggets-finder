@@ -21,6 +21,8 @@ export interface FeedbackItem {
   processed: boolean;
   usage_count: number;
   created_at: string;
+  original_type?: string;  // Specific nugget type (tool, media, explanation, analogy, model)
+  corrected_type?: string; // User-corrected type if different from original
 }
 
 export interface OptimizationProgress {

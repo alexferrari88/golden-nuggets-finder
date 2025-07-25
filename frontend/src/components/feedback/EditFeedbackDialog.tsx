@@ -45,6 +45,14 @@ export function EditFeedbackDialog({ item, children }: EditFeedbackDialogProps) 
 
   const hasChanges = content.trim() !== item.content || rating !== item.rating;
 
+  const getDisplayType = () => {
+    if (item.type === 'nugget') {
+      // Show corrected_type if available, otherwise original_type, fallback to 'nugget'
+      return item.corrected_type || item.original_type || 'nugget';
+    }
+    return item.type.replace('_', ' ');
+  };
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
@@ -69,7 +77,7 @@ export function EditFeedbackDialog({ item, children }: EditFeedbackDialogProps) 
           <div className="space-y-2">
             <label className="text-sm font-medium">Type</label>
             <Badge variant="secondary" className="w-fit">
-              {item.type.replace('_', ' ')}
+              {getDisplayType()}
             </Badge>
           </div>
 

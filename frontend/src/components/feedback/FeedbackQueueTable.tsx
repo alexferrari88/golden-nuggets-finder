@@ -209,6 +209,14 @@ export function FeedbackQueueTable({
     return content.slice(0, maxLength) + '...';
   };
 
+  const getDisplayType = (item: FeedbackItem) => {
+    if (item.type === 'nugget') {
+      // Show corrected_type if available, otherwise original_type, fallback to 'nugget'
+      return item.corrected_type || item.original_type || 'nugget';
+    }
+    return item.type.replace('_', ' ');
+  };
+
   const getTruncatedContent = (content: string, maxLength: number = 300) => {
     const isTruncated = content.length > maxLength;
     const truncatedContent = isTruncated ? content.substring(0, maxLength) : content;
@@ -392,7 +400,7 @@ export function FeedbackQueueTable({
                         <div className="flex items-center gap-2">
                           {getTypeIcon(item.type)}
                           <span className="text-sm font-medium capitalize">
-                            {item.type.replace('_', ' ')}
+                            {getDisplayType(item)}
                           </span>
                         </div>
                       </TableCell>
