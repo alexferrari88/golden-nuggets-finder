@@ -2,6 +2,13 @@
 Shared pytest fixtures for the backend test suite.
 
 Provides proper test database isolation and cleanup.
+
+Test Structure:
+- tests/unit/test_error_handling.py - Service layer error scenarios
+- tests/integration/test_api_error_handling.py - API error responses
+- tests/integration/test_main.py - Core API functionality
+- tests/unit/test_feedback_service.py - Feedback service logic
+- tests/unit/test_optimization.py - DSPy optimization testing
 """
 
 import asyncio

@@ -8,14 +8,18 @@ This directory contains the test suite for the Golden Nuggets Finder backend.
 tests/
 ├── conftest.py           # Shared pytest fixtures
 ├── integration/          # API and database integration tests
-│   └── test_main.py      # FastAPI endpoint tests
+│   ├── test_main.py      # Core FastAPI endpoint tests
+│   └── test_api_error_handling.py  # API error response tests
 ├── unit/                 # Unit tests for individual components
-│   └── test_optimization.py  # DSPy optimization service tests
+│   ├── test_feedback_service.py    # Feedback service logic tests
+│   ├── test_optimization.py        # DSPy optimization service tests
+│   └── test_error_handling.py      # Service layer error scenarios
 ├── manual/               # Manual test scripts (not run in CI)
 │   ├── test_deduplication.py
 │   ├── test_monitoring.py
 │   └── ...other manual scripts
-└── fixtures/             # Test data fixtures (future use)
+├── fixtures/             # Test data fixtures (future use)
+└── run_error_tests.py    # Quick runner for error handling tests
 ```
 
 ## Running Tests
@@ -27,6 +31,9 @@ pytest tests/integration tests/unit
 
 # With coverage
 pytest tests/integration tests/unit --cov=app --cov-report=term-missing
+
+# Run error handling tests specifically
+python tests/run_error_tests.py
 ```
 
 ### All Tests (Including Manual)
@@ -54,16 +61,18 @@ pytest -m "unit"
 ## Test Categories
 
 ### Integration Tests (`tests/integration/`)
-- Test FastAPI endpoints with real database
+- **test_main.py**: Core FastAPI endpoints with real database
+- **test_api_error_handling.py**: API error responses and edge cases
 - Test complete request/response cycles
-- Verify API contract compliance
-- **Coverage**: All major API endpoints (POST /feedback, GET /optimize/*, etc.)
+- Verify API contract compliance and error handling
+- **Coverage**: All major API endpoints plus error scenarios
 
 ### Unit Tests (`tests/unit/`)
-- Test individual service classes and functions
-- Mock external dependencies
-- Test error handling and edge cases
-- **Coverage**: DSPy configuration, optimization service, metrics
+- **test_feedback_service.py**: Feedback storage and deduplication logic
+- **test_optimization.py**: DSPy optimization and configuration testing
+- **test_error_handling.py**: Service layer error scenarios and resilience
+- Test individual service classes with mocked dependencies
+- **Coverage**: Core business logic, DSPy integration, error handling
 
 ### Manual Tests (`tests/manual/`)
 - Scripts for manual testing and debugging
