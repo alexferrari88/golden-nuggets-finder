@@ -64,10 +64,16 @@ This file provides guidance to Claude Code when working with the Golden Nuggets 
 2. **Service Layer**:
    - **FeedbackService** (`services/feedback_service.py`): Manages feedback storage, statistics, and analysis
    - **OptimizationService** (`services/optimization_service.py`): Handles DSPy-based prompt optimization
+   - **CostTrackingService** (`services/cost_tracking_service.py`): Tracks API costs and token usage
+   - **ProgressTrackingService** (`services/progress_tracking_service.py`): Real-time optimization progress monitoring
+   - **DSPy Configuration** (`services/dspy_config.py`): DSPy framework setup and configuration
 
 3. **Data Models** (`app/models.py`):
-   - Pydantic models for API validation
-   - Database models for internal storage
+   - **Request/Response Models**: `FeedbackSubmissionRequest`, `UpdateFeedbackRequest`, `OptimizationRequest`, `FeedbackStatsResponse`, `OptimizedPromptResponse`
+   - **Monitoring Models**: `OptimizationProgress`, `SystemHealthResponse`, `MonitoringResponse`
+   - **Deduplication Models**: `DeduplicationInfo`, `FeedbackWithDeduplication`
+   - **Internal Storage Models**: `StoredNuggetFeedback`, `StoredMissingContentFeedback`, `OptimizationRun`
+   - **DSPy Integration Models**: `TrainingExample`, `PromptOptimizationResult`
    - TypeScript interface compatibility for Chrome extension
 
 4. **Database Layer** (`app/database.py`):
@@ -94,7 +100,7 @@ python run.py
 
 ### Testing
 
-The backend has three types of tests with different database isolation requirements:
+The backend has three types of tests with different database isolation requirements. Testing configuration is managed in `pyproject.toml` with pytest settings, coverage reporting, and async test support.
 
 #### Automated Tests (Recommended)
 ```bash
@@ -107,8 +113,12 @@ pytest tests/ --ignore=tests/manual/
 # Run specific test file
 pytest tests/integration/test_main.py -v
 
-# Run with coverage
+# Run with coverage (configured in pyproject.toml)
 pytest --cov=app tests/integration tests/unit
+
+# Coverage report includes HTML output in htmlcov/ directory
+# Test markers available: slow, integration, unit
+# Run only fast tests: pytest -m "not slow"
 ```
 
 #### Manual Tests (Development & Debugging)
@@ -147,12 +157,15 @@ The system automatically detects test environments and uses isolated databases:
 
 ### Code Quality
 ```bash
-# Formatting and linting with ruff
-ruff check .
-ruff format .
+# Formatting and linting with ruff (configured in pyproject.toml)
+ruff check .      # Lint with extensive rule set (E, W, F, I, B, C4, UP, ARG, SIM, etc.)
+ruff format .     # Format code with consistent style
 
 # Type checking with mypy
 mypy .
+
+# Run all quality checks together
+ruff check . && ruff format . && mypy .
 ```
 
 ### Database Management
@@ -177,12 +190,27 @@ python scripts/db_management.py stats
 ### Service Layer (`app/services/`)
 - `feedback_service.py` - Feedback collection, storage, and statistics
 - `optimization_service.py` - DSPy optimization logic and prompt management
+- `cost_tracking_service.py` - Cost tracking and analytics for API usage
+- `improved_cost_tracking_service.py` - Enhanced cost tracking with advanced analytics
+- `progress_tracking_service.py` - Real-time progress tracking for optimization runs
+- `dspy_config.py` - DSPy framework configuration and setup
 
 ### Infrastructure
 - `Dockerfile` / `Dockerfile.dev` - Docker containerization
 - `docker-compose.yml` - Multi-service orchestration
 - `requirements.txt` - Python dependencies
+- `pyproject.toml` - Python project configuration with ruff, pytest, and coverage settings
 - `run.py` - Development server startup script
+
+### Database and Migrations
+- `app/database_migrations.py` - Database migration system and schema management
+- `migrations/` - SQL migration files for database schema evolution
+
+### Additional Documentation
+- `DATABASE_SCHEMA.md` - Detailed database schema documentation
+- `DEPLOYMENT.md` - Production deployment guidelines
+- `DOCKER.md` - Docker setup and containerization guide
+- `MONITORING_GUIDE.md` - Comprehensive monitoring and observability documentation
 
 ### Database Schema
 
@@ -277,19 +305,47 @@ User feedback is converted into DSPy training examples:
   - Returns success confirmation
   - Returns 404 if feedback item not found
 
+- `GET /feedback/pending` - Get pending (unprocessed) feedback items for dashboard queue
+  - Supports pagination with limit/offset parameters
+  - Filter by feedback_type ('nugget', 'missing_content', or 'all')
+  - Returns feedback items that haven't been used in optimization yet
+
+- `GET /feedback/recent` - Get recent feedback items with processing status
+  - Configurable limit (default: 20)
+  - Option to include/exclude processed items
+  - Returns creation timestamps and processing status
+
+- `GET /feedback/usage/stats` - Get statistics about feedback usage across optimizations
+  - Shows how many times feedback items have been used in training
+  - Usage patterns and effectiveness metrics
+
+- `GET /feedback/duplicates` - Get analysis of duplicate feedback submissions
+  - Identifies and analyzes duplicate content submissions
+  - Shows report counts and similarity analysis
+  - Helps identify frequently reported issues
+
 ### Prompt Optimization
 - `POST /optimize` - Manually trigger optimization
   - Supports both expensive and cheap modes
   - Runs as background task
   - Returns estimated completion time
 
-- `GET /optimize/history` - Get optimization run history
+- `GET /optimization/history` - Get optimization run history
   - Past optimization attempts and results
   - Performance improvements over time
+  - Supports filtering by limit, days, and mode
 
 - `GET /optimize/current` - Get current optimized prompt
   - Latest optimized prompt if available
   - Performance metrics and version information
+
+- `GET /optimization/{run_id}/progress` - Get detailed progress history for an optimization run
+  - Step-by-step progress tracking for specific runs
+  - Historical progress data with timestamps
+
+- `GET /optimization/{run_id}/costs` - Get detailed cost breakdown for an optimization run
+  - Token usage and API costs for specific optimization runs
+  - Detailed cost analysis per optimization phase
 
 ### Monitoring and Observability
 - `GET /` - Basic health check endpoint
@@ -309,6 +365,29 @@ User feedback is converted into DSPy training examples:
   - Historical data for completed/failed runs
   - Detailed error information and performance metrics
   - Source indication (active memory vs database)
+
+### Cost Tracking and Analytics
+- `GET /costs/summary` - Get cost summary over specified time period
+  - Configurable time period (default: 30 days)
+  - Total costs, token usage, and API call statistics
+  - Cost breakdown by optimization type and phase
+
+- `GET /costs/trends` - Get cost trends and projections
+  - Historical cost trends over time
+  - Usage pattern analysis and future projections
+  - Cost optimization recommendations
+
+### Dashboard and Analytics
+- `GET /dashboard/stats` - Get comprehensive dashboard statistics
+  - Aggregated statistics from dashboard_stats database view
+  - Pending and processed feedback counts
+  - Active and completed optimization counts
+  - Monthly cost and token usage summaries
+
+- `GET /activity/recent` - Get recent activity across all optimizations
+  - Configurable limit (default: 10)
+  - Cross-system activity feed showing recent optimization events
+  - Progress updates and completion notifications
 
 ## Enhanced Logging and Progress Tracking
 
