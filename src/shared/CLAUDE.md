@@ -1,18 +1,18 @@
 # Shared Utilities Documentation
 
-This document covers the shared utilities, types, storage management, and performance monitoring for the Golden Nugget Finder extension.
+This document covers the shared utilities, types, storage management, security, content processing, and performance monitoring for the Golden Nugget Finder extension.
 
 ## Storage Management
 
 ### Storage Manager (`storage.ts`)
-Handles Chrome storage with caching:
+Handles Chrome storage with caching and security integration:
 - Provides abstraction layer over Chrome storage APIs
 - Implements caching for frequently accessed data
 - Handles storage quota management
 - Ensures data consistency across extension components
 
 ### Storage Structure
-- `geminiApiKey`: User's Google Gemini API key
+- `geminiApiKey`: User's Google Gemini API key (encrypted using SecurityManager)
 - `userPrompts`: Array of saved prompt objects with names, content, and default status
 
 ### Storage Best Practices
@@ -20,21 +20,113 @@ Handles Chrome storage with caching:
 - Implement proper error handling for storage operations
 - Validate data integrity on read/write operations
 - Handle storage quota exceeded scenarios
+- API keys are automatically encrypted using device-specific encryption
+
+## Security System
+
+### Security Manager (`security.ts`)
+Comprehensive security system for API key protection and access control:
+- **Device-Specific Encryption**: API keys encrypted using AES-GCM with device fingerprinting
+- **Access Control**: Rate limiting and context validation for all security operations
+- **Audit Logging**: Complete audit trail of all security events and access attempts
+- **Key Rotation**: Automatic detection of key age and rotation recommendations
+- **Error Recovery**: Enhanced error handling with recovery suggestions for device changes
+
+### Security Features
+- **Encryption**: AES-GCM with PBKDF2 key derivation using device-specific salts
+- **Rate Limiting**: Configurable rate limits per context (background, popup, options, content)
+- **Integrity Verification**: Storage integrity checks with version compatibility
+- **Memory Security**: Automatic cleanup of sensitive data from memory
+- **Context Validation**: Strict access control based on extension context
+
+### Security Best Practices
+- Never store API keys in plaintext
+- Use SecurityManager for all sensitive data operations
+- Validate access context before security operations
+- Monitor audit logs for suspicious activity
+- Clear sensitive data when no longer needed
+
+## Content Processing System
+
+### Content Reconstruction (`content-reconstruction.ts`)
+Advanced text reconstruction utilities for golden nuggets:
+- **Unicode Normalization**: Handles all common Unicode character variants for reliable matching
+- **Text Reconstruction**: Rebuilds full content from startContent and endContent snippets
+- **Improved Matching**: Enhanced start/end matching algorithm with detailed error reporting
+- **Display Optimization**: Smart content display based on reconstruction success
+
+### Text Matching Features
+- **Advanced Normalization**: Handles apostrophes, quotes, dashes, ellipses, and whitespace variants
+- **Multi-Strategy Matching**: Combines exact matching, reconstruction, and partial word matching
+- **Error Reporting**: Detailed match results with failure reasons and indices
+- **Content Validation**: Length-based validation to ensure reconstruction quality
+
+### Fuzzy Matching (`fuzzy-matching.ts`)
+Tolerance-based content matching system:
+- **Word-Level Matching**: Uses Levenshtein distance for handling minor text variations
+- **Configurable Tolerance**: Adjustable match threshold (default 0.8) for different use cases
+- **Performance Optimized**: Efficient algorithms for real-time content highlighting
+
+### Fuzzy Matching Features
+- **Levenshtein Distance**: Single-character edit distance calculation
+- **Word Filtering**: Smart word filtering to improve match accuracy
+- **Tolerance Control**: Fine-tuned matching thresholds for different content types
+
+## Schema System
+
+### Schema Definitions (`schemas.ts`)
+JSON schema definitions for API validation:
+- **Golden Nugget Schema**: Complete schema for nugget validation and API responses
+- **Type System**: Enforced golden nugget types (tool, media, explanation, analogy, model)
+- **Dynamic Schema Generation**: Configurable schemas based on selected nugget types
+- **Validation Support**: Integration with JSON schema validation libraries
+
+### Schema Features
+- **Strict Validation**: Enforced required fields and data types
+- **Property Ordering**: Consistent property ordering for API responses
+- **Type Filtering**: Dynamic schema generation based on user-selected types
+- **Extensibility**: Easy addition of new nugget types and validation rules
+
+## Development System
+
+### Debug Logger (`debug.ts`)
+Development and production logging system:
+- **Environment Detection**: Automatic development mode detection
+- **Multi-Context Logging**: Logs to both service worker and page console
+- **LLM Integration**: Specialized logging for API requests/responses
+- **Message Forwarding**: Debug messages forwarded to active content scripts
+
+### Debug Features
+- **Development Only**: Automatically disabled in production builds
+- **API Validation Logging**: Detailed logging of API key validation attempts
+- **Error Context**: Enhanced error logging with stack traces and context
+- **Performance Integration**: Integrated with performance monitoring system
 
 ## Type System
 
 ### Types (`types.ts`)
-TypeScript interfaces for all data structures:
-- Golden nugget data models
-- API request/response interfaces
-- UI component prop types
-- Storage data schemas
+Comprehensive TypeScript interfaces for all extension data structures:
+- **Core Data Models**: GoldenNugget, GeminiResponse, SavedPrompt, ExtensionConfig
+- **UI State Management**: NuggetDisplayState, SidebarNuggetItem, TypeFilterOptions
+- **Analysis System**: AnalysisRequest, AnalysisResponse, AnalysisProgressMessage
+- **Feedback System**: NuggetFeedback, MissingContentFeedback, FeedbackStats
+- **Export System**: ExportData, ExportOptions with multiple format support
+- **Message System**: Complete MessageTypes enum for inter-component communication
+- **Debug System**: DebugLogMessage for development logging
 
-### Type Safety Guidelines
+### Advanced Type Features
+- **Feedback Integration**: Complete feedback system types for prompt optimization
+- **Progress Tracking**: Real-time analysis progress with unique ID tracking
+- **Export Flexibility**: Multiple export formats (JSON, Markdown) with scope control
+- **Message Safety**: Strongly typed message system prevents runtime errors
+- **Performance Monitoring**: Types for optimization requests and performance metrics
+
+### Type Safety Guidelines  
 - Use strict TypeScript configuration
 - Define interfaces for all data structures
 - Implement proper type guards for runtime validation
 - Use discriminated unions for complex type hierarchies
+- Leverage const assertions for immutable data structures
 
 ## Design System
 
@@ -117,17 +209,31 @@ element.style.cssText = `
 ## Constants and Configuration
 
 ### Constants (`constants.ts`)
-Configuration values and defaults:
-- API endpoints and configuration
-- UI constants and styling values
-- Performance thresholds and limits
-- Error messages and user-facing text
+Core configuration values and defaults:
+- **Storage Keys**: Centralized key definitions for Chrome storage (`STORAGE_KEYS`)
+- **Gemini Configuration**: API model selection and thinking budget settings (`GEMINI_CONFIG`)
+- **Default Prompts**: Complete default prompt system with sophisticated persona-based analysis
+
+### Default Prompt System
+The extension includes a comprehensive default prompt that implements:
+- **Diamond Miner Principle**: Ultra-high quality filtering with preference for zero results over mediocre ones  
+- **Persona-Based Analysis**: Tailored for "Pragmatic Synthesizer" with ADHD and INTP cognitive patterns
+- **Anti-Pattern Detection**: Sophisticated filtering to avoid meta-summaries and feature lists
+- **Five Extraction Categories**: Tools, Media, Explanations, Analogies, and Mental Models
+- **Quality Control**: Multiple validation layers with strict signal-to-noise requirements
+
+### Configuration Features
+- **Immutable Constants**: Using `as const` assertions for type safety
+- **Centralized Storage**: All storage keys defined in single location
+- **Model Configuration**: Easy switching between Gemini model versions
+- **Prompt Templating**: Support for dynamic prompt variables like `{{ source }}`
 
 ### Configuration Management
 - Centralize all configuration values
-- Use environment-specific overrides
+- Use environment-specific overrides where needed
 - Implement validation for critical constants
 - Document all configuration options
+- Leverage TypeScript for compile-time validation
 
 ## Performance Monitoring
 
@@ -178,25 +284,51 @@ Tracks timing and memory usage:
 - Log errors with sufficient context for debugging
 - Provide graceful degradation for non-critical failures
 
-## Development Notes
+## Testing Infrastructure
 
-### Testing Shared Utilities
+### Unit Tests
+The shared utilities include comprehensive unit tests:
+- **Schema Validation Tests** (`schemas.test.ts`): Tests for JSON schema generation and validation
+- **Security System Tests** (`security.test.ts`): Tests for encryption, decryption, and access control  
+- **Storage System Tests** (`storage.test.ts`): Tests for storage operations and error handling
+
+### Test Coverage Areas
+- **Security**: Encryption/decryption cycles, device fingerprinting, error recovery
+- **Schema**: Dynamic schema generation, type validation, property ordering
+- **Storage**: CRUD operations, error handling, data integrity validation
+- **Performance**: Timing validation, memory usage monitoring
+- **Error Handling**: Edge cases, malformed data, security failures
+
+### Testing Best Practices
 - Focus on unit testing for utility functions
-- Test error conditions and edge cases
+- Test error conditions and edge cases thoroughly
 - Verify type safety and validation logic
 - Test performance under various conditions
+- Use descriptive test names and organize by feature area
+
+## Development Notes
 
 ### Adding New Utilities
-1. Follow existing naming conventions
-2. Implement proper TypeScript typing
-3. Add comprehensive tests
-4. Document usage examples
+1. Follow existing naming conventions and file structure
+2. Implement proper TypeScript typing with strict mode
+3. Add comprehensive unit tests in corresponding `.test.ts` file
+4. Document usage examples and integration points
+5. Consider security implications for sensitive operations
+6. Update this CLAUDE.md file with new utility documentation
+
+### Security Considerations
+- All new utilities handling sensitive data must use SecurityManager
+- Implement proper access control validation
+- Add audit logging capability for security-sensitive operations
+- Consider rate limiting for operations that could be abused
+- Test error handling to prevent information leakage
 
 ### Performance Optimization
 - Profile utility functions for performance bottlenecks
-- Implement memoization where appropriate
-- Use efficient algorithms and data structures
-- Monitor memory usage and garbage collection
+- Implement memoization where appropriate (see content reconstruction)
+- Use efficient algorithms and data structures (see fuzzy matching)
+- Monitor memory usage and implement cleanup (see security manager)
+- Consider lazy loading for heavy operations
 
 ## Migration Notes
 
