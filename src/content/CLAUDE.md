@@ -32,23 +32,27 @@ Content scripts are injected dynamically only when needed (not on all pages) and
 
 ## Content Extraction System
 
-### Base Extractor (`extractors/base.ts`)
-Abstract interface that defines the contract for all content extractors.
+The content extraction system uses the external `threads-harvester` library (v1.1.1) for intelligent content extraction across different website types.
 
-### Specialized Extractors
+### ContentScraper (`threads-harvester`)
+The extension uses `ContentScraper` from the threads-harvester library which provides:
+- **Automatic Site Detection**: Automatically detects site type (Reddit, Hacker News, generic websites)
+- **Structured Content Extraction**: Returns structured `Content` objects with `items` array containing posts and comments
+- **HTML Support**: Can include HTML content for better extraction with `includeHtml: true` option
+- **Interactive Selection**: Supports checkbox-based content selection with custom styling
 
-#### RedditExtractor
-- Designed for modern Reddit's shadow DOM structure
-- Handles both posts and comments efficiently
+### Content Processing Flow
+1. **Initialization**: `ContentScraper` is created with design-system-compliant checkbox styling
+2. **Extraction**: `contentScraper.run()` extracts structured content from the page
+3. **Conversion**: `convertContentToText()` converts structured content to text with type delimiters (`[POST]`, `[COMMENT]`)
+4. **Analysis**: Processed text is sent to AI for golden nugget analysis
 
-#### HackerNewsExtractor
-- Optimized for Hacker News' classic HTML structure
-- Extracts both article content and discussion threads
-
-#### GenericExtractor
-- Uses Mozilla's Readability.js for article extraction
-- Fallback for general websites
-- Provides clean, readable content extraction
+### Site-Specific Extraction
+The threads-harvester library handles site-specific extraction internally:
+- **Reddit**: Handles modern Reddit's shadow DOM structure and both old/new layouts
+- **Hacker News**: Optimized for classic HTML structure with nested comments
+- **Generic Sites**: Fallback extraction for unknown site structures
+- **Content Types**: Distinguishes between posts, comments, and article content
 
 ## UI Management
 
@@ -59,10 +63,12 @@ Orchestrates all UI interactions and coordinates between components:
 - Coordinates highlighting and sidebar display
 
 ### Highlighter (`ui/highlighter.ts`)
-Handles text highlighting on pages with minimalistic design:
-- **Ultra-Subtle Highlighting**: Uses design system's minimal gray overlays for sophisticated highlighting
-- **Minimal Indicators**: Small, unobtrusive indicators with hover states using design system colors
-- **Consistent Styling**: Follows design system with consistent border radius and smooth transitions
+Modern text highlighting using CSS Custom Highlight API with DOM fallback:
+- **CSS Custom Highlight API**: Uses modern browser API for performance and native behavior
+- **DOM Fallback**: Graceful degradation to DOM-based highlighting for older browsers
+- **Ultra-Subtle Styling**: Uses design system's minimal gray overlays for sophisticated highlighting
+- **Minimal Visual Impact**: Small, unobtrusive indicators with hover states using design system colors
+- **Performance Optimized**: CSS-based highlighting avoids DOM manipulation overhead
 - **Accessibility**: Maintains proper contrast while being visually minimal using neutral grays
 
 ### Sidebar (`ui/sidebar.ts`)
@@ -72,11 +78,13 @@ Displays results in right sidebar with Notion-inspired design:
 - **Minimal Interactions**: Hover states and smooth transitions
 - **Typography**: System font stack with consistent sizing
 
-### Notifications (`ui/notifications.ts`)
-Shows progress and status banners with minimalistic approach:
-- **Subtle Backgrounds**: Uses design system's neutral grays
-- **Clean Typography**: Consistent font sizes and weights
-- **Minimal Shadows**: Subtle depth without visual clutter
+### NotificationManager (`ui/notifications.ts`)
+Manages different types of notification banners with automatic lifecycle:
+- **Multiple Banner Types**: Progress, error, success, info, and API key error banners
+- **Auto-hide Behavior**: Automatic timeout for errors and success messages
+- **Interactive Options**: Info banners can include buttons with custom actions
+- **Single Banner Policy**: Only one banner shown at a time, with smart replacement
+- **Design System Integration**: Uses design system colors, typography, and timing
 - **Smooth Animations**: Fade-in and slide-in animations for polished feel
 
 ### Design System Integration
@@ -138,32 +146,39 @@ element.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.1)'
 
 ## Site-Specific Behavior
 
-### Reddit Integration
-- Uses shadow DOM selectors for modern Reddit interface
-- Handles both old and new Reddit layouts
-- Optimized for post content and comment threads
+The threads-harvester library provides automatic site detection and optimized extraction:
 
-### Hacker News Integration
-- Uses CSS class selectors for comments and posts
-- Handles nested comment structures
-- Extracts both article links and discussion content
+### Reddit Integration
+- Automatic detection of modern Reddit interface
+- Handles both old and new Reddit layouts seamlessly
+- Extracts post content and comment threads with proper hierarchy
+- Supports both standard and shadow DOM structures
+
+### Hacker News Integration  
+- Recognizes Hacker News URL patterns and DOM structure
+- Extracts nested comment structures with proper threading
+- Handles both article links and discussion content
+- Maintains comment hierarchy and metadata
 
 ### Generic Site Handling
-- Uses Readability.js for article extraction
-- Provides fallback for unknown site structures
-- Maintains consistent extraction quality
+- Automatic fallback for unrecognized sites
+- Intelligent content extraction using multiple strategies
+- Maintains consistent content quality across different site types
+- Adapts to various DOM structures and layouts
 
 ## Performance Considerations
 
 ### Content Extraction Optimization
-- Content extraction is measured and optimized
-- DOM operations are batched and measured
-- Memory usage is tracked during analysis
+- Content extraction timing is measured using `measureContentExtraction()`
+- ThreadsHarvester library operations are monitored for performance
+- DOM operations are batched and measured with `measureDOMOperation()`
+- Memory usage is tracked during analysis with `performanceMonitor.measureMemory()`
 
 ### Dynamic Injection
 - Content scripts are injected dynamically only when needed
-- Uses `chrome.scripting.executeScript` with `content-injector.js`
-- Prevents unnecessary loading on all pages for performance
+- Uses `chrome.scripting.executeScript()` from background script
+- ContentScraper is initialized on-demand to prevent unnecessary loading
+- Prevents performance impact on all pages by using restrictive matches pattern
 
 ## Error Handling
 
@@ -184,11 +199,12 @@ element.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.1)'
 - Test across different site types and structures
 - Verify UI component interactions
 
-### Adding New Extractors
-1. Extend the base extractor interface
-2. Implement site-specific selection logic
-3. Add performance monitoring
-4. Test with representative content samples
+### Working with ContentScraper
+1. ContentScraper automatically detects site types - no manual configuration needed
+2. Configure extraction options via constructor (`includeHtml`, `showCheckboxes`, etc.)
+3. Use `measureContentExtraction()` to monitor performance of extraction operations
+4. Test extraction across different site types and content structures
+5. For site-specific issues, consider contributing to the threads-harvester library
 
 ### UI Component Guidelines
 - Keep UI components lightweight and performant
