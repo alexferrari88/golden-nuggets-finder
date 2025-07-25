@@ -55,7 +55,7 @@ restart-backend:
 
 # Start all services including frontend (backend + frontend)
 up-all:
-    cd backend && docker-compose --profile dev up -d && cd ../frontend && pnpm dev
+    cd backend && docker-compose --profile dev up -d backend-dev && cd ../frontend && pnpm dev
 
 # Stop all services including frontend
 down-all:
