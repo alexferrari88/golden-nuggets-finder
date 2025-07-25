@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useEffect } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { 
   ChevronDown, 
@@ -369,9 +369,8 @@ export function FeedbackQueueTable({
               </TableHeader>
               <TableBody>
                 {filteredItems.map((item) => (
-                  <>
+                  <React.Fragment key={item.id}>
                     <TableRow 
-                      key={item.id} 
                       className={`hover:bg-gray-50 cursor-pointer ${selectedItems.has(item.id) ? 'bg-blue-50' : ''}`}
                       onClick={() => toggleRowExpansion(item.id)}
                     >
@@ -499,7 +498,7 @@ export function FeedbackQueueTable({
                         </TableCell>
                       </TableRow>
                     )}
-                  </>
+                  </React.Fragment>
                 ))}
               </TableBody>
             </Table>
