@@ -556,8 +556,8 @@ async def update_feedback_item(
     """Update a feedback item"""
     try:
         async with get_db() as db:
-            # Convert Pydantic model to dict, excluding None values
-            update_data = updates.model_dump(exclude_none=True)
+            # Convert Pydantic model to dict, excluding unset values (but keeping explicit None values)
+            update_data = updates.model_dump(exclude_unset=True)
             
             if not update_data:
                 raise HTTPException(
