@@ -20,7 +20,10 @@ import uvicorn
 
 from .database import get_db, init_database
 from .models import (
+    DeduplicationInfo,
+    EnhancedFeedbackResponse,
     FeedbackStatsResponse,
+    FeedbackStatus,
     FeedbackSubmissionRequest,
     MonitoringResponse,
     OptimizationProgress,
@@ -92,85 +95,111 @@ async def submit_feedback(feedback_data: FeedbackSubmissionRequest):
     missing content feedback (user-identified golden nuggets).
     """
     try:
-        deduplication_results = {
-            "nugget_duplicates": 0,
-            "missing_content_duplicates": 0,
-            "total_submitted": 0,
-            "duplicate_details": [],
-            "user_message": None,
-        }
-
+        # Initialize enhanced deduplication results
+        deduplication_results = DeduplicationInfo(
+            total_submitted=0
+        )
+        
         async with get_db() as db:
-            # Store nugget feedback
+            # Store nugget feedback with enhanced status tracking
             if feedback_data.nuggetFeedback:
                 for feedback in feedback_data.nuggetFeedback:
-                    was_duplicate = await feedback_service.store_nugget_feedback(
-                        db, feedback
-                    )
-                    if was_duplicate:
-                        deduplication_results["nugget_duplicates"] += 1
-
+                    status = await feedback_service.store_nugget_feedback(db, feedback)
+                    
+                    # Count by status type
+                    if status == "duplicate":
+                        deduplication_results.nugget_duplicates += 1
+                        
                         # Get deduplication info for user message
                         dedup_info = await feedback_service.get_deduplication_info(
                             db, feedback.id, "nugget"
                         )
+                        
+                        deduplication_results.duplicate_details.append({
+                            "type": "nugget",
+                            "content": feedback.nuggetContent[:100] + "..."
+                            if len(feedback.nuggetContent) > 100
+                            else feedback.nuggetContent,
+                            "report_count": dedup_info["report_count"],
+                            "first_reported_at": dedup_info["first_reported_at"],
+                        })
+                    elif status == "updated":
+                        deduplication_results.nugget_updates += 1
+                    
+                    deduplication_results.total_submitted += 1
 
-                        deduplication_results["duplicate_details"].append(
-                            {
-                                "type": "nugget",
-                                "content": feedback.nuggetContent[:100] + "..."
-                                if len(feedback.nuggetContent) > 100
-                                else feedback.nuggetContent,
-                                "report_count": dedup_info["report_count"],
-                                "first_reported_at": dedup_info["first_reported_at"],
-                            }
-                        )
-
-                    deduplication_results["total_submitted"] += 1
-
-            # Store missing content feedback
+            # Store missing content feedback with enhanced status tracking
             if feedback_data.missingContentFeedback:
                 for missing_feedback in feedback_data.missingContentFeedback:
-                    was_duplicate = (
-                        await feedback_service.store_missing_content_feedback(
-                            db, missing_feedback
-                        )
+                    status = await feedback_service.store_missing_content_feedback(
+                        db, missing_feedback
                     )
-                    if was_duplicate:
-                        deduplication_results["missing_content_duplicates"] += 1
-
+                    
+                    # Count by status type
+                    if status == "duplicate":
+                        deduplication_results.missing_content_duplicates += 1
+                        
                         # Get deduplication info for user message
                         dedup_info = await feedback_service.get_deduplication_info(
                             db, missing_feedback.id, "missing_content"
                         )
+                        
+                        deduplication_results.duplicate_details.append({
+                            "type": "missing_content",
+                            "content": missing_feedback.content[:100] + "..."
+                            if len(missing_feedback.content) > 100
+                            else missing_feedback.content,
+                            "report_count": dedup_info["report_count"],
+                            "first_reported_at": dedup_info["first_reported_at"],
+                        })
+                    elif status == "updated":
+                        deduplication_results.missing_content_updates += 1
+                    
+                    deduplication_results.total_submitted += 1
 
-                        deduplication_results["duplicate_details"].append(
-                            {
-                                "type": "missing_content",
-                                "content": missing_feedback.content[:100] + "..."
-                                if len(missing_feedback.content) > 100
-                                else missing_feedback.content,
-                                "report_count": dedup_info["report_count"],
-                                "first_reported_at": dedup_info["first_reported_at"],
-                            }
-                        )
-
-                    deduplication_results["total_submitted"] += 1
-
-            # Generate user-friendly deduplication message
+            # Generate smart user message based on what happened
             total_duplicates = (
-                deduplication_results["nugget_duplicates"]
-                + deduplication_results["missing_content_duplicates"]
+                deduplication_results.nugget_duplicates
+                + deduplication_results.missing_content_duplicates
             )
-            if total_duplicates > 0:
-                if total_duplicates == 1:
-                    deduplication_results["user_message"] = (
-                        f"This feedback was already submitted previously. Your report has been counted (total: {deduplication_results['duplicate_details'][0]['report_count']} reports)."
+            total_updates = (
+                deduplication_results.nugget_updates
+                + deduplication_results.missing_content_updates
+            )
+            total_new = (
+                deduplication_results.total_submitted 
+                - total_duplicates 
+                - total_updates
+            )
+            
+            # Generate appropriate user message
+            if total_updates > 0 and total_duplicates == 0:
+                # Pure update scenario - user provided corrections/changes
+                if total_updates == 1:
+                    deduplication_results.user_message = (
+                        "Your feedback has been updated with the new information. Thank you for the correction!"
                     )
                 else:
-                    deduplication_results["user_message"] = (
+                    deduplication_results.user_message = (
+                        f"{total_updates} of your feedback items have been updated with new information. Thank you for the corrections!"
+                    )
+            elif total_duplicates > 0 and total_updates == 0:
+                # Pure duplicate scenario - user resubmitted identical information
+                if total_duplicates == 1:
+                    deduplication_results.user_message = (
+                        f"This feedback was already submitted previously. Your report has been counted (total: {deduplication_results.duplicate_details[0]['report_count']} reports)."
+                    )
+                else:
+                    deduplication_results.user_message = (
                         f"{total_duplicates} of your feedback items were duplicates. Your reports have been counted and help improve our system."
                     )
+            elif total_updates > 0 and total_duplicates > 0:
+                # Mixed scenario - some updates, some duplicates
+                deduplication_results.user_message = (
+                    f"Thank you for your feedback! {total_updates} items were updated with new information, "
+                    f"{total_duplicates} were duplicates (counted), and {total_new} were new submissions."
+                )
+            # If only new items, no special message needed
 
             # Check if optimization should be triggered
             stats = await feedback_service.get_feedback_stats(db)
@@ -190,7 +219,8 @@ async def submit_feedback(feedback_data: FeedbackSubmissionRequest):
                             "Feedback stored successfully. Optimization triggered."
                         ),
                         "stats": stats,
-                        "deduplication": deduplication_results,
+                        "deduplication": deduplication_results.model_dump(),
+                        "optimization_triggered": True,
                     },
                     background=background_tasks,
                 )
@@ -199,7 +229,8 @@ async def submit_feedback(feedback_data: FeedbackSubmissionRequest):
                 "success": True,
                 "message": "Feedback stored successfully",
                 "stats": stats,
-                "deduplication": deduplication_results,
+                "deduplication": deduplication_results.model_dump(),
+                "optimization_triggered": False,
             }
 
     except Exception as e:

@@ -7,7 +7,7 @@ nugget ratings/corrections and missing content submissions.
 
 from datetime import datetime, timezone
 import uuid
-from typing import Optional
+from typing import Optional, Literal
 
 import aiosqlite
 
@@ -17,10 +17,57 @@ from ..models import MissingContentFeedback, NuggetFeedback
 class FeedbackService:
     """Service for managing feedback data and statistics"""
 
+    def _compare_nugget_feedback(
+        self, 
+        new_feedback: NuggetFeedback, 
+        existing_rating: str, 
+        existing_corrected_type: Optional[str], 
+        existing_context: str
+    ) -> bool:
+        """
+        Compare new feedback with existing values to determine if it's truly different.
+        
+        Returns True if values are identical (true duplicate), False if different (update).
+        """
+        # Compare rating
+        if new_feedback.rating != existing_rating:
+            return False
+            
+        # Compare corrected_type (handle None values)
+        if new_feedback.correctedType != existing_corrected_type:
+            return False
+            
+        # Compare context
+        if new_feedback.context != existing_context:
+            return False
+            
+        return True
+
+    def _compare_missing_content_feedback(
+        self, 
+        new_feedback: MissingContentFeedback, 
+        existing_suggested_type: str, 
+        existing_context: str
+    ) -> bool:
+        """
+        Compare new missing content feedback with existing values.
+        
+        Returns True if values are identical (true duplicate), False if different (update).
+        """
+        # Compare suggested_type
+        if new_feedback.suggestedType != existing_suggested_type:
+            return False
+            
+        # Compare context
+        if new_feedback.context != existing_context:
+            return False
+            
+        return True
+
     async def store_nugget_feedback(
         self, db: aiosqlite.Connection, feedback: NuggetFeedback
-    ):
-        """Store nugget feedback in database with deduplication"""
+    ) -> Literal["new", "updated", "duplicate"]:
+        """Store nugget feedback in database with smart deduplication"""
         current_time = datetime.now(timezone.utc)
 
         # Check for existing record with same content, URL, and original type
@@ -35,33 +82,94 @@ class FeedbackService:
         existing = await cursor.fetchone()
 
         if existing:
-            # Found duplicate - increment report count and update timestamps/fields
+            # Found existing record - need to determine if it's duplicate or update
             existing_id, current_count, first_reported = existing
-            await db.execute(
+            
+            # Get existing values for comparison
+            comparison_cursor = await db.execute(
                 """
-                UPDATE nugget_feedback 
-                SET report_count = ?, 
-                    last_reported_at = ?,
-                    context = ?,
-                    corrected_type = ?,
-                    rating = ?
+                SELECT rating, corrected_type, context
+                FROM nugget_feedback 
                 WHERE id = ?
                 """,
-                (
-                    current_count + 1,
-                    current_time,
-                    feedback.context,
-                    feedback.correctedType,
-                    feedback.rating,
-                    existing_id,
-                ),
+                (existing_id,),
             )
-
-            # Update the feedback ID to return the existing record's ID
-            feedback.id = existing_id
+            existing_values = await comparison_cursor.fetchone()
+            
+            if existing_values:
+                existing_rating, existing_corrected_type, existing_context = existing_values
+                
+                # Compare with new feedback to determine if it's truly identical
+                is_identical = self._compare_nugget_feedback(
+                    feedback, existing_rating, existing_corrected_type, existing_context
+                )
+                
+                
+                if is_identical:
+                    # True duplicate - just increment report count
+                    await db.execute(
+                        """
+                        UPDATE nugget_feedback 
+                        SET report_count = ?, 
+                            last_reported_at = ?
+                        WHERE id = ?
+                        """,
+                        (current_count + 1, current_time, existing_id),
+                    )
+                    feedback.id = existing_id
+                    await db.commit()
+                    return "duplicate"
+                else:
+                    # Update - increment count and update fields
+                    await db.execute(
+                        """
+                        UPDATE nugget_feedback 
+                        SET report_count = ?, 
+                            last_reported_at = ?,
+                            context = ?,
+                            corrected_type = ?,
+                            rating = ?
+                        WHERE id = ?
+                        """,
+                        (
+                            current_count + 1,
+                            current_time,
+                            feedback.context,
+                            feedback.correctedType,
+                            feedback.rating,
+                            existing_id,
+                        ),
+                    )
+                    feedback.id = existing_id
+                    await db.commit()
+                    return "updated"
+            else:
+                # This shouldn't happen, but fallback to update behavior
+                await db.execute(
+                    """
+                    UPDATE nugget_feedback 
+                    SET report_count = ?, 
+                        last_reported_at = ?,
+                        context = ?,
+                        corrected_type = ?,
+                        rating = ?
+                    WHERE id = ?
+                    """,
+                    (
+                        current_count + 1,
+                        current_time,
+                        feedback.context,
+                        feedback.correctedType,
+                        feedback.rating,
+                        existing_id,
+                    ),
+                )
+                feedback.id = existing_id
+                await db.commit()
+                return "updated"
 
         else:
-            # No duplicate found - insert new record
+            # No existing record found - insert new record
             await db.execute(
                 """
                 INSERT INTO nugget_feedback (
@@ -85,16 +193,13 @@ class FeedbackService:
                     current_time,  # last_reported_at
                 ),
             )
-
-        await db.commit()
-
-        # Return whether this was a duplicate for API response
-        return existing is not None
+            await db.commit()
+            return "new"
 
     async def store_missing_content_feedback(
         self, db: aiosqlite.Connection, feedback: MissingContentFeedback
-    ):
-        """Store missing content feedback in database with deduplication"""
+    ) -> Literal["new", "updated", "duplicate"]:
+        """Store missing content feedback in database with smart deduplication"""
         current_time = datetime.now(timezone.utc)
 
         # Check for existing record with same content and URL
@@ -109,25 +214,89 @@ class FeedbackService:
         existing = await cursor.fetchone()
 
         if existing:
-            # Found duplicate - increment report count and update timestamps
+            # Found existing record - need to determine if it's duplicate or update
             existing_id, current_count, first_reported = existing
-            await db.execute(
+            
+            # Get existing values for comparison
+            comparison_cursor = await db.execute(
                 """
-                UPDATE missing_content_feedback 
-                SET report_count = ?, 
-                    last_reported_at = ?,
-                    context = ?
+                SELECT suggested_type, context
+                FROM missing_content_feedback 
                 WHERE id = ?
                 """,
-                (current_count + 1, current_time, feedback.context, existing_id),
+                (existing_id,),
             )
-
-            # Update the feedback ID to return the existing record's ID
-            # This ensures consistent behavior for the API response
-            feedback.id = existing_id
+            existing_values = await comparison_cursor.fetchone()
+            
+            if existing_values:
+                existing_suggested_type, existing_context = existing_values
+                
+                # Compare with new feedback to determine if it's truly identical
+                is_identical = self._compare_missing_content_feedback(
+                    feedback, existing_suggested_type, existing_context
+                )
+                
+                if is_identical:
+                    # True duplicate - just increment report count
+                    await db.execute(
+                        """
+                        UPDATE missing_content_feedback 
+                        SET report_count = ?, 
+                            last_reported_at = ?
+                        WHERE id = ?
+                        """,
+                        (current_count + 1, current_time, existing_id),
+                    )
+                    feedback.id = existing_id
+                    await db.commit()
+                    return "duplicate"
+                else:
+                    # Update - increment count and update fields
+                    await db.execute(
+                        """
+                        UPDATE missing_content_feedback 
+                        SET report_count = ?, 
+                            last_reported_at = ?,
+                            context = ?,
+                            suggested_type = ?
+                        WHERE id = ?
+                        """,
+                        (
+                            current_count + 1,
+                            current_time,
+                            feedback.context,
+                            feedback.suggestedType,
+                            existing_id,
+                        ),
+                    )
+                    feedback.id = existing_id
+                    await db.commit()
+                    return "updated"
+            else:
+                # This shouldn't happen, but fallback to update behavior
+                await db.execute(
+                    """
+                    UPDATE missing_content_feedback 
+                    SET report_count = ?, 
+                        last_reported_at = ?,
+                        context = ?,
+                        suggested_type = ?
+                    WHERE id = ?
+                    """,
+                    (
+                        current_count + 1,
+                        current_time,
+                        feedback.context,
+                        feedback.suggestedType,
+                        existing_id,
+                    ),
+                )
+                feedback.id = existing_id
+                await db.commit()
+                return "updated"
 
         else:
-            # No duplicate found - insert new record
+            # No existing record found - insert new record
             await db.execute(
                 """
                 INSERT INTO missing_content_feedback (
@@ -148,11 +317,8 @@ class FeedbackService:
                     current_time,  # last_reported_at
                 ),
             )
-
-        await db.commit()
-
-        # Return whether this was a duplicate for API response
-        return existing is not None
+            await db.commit()
+            return "new"
 
     async def get_deduplication_info(
         self, db: aiosqlite.Connection, feedback_id: str, feedback_type: str

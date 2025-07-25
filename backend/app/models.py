@@ -84,6 +84,49 @@ class OptimizedPromptResponse(BaseModel):
     )
 
 
+# Enhanced deduplication models
+
+FeedbackStatus = Literal["new", "updated", "duplicate"]
+
+
+class DeduplicationInfo(BaseModel):
+    """Enhanced deduplication information for feedback responses"""
+    nugget_duplicates: int = 0
+    missing_content_duplicates: int = 0
+    nugget_updates: int = 0
+    missing_content_updates: int = 0
+    total_submitted: int = 0
+    user_message: Optional[str] = None
+    duplicate_details: list[dict] = Field(default_factory=list)
+
+
+class FeedbackWithStatus(BaseModel):
+    """Feedback item with processing status information"""
+    type: Literal["nugget", "missing_content"]
+    id: str
+    content: str
+    status: FeedbackStatus
+    rating: Optional[str] = None
+    original_type: Optional[str] = None
+    corrected_type: Optional[str] = None
+    suggested_type: Optional[str] = None
+    url: str
+    processed: bool = False
+    last_used_at: Optional[str] = None
+    usage_count: int = 0
+    created_at: str
+    client_timestamp: int
+
+
+class EnhancedFeedbackResponse(BaseModel):
+    """Enhanced response for feedback submissions with detailed status"""
+    success: bool = True
+    message: str = "Feedback processed successfully"
+    deduplication: DeduplicationInfo
+    stats: Optional[dict] = None
+    optimization_triggered: bool = False
+
+
 # Database models for internal use
 
 
@@ -193,20 +236,6 @@ class MonitoringResponse(BaseModel):
 
 # Deduplication models
 
-
-class DeduplicationInfo(BaseModel):
-    """Information about duplicate reports"""
-
-    report_count: int = Field(
-        ..., description="Number of times this content was reported"
-    )
-    first_reported_at: str = Field(..., description="ISO timestamp of first report")
-    last_reported_at: str = Field(
-        ..., description="ISO timestamp of most recent report"
-    )
-    is_duplicate: bool = Field(
-        ..., description="Whether this was a duplicate submission"
-    )
 
 
 class FeedbackWithDeduplication(BaseModel):
