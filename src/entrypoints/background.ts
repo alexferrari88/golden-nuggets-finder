@@ -17,6 +17,9 @@ export default defineBackground(() => {
 		if (request.type === MESSAGE_TYPES.ANALYSIS_COMPLETE && sender.tab?.id) {
 			analysisCompletedTabs.add(sender.tab.id);
 			console.log(`[Background] Analysis completed for tab ${sender.tab.id}, tracked tabs:`, Array.from(analysisCompletedTabs));
+			
+			// Update context menu to show "Report missed golden nugget" option
+			updateContextMenuForActiveTab();
 		}
 		
 		messageHandler.handleMessage(request, sender, sendResponse);
@@ -26,18 +29,27 @@ export default defineBackground(() => {
 	// Clean up analysis state when tabs are closed or updated
 	chrome.tabs.onRemoved.addListener((tabId) => {
 		analysisCompletedTabs.delete(tabId);
+		// Update context menu since the active tab might have changed
+		updateContextMenuForActiveTab();
 	});
 	
 	chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
 		// Clear analysis state when user navigates to a new URL
 		if (changeInfo.url) {
 			analysisCompletedTabs.delete(tabId);
+			// Update context menu since analysis state changed
+			updateContextMenuForActiveTab();
 		}
+	});
+
+	// Update context menu when user switches tabs
+	chrome.tabs.onActivated.addListener(() => {
+		updateContextMenuForActiveTab();
 	});
 
 	// Set up context menu and handle installation
 	chrome.runtime.onInstalled.addListener((details) => {
-		setupContextMenu();
+		updateContextMenuForActiveTab();
 		
 		// Open options page on first install
 		if (details.reason === 'install') {
@@ -48,7 +60,7 @@ export default defineBackground(() => {
 	// Update context menu when prompts change
 	chrome.storage.onChanged.addListener((changes, namespace) => {
 		if (namespace === "sync" && changes.userPrompts) {
-			setupContextMenu();
+			updateContextMenuForActiveTab();
 		}
 	});
 
@@ -80,7 +92,21 @@ export default defineBackground(() => {
 		}
 	});
 
-	async function setupContextMenu(): Promise<void> {
+	async function updateContextMenuForActiveTab(): Promise<void> {
+		try {
+			// Get the currently active tab
+			const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
+			const showReportMissedNugget = activeTab?.id ? analysisCompletedTabs.has(activeTab.id) : false;
+			
+			await setupContextMenu(showReportMissedNugget);
+		} catch (error) {
+			console.error("Failed to update context menu for active tab:", error);
+			// Fallback to default menu without report option
+			await setupContextMenu(false);
+		}
+	}
+
+	async function setupContextMenu(showReportMissedNugget: boolean = false): Promise<void> {
 		try {
 			// Clear existing menu items
 			await chrome.contextMenus.removeAll();
@@ -137,14 +163,18 @@ export default defineBackground(() => {
 				contexts: ["page", "selection"],
 			});
 
-			// Add "Report missed golden nugget" option (only shows for selection context)
-			chrome.contextMenus.create({
-				id: "report-missed-nugget",
-				parentId: "golden-nuggets-finder",
-				title: "🚩 Report missed golden nugget",
-				contexts: ["selection"],
-			});
-			console.log("[Background] Context menu 'report-missed-nugget' created");
+			// Add "Report missed golden nugget" option (only if analysis has been completed)
+			if (showReportMissedNugget) {
+				chrome.contextMenus.create({
+					id: "report-missed-nugget",
+					parentId: "golden-nuggets-finder",
+					title: "🚩 Report missed golden nugget",
+					contexts: ["selection"],
+				});
+				console.log("[Background] Context menu 'report-missed-nugget' created");
+			} else {
+				console.log("[Background] Context menu 'report-missed-nugget' NOT created - analysis not completed on active tab");
+			}
 		} catch (error) {
 			console.error("Failed to setup context menu:", error);
 		}
