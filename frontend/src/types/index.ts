@@ -1,3 +1,6 @@
+// Golden nugget types
+export type NuggetType = 'tool' | 'media' | 'explanation' | 'analogy' | 'model';
+
 export interface SystemHealth {
   status: 'healthy' | 'degraded' | 'unhealthy';
   uptime_seconds: number;
@@ -23,6 +26,7 @@ export interface FeedbackItem {
   created_at: string;
   original_type?: string;  // Specific nugget type (tool, media, explanation, analogy, model)
   corrected_type?: string; // User-corrected type if different from original
+  suggested_type?: string; // Suggested type for missing content feedback
 }
 
 export interface OptimizationProgress {

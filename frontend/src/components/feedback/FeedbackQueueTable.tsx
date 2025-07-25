@@ -214,7 +214,8 @@ export function FeedbackQueueTable({
       // Show corrected_type if available, otherwise original_type, fallback to 'nugget'
       return item.corrected_type || item.original_type || 'nugget';
     }
-    return item.type.replace('_', ' ');
+    // For missing content, show suggested_type if available, otherwise 'missing content'
+    return item.suggested_type || item.type.replace('_', ' ');
   };
 
   const getTruncatedContent = (content: string, maxLength: number = 300) => {

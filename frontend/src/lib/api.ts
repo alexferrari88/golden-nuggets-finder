@@ -5,7 +5,8 @@ import type {
   OptimizationProgress, 
   CostSummary, 
   DashboardStats,
-  ApiError
+  ApiError,
+  NuggetType
 } from '@/types';
 
 // Create axios instance with enhanced configuration
@@ -141,7 +142,16 @@ export const apiClient = {
     }),
 
   // Feedback Item Management - Edit/Delete operations
-  updateFeedbackItem: (id: string, feedbackType: 'nugget' | 'missing_content', updates: { content?: string; rating?: 'positive' | 'negative' | null }) =>
+  updateFeedbackItem: (
+    id: string, 
+    feedbackType: 'nugget' | 'missing_content', 
+    updates: { 
+      content?: string; 
+      rating?: 'positive' | 'negative' | null;
+      corrected_type?: NuggetType | null;
+      suggested_type?: NuggetType | null;
+    }
+  ) =>
     makeRequest({
       method: 'PUT',
       url: `/feedback/${id}`,
