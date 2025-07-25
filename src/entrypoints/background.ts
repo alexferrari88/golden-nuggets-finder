@@ -35,9 +35,14 @@ export default defineBackground(() => {
 		}
 	});
 
-	// Set up context menu
-	chrome.runtime.onInstalled.addListener(() => {
+	// Set up context menu and handle installation
+	chrome.runtime.onInstalled.addListener((details) => {
 		setupContextMenu();
+		
+		// Open options page on first install
+		if (details.reason === 'install') {
+			chrome.runtime.openOptionsPage();
+		}
 	});
 
 	// Update context menu when prompts change
