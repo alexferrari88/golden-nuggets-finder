@@ -363,7 +363,8 @@ export function FeedbackQueueTable({
                   <>
                     <TableRow 
                       key={item.id} 
-                      className={`hover:bg-gray-50 ${selectedItems.has(item.id) ? 'bg-blue-50' : ''}`}
+                      className={`hover:bg-gray-50 cursor-pointer ${selectedItems.has(item.id) ? 'bg-blue-50' : ''}`}
+                      onClick={() => toggleRowExpansion(item.id)}
                     >
                       <TableCell onClick={(e) => e.stopPropagation()}>
                         <button
@@ -429,12 +430,12 @@ export function FeedbackQueueTable({
                       <TableCell onClick={(e) => e.stopPropagation()}>
                         <div className="flex gap-1">
                           <EditFeedbackDialog item={item}>
-                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0 cursor-pointer">
                               <Edit3 className="h-3 w-3" />
                             </Button>
                           </EditFeedbackDialog>
                           <DeleteFeedbackDialog item={item}>
-                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-red-600 hover:text-red-700">
+                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-red-600 hover:text-red-700 cursor-pointer">
                               <Trash2 className="h-3 w-3" />
                             </Button>
                           </DeleteFeedbackDialog>
