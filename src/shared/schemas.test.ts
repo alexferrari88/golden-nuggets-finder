@@ -62,7 +62,7 @@ describe('GOLDEN_NUGGET_SCHEMA', () => {
       const startContentProperty = itemsSchema.properties.startContent;
       
       expect(startContentProperty.type).toBe('string');
-      expect(startContentProperty.description).toBe('The first few words of the original content verbatim, without any changes to wording or symbols.');
+      expect(startContentProperty.description).toBe('The first few words (max 5) of the original content verbatim, without any changes to wording or symbols.');
     });
 
     it('should have correct endContent property structure', () => {
@@ -70,7 +70,7 @@ describe('GOLDEN_NUGGET_SCHEMA', () => {
       const endContentProperty = itemsSchema.properties.endContent;
       
       expect(endContentProperty.type).toBe('string');
-      expect(endContentProperty.description).toBe('The last few words of the original content verbatim, without any changes to wording or symbols.');
+      expect(endContentProperty.description).toBe('The last few words (max 5) of the original content verbatim, without any changes to wording or symbols.');
     });
   });
 
