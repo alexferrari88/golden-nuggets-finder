@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { GeminiClient } from '../background/gemini-client';
-import { MessageHandler } from '../background/message-handler';
-import { TypeFilterService } from '../background/type-filter-service';
-import { storage } from '../shared/storage';
-import { MESSAGE_TYPES } from '../shared/types';
+import { GeminiClient } from '../../src/background/gemini-client';
+import { MessageHandler } from '../../src/background/message-handler';
+import { TypeFilterService } from '../../src/background/type-filter-service';
+import { storage } from '../../src/shared/storage';
+import { MESSAGE_TYPES } from '../../src/shared/types';
 
 // Mock WXT global functions
 global.defineBackground = vi.fn((callback) => callback());
@@ -141,7 +141,7 @@ describe('Background Script Context Menu', () => {
 	describe('Tab State Management', () => {
 		beforeEach(async () => {
 			// Import and initialize the background script
-			await import('./background');
+			await import('../../src/entrypoints/background');
 		});
 
 		it('should add tab to analysisCompletedTabs when ANALYSIS_COMPLETE message received', async () => {
@@ -213,7 +213,7 @@ describe('Background Script Context Menu', () => {
 
 	describe('Context Menu Creation', () => {
 		beforeEach(async () => {
-			await import('./background');
+			await import('../../src/entrypoints/background');
 		});
 
 		it('should create basic menu structure without report option by default', async () => {
@@ -374,7 +374,7 @@ describe('Background Script Context Menu', () => {
 
 	describe('Dynamic Menu Updates', () => {
 		beforeEach(async () => {
-			await import('./background');
+			await import('../../src/entrypoints/background');
 		});
 
 		it('should determine active tab analysis state correctly', async () => {
@@ -452,7 +452,7 @@ describe('Background Script Context Menu', () => {
 
 	describe('Error Handling', () => {
 		beforeEach(async () => {
-			await import('./background');
+			await import('../../src/entrypoints/background');
 		});
 
 		it('should handle setupContextMenu failures gracefully', async () => {
@@ -498,7 +498,7 @@ describe('Background Script Context Menu', () => {
 
 	describe('Integration Tests', () => {
 		beforeEach(async () => {
-			await import('./background');
+			await import('../../src/entrypoints/background');
 		});
 
 		it('should handle concurrent analysis completions on multiple tabs', async () => {
