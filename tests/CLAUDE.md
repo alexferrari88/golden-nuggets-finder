@@ -39,19 +39,18 @@ Tests requiring `chrome.scripting.executeScript()` fail with:
 Cannot access contents of the page. Extension manifest must request permission to access the respective host.
 ```
 
-### Affected Test Files (SKIPPED)
-- `content-analysis.spec.ts` - Full analysis workflows
-- `results-display.spec.ts` - Sidebar and highlighting tests  
-- `twitter-extraction.spec.ts` - Twitter content analysis
-- `error-handling.spec.ts` - End-to-end error scenarios
+### Affected Tests (SKIPPED)
+- `golden-nuggets-api.spec.ts` - Contains a skipped test for full content analysis workflow due to content script injection limitations
 
 ### Working Test Files
 - `extension-basics.spec.ts` - Extension loading, service worker, and page accessibility
 - `popup.spec.ts` - Popup page functionality and rendering
 - `options.spec.ts` - Options page functionality and rendering
-- `substack-highlighting.spec.ts` - Substack page structure and content analysis
+- `highlighter-substack-tdd.spec.ts` - Substack page structure and content analysis
+- `highlighter-tdd.spec.ts` - TDD tests for highlighter functionality
 - `hackernews-analysis.spec.ts` - HackerNews discussion page analysis and content extraction
 - `reddit-analysis.spec.ts` - Reddit discussion page analysis and content extraction
+- `golden-nuggets-api.spec.ts` - API integration tests (with one skipped test)
 
 ### Alternative Testing Strategy
 1. **Component Tests**: Extract and test core logic (extraction, UI components) without Chrome extension context
@@ -70,7 +69,7 @@ To run only working tests (avoiding skipped content script tests):
 pnpm test
 
 # Run only working E2E tests
-pnpm playwright test tests/e2e/setup.spec.ts tests/e2e/basic-extension-test.spec.ts
+pnpm playwright test tests/e2e/extension-basics.spec.ts tests/e2e/popup.spec.ts tests/e2e/options.spec.ts
 
 # Run all E2E tests (includes skipped ones - they'll show as skipped)
 pnpm test:e2e
@@ -78,11 +77,8 @@ pnpm test:e2e
 
 ### Skipped Test Files
 
-These files contain `test.skip()` and won't run:
-- `tests/e2e/content-analysis.spec.ts`
-- `tests/e2e/results-display.spec.ts`
-- `tests/e2e/twitter-extraction.spec.ts`
-- `tests/e2e/error-handling.spec.ts`
+This test file contains `test.skip()` for some tests:
+- `tests/e2e/golden-nuggets-api.spec.ts` - Contains one skipped test for full content analysis workflow
 
 ### Component Test Coverage
 
@@ -101,10 +97,10 @@ Existing component tests provide coverage for core logic:
 - `pnpm test:coverage` - Run tests with coverage report
 
 ### E2E Tests
-- `pnpm test:e2e` - Run E2E tests with Playwright
-- `pnpm test:e2e:ui` - Run E2E tests with UI
-- `pnpm test:e2e:debug` - Run E2E tests in debug mode
-- `pnpm test:e2e:headed` - Run E2E tests with browser UI
+- `pnpm test:e2e` - Run E2E tests with Playwright (builds extension first with `build:dev`)
+- `pnpm test:e2e:ui` - Run E2E tests with UI (builds extension first)
+- `pnpm test:e2e:debug` - Run E2E tests in debug mode (builds extension first)
+- `pnpm test:e2e:headed` - Run E2E tests with browser UI (builds extension first)
 - `pnpm test:e2e:report` - Show E2E test report
 
 ### Running Single Tests
@@ -114,14 +110,14 @@ Existing component tests provide coverage for core logic:
 ## Extension Loading for Testing
 
 ### E2E Extension Setup
-- E2E tests load the extension from `./build/chrome-mv3-dev` directory
-- Playwright config automatically configures Chrome with the extension loaded
-- Extension must be built before running E2E tests
+- E2E tests load the extension from `./dist/chrome-mv3-dev` directory
+- Playwright fixtures automatically configure Chrome with the extension loaded
+- Extension must be built with `pnpm build:dev` before running E2E tests
 
 ### Test Environment Setup
-1. Build extension for testing: `pnpm build`
-2. Playwright automatically loads extension in test browser
-3. Tests interact with extension through browser APIs
+1. Build extension for testing: `pnpm build:dev` (automatically done by E2E test commands)
+2. Playwright fixtures automatically load extension from `dist/chrome-mv3-dev` in test browser
+3. Tests interact with extension through browser APIs and extension messaging
 
 ## Test Fixtures and Mocks
 
