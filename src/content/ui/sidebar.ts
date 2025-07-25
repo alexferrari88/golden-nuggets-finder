@@ -69,10 +69,10 @@ export class Sidebar {
   }
 
   /**
-   * Get content for feedback submission (first 200 chars)
+   * Get content for feedback submission (full content)
    */
   private getFeedbackContent(nugget: any): string {
-    return this.getSidebarDisplayContent(nugget).substring(0, 200);
+    return this.getSidebarDisplayContent(nugget);
   }
 
   show(nuggetItems: SidebarNuggetItem[], highlighter?: Highlighter, pageContent?: string): void {
