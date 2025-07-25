@@ -344,7 +344,7 @@ export function FeedbackQueueTable({
                   <TableHead className="w-10">
                     <button
                       onClick={toggleSelectAll}
-                      className="flex items-center justify-center w-full h-full"
+                      className="flex items-center justify-center w-full h-full cursor-pointer"
                       disabled={filteredItems.length === 0}
                     >
                       {isAllSelected ? (
@@ -377,7 +377,7 @@ export function FeedbackQueueTable({
                       <TableCell onClick={(e) => e.stopPropagation()}>
                         <button
                           onClick={() => toggleItemSelection(item.id)}
-                          className="flex items-center justify-center w-full h-full"
+                          className="flex items-center justify-center w-full h-full cursor-pointer"
                         >
                           {selectedItems.has(item.id) ? (
                             <CheckSquare className="h-4 w-4 text-blue-600" />

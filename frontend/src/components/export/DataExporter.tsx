@@ -287,7 +287,7 @@ export const DataExporter: React.FC<DataExporterProps> = ({
                           ...prev, 
                           includeProcessed: e.target.checked 
                         }))}
-                        className="rounded border-gray-300"
+                        className="rounded border-gray-300 cursor-pointer"
                       />
                       <span>Processed</span>
                     </label>
@@ -299,7 +299,7 @@ export const DataExporter: React.FC<DataExporterProps> = ({
                           ...prev, 
                           includeUnprocessed: e.target.checked 
                         }))}
-                        className="rounded border-gray-300"
+                        className="rounded border-gray-300 cursor-pointer"
                       />
                       <span>Unprocessed</span>
                     </label>
