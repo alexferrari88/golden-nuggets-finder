@@ -21,6 +21,28 @@ export function advancedNormalize(text: string): string {
 }
 
 /**
+ * Creates a case-insensitive regex pattern that handles Unicode character variants.
+ * Similar to advancedNormalize but creates flexible regex patterns instead of normalizing.
+ * 
+ * @param text - The text to convert to a flexible regex pattern
+ * @returns RegExp that matches the text with Unicode variant flexibility
+ */
+function createUnicodeFlexibleRegex(text: string): RegExp {
+  // Escape special regex characters first
+  let pattern = text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  
+  // Replace Unicode variants with character classes (same as advancedNormalize)
+  pattern = pattern
+    .replace(/[''`´]/g, "[''`´]")        // All apostrophe variants
+    .replace(/[""«»]/g, '[""«»]')       // All quote variants  
+    .replace(/[–—−]/g, '[–—−-]')        // All dash variants (include regular hyphen)
+    .replace(/[…]/g, '(\\.{3}|…)')       // Ellipsis variants (three dots or Unicode ellipsis)
+    .replace(/\s+/g, '\\s+');           // Flexible whitespace matching
+  
+  return new RegExp(pattern, 'i'); // Case-insensitive flag
+}
+
+/**
  * Legacy normalizeText function - kept for backward compatibility
  * @deprecated Use advancedNormalize instead
  */
@@ -29,29 +51,94 @@ function normalizeText(text: string): string {
 }
 
 /**
- * Find text that starts with startContent and ends with endContent within searchText
+ * Find text that starts with startContent and ends with endContent within searchText.
+ * Now uses case-preserving approach that maintains original text casing.
  */
 function findTextBetweenStartAndEnd(
   startContent: string, 
   endContent: string, 
   searchText: string
 ): string | null {
-  const normalizedSearch = normalizeText(searchText);
-  const normalizedStart = normalizeText(startContent);
-  const normalizedEnd = normalizeText(endContent);
+  // Use the new case-preserving function that handles Unicode variants
+  // and maintains original casing from searchText
+  return findTextWithOriginalCasing(startContent, endContent, searchText);
+}
 
-  // Find start position
-  const startIndex = normalizedSearch.indexOf(normalizedStart);
-  if (startIndex === -1) return null;
+/**
+ * Find text between startContent and endContent while preserving original casing.
+ * Uses regex-based approach to maintain original text casing from searchText.
+ * 
+ * @param startContent - The start content to find
+ * @param endContent - The end content to find  
+ * @param searchText - The original text to search within
+ * @returns The original text between boundaries, or null if not found
+ */
+function findTextWithOriginalCasing(
+  startContent: string,
+  endContent: string, 
+  searchText: string
+): string | null {
+  try {
+    // Step 1: Validate using original normalization approach (ensures reliability)
+    const normalizedSearch = normalizeText(searchText);
+    const normalizedStart = normalizeText(startContent);
+    const normalizedEnd = normalizeText(endContent);
 
-  // Find end position, searching from after the start
-  const searchFromIndex = startIndex + normalizedStart.length;
-  const endIndex = normalizedSearch.indexOf(normalizedEnd, searchFromIndex);
-  if (endIndex === -1) return null;
+    // Find start position in normalized text for validation
+    const startIndex = normalizedSearch.indexOf(normalizedStart);
+    if (startIndex === -1) return null;
 
-  // Extract the text between start and end (inclusive)
-  const endEndIndex = endIndex + normalizedEnd.length;
-  return normalizedSearch.substring(startIndex, endEndIndex);
+    // Find end position in normalized text for validation
+    const searchFromIndex = startIndex + normalizedStart.length;
+    const endIndex = normalizedSearch.indexOf(normalizedEnd, searchFromIndex);
+    if (endIndex === -1) return null;
+
+    // Step 2: Create flexible regex patterns that handle Unicode variants
+    const startPattern = createUnicodeFlexibleRegex(startContent);
+    const endPattern = createUnicodeFlexibleRegex(endContent);
+
+    // Step 3: Find start position in original text using case-insensitive regex
+    const startMatch = searchText.match(startPattern);
+    if (!startMatch || startMatch.index === undefined) {
+      // Fallback to normalized result if regex search fails
+      const endEndIndex = endIndex + normalizedEnd.length;
+      return normalizedSearch.substring(startIndex, endEndIndex);
+    }
+
+    const originalStartIndex = startMatch.index;
+    const searchFromOriginalIndex = originalStartIndex + startMatch[0].length;
+
+    // Step 4: Find end position in remaining original text
+    const remainingText = searchText.substring(searchFromOriginalIndex);
+    const endMatch = remainingText.match(endPattern);
+    if (!endMatch || endMatch.index === undefined) {
+      // Fallback to normalized result if end pattern not found
+      const endEndIndex = endIndex + normalizedEnd.length;
+      return normalizedSearch.substring(startIndex, endEndIndex);
+    }
+
+    const originalEndIndex = searchFromOriginalIndex + endMatch.index + endMatch[0].length;
+
+    // Step 5: Extract substring from original text preserving case
+    return searchText.substring(originalStartIndex, originalEndIndex);
+    
+  } catch (error) {
+    // Fallback to original normalization behavior on any error
+    console.warn('findTextWithOriginalCasing failed, falling back to normalized approach:', error);
+    const normalizedSearch = normalizeText(searchText);
+    const normalizedStart = normalizeText(startContent);
+    const normalizedEnd = normalizeText(endContent);
+
+    const startIndex = normalizedSearch.indexOf(normalizedStart);
+    if (startIndex === -1) return null;
+
+    const searchFromIndex = startIndex + normalizedStart.length;
+    const endIndex = normalizedSearch.indexOf(normalizedEnd, searchFromIndex);
+    if (endIndex === -1) return null;
+
+    const endEndIndex = endIndex + normalizedEnd.length;
+    return normalizedSearch.substring(startIndex, endEndIndex);
+  }
 }
 
 /**
