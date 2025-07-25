@@ -465,7 +465,7 @@ export function FeedbackQueueTable({
                                           e.stopPropagation();
                                           toggleContentExpansion(item.id);
                                         }}
-                                        className="ml-2 text-blue-600 hover:text-blue-800 underline text-xs font-medium transition-colors"
+                                        className="ml-2 text-blue-600 hover:text-blue-800 underline text-xs font-medium transition-colors cursor-pointer"
                                       >
                                         {isContentExpanded ? 'Show less' : 'Show more'}
                                       </button>
