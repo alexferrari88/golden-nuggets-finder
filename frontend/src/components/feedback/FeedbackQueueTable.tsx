@@ -388,7 +388,10 @@ export function FeedbackQueueTable({
                       </TableCell>
                       <TableCell 
                         className="cursor-pointer"
-                        onClick={() => toggleRowExpansion(item.id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleRowExpansion(item.id);
+                        }}
                       >
                         {expandedRows.has(item.id) ? (
                           <ChevronDown className="h-4 w-4" />
