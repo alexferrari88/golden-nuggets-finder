@@ -1111,7 +1111,13 @@ export class Sidebar {
     if (this.sidebar) {
       const container = this.sidebar.querySelector('#nugget-list-container');
       if (container) {
+        // Store the current scroll position
+        const scrollTop = this.sidebar.scrollTop;
+        
         this.renderCurrentPage(container as HTMLElement);
+        
+        // Restore the scroll position after rendering
+        this.sidebar.scrollTop = scrollTop;
       }
     }
   }
