@@ -1,7 +1,7 @@
 import { SidebarNuggetItem, NuggetFeedback, FeedbackRating, MESSAGE_TYPES } from '../../shared/types';
 import { ALL_NUGGET_TYPES, GoldenNuggetType } from '../../shared/schemas';
 import { Highlighter } from './highlighter';
-import { getDisplayContent } from '../../shared/content-reconstruction';
+import { getDisplayContent, reconstructFullContent } from '../../shared/content-reconstruction';
 import { colors, shadows, generateInlineStyles, borderRadius, spacing, typography, zIndex, ui } from '../../shared/design-system';
 
 export class Sidebar {
@@ -70,9 +70,38 @@ export class Sidebar {
 
   /**
    * Get content for feedback submission (full content)
+   * Prioritizes getting the absolute best/fullest content available for feedback storage
    */
   private getFeedbackContent(nugget: any): string {
-    return this.getSidebarDisplayContent(nugget);
+    // Strategy 1: Check if we have enhanced full content from UIManager
+    if (nugget._fullContent) {
+      return nugget._fullContent;
+    }
+    
+    // Strategy 2: Try to reconstruct using page content with more aggressive approach
+    if (nugget.startContent && nugget.endContent && this.pageContent) {
+      const reconstructed = getDisplayContent(nugget, this.pageContent);
+      // For feedback, accept any reconstructed content that's longer than just start+end
+      if (reconstructed && reconstructed !== `${nugget.startContent}...${nugget.endContent}`) {
+        return reconstructed;
+      }
+      
+      // Try the full reconstruction method directly with more tolerance
+      const fullReconstructed = reconstructFullContent(nugget, this.pageContent);
+      if (fullReconstructed && fullReconstructed.length > nugget.startContent.length + nugget.endContent.length) {
+        return fullReconstructed;
+      }
+    }
+    
+    // Strategy 3: Use legacy content field if available and longer
+    if (nugget.content && nugget.content.length > (nugget.startContent?.length || 0) + (nugget.endContent?.length || 0)) {
+      return nugget.content;
+    }
+    
+    // Strategy 4: Fallback to start...end (but this is what we want to avoid)
+    return nugget.startContent && nugget.endContent 
+      ? `${nugget.startContent}...${nugget.endContent}`
+      : nugget.content || '';
   }
 
   show(nuggetItems: SidebarNuggetItem[], highlighter?: Highlighter, pageContent?: string): void {
