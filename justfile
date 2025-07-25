@@ -33,21 +33,21 @@ package:
 # DOCKER COMPOSE - BACKEND ONLY
 # ============================================================================
 
-# Start backend services for development (backend-dev profile)
+# Start backend services for development (backend-dev service only)
 up-backend:
-    cd backend && docker-compose --profile dev up -d
+    cd backend && docker-compose up -d backend-dev
 
 # Stop backend services
 down-backend:
-    cd backend && docker-compose --profile dev down
+    cd backend && docker-compose down
 
 # View backend logs
 logs-backend:
-    cd backend && docker-compose --profile dev logs -f
+    cd backend && docker-compose logs -f backend-dev
 
 # Restart backend services
 restart-backend:
-    cd backend && docker-compose --profile dev restart
+    cd backend && docker-compose restart backend-dev
 
 # ============================================================================
 # DOCKER COMPOSE - WITH FRONTEND
@@ -55,11 +55,11 @@ restart-backend:
 
 # Start all services including frontend (backend + frontend)
 up-all:
-    cd backend && docker-compose --profile dev up -d backend-dev && cd ../frontend && pnpm dev
+    cd backend && docker-compose up -d backend-dev && cd ../frontend && pnpm dev
 
 # Stop all services including frontend
 down-all:
-    cd backend && docker-compose --profile dev down
+    cd backend && docker-compose down
     @echo "Frontend dev server stopped manually if running"
 
 # ============================================================================
@@ -80,11 +80,11 @@ down-complete-volumes:
 
 # Rebuild and start backend services (no cache, rebuild containers)
 rebuild-backend:
-    cd backend && docker-compose --profile dev down && docker-compose --profile dev build --no-cache && docker-compose --profile dev up -d
+    cd backend && docker-compose down && docker-compose build --no-cache backend-dev && docker-compose up -d backend-dev
 
 # Rebuild and start all services including frontend
 rebuild-all:
-    cd backend && docker-compose --profile dev down && docker-compose --profile dev build --no-cache && docker-compose --profile dev up -d
+    cd backend && docker-compose down && docker-compose build --no-cache backend-dev && docker-compose up -d backend-dev
     cd frontend && pnpm install && pnpm dev
 
 # ============================================================================
