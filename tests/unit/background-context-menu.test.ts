@@ -9,10 +9,10 @@ import { MESSAGE_TYPES } from '../../src/shared/types';
 global.defineBackground = vi.fn((callback) => callback());
 
 // Mock dependencies
-vi.mock('../background/gemini-client');
-vi.mock('../background/message-handler');
-vi.mock('../background/type-filter-service');
-vi.mock('../shared/storage');
+vi.mock('../../src/background/gemini-client');
+vi.mock('../../src/background/message-handler');
+vi.mock('../../src/background/type-filter-service');
+vi.mock('../../src/shared/storage');
 
 // Mock Chrome APIs
 const mockContextMenus = {

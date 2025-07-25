@@ -439,8 +439,11 @@ export default defineContentScript({
 					await measureDOMOperation("display_results", () =>
 						handleAnalysisResults(response.data, source),
 					);
-					// Notify popup of successful completion
-					chrome.runtime.sendMessage({ type: MESSAGE_TYPES.ANALYSIS_COMPLETE });
+					// Notify popup and background script of successful completion
+					chrome.runtime.sendMessage({ 
+						type: MESSAGE_TYPES.ANALYSIS_COMPLETE,
+						fromContentScript: true 
+					});
 				} else {
 					if (source !== "popup") {
 						uiManager.hideProgressBanner();
