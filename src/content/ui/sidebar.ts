@@ -874,7 +874,7 @@ export class Sidebar {
       justify-content: space-between;
     `;
 
-    // Thumbs up/down buttons
+    // Thumbs up/down buttons container
     const ratingContainer = document.createElement('div');
     ratingContainer.style.cssText = `
       display: flex;
@@ -899,11 +899,26 @@ export class Sidebar {
     ratingContainer.appendChild(thumbsUpBtn);
     ratingContainer.appendChild(thumbsDownBtn);
 
+    // Right side container for type correction and reset button
+    const rightContainer = document.createElement('div');
+    rightContainer.style.cssText = `
+      display: flex;
+      align-items: center;
+      gap: ${spacing.xs};
+    `;
+
     // Type correction dropdown
     const typeCorrection = this.createTypeCorrection(item, globalIndex);
+    rightContainer.appendChild(typeCorrection);
+
+    // Reset button (only show when feedback exists)
+    if (item.feedback) {
+      const resetBtn = this.createResetButton(globalIndex);
+      rightContainer.appendChild(resetBtn);
+    }
 
     feedbackButtons.appendChild(ratingContainer);
-    feedbackButtons.appendChild(typeCorrection);
+    feedbackButtons.appendChild(rightContainer);
 
     feedbackSection.appendChild(feedbackButtons);
 
@@ -955,6 +970,49 @@ export class Sidebar {
         button.style.borderColor = colors.border.light;
         button.style.backgroundColor = colors.background.primary;
       }
+    });
+
+    return button;
+  }
+
+  private createResetButton(globalIndex: number): HTMLElement {
+    const button = document.createElement('button');
+    button.className = 'feedback-reset-btn';
+    button.style.cssText = `
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 24px;
+      height: 24px;
+      border: 1px solid ${colors.border.light};
+      border-radius: ${borderRadius.sm};
+      background: ${colors.background.primary};
+      color: ${colors.text.secondary};
+      cursor: pointer;
+      transition: all 0.2s ease;
+      padding: 0;
+      font-size: ${typography.fontSize.sm};
+      font-weight: ${typography.fontWeight.medium};
+    `;
+
+    button.innerHTML = '×';
+    button.title = 'Reset feedback - removes rating and type correction';
+
+    button.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.handleFeedbackReset(globalIndex);
+    });
+
+    button.addEventListener('mouseenter', () => {
+      button.style.borderColor = colors.border.medium;
+      button.style.backgroundColor = colors.background.secondary;
+      button.style.color = colors.text.primary;
+    });
+
+    button.addEventListener('mouseleave', () => {
+      button.style.borderColor = colors.border.light;
+      button.style.backgroundColor = colors.background.primary;
+      button.style.color = colors.text.secondary;
     });
 
     return button;
@@ -1079,6 +1137,154 @@ export class Sidebar {
       type: MESSAGE_TYPES.SUBMIT_NUGGET_FEEDBACK,
       feedback: item.feedback
     });
+  }
+
+  private handleFeedbackReset(globalIndex: number): void {
+    const item = this.allItems[globalIndex];
+    if (!item?.feedback) return;
+
+    this.showResetConfirmation(() => {
+      // Send deletion message to backend
+      chrome.runtime.sendMessage({
+        type: MESSAGE_TYPES.DELETE_NUGGET_FEEDBACK,
+        feedbackId: item.feedback!.id
+      });
+
+      // Clear local feedback
+      delete this.allItems[globalIndex].feedback;
+      this.refreshCurrentPage();
+    });
+  }
+
+  private showResetConfirmation(onConfirm: () => void): void {
+    // Create modal overlay
+    const overlay = document.createElement('div');
+    overlay.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: ${colors.background.modalOverlay};
+      z-index: ${zIndex.modal + 1};
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    `;
+
+    // Create modal content
+    const modal = document.createElement('div');
+    modal.style.cssText = `
+      background: ${colors.white};
+      border-radius: ${borderRadius.lg};
+      box-shadow: ${shadows.lg};
+      padding: ${spacing['2xl']};
+      max-width: 400px;
+      width: 90%;
+      margin: ${spacing.md};
+    `;
+
+    // Modal title
+    const title = document.createElement('h3');
+    title.textContent = 'Reset Feedback';
+    title.style.cssText = `
+      margin: 0 0 ${spacing.md} 0;
+      font-size: ${typography.fontSize.lg};
+      font-weight: ${typography.fontWeight.semibold};
+      color: ${colors.text.primary};
+    `;
+
+    // Modal description
+    const description = document.createElement('p');
+    description.textContent = 'Are you sure you want to reset your feedback for this nugget? This will delete your rating and type correction from the system.';
+    description.style.cssText = `
+      margin: 0 0 ${spacing.lg} 0;
+      font-size: ${typography.fontSize.sm};
+      line-height: ${typography.lineHeight.normal};
+      color: ${colors.text.secondary};
+    `;
+
+    // Button container
+    const buttonContainer = document.createElement('div');
+    buttonContainer.style.cssText = `
+      display: flex;
+      gap: ${spacing.sm};
+      justify-content: flex-end;
+    `;
+
+    // Cancel button
+    const cancelBtn = document.createElement('button');
+    cancelBtn.textContent = 'Cancel';
+    cancelBtn.style.cssText = `
+      padding: ${spacing.xs} ${spacing.md};
+      border: 1px solid ${colors.border.light};
+      border-radius: ${borderRadius.sm};
+      background: ${colors.background.primary};
+      color: ${colors.text.primary};
+      font-size: ${typography.fontSize.sm};
+      font-weight: ${typography.fontWeight.medium};
+      cursor: pointer;
+      transition: all 0.2s ease;
+    `;
+
+    // Reset button
+    const resetBtn = document.createElement('button');
+    resetBtn.textContent = 'Reset Feedback';
+    resetBtn.style.cssText = `
+      padding: ${spacing.xs} ${spacing.md};
+      border: 1px solid ${colors.text.accent};
+      border-radius: ${borderRadius.sm};
+      background: ${colors.text.accent};
+      color: ${colors.white};
+      font-size: ${typography.fontSize.sm};
+      font-weight: ${typography.fontWeight.medium};
+      cursor: pointer;
+      transition: all 0.2s ease;
+    `;
+
+    // Event handlers
+    const closeModal = () => {
+      overlay.remove();
+    };
+
+    cancelBtn.addEventListener('click', closeModal);
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) closeModal();
+    });
+
+    resetBtn.addEventListener('click', () => {
+      onConfirm();
+      closeModal();
+    });
+
+    // Hover effects
+    cancelBtn.addEventListener('mouseenter', () => {
+      cancelBtn.style.backgroundColor = colors.background.secondary;
+    });
+    cancelBtn.addEventListener('mouseleave', () => {
+      cancelBtn.style.backgroundColor = colors.background.primary;
+    });
+
+    resetBtn.addEventListener('mouseenter', () => {
+      resetBtn.style.backgroundColor = colors.text.primary;
+    });
+    resetBtn.addEventListener('mouseleave', () => {
+      resetBtn.style.backgroundColor = colors.text.accent;
+    });
+
+    // Assemble modal
+    buttonContainer.appendChild(cancelBtn);
+    buttonContainer.appendChild(resetBtn);
+    
+    modal.appendChild(title);
+    modal.appendChild(description);
+    modal.appendChild(buttonContainer);
+    
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+
+    // Focus reset button for accessibility
+    resetBtn.focus();
   }
 
   private enterMissingContentMode(): void {

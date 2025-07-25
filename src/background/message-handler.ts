@@ -212,6 +212,10 @@ export class MessageHandler {
 					await this.handleSubmitNuggetFeedback(request, sender, sendResponse);
 					break;
 
+				case MESSAGE_TYPES.DELETE_NUGGET_FEEDBACK:
+					await this.handleDeleteNuggetFeedback(request, sender, sendResponse);
+					break;
+
 				case MESSAGE_TYPES.SUBMIT_MISSING_CONTENT_FEEDBACK:
 					await this.handleSubmitMissingContentFeedback(request, sender, sendResponse);
 					break;
@@ -648,6 +652,51 @@ export class MessageHandler {
 		}
 	}
 
+	private async handleDeleteNuggetFeedback(
+		request: any,
+		sender: chrome.runtime.MessageSender,
+		sendResponse: (response: any) => void,
+	): Promise<void> {
+		try {
+			const feedbackId: string = request.feedbackId;
+			
+			if (!feedbackId) {
+				sendResponse({ success: false, error: "No feedback ID provided" });
+				return;
+			}
+
+			// Remove from local storage backup
+			await this.removeFeedbackLocally('nugget', feedbackId);
+
+			// Send delete request to backend API
+			try {
+				const result = await this.deleteFeedbackFromBackend(feedbackId);
+				console.log("Nugget feedback deleted from backend:", result);
+				
+				sendResponse({ 
+					success: true, 
+					message: "Feedback deleted successfully"
+				});
+			} catch (error) {
+				console.error("Failed to delete nugget feedback from backend:", error);
+				
+				// Classify backend error and notify user
+				const errorInfo = this.enhanceBackendError(error);
+				await this.notifyUserOfBackendError(sender.tab?.id, errorInfo);
+				
+				// Still return success since data was removed locally as fallback
+				sendResponse({ 
+					success: true, 
+					message: "Feedback removed locally (backend unavailable)",
+					warning: errorInfo.message
+				});
+			}
+		} catch (error) {
+			console.error("Failed to delete nugget feedback:", error);
+			sendResponse({ success: false, error: (error as Error).message });
+		}
+	}
+
 	private async handleSubmitMissingContentFeedback(
 		request: any,
 		sender: chrome.runtime.MessageSender,
@@ -799,6 +848,55 @@ export class MessageHandler {
 		} catch (error) {
 			console.error("Failed to store feedback locally:", error);
 			throw error;
+		}
+	}
+
+	// Helper method to remove feedback locally
+	private async removeFeedbackLocally(
+		type: 'nugget' | 'missing',
+		feedbackId: string
+	): Promise<void> {
+		try {
+			const key = type === 'nugget' ? 'nugget_feedback' : 'missing_feedback';
+			const existingData = await chrome.storage.local.get([key]);
+			const feedbackArray = existingData[key] || [];
+			
+			// Filter out the feedback item with the matching ID
+			const filteredArray = feedbackArray.filter((feedback: any) => feedback.id !== feedbackId);
+			
+			await chrome.storage.local.set({ [key]: filteredArray });
+			console.log(`Removed feedback ${feedbackId} from local storage`);
+		} catch (error) {
+			console.error("Failed to remove feedback locally:", error);
+			throw error;
+		}
+	}
+
+	// Send delete request to backend API
+	private async deleteFeedbackFromBackend(feedbackId: string): Promise<any> {
+		const controller = new AbortController();
+		const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+
+		try {
+			const response = await fetch(`http://localhost:7532/feedback/${feedbackId}`, {
+				method: 'DELETE',
+				headers: { 'Content-Type': 'application/json' },
+				signal: controller.signal
+			});
+			
+			if (!response.ok) {
+				const errorText = await response.text();
+				throw new Error(`Backend feedback deletion failed: ${response.status} ${response.statusText} - ${errorText}`);
+			}
+			
+			return await response.json();
+		} catch (error) {
+			if ((error as Error).name === 'AbortError') {
+				throw new Error('Backend request timed out after 10 seconds');
+			}
+			throw error;
+		} finally {
+			clearTimeout(timeoutId);
 		}
 	}
 

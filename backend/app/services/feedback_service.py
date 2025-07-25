@@ -1167,6 +1167,30 @@ class FeedbackService:
         await db.commit()
         return cursor.rowcount > 0
 
+    async def delete_feedback_item_auto_detect(
+        self, 
+        db: aiosqlite.Connection, 
+        feedback_id: str
+    ) -> bool:
+        """
+        Delete a feedback item by auto-detecting its type.
+        
+        Args:
+            db: Database connection
+            feedback_id: ID of the feedback item
+            
+        Returns:
+            True if item was deleted, False if not found
+        """
+        # Try nugget feedback first
+        success = await self.delete_feedback_item(db, feedback_id, "nugget")
+        if success:
+            return True
+            
+        # Try missing content feedback
+        success = await self.delete_feedback_item(db, feedback_id, "missing_content")
+        return success
+
     # Legacy methods for backward compatibility with tests
     async def store_training_examples(
         self, db: aiosqlite.Connection, training_examples: list[dict]

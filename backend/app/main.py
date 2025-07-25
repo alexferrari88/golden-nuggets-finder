@@ -587,13 +587,19 @@ async def update_feedback_item(
 
 
 @app.delete("/feedback/{feedback_id}")
-async def delete_feedback_item(feedback_id: str, feedback_type: str):
+async def delete_feedback_item(feedback_id: str, feedback_type: str = None):
     """Delete a feedback item and its usage records"""
     try:
         async with get_db() as db:
-            success = await feedback_service.delete_feedback_item(
-                db, feedback_id, feedback_type
-            )
+            # If feedback_type not provided, try to auto-detect
+            if feedback_type is None:
+                success = await feedback_service.delete_feedback_item_auto_detect(
+                    db, feedback_id
+                )
+            else:
+                success = await feedback_service.delete_feedback_item(
+                    db, feedback_id, feedback_type
+                )
             
             if not success:
                 raise HTTPException(status_code=404, detail="Feedback item not found")
