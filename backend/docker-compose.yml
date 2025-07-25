@@ -35,10 +35,12 @@ services:
       - PORT=7532
       - ENVIRONMENT=development
       - GEMINI_API_KEY=${GEMINI_API_KEY}
+      # Ensure test database isolation when running pytest in Docker
+      - DOCKER_ENVIRONMENT=true
     volumes:
       # Mount source code for development
       - .:/app
-      # Persist database data
+      # Persist database data (but tests will use /tmp instead)
       - backend_data:/app/data
     restart: unless-stopped
     profiles:

@@ -20,18 +20,26 @@ _IS_TESTING = (
     "PYTEST_CURRENT_TEST" in os.environ or 
     "pytest" in os.environ.get("_", "") or
     any("pytest" in arg for arg in sys.argv) or
-    os.environ.get("FORCE_TEST_DB", "").lower() in ("1", "true", "yes")
+    os.environ.get("FORCE_TEST_DB", "").lower() in ("1", "true", "yes") or
+    # Additional Docker-specific detection
+    (os.environ.get("ENVIRONMENT") == "test") or
+    # Detect if we're running inside pytest via command line in Docker
+    any("pytest" in arg for arg in os.environ.get("PYTEST_ARGS", "").split())
 )
 
 # Use different database paths for testing vs production
 if _IS_TESTING:
     # Use a temporary database for tests - each test session gets its own
-    _temp_dir = tempfile.mkdtemp(prefix="golden_nuggets_test_")
+    # In Docker, ensure we use /tmp which is not mounted as a volume
+    temp_base = "/tmp" if os.path.exists("/tmp") else tempfile.gettempdir()
+    _temp_dir = tempfile.mkdtemp(prefix="golden_nuggets_test_", dir=temp_base)
     DATABASE_PATH = os.path.join(_temp_dir, "test_feedback.db")
+    print(f"🧪 Test environment detected: Using isolated database at {DATABASE_PATH}")
 else:
     DATABASE_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "feedback.db")
     # Ensure data directory exists for production
     os.makedirs(os.path.dirname(DATABASE_PATH), exist_ok=True)
+    print(f"📊 Production environment: Using database at {DATABASE_PATH}")
 
 
 @asynccontextmanager
@@ -72,6 +80,28 @@ def get_test_database_path():
 def is_test_environment():
     """Check if we're running in test environment"""
     return _IS_TESTING
+
+
+def get_database_info():
+    """Get detailed information about current database configuration"""
+    return {
+        "is_testing": _IS_TESTING,
+        "database_path": DATABASE_PATH,
+        "is_temp_db": "/tmp/" in DATABASE_PATH or "golden_nuggets_test_" in DATABASE_PATH,
+        "environment_vars": {
+            "PYTEST_CURRENT_TEST": os.environ.get("PYTEST_CURRENT_TEST"),
+            "FORCE_TEST_DB": os.environ.get("FORCE_TEST_DB"),
+            "ENVIRONMENT": os.environ.get("ENVIRONMENT"),
+            "DOCKER_ENVIRONMENT": os.environ.get("DOCKER_ENVIRONMENT"),
+        },
+        "detection_methods": {
+            "pytest_in_modules": "pytest" in sys.modules,
+            "pytest_current_test": "PYTEST_CURRENT_TEST" in os.environ,
+            "pytest_in_args": any("pytest" in arg for arg in sys.argv),
+            "force_test_db": os.environ.get("FORCE_TEST_DB", "").lower() in ("1", "true", "yes"),
+            "env_is_test": os.environ.get("ENVIRONMENT") == "test",
+        }
+    }
 
 
 async def cleanup_test_database():
