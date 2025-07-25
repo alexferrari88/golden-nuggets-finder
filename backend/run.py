@@ -43,7 +43,7 @@ def main():
 
     args = parser.parse_args()
 
-    # Configure uvicorn settings
+    # Configure uvicorn settings with environment-aware logging
     config = {
         "app": "app.main:app",
         "host": args.host,
@@ -52,17 +52,74 @@ def main():
     }
 
     if args.prod:
-        # Production settings
-        config.update({"workers": args.workers, "reload": False, "access_log": True})
+        # Production settings - enable file logging with rotation
+        config.update({
+            "workers": args.workers,
+            "reload": False,
+            "access_log": True,
+            "log_config": {
+                "version": 1,
+                "disable_existing_loggers": False,
+                "formatters": {
+                    "default": {
+                        "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+                    },
+                },
+                "handlers": {
+                    "console": {
+                        "class": "logging.StreamHandler",
+                        "formatter": "default",
+                        "stream": "ext://sys.stdout",
+                    },
+                    "file": {
+                        "class": "logging.handlers.RotatingFileHandler",
+                        "formatter": "default",
+                        "filename": "server.log",
+                        "maxBytes": 10485760,  # 10MB
+                        "backupCount": 5,
+                    },
+                },
+                "loggers": {
+                    "uvicorn": {"handlers": ["console", "file"], "level": "INFO"},
+                    "uvicorn.access": {"handlers": ["console", "file"], "level": "INFO"},
+                },
+            },
+        })
         print(
             f"Starting Golden Nuggets Backend in production mode on {args.host}:{args.port}"
         )
+        print("Logs will be written to server.log with rotation")
     else:
-        # Development settings
-        config.update({"reload": True, "reload_dirs": ["app"], "access_log": True})
+        # Development settings - console logging only, no files
+        config.update({
+            "reload": True,
+            "reload_dirs": ["app"],
+            "access_log": False,  # Disable access logs in development
+            "log_config": {
+                "version": 1,
+                "disable_existing_loggers": False,
+                "formatters": {
+                    "default": {
+                        "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+                    },
+                },
+                "handlers": {
+                    "console": {
+                        "class": "logging.StreamHandler",
+                        "formatter": "default",
+                        "stream": "ext://sys.stdout",
+                    },
+                },
+                "loggers": {
+                    "uvicorn": {"handlers": ["console"], "level": "INFO"},
+                    "uvicorn.access": {"handlers": ["console"], "level": "INFO"},
+                },
+            },
+        })
         print(
             f"Starting Golden Nuggets Backend in development mode on {args.host}:{args.port}"
         )
+        print("Console logging only - no log files will be created")
 
     # Verify environment
     if not os.getenv("GEMINI_API_KEY"):

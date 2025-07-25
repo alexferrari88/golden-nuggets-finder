@@ -10,6 +10,7 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 import json
 import logging
+import os
 from typing import Optional
 import uuid
 
@@ -26,11 +27,38 @@ except ImportError:
 
 from .feedback_service import FeedbackService
 
-# Configure structured logging
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
-logger = logging.getLogger(__name__)
+# Configure environment-aware structured logging
+def _setup_logger():
+    """Setup environment-aware logging configuration"""
+    logger = logging.getLogger(__name__)
+    
+    # Only configure if not already configured
+    if logger.handlers:
+        return logger
+    
+    # Create formatter
+    formatter = logging.Formatter(
+        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    )
+    
+    # Always use console handler
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(formatter)
+    logger.addHandler(console_handler)
+    
+    # Only add file handler in production
+    if os.getenv("ENVIRONMENT") == "production":
+        from logging.handlers import RotatingFileHandler
+        file_handler = RotatingFileHandler(
+            "optimization.log", maxBytes=10485760, backupCount=5
+        )
+        file_handler.setFormatter(formatter)
+        logger.addHandler(file_handler)
+    
+    logger.setLevel(logging.INFO)
+    return logger
+
+logger = _setup_logger()
 
 
 class OptimizationService:
