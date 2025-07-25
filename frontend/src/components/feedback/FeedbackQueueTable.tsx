@@ -47,6 +47,7 @@ export function FeedbackQueueTable({
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [page, setPage] = useState(0);
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
+  const [expandedContent, setExpandedContent] = useState<Set<string>>(new Set());
 
   const {
     data: feedbackData,
@@ -109,6 +110,18 @@ export function FeedbackQueueTable({
 
   const toggleItemSelection = useCallback((id: string) => {
     setSelectedItems(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(id)) {
+        newSet.delete(id);
+      } else {
+        newSet.add(id);
+      }
+      return newSet;
+    });
+  }, []);
+
+  const toggleContentExpansion = useCallback((id: string) => {
+    setExpandedContent(prev => {
       const newSet = new Set(prev);
       if (newSet.has(id)) {
         newSet.delete(id);
@@ -194,6 +207,17 @@ export function FeedbackQueueTable({
   const truncateContent = (content: string, maxLength: number = 120) => {
     if (content.length <= maxLength) return content;
     return content.slice(0, maxLength) + '...';
+  };
+
+  const getTruncatedContent = (content: string, maxLength: number = 300) => {
+    const isTruncated = content.length > maxLength;
+    const truncatedContent = isTruncated ? content.substring(0, maxLength) : content;
+    
+    return {
+      content: truncatedContent,
+      isTruncated,
+      fullContent: content
+    };
   };
 
   if (isError) {
@@ -424,9 +448,33 @@ export function FeedbackQueueTable({
                         <TableCell colSpan={9}>
                           <div className="py-4 px-4 bg-gray-50 rounded-lg">
                             <h4 className="font-medium mb-2">Full Content:</h4>
-                            <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">
-                              {item.content}
-                            </p>
+                            <div className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">
+                              {(() => {
+                                const contentInfo = getTruncatedContent(item.content);
+                                const isContentExpanded = expandedContent.has(item.id);
+                                
+                                if (contentInfo.isTruncated) {
+                                  return (
+                                    <>
+                                      <span>
+                                        {isContentExpanded ? contentInfo.fullContent : contentInfo.content + '…'}
+                                      </span>
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          toggleContentExpansion(item.id);
+                                        }}
+                                        className="ml-2 text-blue-600 hover:text-blue-800 underline text-xs font-medium transition-colors"
+                                      >
+                                        {isContentExpanded ? 'Show less' : 'Show more'}
+                                      </button>
+                                    </>
+                                  );
+                                } else {
+                                  return <span>{contentInfo.fullContent}</span>;
+                                }
+                              })()}
+                            </div>
                             <div className="mt-3 flex items-center gap-4 text-xs text-gray-500">
                               <span>ID: {item.id}</span>
                               <span>Created: {new Date(item.created_at).toLocaleString()}</span>
