@@ -10,7 +10,7 @@ export default defineBackground(() => {
 
 	// Track analysis completion state per tab
 	const analysisCompletedTabs = new Set<number>();
-	
+
 	// Prevent concurrent context menu setup
 	let isSettingUpContextMenu = false;
 
@@ -19,12 +19,15 @@ export default defineBackground(() => {
 		// Handle ANALYSIS_COMPLETE message to track state
 		if (request.type === MESSAGE_TYPES.ANALYSIS_COMPLETE && sender.tab?.id) {
 			analysisCompletedTabs.add(sender.tab.id);
-			console.log(`[Background] Analysis completed for tab ${sender.tab.id}, tracked tabs:`, Array.from(analysisCompletedTabs));
-			
+			console.log(
+				`[Background] Analysis completed for tab ${sender.tab.id}, tracked tabs:`,
+				Array.from(analysisCompletedTabs),
+			);
+
 			// Update context menu to show "Report missed golden nugget" option
 			updateContextMenuForActiveTab();
 		}
-		
+
 		messageHandler.handleMessage(request, sender, sendResponse);
 		return true; // Keep the message channel open for async responses
 	});
@@ -35,7 +38,7 @@ export default defineBackground(() => {
 		// Update context menu since the active tab might have changed
 		updateContextMenuForActiveTab();
 	});
-	
+
 	chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
 		// Clear analysis state when user navigates to a new URL
 		if (changeInfo.url) {
@@ -53,9 +56,9 @@ export default defineBackground(() => {
 	// Set up context menu and handle installation
 	chrome.runtime.onInstalled.addListener((details) => {
 		updateContextMenuForActiveTab();
-		
+
 		// Open options page on first install
-		if (details.reason === 'install') {
+		if (details.reason === "install") {
 			chrome.runtime.openOptionsPage();
 		}
 	});
@@ -71,10 +74,10 @@ export default defineBackground(() => {
 	chrome.contextMenus.onClicked.addListener((info, tab) => {
 		console.log("[Background] Context menu clicked:", {
 			menuItemId: info.menuItemId,
-			selectionText: info.selectionText?.substring(0, 50) + "...",
-			contexts: info.contexts
+			selectionText: `${info.selectionText?.substring(0, 50)}...`,
+			contexts: info.contexts,
 		});
-		
+
 		if (info.menuItemId && typeof info.menuItemId === "string") {
 			if (info.menuItemId.includes("__")) {
 				// Handle typed menu clicks (e.g., "promptId__typeId")
@@ -98,9 +101,14 @@ export default defineBackground(() => {
 	async function updateContextMenuForActiveTab(): Promise<void> {
 		try {
 			// Get the currently active tab
-			const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
-			const showReportMissedNugget = activeTab?.id ? analysisCompletedTabs.has(activeTab.id) : false;
-			
+			const [activeTab] = await chrome.tabs.query({
+				active: true,
+				currentWindow: true,
+			});
+			const showReportMissedNugget = activeTab?.id
+				? analysisCompletedTabs.has(activeTab.id)
+				: false;
+
 			await setupContextMenu(showReportMissedNugget);
 		} catch (error) {
 			console.error("Failed to update context menu for active tab:", error);
@@ -109,15 +117,19 @@ export default defineBackground(() => {
 		}
 	}
 
-	async function setupContextMenu(showReportMissedNugget: boolean = false): Promise<void> {
+	async function setupContextMenu(
+		showReportMissedNugget: boolean = false,
+	): Promise<void> {
 		// Prevent concurrent executions to avoid duplicate ID errors
 		if (isSettingUpContextMenu) {
-			console.log("[Background] Context menu setup already in progress, skipping");
+			console.log(
+				"[Background] Context menu setup already in progress, skipping",
+			);
 			return;
 		}
-		
+
 		isSettingUpContextMenu = true;
-		
+
 		try {
 			// Clear existing menu items
 			await chrome.contextMenus.removeAll();
@@ -184,7 +196,9 @@ export default defineBackground(() => {
 				});
 				console.log("[Background] Context menu 'report-missed-nugget' created");
 			} else {
-				console.log("[Background] Context menu 'report-missed-nugget' NOT created - analysis not completed on active tab");
+				console.log(
+					"[Background] Context menu 'report-missed-nugget' NOT created - analysis not completed on active tab",
+				);
 			}
 		} catch (error) {
 			console.error("Failed to setup context menu:", error);
@@ -317,14 +331,14 @@ export default defineBackground(() => {
 
 	async function handleReportMissedNugget(
 		tab?: chrome.tabs.Tab,
-		info?: chrome.contextMenus.OnClickData
+		info?: chrome.contextMenus.OnClickData,
 	): Promise<void> {
 		console.log("[Background] handleReportMissedNugget called", {
 			tabId: tab?.id,
-			selectedText: info?.selectionText?.substring(0, 50) + "...",
-			trackedTabs: Array.from(analysisCompletedTabs)
+			selectedText: `${info?.selectionText?.substring(0, 50)}...`,
+			trackedTabs: Array.from(analysisCompletedTabs),
 		});
-		
+
 		if (!tab?.id) {
 			console.log("[Background] No tab ID - returning");
 			return;
@@ -333,7 +347,10 @@ export default defineBackground(() => {
 		try {
 			// Check if analysis has been completed on this tab
 			if (!analysisCompletedTabs.has(tab.id)) {
-				console.log(`[Background] Analysis not completed on tab ${tab.id} - cannot report missed nugget. Tracked tabs:`, Array.from(analysisCompletedTabs));
+				console.log(
+					`[Background] Analysis not completed on tab ${tab.id} - cannot report missed nugget. Tracked tabs:`,
+					Array.from(analysisCompletedTabs),
+				);
 				return;
 			}
 
@@ -341,15 +358,19 @@ export default defineBackground(() => {
 			const selectedText = info?.selectionText?.trim() || "";
 			console.log(`[Background] Selected text length: ${selectedText.length}`);
 			if (selectedText.length <= 5) {
-				console.log("[Background] Selected text too short or empty - cannot report missed nugget");
+				console.log(
+					"[Background] Selected text too short or empty - cannot report missed nugget",
+				);
 				return;
 			}
 
 			// Inject content script dynamically first
 			await injectContentScript(tab.id);
 
-			console.log(`[Background] Reporting missed nugget for selected text: "${selectedText.substring(0, 50)}..."`);
-			
+			console.log(
+				`[Background] Reporting missed nugget for selected text: "${selectedText.substring(0, 50)}..."`,
+			);
+
 			// Send message to content script to show nugget type selection UI
 			await chrome.tabs.sendMessage(tab.id, {
 				type: MESSAGE_TYPES.ENTER_MISSING_CONTENT_MODE,

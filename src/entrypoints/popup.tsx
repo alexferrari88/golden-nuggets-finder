@@ -142,7 +142,7 @@ const useStepProgression = (isTypingComplete: boolean, analysisId?: string) => {
 				clearTimeout(fallbackTimeoutRef.current);
 			}
 		};
-	}, [isTypingComplete, analysisId, useRealTiming]);
+	}, [isTypingComplete, analysisId, useRealTiming, startFallbackAnimation]);
 
 	const startFallbackAnimation = async () => {
 		// Clear any existing timers
@@ -182,7 +182,13 @@ const useStepProgression = (isTypingComplete: boolean, analysisId?: string) => {
 		startStep(3, 6000, 8000); // Finalize: start after 6s, run 8s (will be interrupted)
 	};
 
-	return { currentStep, completedSteps, visibleSteps, processRealTimeStep, completeAllSteps };
+	return {
+		currentStep,
+		completedSteps,
+		visibleSteps,
+		processRealTimeStep,
+		completeAllSteps,
+	};
 };
 
 function IndexPopup() {
@@ -194,7 +200,9 @@ function IndexPopup() {
 	const [currentAnalysisId, setCurrentAnalysisId] = useState<string | null>(
 		null,
 	);
-	const [backendStatus, setBackendStatus] = useState<"unknown" | "available" | "unavailable">("unknown");
+	const [backendStatus, setBackendStatus] = useState<
+		"unknown" | "available" | "unavailable"
+	>("unknown");
 	const [selectionMode, setSelectionMode] = useState<"quick" | "custom">(
 		"quick",
 	);
@@ -219,14 +227,17 @@ function IndexPopup() {
 		analyzing ? "Analyzing your content..." : "",
 		80,
 	);
-	const { currentStep, completedSteps, visibleSteps, processRealTimeStep, completeAllSteps } = useStepProgression(
-		isComplete,
-		currentAnalysisId || undefined,
-	);
+	const {
+		currentStep,
+		completedSteps,
+		visibleSteps,
+		processRealTimeStep,
+		completeAllSteps,
+	} = useStepProgression(isComplete, currentAnalysisId || undefined);
 
 	// Use ref to track current analysis ID for message listener
 	const currentAnalysisIdRef = useRef<string | null>(null);
-	
+
 	// Update ref when analysis ID changes
 	useEffect(() => {
 		currentAnalysisIdRef.current = currentAnalysisId;
@@ -255,7 +266,7 @@ function IndexPopup() {
 				// Display the actual error message to the user
 				setError(message.error || "Analysis failed. Please try again.");
 			}
-			
+
 			// Handle real-time progress messages (only for current analysis)
 			if (
 				currentAnalysisIdRef.current &&
@@ -275,7 +286,7 @@ function IndexPopup() {
 		return () => {
 			chrome.runtime.onMessage.removeListener(messageListener);
 		};
-	}, []);
+	}, [checkBackendStatus, completeAllSteps, loadPrompts, processRealTimeStep]);
 
 	// Check backend availability
 	const checkBackendStatus = async () => {
@@ -283,7 +294,7 @@ function IndexPopup() {
 			const response = await chrome.runtime.sendMessage({
 				type: MESSAGE_TYPES.GET_FEEDBACK_STATS,
 			});
-			
+
 			if (response.success) {
 				setBackendStatus(response.warning ? "unavailable" : "available");
 			} else {
@@ -346,7 +357,6 @@ function IndexPopup() {
 			setCurrentAnalysisId(analysisId);
 			// Update ref immediately so message listener can access it
 			currentAnalysisIdRef.current = analysisId;
-
 
 			// Get the current active tab
 			const [tab] = await chrome.tabs.query({
@@ -458,10 +468,10 @@ function IndexPopup() {
 					const response = await chrome.tabs.sendMessage(tabId, {
 						type: "PING",
 					});
-					if (response && response.success) {
+					if (response?.success) {
 						break;
 					}
-				} catch (error) {
+				} catch (_error) {
 					// Still not ready, continue trying
 				}
 				attempts++;
@@ -846,16 +856,21 @@ function IndexPopup() {
 								width: "6px",
 								height: "6px",
 								borderRadius: "50%",
-								backgroundColor: backendStatus === "available" 
-									? colors.success 
-									: colors.error,
+								backgroundColor:
+									backendStatus === "available" ? colors.success : colors.error,
 							}}
 						/>
 						Backend: {backendStatus === "available" ? "Connected" : "Offline"}
 						{backendStatus === "unavailable" && (
 							<>
-								<span style={{ fontSize: typography.fontSize.xs, color: colors.text.secondary }}>
-									{" "}(Using local mode)
+								<span
+									style={{
+										fontSize: typography.fontSize.xs,
+										color: colors.text.secondary,
+									}}
+								>
+									{" "}
+									(Using local mode)
 								</span>
 								<button
 									onClick={checkBackendStatus}
@@ -981,8 +996,7 @@ function IndexPopup() {
 							}}
 							onMouseEnter={(e) => {
 								if (!selectedTypes.includes(typeConfig.type)) {
-									e.currentTarget.style.backgroundColor =
-										colors.background.primary + "50";
+									e.currentTarget.style.backgroundColor = `${colors.background.primary}50`;
 								}
 							}}
 							onMouseLeave={(e) => {
@@ -1062,7 +1076,7 @@ function IndexPopup() {
 								backgroundColor: prompt.isDefault
 									? colors.background.secondary
 									: colors.background.secondary,
-								border: `1px solid ${prompt.isDefault ? colors.text.accent + "33" : colors.border.light}`,
+								border: `1px solid ${prompt.isDefault ? `${colors.text.accent}33` : colors.border.light}`,
 								borderRadius: borderRadius.md,
 								cursor: "pointer",
 								transition: "all 0.2s ease",
@@ -1085,7 +1099,7 @@ function IndexPopup() {
 									? colors.background.secondary
 									: colors.background.secondary;
 								e.currentTarget.style.borderColor = prompt.isDefault
-									? colors.text.accent + "33"
+									? `${colors.text.accent}33`
 									: colors.border.light;
 								e.currentTarget.style.boxShadow = "none";
 							}}

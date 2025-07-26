@@ -1,4 +1,5 @@
 import type { Content, ContentScraper } from "threads-harvester";
+import { getDisplayContent } from "../../shared/content-reconstruction";
 import {
 	borderRadius,
 	colors,
@@ -12,18 +13,17 @@ import {
 	measureHighlighting,
 	performanceMonitor,
 } from "../../shared/performance";
+import { ALL_NUGGET_TYPES, type GoldenNuggetType } from "../../shared/schemas";
 import { storage } from "../../shared/storage";
 import {
 	type AnalysisProgressMessage,
 	type GoldenNugget,
 	MESSAGE_TYPES,
+	type MissingContentFeedback,
 	type SavedPrompt,
 	type SidebarNuggetItem,
 	type TypeFilterOptions,
-	type MissingContentFeedback,
 } from "../../shared/types";
-import { ALL_NUGGET_TYPES, GoldenNuggetType } from '../../shared/schemas';
-import { getDisplayContent } from "../../shared/content-reconstruction";
 import { Highlighter } from "./highlighter";
 import { NotificationManager } from "./notifications";
 import { Sidebar } from "./sidebar";
@@ -39,7 +39,6 @@ export class UIManager {
 	private controlPanel: HTMLElement | null = null;
 	private prompts: SavedPrompt[] = [];
 	private keyboardListener?: (event: KeyboardEvent) => void;
-	private originalPanelContent?: HTMLElement;
 	private analysisState = {
 		currentStep: -1,
 		completedSteps: [] as number[],
@@ -95,21 +94,26 @@ export class UIManager {
 		);
 	}
 
-	async displayResults(nuggets: GoldenNugget[], pageContent?: string): Promise<void> {
+	async displayResults(
+		nuggets: GoldenNugget[],
+		pageContent?: string,
+	): Promise<void> {
 		performanceMonitor.startTimer("display_results");
 
 		// Clear any existing highlights and sidebar
 		measureDOMOperation("clear_results", () => this.clearResults());
 
 		// Enhance nuggets with reconstructed full content if page content is available
-		const enhancedNuggets = nuggets.map(nugget => {
+		const enhancedNuggets = nuggets.map((nugget) => {
 			if (pageContent) {
 				const fullContent = getDisplayContent(nugget, pageContent);
 				// Create an enhanced nugget with full content for display
 				return {
 					...nugget,
 					_fullContent: fullContent,
-					_hasReconstructedContent: fullContent.length > nugget.startContent.length + nugget.endContent.length + 10
+					_hasReconstructedContent:
+						fullContent.length >
+						nugget.startContent.length + nugget.endContent.length + 10,
 				};
 			}
 			return nugget;
@@ -122,7 +126,7 @@ export class UIManager {
 		for (let i = 0; i < enhancedNuggets.length; i++) {
 			const nugget = enhancedNuggets[i];
 			const originalNugget = nuggets[i];
-			
+
 			const highlighted = await measureHighlighting("nugget_highlight", () =>
 				this.highlighter.highlightNugget(originalNugget, pageContent),
 			);
@@ -250,9 +254,7 @@ export class UIManager {
 			}
 		});
 
-		const content = contentParts
-			.filter((part) => part && part.trim())
-			.join("\n\n");
+		const content = contentParts.filter((part) => part?.trim()).join("\n\n");
 
 		if (!content || content.trim().length === 0) {
 			this.notifications.showError("Selected content is empty.");
@@ -279,7 +281,9 @@ export class UIManager {
 		return this.selectionModeActive;
 	}
 
-	async enterMissingContentMode(contentScraper?: ContentScraper): Promise<void> {
+	async enterMissingContentMode(
+		contentScraper?: ContentScraper,
+	): Promise<void> {
 		// Clear any existing results first
 		this.clearResults();
 
@@ -305,18 +309,23 @@ export class UIManager {
 		this.showMissingContentPanel();
 	}
 
-	async enterDirectMissingContentMode(selectedText: string, url: string): Promise<void> {
+	async enterDirectMissingContentMode(
+		selectedText: string,
+		url: string,
+	): Promise<void> {
 		// Clear any existing results first
 		this.clearResults();
 
 		// Set selection mode active so Esc key works
 		this.selectionModeActive = true;
 
-		console.log(`[UIManager] Entering direct missing content mode with text: "${selectedText.substring(0, 50)}..."`);
-		
+		console.log(
+			`[UIManager] Entering direct missing content mode with text: "${selectedText.substring(0, 50)}..."`,
+		);
+
 		// Show info banner for direct missing content mode
 		this.notifications.showInfo(
-			`Select the type for the highlighted text: "${selectedText.length > 50 ? selectedText.substring(0, 47) + '...' : selectedText}"`,
+			`Select the type for the highlighted text: "${selectedText.length > 50 ? `${selectedText.substring(0, 47)}...` : selectedText}"`,
 		);
 
 		// Add keyboard listener for Esc key
@@ -326,7 +335,10 @@ export class UIManager {
 		this.showDirectMissingContentPanel(selectedText, url);
 	}
 
-	private showDirectMissingContentPanel(selectedText: string, url: string): void {
+	private showDirectMissingContentPanel(
+		selectedText: string,
+		url: string,
+	): void {
 		if (this.controlPanel) {
 			this.controlPanel.remove();
 		}
@@ -518,11 +530,15 @@ export class UIManager {
 				});
 
 				if (response?.success === false) {
-					throw new Error(response.error || "Background script reported failure");
+					throw new Error(
+						response.error || "Background script reported failure",
+					);
 				}
 
 				// Show success notification
-				this.notifications.showSuccess("Missing content reported successfully!");
+				this.notifications.showSuccess(
+					"Missing content reported successfully!",
+				);
 
 				// Exit selection mode without hiding notifications (success will auto-hide)
 				setTimeout(() => {
@@ -532,7 +548,9 @@ export class UIManager {
 				console.error("Failed to submit missing content feedback:", error);
 				submitButton.textContent = "Submit Missing Nugget";
 				submitButton.disabled = false;
-				this.notifications.showError("Failed to submit feedback. Please try again.");
+				this.notifications.showError(
+					"Failed to submit feedback. Please try again.",
+				);
 			}
 		});
 
@@ -545,7 +563,8 @@ export class UIManager {
 
 		submitButton.addEventListener("mouseleave", () => {
 			if (!submitButton.disabled) {
-				submitButton.style.backgroundColor = components.button.primary.backgroundColor;
+				submitButton.style.backgroundColor =
+					components.button.primary.backgroundColor;
 			}
 		});
 
@@ -559,8 +578,8 @@ export class UIManager {
 
 		// Animate in
 		requestAnimationFrame(() => {
-			this.controlPanel!.style.transform = "translateY(0)";
-			this.controlPanel!.style.opacity = "1";
+			this.controlPanel?.style.transform = "translateY(0)";
+			this.controlPanel?.style.opacity = "1";
 		});
 	}
 
@@ -586,7 +605,7 @@ export class UIManager {
 			this.controlPanel.remove();
 		}
 
-		const selectedContent = this.getSelectedContent();
+		const _selectedContent = this.getSelectedContent();
 		const allContent = this.selectionScraper?.getContent();
 		const totalItems = allContent?.items?.length || 0;
 
@@ -785,8 +804,8 @@ export class UIManager {
 
 		// Animate in
 		requestAnimationFrame(() => {
-			this.controlPanel!.style.transform = "translateY(0)";
-			this.controlPanel!.style.opacity = "1";
+			this.controlPanel?.style.transform = "translateY(0)";
+			this.controlPanel?.style.opacity = "1";
 		});
 
 		this.updateControlPanel();
@@ -1250,8 +1269,7 @@ export class UIManager {
 				this.analysisState.timers.push(timer);
 			} else {
 				// Show cursor briefly
-				typingContainer.innerHTML =
-					text + '<span style="opacity: 0.7; margin-left: 2px;">|</span>';
+				typingContainer.innerHTML = `${text}<span style="opacity: 0.7; margin-left: 2px;">|</span>`;
 
 				const timer = setTimeout(() => {
 					typingContainer.textContent = text;
@@ -1308,8 +1326,8 @@ export class UIManager {
 			{ id: "finalize", text: "Finalizing analysis" },
 		];
 
-		analysisSteps.forEach((step, index) => {
-			const stepElement = this.controlPanel!.querySelector(
+		analysisSteps.forEach((_step, index) => {
+			const stepElement = this.controlPanel?.querySelector(
 				`.step-${index}`,
 			) as HTMLElement;
 			const indicator = stepElement?.querySelector(
@@ -1374,9 +1392,9 @@ export class UIManager {
 			this.controlPanel.remove();
 		}
 
-		const selectedContent = this.getSelectedContent();
+		const _selectedContent = this.getSelectedContent();
 		const allContent = this.selectionScraper?.getContent();
-		const totalItems = allContent?.items?.length || 0;
+		const _totalItems = allContent?.items?.length || 0;
 
 		this.controlPanel = document.createElement("div");
 		this.controlPanel.className = "nugget-missing-content-panel";
@@ -1462,7 +1480,7 @@ export class UIManager {
 			border-radius: ${borderRadius.sm};
 			line-height: ${typography.lineHeight.normal};
 		`;
-		instructions.textContent = 
+		instructions.textContent =
 			"Select content that should have been identified as golden nuggets, then choose its type and submit.";
 
 		// Counter
@@ -1576,8 +1594,8 @@ export class UIManager {
 
 		// Animate in
 		requestAnimationFrame(() => {
-			this.controlPanel!.style.transform = "translateY(0)";
-			this.controlPanel!.style.opacity = "1";
+			this.controlPanel?.style.transform = "translateY(0)";
+			this.controlPanel?.style.opacity = "1";
 		});
 
 		this.updateMissingContentPanel();
@@ -1603,14 +1621,24 @@ export class UIManager {
 
 	private submitMissingContentFeedback(): void {
 		const selectedContent = this.getSelectedContent();
-		if (!selectedContent || !selectedContent.items || selectedContent.items.length === 0) {
-			this.notifications.showError("Please select content to mark as missing golden nuggets.");
+		if (
+			!selectedContent ||
+			!selectedContent.items ||
+			selectedContent.items.length === 0
+		) {
+			this.notifications.showError(
+				"Please select content to mark as missing golden nuggets.",
+			);
 			return;
 		}
 
-		const typeSelect = this.controlPanel?.querySelector("#missing-content-type-select") as HTMLSelectElement;
+		const typeSelect = this.controlPanel?.querySelector(
+			"#missing-content-type-select",
+		) as HTMLSelectElement;
 		if (!typeSelect) {
-			this.notifications.showError("Unable to determine nugget type selection.");
+			this.notifications.showError(
+				"Unable to determine nugget type selection.",
+			);
 			return;
 		}
 
@@ -1618,11 +1646,11 @@ export class UIManager {
 
 		// Create feedback for each selected item
 		const missingContentFeedback: MissingContentFeedback[] = [];
-		const context = document.title + ' - ' + window.location.href;
+		const context = `${document.title} - ${window.location.href}`;
 
 		selectedContent.items.forEach((item) => {
 			const feedbackId = `missing_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-			const content = item.textContent || item.htmlContent || '';
+			const content = item.textContent || item.htmlContent || "";
 
 			if (content.trim()) {
 				missingContentFeedback.push({
@@ -1631,7 +1659,7 @@ export class UIManager {
 					suggestedType: selectedType,
 					timestamp: Date.now(),
 					url: window.location.href,
-					context: context.substring(0, 200)
+					context: context.substring(0, 200),
 				});
 			}
 		});
@@ -1644,12 +1672,12 @@ export class UIManager {
 		// Send to background script for processing
 		chrome.runtime.sendMessage({
 			type: MESSAGE_TYPES.SUBMIT_MISSING_CONTENT_FEEDBACK,
-			missingContentFeedback: missingContentFeedback
+			missingContentFeedback: missingContentFeedback,
 		});
 
 		// Show success message and exit
 		this.notifications.showInfo(
-			`Successfully submitted ${missingContentFeedback.length} missing golden nugget${missingContentFeedback.length > 1 ? 's' : ''}`
+			`Successfully submitted ${missingContentFeedback.length} missing golden nugget${missingContentFeedback.length > 1 ? "s" : ""}`,
 		);
 
 		// Exit selection mode after a brief delay

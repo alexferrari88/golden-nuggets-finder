@@ -2,7 +2,6 @@ import { GEMINI_CONFIG } from "../shared/constants";
 import { debugLogger } from "../shared/debug";
 import { measureAPICall, performanceMonitor } from "../shared/performance";
 import { GOLDEN_NUGGET_SCHEMA } from "../shared/schemas";
-import { securityManager } from "../shared/security";
 import { storage } from "../shared/storage";
 import {
 	type AnalysisProgressMessage,
@@ -270,32 +269,53 @@ export class GeminiClient {
 			const originalMessage = error.message;
 
 			if (message.includes("api key") || message.includes("authentication")) {
-				return new Error(`Invalid API key: ${originalMessage}. Please check your Gemini API key in settings.`);
+				return new Error(
+					`Invalid API key: ${originalMessage}. Please check your Gemini API key in settings.`,
+				);
 			} else if (message.includes("rate limit")) {
 				// Extract rate limit details if available
 				const match = originalMessage.match(/rate limit exceeded.*?(\d+.*?)/i);
 				const details = match ? ` (${match[1]})` : "";
-				return new Error(`Rate limit reached${details}. Please wait before trying again.`);
+				return new Error(
+					`Rate limit reached${details}. Please wait before trying again.`,
+				);
 			} else if (message.includes("quota")) {
-				return new Error(`API quota exceeded: ${originalMessage}. Please check your Gemini API usage limits.`);
+				return new Error(
+					`API quota exceeded: ${originalMessage}. Please check your Gemini API usage limits.`,
+				);
 			} else if (message.includes("timeout")) {
-				return new Error(`Request timed out: ${originalMessage}. Please try again.`);
+				return new Error(
+					`Request timed out: ${originalMessage}. Please try again.`,
+				);
 			} else if (
 				message.includes("network") ||
 				message.includes("connection") ||
 				message.includes("failed to fetch")
 			) {
-				return new Error(`Network error: ${originalMessage}. Please check your internet connection.`);
+				return new Error(
+					`Network error: ${originalMessage}. Please check your internet connection.`,
+				);
 			} else if (message.includes("400") || message.includes("bad request")) {
-				return new Error(`Invalid request: ${originalMessage}. The content might be too large or contain unsupported characters.`);
+				return new Error(
+					`Invalid request: ${originalMessage}. The content might be too large or contain unsupported characters.`,
+				);
 			} else if (message.includes("403") || message.includes("forbidden")) {
-				return new Error(`Access denied: ${originalMessage}. Please check your API key permissions.`);
+				return new Error(
+					`Access denied: ${originalMessage}. Please check your API key permissions.`,
+				);
 			} else if (message.includes("404") || message.includes("not found")) {
-				return new Error(`API endpoint not found: ${originalMessage}. The Gemini API might be unavailable.`);
-			} else if (message.includes("500") || message.includes("internal server error")) {
-				return new Error(`Gemini API server error: ${originalMessage}. Please try again later.`);
+				return new Error(
+					`API endpoint not found: ${originalMessage}. The Gemini API might be unavailable.`,
+				);
+			} else if (
+				message.includes("500") ||
+				message.includes("internal server error")
+			) {
+				return new Error(
+					`Gemini API server error: ${originalMessage}. Please try again later.`,
+				);
 			}
-			
+
 			// For unrecognized errors, preserve original message with context
 			return new Error(`Gemini API error: ${originalMessage}`);
 		}
@@ -315,7 +335,7 @@ export class GeminiClient {
 				if (truncated.length + sentence.length > this.MAX_CONTENT_LENGTH) {
 					break;
 				}
-				truncated += sentence + ". ";
+				truncated += `${sentence}. `;
 			}
 
 			return truncated || content.substring(0, this.MAX_CONTENT_LENGTH);

@@ -1,5 +1,3 @@
-import { describe } from "vitest";
-
 export type GoldenNuggetType =
 	| "tool"
 	| "media"

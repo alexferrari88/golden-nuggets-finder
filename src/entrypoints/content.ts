@@ -1,7 +1,6 @@
 import {
 	type AnalysisProgressMessage,
 	type AnalysisRequest,
-	AnalysisResponse,
 	type DebugLogMessage,
 	MESSAGE_TYPES,
 	type TypeFilterOptions,
@@ -24,7 +23,6 @@ import {
 	colors,
 	generateCSSCustomProperties,
 	shadows,
-	spacing,
 	zIndex,
 } from "../shared/design-system";
 import {
@@ -122,7 +120,7 @@ export default defineContentScript({
 
 			content.items.forEach((item) => {
 				let textContent = "";
-				
+
 				if (item.textContent) {
 					textContent = item.textContent;
 				} else if (item.htmlContent) {
@@ -137,7 +135,7 @@ export default defineContentScript({
 				}
 			});
 
-			return contentParts.filter((part) => part && part.trim()).join("\n\n");
+			return contentParts.filter((part) => part?.trim()).join("\n\n");
 		}
 
 		function injectDesignSystemVariables(): void {
@@ -233,7 +231,7 @@ export default defineContentScript({
 		): void {
 			// Forward progress messages to UI manager for real-time animation updates
 			uiManager.handleProgressUpdate(progressMessage);
-			
+
 			// Also forward to popup if analysis was initiated from popup
 			if (progressMessage.source === "popup") {
 				chrome.runtime.sendMessage(progressMessage).catch(() => {
@@ -269,7 +267,7 @@ export default defineContentScript({
 
 		async function handleMessage(
 			request: any,
-			sender: chrome.runtime.MessageSender,
+			_sender: chrome.runtime.MessageSender,
 			sendResponse: (response: any) => void,
 		): Promise<void> {
 			try {
@@ -310,13 +308,13 @@ export default defineContentScript({
 						}
 						// Also ensure analysis modal is properly completed/closed
 						uiManager.restoreSelectionMode();
-						
+
 						// Notify background script that analysis is complete for context menu tracking
-						chrome.runtime.sendMessage({ 
+						chrome.runtime.sendMessage({
 							type: MESSAGE_TYPES.ANALYSIS_COMPLETE,
-							fromContentScript: true 
+							fromContentScript: true,
 						});
-						
+
 						sendResponse({ success: true });
 						break;
 
@@ -403,10 +401,9 @@ export default defineContentScript({
 					},
 				);
 
-
 				// Convert structured content to text for AI analysis
 				const content = convertContentToText(structuredContent);
-				
+
 				// Store the extracted content for reconstruction purposes
 				extractedPageContent = content;
 
@@ -440,9 +437,9 @@ export default defineContentScript({
 						handleAnalysisResults(response.data, source),
 					);
 					// Notify popup and background script of successful completion
-					chrome.runtime.sendMessage({ 
+					chrome.runtime.sendMessage({
 						type: MESSAGE_TYPES.ANALYSIS_COMPLETE,
-						fromContentScript: true 
+						fromContentScript: true,
 					});
 				} else {
 					if (source !== "popup") {
@@ -452,9 +449,9 @@ export default defineContentScript({
 						response.error || "Analysis failed. Please try again.",
 					);
 					// Notify popup of error
-					chrome.runtime.sendMessage({ 
-						type: MESSAGE_TYPES.ANALYSIS_ERROR, 
-						error: response.error || "Analysis failed. Please try again."
+					chrome.runtime.sendMessage({
+						type: MESSAGE_TYPES.ANALYSIS_ERROR,
+						error: response.error || "Analysis failed. Please try again.",
 					});
 				}
 			} catch (error) {
@@ -464,9 +461,10 @@ export default defineContentScript({
 				}
 				uiManager.showErrorBanner("Analysis failed. Please try again.");
 				// Notify popup of error
-				chrome.runtime.sendMessage({ 
-					type: MESSAGE_TYPES.ANALYSIS_ERROR, 
-					error: (error as Error).message || "Analysis failed. Please try again."
+				chrome.runtime.sendMessage({
+					type: MESSAGE_TYPES.ANALYSIS_ERROR,
+					error:
+						(error as Error).message || "Analysis failed. Please try again.",
 				});
 			} finally {
 				performanceMonitor.logTimer(
@@ -505,16 +503,26 @@ export default defineContentScript({
 			}
 		}
 
-		async function enterMissingContentMode(selectedText?: string, url?: string): Promise<void> {
+		async function enterMissingContentMode(
+			selectedText?: string,
+			url?: string,
+		): Promise<void> {
 			try {
 				if (selectedText) {
 					// Direct missing content report with pre-selected text
-					console.log("[Content] Entering direct missing content mode with selected text");
-					await uiManager.enterDirectMissingContentMode(selectedText, url || window.location.href);
+					console.log(
+						"[Content] Entering direct missing content mode with selected text",
+					);
+					await uiManager.enterDirectMissingContentMode(
+						selectedText,
+						url || window.location.href,
+					);
 				} else {
 					// Original flow - use ContentScraper for multi-selection
-					console.log("[Content] Entering interactive missing content selection mode");
-					
+					console.log(
+						"[Content] Entering interactive missing content selection mode",
+					);
+
 					// Create a separate ContentScraper instance for missing content selection
 					const selectionScraper = createContentScraper();
 
@@ -554,7 +562,10 @@ export default defineContentScript({
 			}
 
 			// Highlight nuggets on the page and show sidebar with page content for reconstruction
-			await uiManager.displayResults(nuggets, extractedPageContent || undefined);
+			await uiManager.displayResults(
+				nuggets,
+				extractedPageContent || undefined,
+			);
 		}
 
 		function sendMessageToBackground(type: string, data?: any): Promise<any> {

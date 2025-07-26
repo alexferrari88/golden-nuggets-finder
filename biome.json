@@ -7,18 +7,7 @@
 	},
 	"files": {
 		"ignoreUnknown": false,
-		"includes": [
-			"!/assets/**",
-			"!/src/assets/**",
-			"!/public/**",
-			"!/scripts/**",
-			"!/test*-results/**",
-			"!/playwright-report/**",
-			"!/dist/**",
-			"!/specs/**",
-			"!/.wxt/**",
-			"!/.claude/**"
-		]
+		"includes": ["src/**/*", "tests/**/*"]
 	},
 	"formatter": {
 		"enabled": true,

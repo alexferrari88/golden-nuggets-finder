@@ -1,18 +1,18 @@
 export const STORAGE_KEYS = {
-  API_KEY: 'geminiApiKey',
-  PROMPTS: 'userPrompts'
+	API_KEY: "geminiApiKey",
+	PROMPTS: "userPrompts",
 } as const;
 
 export const GEMINI_CONFIG = {
-  MODEL: 'gemini-2.5-flash',
-  THINKING_BUDGET: -1
+	MODEL: "gemini-2.5-flash",
+	THINKING_BUDGET: -1,
 } as const;
 
 export const DEFAULT_PROMPTS = [
-  {
-    id: 'default-insights',
-    name: 'Find Key Insights',
-    prompt: `## ROLE & GOAL:
+	{
+		id: "default-insights",
+		name: "Find Key Insights",
+		prompt: `## ROLE & GOAL:
 You are an extremely discerning AI information filter. Your goal is to analyze the provided {{ source }} and extract only the most insightful, non-obvious, and high-signal content for a "Pragmatic Synthesizer" persona with ADHD. Your primary directive is **precision over recall**. It is vastly preferable to return zero nuggets than to include a single mediocre one.
 
 **Crucially, do not force or invent extractions. If no content meets the strict criteria below, the \`golden_nuggets\` array MUST be empty ([]).**
@@ -61,6 +61,6 @@ Your primary task is to find content matching one or more of the following categ
 5.  **Mental Models:** A named cognitive framework, productivity technique, or principle for thinking. The simple mention of a specific model is valuable as a hook for further research.
     *   **Bad:** "You should think about the problem differently." (Too generic)
     *   **Good:** "I apply the 'Inversion' mental model by asking 'What would guarantee failure?' before starting a new project. This helps me identify and mitigate risks proactively instead of just planning for success."`,
-    isDefault: true
-  }
+		isDefault: true,
+	},
 ] as const;
