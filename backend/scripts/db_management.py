@@ -159,7 +159,7 @@ async def export_feedback(output_file: str):
             ORDER BY created_at DESC
         """)
 
-        nugget_results = await cursor.fetchall()
+        nugget_results = list(await cursor.fetchall())
 
         # Export missing content feedback
         cursor = await db.execute("""
@@ -168,7 +168,7 @@ async def export_feedback(output_file: str):
             ORDER BY created_at DESC
         """)
 
-        missing_results = await cursor.fetchall()
+        missing_results = list(await cursor.fetchall())
 
     # Write to CSV files
     nugget_file = f"nugget_feedback_{output_file}"

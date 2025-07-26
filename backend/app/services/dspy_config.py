@@ -10,8 +10,8 @@ import os
 from typing import Any
 
 try:
-    import dspy
-    from dspy.teleprompt import BootstrapFewShotWithRandomSearch, MIPROv2
+    import dspy  # type: ignore[import-untyped]
+    from dspy.teleprompt import BootstrapFewShotWithRandomSearch, MIPROv2  # type: ignore[import-untyped]
 
     DSPY_AVAILABLE = True
 except ImportError:

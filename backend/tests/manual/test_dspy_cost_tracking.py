@@ -14,7 +14,7 @@ backend_dir = Path(__file__).parent
 sys.path.append(str(backend_dir))
 
 from dotenv import load_dotenv
-import dspy
+import dspy  # type: ignore[import-untyped]
 
 
 def setup_dspy_with_gemini():
@@ -63,7 +63,7 @@ def test_basic_api_call(lm):
         # Check for other cost-related keys
         cost_keys = [
             k
-            for k in entry.keys()
+            for k in entry
             if "cost" in k.lower() or "price" in k.lower() or "token" in k.lower()
         ]
         if cost_keys:
@@ -184,7 +184,7 @@ def main():
         multiple_cost = test_multiple_api_calls(lm)
 
         # Test DSPy signature
-        signature_cost = test_dspy_signature(lm)
+        test_dspy_signature(lm)
 
         # Analyze history structure
         analyze_history_structure(lm)

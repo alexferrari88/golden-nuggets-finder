@@ -118,7 +118,7 @@ class CostTrackingService:
         # Get detailed cost breakdown
         cursor = await db.execute(
             """
-            SELECT operation_type, model_name, input_tokens, 
+            SELECT operation_type, model_name, input_tokens,
                    output_tokens, cost_usd, timestamp, metadata
             FROM cost_tracking
             WHERE optimization_run_id = ?
@@ -127,7 +127,7 @@ class CostTrackingService:
             (optimization_run_id,),
         )
 
-        detailed_costs = await cursor.fetchall()
+        detailed_costs = list(await cursor.fetchall())
 
         # Group costs by operation type
         costs_by_operation = {}
@@ -199,7 +199,7 @@ class CostTrackingService:
         # Get total costs for the period
         cursor = await db.execute(
             """
-            SELECT 
+            SELECT
                 COALESCE(SUM(api_cost), 0) as total_cost,
                 COALESCE(SUM(total_tokens), 0) as total_tokens,
                 COUNT(*) as total_runs
@@ -214,7 +214,7 @@ class CostTrackingService:
         # Get daily breakdown
         cursor = await db.execute(
             """
-            SELECT 
+            SELECT
                 DATE(started_at) as date,
                 SUM(api_cost) as daily_cost,
                 SUM(total_tokens) as daily_tokens,
@@ -232,7 +232,7 @@ class CostTrackingService:
         # Get costs by mode
         cursor = await db.execute(
             """
-            SELECT 
+            SELECT
                 mode,
                 COALESCE(SUM(api_cost), 0) as mode_cost,
                 COALESCE(SUM(total_tokens), 0) as mode_tokens,
@@ -249,7 +249,7 @@ class CostTrackingService:
         # Get model usage from cost_tracking
         cursor = await db.execute(
             """
-            SELECT 
+            SELECT
                 ct.model_name,
                 SUM(ct.cost_usd) as model_cost,
                 SUM(ct.input_tokens + ct.output_tokens) as model_tokens,
@@ -266,10 +266,10 @@ class CostTrackingService:
 
         return {
             "period_days": days,
-            "total_cost": period_totals[0],
-            "total_tokens": period_totals[1],
-            "total_runs": period_totals[2],
-            "average_cost_per_run": period_totals[0] / max(period_totals[2], 1),
+            "total_cost": period_totals[0] if period_totals else 0,
+            "total_tokens": period_totals[1] if period_totals else 0,
+            "total_runs": period_totals[2] if period_totals else 0,
+            "average_cost_per_run": (period_totals[0] / max(period_totals[2], 1)) if period_totals else 0,
             "daily_breakdown": [
                 {"date": row[0], "cost": row[1], "tokens": row[2], "runs": row[3]}
                 for row in daily_breakdown
@@ -300,7 +300,7 @@ class CostTrackingService:
         # Get weekly costs for trend analysis
         cursor = await db.execute(
             """
-            SELECT 
+            SELECT
                 strftime('%Y-%W', started_at) as week,
                 SUM(api_cost) as weekly_cost,
                 COUNT(*) as weekly_runs
@@ -374,7 +374,7 @@ class CostTrackingService:
         # Calculate totals from cost_tracking entries
         cursor = await db.execute(
             """
-            SELECT 
+            SELECT
                 SUM(cost_usd) as total_cost,
                 SUM(input_tokens + output_tokens) as total_tokens,
                 SUM(input_tokens) as total_input_tokens,

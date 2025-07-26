@@ -7,7 +7,7 @@ Provides both in-memory (for real-time updates) and persistent
 
 from datetime import datetime, timezone
 import json
-from typing import Dict, Optional
+from typing import Optional
 import uuid
 
 import aiosqlite
@@ -18,7 +18,7 @@ class ProgressTrackingService:
 
     def __init__(self):
         # In-memory progress storage for real-time updates
-        self.active_progress: Dict[str, dict] = {}
+        self.active_progress: dict[str, dict] = {}
 
     async def save_progress(
         self,
@@ -57,7 +57,7 @@ class ProgressTrackingService:
         await db.execute(
             """
             INSERT INTO optimization_progress (
-                id, optimization_run_id, phase, progress_percent, 
+                id, optimization_run_id, phase, progress_percent,
                 message, created_at, metadata
             ) VALUES (?, ?, ?, ?, ?, ?, ?)
             """,
@@ -131,7 +131,7 @@ class ProgressTrackingService:
         """
         return self.active_progress.get(run_id)
 
-    def get_all_active_runs(self) -> Dict[str, dict]:
+    def get_all_active_runs(self) -> dict[str, dict]:
         """
         Get all active runs from in-memory storage.
 
@@ -200,7 +200,7 @@ class ProgressTrackingService:
         """
         cursor = await db.execute(
             """
-            SELECT 
+            SELECT
                 op.optimization_run_id,
                 or_main.mode,
                 op.phase,
@@ -245,7 +245,7 @@ class ProgressTrackingService:
         # Get currently running optimization runs
         cursor = await db.execute(
             """
-            SELECT id FROM optimization_runs 
+            SELECT id FROM optimization_runs
             WHERE status = 'running'
             """
         )

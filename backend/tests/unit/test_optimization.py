@@ -89,7 +89,7 @@ class TestOptimizationService:
     """Test optimization service functionality"""
 
     @pytest.mark.asyncio
-    async def test_training_example_generation(self, clean_database):
+    async def test_training_example_generation(self, _clean_database):
         """Test generation of training examples from feedback"""
         feedback_service = FeedbackService()
 
@@ -127,7 +127,7 @@ class TestOptimizationService:
         assert service.executor is not None
 
     @pytest.mark.asyncio
-    async def test_optimization_with_insufficient_data(self, clean_database):
+    async def test_optimization_with_insufficient_data(self, _clean_database):
         """Test optimization with insufficient training data"""
         service = OptimizationService()
 
@@ -155,7 +155,7 @@ class TestOptimizationService:
         assert "DSPy environment not configured" in result["error"]
 
     @pytest.mark.asyncio
-    async def test_optimization_modes(self, clean_database):
+    async def test_optimization_modes(self, _clean_database):
         """Test different optimization modes"""
         service = OptimizationService()
 
@@ -184,7 +184,7 @@ class TestOptimizationThresholds:
     """Test optimization threshold logic"""
 
     @pytest.mark.asyncio
-    async def test_threshold_calculation(self, clean_database):
+    async def test_threshold_calculation(self, _clean_database):
         """Test optimization threshold calculations"""
         feedback_service = FeedbackService()
 
@@ -242,7 +242,7 @@ class TestOptimizationIntegration:
     """Integration tests for the complete optimization pipeline"""
 
     @pytest.mark.asyncio
-    async def test_end_to_end_optimization_flow(self, clean_database):
+    async def test_end_to_end_optimization_flow(self, _clean_database):
         """Test complete optimization flow from feedback to optimized prompt"""
         feedback_service = FeedbackService()
         optimization_service = OptimizationService()
@@ -288,7 +288,7 @@ class TestOptimizationIntegration:
             assert isinstance(history["runs"], list)
 
     @pytest.mark.asyncio
-    async def test_concurrent_optimization_handling(self, clean_database):
+    async def test_concurrent_optimization_handling(self, _clean_database):
         """Test handling of concurrent optimization requests"""
         optimization_service = OptimizationService()
 

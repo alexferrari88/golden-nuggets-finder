@@ -38,10 +38,7 @@ class FeedbackService:
             return False
 
         # Compare context
-        if new_feedback.context != existing_context:
-            return False
-
-        return True
+        return new_feedback.context == existing_context
 
     def _compare_missing_content_feedback(
         self,
@@ -59,10 +56,7 @@ class FeedbackService:
             return False
 
         # Compare context
-        if new_feedback.context != existing_context:
-            return False
-
-        return True
+        return new_feedback.context == existing_context
 
     async def store_nugget_feedback(
         self, db: aiosqlite.Connection, feedback: NuggetFeedback
@@ -73,8 +67,8 @@ class FeedbackService:
         # Check for existing record with same content, URL, and original type
         cursor = await db.execute(
             """
-            SELECT id, report_count, first_reported_at 
-            FROM nugget_feedback 
+            SELECT id, report_count, first_reported_at
+            FROM nugget_feedback
             WHERE nugget_content = ? AND url = ? AND original_type = ?
             """,
             (feedback.nuggetContent, feedback.url, feedback.originalType),
@@ -89,7 +83,7 @@ class FeedbackService:
             comparison_cursor = await db.execute(
                 """
                 SELECT rating, corrected_type, context
-                FROM nugget_feedback 
+                FROM nugget_feedback
                 WHERE id = ?
                 """,
                 (existing_id,),
@@ -110,8 +104,8 @@ class FeedbackService:
                     # True duplicate - just increment report count
                     await db.execute(
                         """
-                        UPDATE nugget_feedback 
-                        SET report_count = ?, 
+                        UPDATE nugget_feedback
+                        SET report_count = ?,
                             last_reported_at = ?
                         WHERE id = ?
                         """,
@@ -124,8 +118,8 @@ class FeedbackService:
                     # Update - increment count and update fields
                     await db.execute(
                         """
-                        UPDATE nugget_feedback 
-                        SET report_count = ?, 
+                        UPDATE nugget_feedback
+                        SET report_count = ?,
                             last_reported_at = ?,
                             context = ?,
                             corrected_type = ?,
@@ -148,8 +142,8 @@ class FeedbackService:
                 # This shouldn't happen, but fallback to update behavior
                 await db.execute(
                     """
-                    UPDATE nugget_feedback 
-                    SET report_count = ?, 
+                    UPDATE nugget_feedback
+                    SET report_count = ?,
                         last_reported_at = ?,
                         context = ?,
                         corrected_type = ?,
@@ -206,8 +200,8 @@ class FeedbackService:
         # Check for existing record with same content and URL
         cursor = await db.execute(
             """
-            SELECT id, report_count, first_reported_at 
-            FROM missing_content_feedback 
+            SELECT id, report_count, first_reported_at
+            FROM missing_content_feedback
             WHERE content = ? AND url = ?
             """,
             (feedback.content, feedback.url),
@@ -222,7 +216,7 @@ class FeedbackService:
             comparison_cursor = await db.execute(
                 """
                 SELECT suggested_type, context
-                FROM missing_content_feedback 
+                FROM missing_content_feedback
                 WHERE id = ?
                 """,
                 (existing_id,),
@@ -241,8 +235,8 @@ class FeedbackService:
                     # True duplicate - just increment report count
                     await db.execute(
                         """
-                        UPDATE missing_content_feedback 
-                        SET report_count = ?, 
+                        UPDATE missing_content_feedback
+                        SET report_count = ?,
                             last_reported_at = ?
                         WHERE id = ?
                         """,
@@ -255,8 +249,8 @@ class FeedbackService:
                     # Update - increment count and update fields
                     await db.execute(
                         """
-                        UPDATE missing_content_feedback 
-                        SET report_count = ?, 
+                        UPDATE missing_content_feedback
+                        SET report_count = ?,
                             last_reported_at = ?,
                             context = ?,
                             suggested_type = ?
@@ -277,8 +271,8 @@ class FeedbackService:
                 # This shouldn't happen, but fallback to update behavior
                 await db.execute(
                     """
-                    UPDATE missing_content_feedback 
-                    SET report_count = ?, 
+                    UPDATE missing_content_feedback
+                    SET report_count = ?,
                         last_reported_at = ?,
                         context = ?,
                         suggested_type = ?
@@ -301,7 +295,7 @@ class FeedbackService:
             await db.execute(
                 """
                 INSERT INTO missing_content_feedback (
-                    id, content, suggested_type, client_timestamp, url, context, 
+                    id, content, suggested_type, client_timestamp, url, context,
                     created_at, report_count, first_reported_at, last_reported_at
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
@@ -329,7 +323,7 @@ class FeedbackService:
             cursor = await db.execute(
                 """
                 SELECT report_count, first_reported_at, last_reported_at
-                FROM nugget_feedback 
+                FROM nugget_feedback
                 WHERE id = ?
                 """,
                 (feedback_id,),
@@ -338,7 +332,7 @@ class FeedbackService:
             cursor = await db.execute(
                 """
                 SELECT report_count, first_reported_at, last_reported_at
-                FROM missing_content_feedback 
+                FROM missing_content_feedback
                 WHERE id = ?
                 """,
                 (feedback_id,),
@@ -645,13 +639,13 @@ class FeedbackService:
             # Get pending nugget feedback
             cursor = await db.execute(
                 """
-                SELECT 
+                SELECT
                     'nugget' as feedback_type,
-                    id, nugget_content as content, rating, 
-                    original_type, corrected_type, url, 
+                    id, nugget_content as content, rating,
+                    original_type, corrected_type, url,
                     processed, last_used_at, usage_count,
                     client_timestamp, created_at
-                FROM nugget_feedback 
+                FROM nugget_feedback
                 WHERE processed = FALSE
                 ORDER BY created_at DESC
                 LIMIT ? OFFSET ?
@@ -687,12 +681,12 @@ class FeedbackService:
 
             cursor = await db.execute(
                 """
-                SELECT 
+                SELECT
                     'missing_content' as feedback_type,
-                    id, content, suggested_type, url, 
+                    id, content, suggested_type, url,
                     processed, last_used_at, usage_count,
                     client_timestamp, created_at
-                FROM missing_content_feedback 
+                FROM missing_content_feedback
                 WHERE processed = FALSE
                 ORDER BY created_at DESC
                 LIMIT ? OFFSET ?
@@ -722,7 +716,7 @@ class FeedbackService:
         if feedback_type == "all":
             cursor = await db.execute(
                 """
-                SELECT 
+                SELECT
                     (SELECT COUNT(*) FROM nugget_feedback WHERE processed = FALSE) +
                     (SELECT COUNT(*) FROM missing_content_feedback WHERE processed = FALSE)
                     as total_count
@@ -823,9 +817,9 @@ class FeedbackService:
             if feedback_type == "nugget":
                 await db.execute(
                     """
-                    UPDATE nugget_feedback 
-                    SET processed = TRUE, 
-                        last_used_at = ?, 
+                    UPDATE nugget_feedback
+                    SET processed = TRUE,
+                        last_used_at = ?,
                         usage_count = usage_count + 1
                     WHERE id = ?
                     """,
@@ -834,9 +828,9 @@ class FeedbackService:
             else:  # missing_content
                 await db.execute(
                     """
-                    UPDATE missing_content_feedback 
-                    SET processed = TRUE, 
-                        last_used_at = ?, 
+                    UPDATE missing_content_feedback
+                    SET processed = TRUE,
+                        last_used_at = ?,
                         usage_count = usage_count + 1
                     WHERE id = ?
                     """,
@@ -848,7 +842,7 @@ class FeedbackService:
             await db.execute(
                 """
                 INSERT INTO feedback_usage (
-                    id, optimization_run_id, feedback_type, 
+                    id, optimization_run_id, feedback_type,
                     feedback_id, contribution_score, created_at
                 ) VALUES (?, ?, ?, ?, ?, ?)
                 """,
@@ -876,7 +870,7 @@ class FeedbackService:
         """
         # Get overall usage stats
         cursor = await db.execute("""
-            SELECT 
+            SELECT
                 COUNT(DISTINCT feedback_id) as unique_feedback_used,
                 COUNT(*) as total_usage_records,
                 AVG(contribution_score) as avg_contribution_score
@@ -887,7 +881,7 @@ class FeedbackService:
 
         # Get usage by feedback type
         cursor = await db.execute("""
-            SELECT 
+            SELECT
                 feedback_type,
                 COUNT(DISTINCT feedback_id) as unique_items,
                 COUNT(*) as total_uses,
@@ -900,7 +894,7 @@ class FeedbackService:
 
         # Get most frequently used feedback
         cursor = await db.execute("""
-            SELECT 
+            SELECT
                 fu.feedback_type,
                 fu.feedback_id,
                 COUNT(*) as use_count,
@@ -961,7 +955,7 @@ class FeedbackService:
         if feedback_type == "nugget":
             cursor = await db.execute(
                 """
-                SELECT 
+                SELECT
                     id, nugget_content, original_type, corrected_type,
                     rating, url, context, processed, last_used_at,
                     usage_count, client_timestamp, created_at
@@ -973,9 +967,9 @@ class FeedbackService:
         else:  # missing_content
             cursor = await db.execute(
                 """
-                SELECT 
+                SELECT
                     id, content, suggested_type, url, context,
-                    processed, last_used_at, usage_count, 
+                    processed, last_used_at, usage_count,
                     client_timestamp, created_at
                 FROM missing_content_feedback
                 WHERE id = ?
@@ -991,7 +985,7 @@ class FeedbackService:
         # Get usage history for this feedback
         cursor = await db.execute(
             """
-            SELECT 
+            SELECT
                 fu.optimization_run_id,
                 fu.contribution_score,
                 fu.created_at,
@@ -1095,7 +1089,7 @@ class FeedbackService:
 
             update_values.append(feedback_id)
             query = f"""
-                UPDATE nugget_feedback 
+                UPDATE nugget_feedback
                 SET {", ".join(update_fields)}
                 WHERE id = ?
             """
@@ -1116,7 +1110,7 @@ class FeedbackService:
 
             update_values.append(feedback_id)
             query = f"""
-                UPDATE missing_content_feedback 
+                UPDATE missing_content_feedback
                 SET {", ".join(update_fields)}
                 WHERE id = ?
             """
@@ -1143,7 +1137,7 @@ class FeedbackService:
         # First delete usage records
         await db.execute(
             """
-            DELETE FROM feedback_usage 
+            DELETE FROM feedback_usage
             WHERE feedback_id = ? AND feedback_type = ?
             """,
             (feedback_id, feedback_type),
@@ -1211,7 +1205,7 @@ class FeedbackService:
                     await db.execute(
                         """
                         INSERT INTO nugget_feedback (
-                            id, nugget_content, original_type, rating, 
+                            id, nugget_content, original_type, rating,
                             url, context, client_timestamp, created_at,
                             report_count, first_reported_at, last_reported_at
                         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -1236,7 +1230,7 @@ class FeedbackService:
                     """
                     INSERT INTO missing_content_feedback (
                         id, content, suggested_type, url, context,
-                        client_timestamp, created_at, report_count, 
+                        client_timestamp, created_at, report_count,
                         first_reported_at, last_reported_at
                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,

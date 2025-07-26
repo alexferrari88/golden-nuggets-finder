@@ -325,7 +325,7 @@ class TestConcurrentOperationErrorHandling:
 
         # Create multiple concurrent optimization tasks
         tasks = []
-        for i in range(5):  # More than ThreadPoolExecutor max_workers (2)
+        for _i in range(5):  # More than ThreadPoolExecutor max_workers (2)
             task = optimization_service.run_optimization(
                 mock_db, "cheap", auto_trigger=True
             )
@@ -436,7 +436,7 @@ class TestResourceConstraintErrorHandling:
 
         # Submit more tasks than available workers
         tasks = []
-        for i in range(3):  # More than max_workers=2
+        for _i in range(3):  # More than max_workers=2
             task = optimization_service.run_optimization(
                 mock_db, "cheap", auto_trigger=True
             )

@@ -114,7 +114,7 @@ async def create_sample_data():
     # Initialize database first (needed for test environment)
     await init_database()
 
-    feedback_service = FeedbackService()
+    FeedbackService()
     progress_service = ProgressTrackingService()
     cost_service = CostTrackingService()
 
@@ -126,7 +126,7 @@ async def create_sample_data():
         await db.execute(
             """
             INSERT OR IGNORE INTO optimization_runs (
-                id, mode, trigger_type, started_at, status, 
+                id, mode, trigger_type, started_at, status,
                 feedback_count, total_tokens, api_cost
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         """,

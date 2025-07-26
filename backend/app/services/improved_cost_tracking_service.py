@@ -128,7 +128,7 @@ class ImprovedCostTrackingService:
         # Get detailed cost breakdown with source information
         cursor = await db.execute(
             """
-            SELECT operation_type, model_name, input_tokens, 
+            SELECT operation_type, model_name, input_tokens,
                    output_tokens, cost_usd, timestamp, metadata
             FROM cost_tracking
             WHERE optimization_run_id = ?
@@ -137,7 +137,7 @@ class ImprovedCostTrackingService:
             (optimization_run_id,),
         )
 
-        detailed_costs = await cursor.fetchall()
+        detailed_costs = list(await cursor.fetchall())
 
         # Group costs by operation type and analyze accuracy
         costs_by_operation = {}
@@ -223,7 +223,7 @@ class ImprovedCostTrackingService:
         # Get total costs for the period
         cursor = await db.execute(
             """
-            SELECT 
+            SELECT
                 COALESCE(SUM(api_cost), 0) as total_cost,
                 COALESCE(SUM(total_tokens), 0) as total_tokens,
                 COUNT(*) as total_runs
@@ -238,7 +238,7 @@ class ImprovedCostTrackingService:
         # Get daily breakdown
         cursor = await db.execute(
             """
-            SELECT 
+            SELECT
                 DATE(started_at) as date,
                 SUM(api_cost) as daily_cost,
                 SUM(total_tokens) as daily_tokens,
@@ -256,7 +256,7 @@ class ImprovedCostTrackingService:
         # Get cost accuracy statistics
         cursor = await db.execute(
             """
-            SELECT 
+            SELECT
                 COUNT(*) as total_entries,
                 SUM(CASE WHEN json_extract(metadata, '$.accurate') = 'true' THEN 1 ELSE 0 END) as accurate_entries
             FROM cost_tracking ct
@@ -270,10 +270,10 @@ class ImprovedCostTrackingService:
 
         return {
             "period_days": days,
-            "total_cost": period_totals[0],
-            "total_tokens": period_totals[1],
-            "total_runs": period_totals[2],
-            "average_cost_per_run": period_totals[0] / max(period_totals[2], 1),
+            "total_cost": period_totals[0] if period_totals else 0,
+            "total_tokens": period_totals[1] if period_totals else 0,
+            "total_runs": period_totals[2] if period_totals else 0,
+            "average_cost_per_run": (period_totals[0] / max(period_totals[2], 1)) if period_totals else 0,
             "daily_breakdown": [
                 {"date": row[0], "cost": row[1], "tokens": row[2], "runs": row[3]}
                 for row in daily_breakdown
@@ -298,7 +298,7 @@ class ImprovedCostTrackingService:
         # Calculate totals from cost_tracking entries
         cursor = await db.execute(
             """
-            SELECT 
+            SELECT
                 SUM(cost_usd) as total_cost,
                 SUM(input_tokens + output_tokens) as total_tokens,
                 SUM(input_tokens) as total_input_tokens,
@@ -333,14 +333,14 @@ class ImprovedCostTrackingService:
         """
         await db.execute(
             """
-            UPDATE cost_tracking 
+            UPDATE cost_tracking
             SET metadata = json_set(
-                COALESCE(metadata, '{}'), 
+                COALESCE(metadata, '{}'),
                 '$.accurate', 'false',
                 '$.cost_source', 'manual_calculation',
                 '$.migration_note', 'Pre-DSPy builtin tracking'
             )
-            WHERE optimization_run_id = ? 
+            WHERE optimization_run_id = ?
             AND (json_extract(metadata, '$.accurate') IS NULL)
             """,
             (optimization_run_id,),

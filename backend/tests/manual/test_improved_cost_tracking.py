@@ -14,7 +14,7 @@ sys.path.append(str(backend_dir))
 
 import aiosqlite
 from dotenv import load_dotenv
-import dspy
+import dspy  # type: ignore[import-untyped]
 
 from app.services.improved_cost_tracking_service import ImprovedCostTrackingService
 

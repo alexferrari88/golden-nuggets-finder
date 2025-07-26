@@ -8,15 +8,15 @@ optimization modes with threshold-based triggering.
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
+
+# DSPy imports (will be imported in methods to handle missing package gracefully)
+import importlib.util
 import logging
 import os
 from typing import Optional
 import uuid
 
 import aiosqlite
-
-# DSPy imports (will be imported in methods to handle missing package gracefully)
-import importlib.util
 
 DSPY_AVAILABLE = importlib.util.find_spec("dspy") is not None
 if not DSPY_AVAILABLE:
@@ -381,7 +381,7 @@ Return your response as valid JSON only, with no additional text or explanation.
             optimized_prompt = self._extract_prompt_from_module(optimized_extractor)
 
             # Evaluate performance improvement
-            from dspy.evaluate import Evaluate
+            from dspy.evaluate import Evaluate  # type: ignore[import-untyped]
 
             evaluator = Evaluate(
                 devset=val_examples if val_examples else train_examples[:5],
@@ -636,7 +636,7 @@ Return valid JSON with the exact structure: {{"golden_nuggets": [...]}}"""
                 opt_run.api_cost, opt_run.total_tokens, opt_run.input_tokens, opt_run.output_tokens,
                 op.version, op.positive_rate,
                 -- Calculate duration in seconds
-                CASE 
+                CASE
                     WHEN opt_run.completed_at IS NOT NULL THEN
                         CAST((JULIANDAY(opt_run.completed_at) - JULIANDAY(opt_run.started_at)) * 86400 AS INTEGER)
                     ELSE NULL
@@ -710,13 +710,14 @@ Return valid JSON with the exact structure: {{"golden_nuggets": [...]}}"""
         # Get total count for has_more calculation
         count_cursor = await db.execute(
             f"""
-            SELECT COUNT(*) 
-            FROM optimization_runs opt_run 
+            SELECT COUNT(*)
+            FROM optimization_runs opt_run
             {where_clause}
             """,
             params,
         )
-        total_count = (await count_cursor.fetchone())[0]
+        count_result = await count_cursor.fetchone()
+        total_count = count_result[0] if count_result else 0
 
         return {
             "runs": runs,

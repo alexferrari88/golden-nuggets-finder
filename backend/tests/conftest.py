@@ -12,6 +12,7 @@ Test Structure:
 """
 
 import asyncio
+import contextlib
 import os
 import shutil
 import tempfile
@@ -98,17 +99,13 @@ async def setup_database():
     # Cleanup
     db_path = get_test_database_path()
     if os.path.exists(db_path):
-        try:
+        with contextlib.suppress(OSError):
             os.remove(db_path)
-        except OSError:
-            pass
 
         temp_dir = os.path.dirname(db_path)
         if os.path.exists(temp_dir) and temp_dir.startswith(tempfile.gettempdir()):
-            try:
+            with contextlib.suppress(OSError):
                 shutil.rmtree(temp_dir)
-            except OSError:
-                pass
 
 
 # Session-level cleanup

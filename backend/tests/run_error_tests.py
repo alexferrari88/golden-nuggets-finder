@@ -19,10 +19,6 @@ def run_tests():
     backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     os.chdir(backend_dir)
 
-    test_files = [
-        "tests/unit/test_error_handling.py",
-        "tests/integration/test_api_error_handling.py",
-    ]
 
     # Run unit tests
     print("\n🔬 Unit Tests - Service Layer Error Handling")

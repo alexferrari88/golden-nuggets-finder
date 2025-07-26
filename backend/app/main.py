@@ -51,7 +51,8 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "chrome-extension://fbghnlgbchagmidhnlnccplaaaeogkmf",  # Specific Chrome extension ID
+        "chrome-extension://fbghnlgbchagmidhnlnccplaaaeogkmf",
+        # Specific Chrome extension ID
         "chrome-extension://*",  # Allow Chrome extensions (fallback)
         "*",  # Allow all origins (development only)
         "http://localhost:5173",  # Vite dev server
@@ -176,20 +177,37 @@ async def submit_feedback(feedback_data: FeedbackSubmissionRequest):
             if total_updates > 0 and total_duplicates == 0:
                 # Pure update scenario - user provided corrections/changes
                 if total_updates == 1:
-                    deduplication_results.user_message = "Your feedback has been updated with the new information. Thank you for the correction!"
+                    deduplication_results.user_message = (
+                        "Your feedback has been updated with the new information. "
+                        "Thank you for the correction!"
+                    )
                 else:
-                    deduplication_results.user_message = f"{total_updates} of your feedback items have been updated with new information. Thank you for the corrections!"
+                    deduplication_results.user_message = (
+                        f"{total_updates} of your feedback items have been updated "
+                        f"with new information. Thank you for the corrections!"
+                    )
             elif total_duplicates > 0 and total_updates == 0:
                 # Pure duplicate scenario - user resubmitted identical information
                 if total_duplicates == 1:
-                    deduplication_results.user_message = f"This feedback was already submitted previously. Your report has been counted (total: {deduplication_results.duplicate_details[0]['report_count']} reports)."
+                    # Extract report count for readability
+                    details = deduplication_results.duplicate_details[0]
+                    report_count = details['report_count']
+                    deduplication_results.user_message = (
+                        f"This feedback was already submitted previously. "
+                        f"Your report has been counted (total: {report_count} reports)."
+                    )
                 else:
-                    deduplication_results.user_message = f"{total_duplicates} of your feedback items were duplicates. Your reports have been counted and help improve our system."
+                    deduplication_results.user_message = (
+                        f"{total_duplicates} of your feedback items were duplicates. "
+                        f"Your reports have been counted and help improve our system."
+                    )
             elif total_updates > 0 and total_duplicates > 0:
                 # Mixed scenario - some updates, some duplicates
                 deduplication_results.user_message = (
-                    f"Thank you for your feedback! {total_updates} items were updated with new information, "
-                    f"{total_duplicates} were duplicates (counted), and {total_new} were new submissions."
+                    f"Thank you for your feedback! {total_updates} items were "
+                    f"updated with new information, "
+                    f"{total_duplicates} were duplicates (counted), and "
+                    f"{total_new} were new submissions."
                 )
             # If only new items, no special message needed
 
@@ -280,7 +298,9 @@ async def trigger_optimization(
 
 
 @app.get("/optimization/history")
-async def get_optimization_history(limit: int = 50, days: Optional[int] = None, mode: Optional[str] = None):
+async def get_optimization_history(
+    limit: int = 50, days: Optional[int] = None, mode: Optional[str] = None
+):
     """Get history of prompt optimizations with performance analytics"""
     try:
         async with get_db() as db:
@@ -331,6 +351,7 @@ async def get_system_health():
 
         # Check DSPy availability
         import importlib.util
+
         dspy_available = importlib.util.find_spec("dspy") is not None
 
         # Check Gemini configuration
@@ -398,7 +419,8 @@ async def get_optimization_status(run_id: str):
         async with get_db() as db:
             cursor = await db.execute(
                 """
-                SELECT status, started_at, completed_at, error_message, performance_improvement
+                SELECT status, started_at, completed_at, error_message,
+                       performance_improvement
                 FROM optimization_runs
                 WHERE id = ?
             """,
@@ -441,7 +463,7 @@ async def get_monitoring_dashboard():
 
             # Get recent completions (last 10)
             cursor = await db.execute("""
-                SELECT id, mode, trigger_type, started_at, completed_at, status, 
+                SELECT id, mode, trigger_type, started_at, completed_at, status,
                        performance_improvement, error_message
                 FROM optimization_runs
                 WHERE status IN ('completed', 'failed')
@@ -541,7 +563,8 @@ async def update_feedback_item(
     """Update a feedback item"""
     try:
         async with get_db() as db:
-            # Convert Pydantic model to dict, excluding unset values (but keeping explicit None values)
+            # Convert Pydantic model to dict, excluding unset values
+            # (but keeping explicit None values)
             update_data = updates.model_dump(exclude_unset=True)
 
             if not update_data:
@@ -675,7 +698,7 @@ async def get_duplicate_analysis(limit: int = 50):
         async with get_db() as db:
             cursor = await db.execute(
                 """
-                SELECT 
+                SELECT
                     feedback_type,
                     content,
                     url,
