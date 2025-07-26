@@ -10,7 +10,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from app.database import get_db, init_database
+from app.database import get_db
 from app.services.dspy_config import (
     OptimizationMetrics,
     generate_mock_feedback_data,
@@ -87,7 +87,6 @@ class TestDSPyConfiguration:
 
 class TestOptimizationService:
     """Test optimization service functionality"""
-
 
     @pytest.mark.asyncio
     async def test_training_example_generation(self, clean_database):

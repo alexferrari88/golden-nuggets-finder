@@ -5,12 +5,12 @@ Test script for the new monitoring and logging capabilities.
 This script demonstrates the enhanced logging and monitoring API endpoints.
 """
 
-import asyncio
+from datetime import datetime
 import os
 import sys
-import requests
-from datetime import datetime
 import time
+
+import requests
 
 # Add the backend directory to Python path
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
@@ -45,7 +45,7 @@ def test_monitoring_endpoints():
         response = requests.get(f"{base_url}/monitor", timeout=5)
         if response.status_code == 200:
             data = response.json()
-            print(f"✅ Monitoring Dashboard")
+            print("✅ Monitoring Dashboard")
             print(f"   Active Runs: {len(data['active_runs'])}")
             print(f"   Recent Completions: {len(data['recent_completions'])}")
             print(f"   System Status: {data['system_health']['status']}")
@@ -61,9 +61,9 @@ def test_monitoring_endpoints():
         if response.status_code == 200:
             data = response.json()
             if data.get("success"):
-                print(f"✅ Status endpoint working (found run)")
+                print("✅ Status endpoint working (found run)")
             else:
-                print(f"✅ Status endpoint working (run not found as expected)")
+                print("✅ Status endpoint working (run not found as expected)")
         else:
             print(f"❌ Status endpoint failed: {response.status_code}")
     except requests.exceptions.RequestException as e:
@@ -98,7 +98,7 @@ def demonstrate_logging():
         service._log_progress(run_id, step, progress, message)
         time.sleep(0.5)  # Simulate work
 
-    print(f"\n📋 Final Progress Status:")
+    print("\n📋 Final Progress Status:")
     final_progress = service.get_run_progress(run_id)
     if final_progress:
         print(f"   Step: {final_progress['step']}")

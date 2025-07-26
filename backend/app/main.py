@@ -12,6 +12,8 @@ This backend handles:
 from datetime import datetime
 import os
 import time
+from typing import Optional
+
 from dotenv import load_dotenv
 from fastapi import BackgroundTasks, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -21,9 +23,7 @@ import uvicorn
 from .database import get_db, init_database
 from .models import (
     DeduplicationInfo,
-    EnhancedFeedbackResponse,
     FeedbackStatsResponse,
-    FeedbackStatus,
     FeedbackSubmissionRequest,
     MonitoringResponse,
     OptimizationProgress,
@@ -32,10 +32,10 @@ from .models import (
     SystemHealthResponse,
     UpdateFeedbackRequest,
 )
+from .services.cost_tracking_service import CostTrackingService
 from .services.feedback_service import FeedbackService
 from .services.optimization_service import OptimizationService
 from .services.progress_tracking_service import ProgressTrackingService
-from .services.cost_tracking_service import CostTrackingService
 
 # Load environment variables
 load_dotenv()
@@ -96,36 +96,36 @@ async def submit_feedback(feedback_data: FeedbackSubmissionRequest):
     """
     try:
         # Initialize enhanced deduplication results
-        deduplication_results = DeduplicationInfo(
-            total_submitted=0
-        )
-        
+        deduplication_results = DeduplicationInfo(total_submitted=0)
+
         async with get_db() as db:
             # Store nugget feedback with enhanced status tracking
             if feedback_data.nuggetFeedback:
                 for feedback in feedback_data.nuggetFeedback:
                     status = await feedback_service.store_nugget_feedback(db, feedback)
-                    
+
                     # Count by status type
                     if status == "duplicate":
                         deduplication_results.nugget_duplicates += 1
-                        
+
                         # Get deduplication info for user message
                         dedup_info = await feedback_service.get_deduplication_info(
                             db, feedback.id, "nugget"
                         )
-                        
-                        deduplication_results.duplicate_details.append({
-                            "type": "nugget",
-                            "content": feedback.nuggetContent[:100] + "..."
-                            if len(feedback.nuggetContent) > 100
-                            else feedback.nuggetContent,
-                            "report_count": dedup_info["report_count"],
-                            "first_reported_at": dedup_info["first_reported_at"],
-                        })
+
+                        deduplication_results.duplicate_details.append(
+                            {
+                                "type": "nugget",
+                                "content": feedback.nuggetContent[:100] + "..."
+                                if len(feedback.nuggetContent) > 100
+                                else feedback.nuggetContent,
+                                "report_count": dedup_info["report_count"],
+                                "first_reported_at": dedup_info["first_reported_at"],
+                            }
+                        )
                     elif status == "updated":
                         deduplication_results.nugget_updates += 1
-                    
+
                     deduplication_results.total_submitted += 1
 
             # Store missing content feedback with enhanced status tracking
@@ -134,27 +134,29 @@ async def submit_feedback(feedback_data: FeedbackSubmissionRequest):
                     status = await feedback_service.store_missing_content_feedback(
                         db, missing_feedback
                     )
-                    
+
                     # Count by status type
                     if status == "duplicate":
                         deduplication_results.missing_content_duplicates += 1
-                        
+
                         # Get deduplication info for user message
                         dedup_info = await feedback_service.get_deduplication_info(
                             db, missing_feedback.id, "missing_content"
                         )
-                        
-                        deduplication_results.duplicate_details.append({
-                            "type": "missing_content",
-                            "content": missing_feedback.content[:100] + "..."
-                            if len(missing_feedback.content) > 100
-                            else missing_feedback.content,
-                            "report_count": dedup_info["report_count"],
-                            "first_reported_at": dedup_info["first_reported_at"],
-                        })
+
+                        deduplication_results.duplicate_details.append(
+                            {
+                                "type": "missing_content",
+                                "content": missing_feedback.content[:100] + "..."
+                                if len(missing_feedback.content) > 100
+                                else missing_feedback.content,
+                                "report_count": dedup_info["report_count"],
+                                "first_reported_at": dedup_info["first_reported_at"],
+                            }
+                        )
                     elif status == "updated":
                         deduplication_results.missing_content_updates += 1
-                    
+
                     deduplication_results.total_submitted += 1
 
             # Generate smart user message based on what happened
@@ -167,32 +169,22 @@ async def submit_feedback(feedback_data: FeedbackSubmissionRequest):
                 + deduplication_results.missing_content_updates
             )
             total_new = (
-                deduplication_results.total_submitted 
-                - total_duplicates 
-                - total_updates
+                deduplication_results.total_submitted - total_duplicates - total_updates
             )
-            
+
             # Generate appropriate user message
             if total_updates > 0 and total_duplicates == 0:
                 # Pure update scenario - user provided corrections/changes
                 if total_updates == 1:
-                    deduplication_results.user_message = (
-                        "Your feedback has been updated with the new information. Thank you for the correction!"
-                    )
+                    deduplication_results.user_message = "Your feedback has been updated with the new information. Thank you for the correction!"
                 else:
-                    deduplication_results.user_message = (
-                        f"{total_updates} of your feedback items have been updated with new information. Thank you for the corrections!"
-                    )
+                    deduplication_results.user_message = f"{total_updates} of your feedback items have been updated with new information. Thank you for the corrections!"
             elif total_duplicates > 0 and total_updates == 0:
                 # Pure duplicate scenario - user resubmitted identical information
                 if total_duplicates == 1:
-                    deduplication_results.user_message = (
-                        f"This feedback was already submitted previously. Your report has been counted (total: {deduplication_results.duplicate_details[0]['report_count']} reports)."
-                    )
+                    deduplication_results.user_message = f"This feedback was already submitted previously. Your report has been counted (total: {deduplication_results.duplicate_details[0]['report_count']} reports)."
                 else:
-                    deduplication_results.user_message = (
-                        f"{total_duplicates} of your feedback items were duplicates. Your reports have been counted and help improve our system."
-                    )
+                    deduplication_results.user_message = f"{total_duplicates} of your feedback items were duplicates. Your reports have been counted and help improve our system."
             elif total_updates > 0 and total_duplicates > 0:
                 # Mixed scenario - some updates, some duplicates
                 deduplication_results.user_message = (
@@ -288,9 +280,7 @@ async def trigger_optimization(
 
 
 @app.get("/optimization/history")
-async def get_optimization_history(
-    limit: int = 50, days: int = None, mode: str = None
-):
+async def get_optimization_history(limit: int = 50, days: Optional[int] = None, mode: Optional[str] = None):
     """Get history of prompt optimizations with performance analytics"""
     try:
         async with get_db() as db:
@@ -340,11 +330,8 @@ async def get_system_health():
         active_optimizations = len(optimization_service.get_all_active_runs())
 
         # Check DSPy availability
-        dspy_available = True
-        try:
-            import dspy
-        except ImportError:
-            dspy_available = False
+        import importlib.util
+        dspy_available = importlib.util.find_spec("dspy") is not None
 
         # Check Gemini configuration
         gemini_configured = bool(os.getenv("GEMINI_API_KEY"))
@@ -549,35 +536,33 @@ async def get_feedback_details(feedback_id: str, feedback_type: str):
 
 @app.put("/feedback/{feedback_id}")
 async def update_feedback_item(
-    feedback_id: str, 
-    feedback_type: str, 
-    updates: UpdateFeedbackRequest
+    feedback_id: str, feedback_type: str, updates: UpdateFeedbackRequest
 ):
     """Update a feedback item"""
     try:
         async with get_db() as db:
             # Convert Pydantic model to dict, excluding unset values (but keeping explicit None values)
             update_data = updates.model_dump(exclude_unset=True)
-            
+
             if not update_data:
                 raise HTTPException(
-                    status_code=400, 
-                    detail="At least one field must be provided for update"
+                    status_code=400,
+                    detail="At least one field must be provided for update",
                 )
-            
+
             success = await feedback_service.update_feedback_item(
                 db, feedback_id, feedback_type, update_data
             )
-            
+
             if not success:
                 raise HTTPException(status_code=404, detail="Feedback item not found")
-                
+
             return {
                 "success": True,
                 "message": "Feedback item updated successfully",
-                "updated_fields": list(update_data.keys())
+                "updated_fields": list(update_data.keys()),
             }
-            
+
     except HTTPException:
         raise
     except Exception as e:
@@ -587,7 +572,7 @@ async def update_feedback_item(
 
 
 @app.delete("/feedback/{feedback_id}")
-async def delete_feedback_item(feedback_id: str, feedback_type: str = None):
+async def delete_feedback_item(feedback_id: str, feedback_type: Optional[str] = None):
     """Delete a feedback item and its usage records"""
     try:
         async with get_db() as db:
@@ -600,15 +585,12 @@ async def delete_feedback_item(feedback_id: str, feedback_type: str = None):
                 success = await feedback_service.delete_feedback_item(
                     db, feedback_id, feedback_type
                 )
-            
+
             if not success:
                 raise HTTPException(status_code=404, detail="Feedback item not found")
-                
-            return {
-                "success": True,
-                "message": "Feedback item deleted successfully"
-            }
-            
+
+            return {"success": True, "message": "Feedback item deleted successfully"}
+
     except HTTPException:
         raise
     except Exception as e:
@@ -692,7 +674,7 @@ async def get_duplicate_analysis(limit: int = 50):
     try:
         async with get_db() as db:
             cursor = await db.execute(
-                f"""
+                """
                 SELECT 
                     feedback_type,
                     content,

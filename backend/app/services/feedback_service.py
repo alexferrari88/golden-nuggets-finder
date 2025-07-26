@@ -6,8 +6,8 @@ nugget ratings/corrections and missing content submissions.
 """
 
 from datetime import datetime, timezone
+from typing import Literal, Optional
 import uuid
-from typing import Optional, Literal
 
 import aiosqlite
 
@@ -18,50 +18,50 @@ class FeedbackService:
     """Service for managing feedback data and statistics"""
 
     def _compare_nugget_feedback(
-        self, 
-        new_feedback: NuggetFeedback, 
-        existing_rating: str, 
-        existing_corrected_type: Optional[str], 
-        existing_context: str
+        self,
+        new_feedback: NuggetFeedback,
+        existing_rating: str,
+        existing_corrected_type: Optional[str],
+        existing_context: str,
     ) -> bool:
         """
         Compare new feedback with existing values to determine if it's truly different.
-        
+
         Returns True if values are identical (true duplicate), False if different (update).
         """
         # Compare rating
         if new_feedback.rating != existing_rating:
             return False
-            
+
         # Compare corrected_type (handle None values)
         if new_feedback.correctedType != existing_corrected_type:
             return False
-            
+
         # Compare context
         if new_feedback.context != existing_context:
             return False
-            
+
         return True
 
     def _compare_missing_content_feedback(
-        self, 
-        new_feedback: MissingContentFeedback, 
-        existing_suggested_type: str, 
-        existing_context: str
+        self,
+        new_feedback: MissingContentFeedback,
+        existing_suggested_type: str,
+        existing_context: str,
     ) -> bool:
         """
         Compare new missing content feedback with existing values.
-        
+
         Returns True if values are identical (true duplicate), False if different (update).
         """
         # Compare suggested_type
         if new_feedback.suggestedType != existing_suggested_type:
             return False
-            
+
         # Compare context
         if new_feedback.context != existing_context:
             return False
-            
+
         return True
 
     async def store_nugget_feedback(
@@ -84,7 +84,7 @@ class FeedbackService:
         if existing:
             # Found existing record - need to determine if it's duplicate or update
             existing_id, current_count, first_reported = existing
-            
+
             # Get existing values for comparison
             comparison_cursor = await db.execute(
                 """
@@ -95,16 +95,17 @@ class FeedbackService:
                 (existing_id,),
             )
             existing_values = await comparison_cursor.fetchone()
-            
+
             if existing_values:
-                existing_rating, existing_corrected_type, existing_context = existing_values
-                
+                existing_rating, existing_corrected_type, existing_context = (
+                    existing_values
+                )
+
                 # Compare with new feedback to determine if it's truly identical
                 is_identical = self._compare_nugget_feedback(
                     feedback, existing_rating, existing_corrected_type, existing_context
                 )
-                
-                
+
                 if is_identical:
                     # True duplicate - just increment report count
                     await db.execute(
@@ -216,7 +217,7 @@ class FeedbackService:
         if existing:
             # Found existing record - need to determine if it's duplicate or update
             existing_id, current_count, first_reported = existing
-            
+
             # Get existing values for comparison
             comparison_cursor = await db.execute(
                 """
@@ -227,15 +228,15 @@ class FeedbackService:
                 (existing_id,),
             )
             existing_values = await comparison_cursor.fetchone()
-            
+
             if existing_values:
                 existing_suggested_type, existing_context = existing_values
-                
+
                 # Compare with new feedback to determine if it's truly identical
                 is_identical = self._compare_missing_content_feedback(
                     feedback, existing_suggested_type, existing_context
                 )
-                
+
                 if is_identical:
                     # True duplicate - just increment report count
                     await db.execute(
@@ -588,7 +589,6 @@ class FeedbackService:
             )
 
         return training_examples
-
 
     async def get_feedback_by_url(self, db: aiosqlite.Connection, url: str) -> dict:
         """Get all feedback for a specific URL"""
@@ -1059,11 +1059,11 @@ class FeedbackService:
             }
 
     async def update_feedback_item(
-        self, 
-        db: aiosqlite.Connection, 
-        feedback_id: str, 
+        self,
+        db: aiosqlite.Connection,
+        feedback_id: str,
         feedback_type: str,
-        updates: dict
+        updates: dict,
     ) -> bool:
         """
         Update a feedback item.
@@ -1079,58 +1079,55 @@ class FeedbackService:
         """
         if feedback_type == "nugget":
             # Build dynamic update query for nugget feedback
-            valid_fields = ['nugget_content', 'rating', 'corrected_type', 'context']
+            valid_fields = ["nugget_content", "rating", "corrected_type", "context"]
             update_fields = []
             update_values = []
-            
+
             for field, value in updates.items():
-                if field == 'content':  # Map 'content' to 'nugget_content'
-                    field = 'nugget_content'
+                if field == "content":  # Map 'content' to 'nugget_content'
+                    field = "nugget_content"
                 if field in valid_fields:
                     update_fields.append(f"{field} = ?")
                     update_values.append(value)
-            
+
             if not update_fields:
                 return False
-                
+
             update_values.append(feedback_id)
             query = f"""
                 UPDATE nugget_feedback 
-                SET {', '.join(update_fields)}
+                SET {", ".join(update_fields)}
                 WHERE id = ?
             """
-            
+
         else:  # missing_content
             # Build dynamic update query for missing content feedback
-            valid_fields = ['content', 'suggested_type', 'context']
+            valid_fields = ["content", "suggested_type", "context"]
             update_fields = []
             update_values = []
-            
+
             for field, value in updates.items():
                 if field in valid_fields:
                     update_fields.append(f"{field} = ?")
                     update_values.append(value)
-            
+
             if not update_fields:
                 return False
-                
+
             update_values.append(feedback_id)
             query = f"""
                 UPDATE missing_content_feedback 
-                SET {', '.join(update_fields)}
+                SET {", ".join(update_fields)}
                 WHERE id = ?
             """
 
         cursor = await db.execute(query, update_values)
         await db.commit()
-        
+
         return cursor.rowcount > 0
 
     async def delete_feedback_item(
-        self, 
-        db: aiosqlite.Connection, 
-        feedback_id: str, 
-        feedback_type: str
+        self, db: aiosqlite.Connection, feedback_id: str, feedback_type: str
     ) -> bool:
         """
         Delete a feedback item and its usage records.
@@ -1168,17 +1165,15 @@ class FeedbackService:
         return cursor.rowcount > 0
 
     async def delete_feedback_item_auto_detect(
-        self, 
-        db: aiosqlite.Connection, 
-        feedback_id: str
+        self, db: aiosqlite.Connection, feedback_id: str
     ) -> bool:
         """
         Delete a feedback item by auto-detecting its type.
-        
+
         Args:
             db: Database connection
             feedback_id: ID of the feedback item
-            
+
         Returns:
             True if item was deleted, False if not found
         """
@@ -1186,7 +1181,7 @@ class FeedbackService:
         success = await self.delete_feedback_item(db, feedback_id, "nugget")
         if success:
             return True
-            
+
         # Try missing content feedback
         success = await self.delete_feedback_item(db, feedback_id, "missing_content")
         return success
@@ -1197,7 +1192,7 @@ class FeedbackService:
     ):
         """
         Store training examples - compatibility method for tests.
-        
+
         In the new schema, we don't store training examples separately,
         but generate them on-the-fly from feedback data. This method
         converts training examples into feedback records for testing.
@@ -1207,9 +1202,9 @@ class FeedbackService:
             content = example.get("input_content", "Test content")
             expected = example.get("expected_output", {})
             feedback_score = example.get("feedback_score", 1.0)
-            
+
             nuggets = expected.get("golden_nuggets", [])
-            
+
             if nuggets and feedback_score > 0.5:
                 # Convert to positive nugget feedback
                 for nugget in nuggets:
@@ -1258,7 +1253,7 @@ class FeedbackService:
                         datetime.now(timezone.utc),
                     ),
                 )
-        
+
         await db.commit()
 
     async def get_stored_training_examples(
@@ -1266,7 +1261,7 @@ class FeedbackService:
     ) -> list[dict]:
         """
         Get stored training examples - compatibility method for tests.
-        
+
         In the new schema, this calls get_training_examples which generates
         training examples on-the-fly from feedback data.
         """

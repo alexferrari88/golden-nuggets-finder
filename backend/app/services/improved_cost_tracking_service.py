@@ -5,10 +5,10 @@ This replaces manual cost calculations with DSPy's automatic cost tracking
 via lm.history, providing accurate, maintenance-free cost monitoring.
 """
 
-import json
-import uuid
 from datetime import datetime, timedelta, timezone
-from typing import Dict, List, Optional
+import json
+from typing import Optional
+import uuid
 
 import aiosqlite
 
@@ -40,17 +40,17 @@ class ImprovedCostTrackingService:
             Dictionary with cost tracking details
         """
         # Get accurate costs from DSPy history
-        operation_cost = sum([x['cost'] for x in lm.history if x['cost'] is not None])
-        
+        operation_cost = sum([x["cost"] for x in lm.history if x["cost"] is not None])
+
         # Get token usage details
-        total_tokens = sum([x['usage']['total_tokens'] for x in lm.history])
-        input_tokens = sum([x['usage']['prompt_tokens'] for x in lm.history])
-        output_tokens = sum([x['usage']['completion_tokens'] for x in lm.history])
+        total_tokens = sum([x["usage"]["total_tokens"] for x in lm.history])
+        input_tokens = sum([x["usage"]["prompt_tokens"] for x in lm.history])
+        output_tokens = sum([x["usage"]["completion_tokens"] for x in lm.history])
         api_calls = len(lm.history)
-        
+
         # Get model information (from first history entry)
-        model_name = lm.history[0]['response_model'] if lm.history else "unknown"
-        
+        model_name = lm.history[0]["response_model"] if lm.history else "unknown"
+
         cost_id = str(uuid.uuid4())
 
         # Store in database for historical tracking
@@ -70,14 +70,16 @@ class ImprovedCostTrackingService:
                 output_tokens,
                 operation_cost,
                 datetime.now(timezone.utc).isoformat(),
-                json.dumps({
-                    **(metadata or {}),
-                    "operation_name": operation_name,
-                    "api_calls": api_calls,
-                    "total_tokens": total_tokens,
-                    "cost_source": "dspy_builtin",
-                    "accurate": True
-                }),
+                json.dumps(
+                    {
+                        **(metadata or {}),
+                        "operation_name": operation_name,
+                        "api_calls": api_calls,
+                        "total_tokens": total_tokens,
+                        "cost_source": "dspy_builtin",
+                        "accurate": True,
+                    }
+                ),
             ),
         )
         await db.commit()
@@ -96,7 +98,7 @@ class ImprovedCostTrackingService:
             "model_name": model_name,
             "cost_per_token": operation_cost / max(total_tokens, 1),
             "cost_per_call": operation_cost / max(api_calls, 1),
-            "history_entries": len(lm.history)
+            "history_entries": len(lm.history),
         }
 
         # Clear history to prepare for next operation
@@ -141,7 +143,7 @@ class ImprovedCostTrackingService:
         costs_by_operation = {}
         costs_by_model = {}
         accurate_entries = 0
-        
+
         for row in detailed_costs:
             (
                 operation_type,
@@ -202,9 +204,13 @@ class ImprovedCostTrackingService:
             "cost_accuracy": {
                 "total_entries": len(detailed_costs),
                 "accurate_entries": accurate_entries,
-                "accuracy_percentage": (accurate_entries / len(detailed_costs) * 100) if detailed_costs else 0,
-                "method": "dspy_builtin" if accurate_entries > 0 else "manual_calculation"
-            }
+                "accuracy_percentage": (accurate_entries / len(detailed_costs) * 100)
+                if detailed_costs
+                else 0,
+                "method": "dspy_builtin"
+                if accurate_entries > 0
+                else "manual_calculation",
+            },
         }
 
     async def get_costs_summary(self, db: aiosqlite.Connection, days: int = 30) -> dict:
@@ -275,9 +281,11 @@ class ImprovedCostTrackingService:
             "cost_tracking_accuracy": {
                 "total_cost_entries": accuracy_stats[0] if accuracy_stats else 0,
                 "accurate_entries": accuracy_stats[1] if accuracy_stats else 0,
-                "accuracy_percentage": (accuracy_stats[1] / accuracy_stats[0] * 100) if accuracy_stats and accuracy_stats[0] > 0 else 0,
-                "method": "DSPy built-in cost tracking (recommended)"
-            }
+                "accuracy_percentage": (accuracy_stats[1] / accuracy_stats[0] * 100)
+                if accuracy_stats and accuracy_stats[0] > 0
+                else 0,
+                "method": "DSPy built-in cost tracking (recommended)",
+            },
         }
 
     async def _update_run_totals(
@@ -343,7 +351,7 @@ class ImprovedCostTrackingService:
         """
         Extract cost information from DSPy language model history without storing to database.
         Useful for real-time cost monitoring during operations.
-        
+
         Returns:
             Dictionary with cost breakdown
         """
@@ -353,22 +361,22 @@ class ImprovedCostTrackingService:
                 "total_tokens": 0,
                 "api_calls": 0,
                 "cost_per_call": 0.0,
-                "cost_per_token": 0.0
+                "cost_per_token": 0.0,
             }
-        
-        total_cost = sum([x['cost'] for x in lm.history if x['cost'] is not None])
-        total_tokens = sum([x['usage']['total_tokens'] for x in lm.history])
+
+        total_cost = sum([x["cost"] for x in lm.history if x["cost"] is not None])
+        total_tokens = sum([x["usage"]["total_tokens"] for x in lm.history])
         api_calls = len(lm.history)
-        
+
         return {
             "total_cost": total_cost,
             "total_tokens": total_tokens,
-            "input_tokens": sum([x['usage']['prompt_tokens'] for x in lm.history]),
-            "output_tokens": sum([x['usage']['completion_tokens'] for x in lm.history]),
+            "input_tokens": sum([x["usage"]["prompt_tokens"] for x in lm.history]),
+            "output_tokens": sum([x["usage"]["completion_tokens"] for x in lm.history]),
             "api_calls": api_calls,
             "cost_per_call": total_cost / max(api_calls, 1),
             "cost_per_token": total_cost / max(total_tokens, 1),
-            "model": lm.history[0]['response_model'] if lm.history else "unknown",
+            "model": lm.history[0]["response_model"] if lm.history else "unknown",
             "accurate": True,
-            "method": "dspy_builtin"
+            "method": "dspy_builtin",
         }

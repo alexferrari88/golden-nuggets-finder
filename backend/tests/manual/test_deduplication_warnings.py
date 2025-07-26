@@ -6,9 +6,9 @@ Tests the enhanced feedback API to verify that duplicate submissions
 generate appropriate user-friendly warning messages.
 """
 
-import requests
-import json
 from datetime import datetime
+
+import requests
 
 # Backend API URL
 BASE_URL = "http://localhost:7532"

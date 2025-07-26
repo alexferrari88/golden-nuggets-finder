@@ -8,7 +8,6 @@ optimization modes with threshold-based triggering.
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
-import json
 import logging
 import os
 from typing import Optional
@@ -17,46 +16,47 @@ import uuid
 import aiosqlite
 
 # DSPy imports (will be imported in methods to handle missing package gracefully)
-try:
-    import dspy
+import importlib.util
 
-    DSPY_AVAILABLE = True
-except ImportError:
-    DSPY_AVAILABLE = False
+DSPY_AVAILABLE = importlib.util.find_spec("dspy") is not None
+if not DSPY_AVAILABLE:
     print("Warning: DSPy not available. Optimization features will be limited.")
 
 from .feedback_service import FeedbackService
+
 
 # Configure environment-aware structured logging
 def _setup_logger():
     """Setup environment-aware logging configuration"""
     logger = logging.getLogger(__name__)
-    
+
     # Only configure if not already configured
     if logger.handlers:
         return logger
-    
+
     # Create formatter
     formatter = logging.Formatter(
         "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
     )
-    
+
     # Always use console handler
     console_handler = logging.StreamHandler()
     console_handler.setFormatter(formatter)
     logger.addHandler(console_handler)
-    
+
     # Only add file handler in production
     if os.getenv("ENVIRONMENT") == "production":
         from logging.handlers import RotatingFileHandler
+
         file_handler = RotatingFileHandler(
             "optimization.log", maxBytes=10485760, backupCount=5
         )
         file_handler.setFormatter(formatter)
         logger.addHandler(file_handler)
-    
+
     logger.setLevel(logging.INFO)
     return logger
+
 
 logger = _setup_logger()
 
@@ -268,13 +268,13 @@ Return your response as valid JSON only, with no additional text or explanation.
                     "error_type": type(e).__name__,
                 },
             )
-            self._log_progress(run_id, "failed", -1, f"Optimization failed: {str(e)}")
+            self._log_progress(run_id, "failed", -1, f"Optimization failed: {e!s}")
 
             # Clean up active run tracking after delay to allow status check
             if run_id in self.active_runs:
-                self.active_runs[run_id]["cleanup_after"] = datetime.now(timezone.utc).replace(
-                    minute=datetime.now(timezone.utc).minute + 5
-                )
+                self.active_runs[run_id]["cleanup_after"] = datetime.now(
+                    timezone.utc
+                ).replace(minute=datetime.now(timezone.utc).minute + 5)
 
             await db.execute(
                 """
@@ -289,7 +289,7 @@ Return your response as valid JSON only, with no additional text or explanation.
             raise Exception(f"Optimization failed: {e!s}")
 
     def _run_dspy_optimization(
-        self, training_examples: list[dict], mode: str, run_id: str = None
+        self, training_examples: list[dict], mode: str, run_id: Optional[str] = None
     ) -> dict:
         """
         Run DSPy optimization (executed in thread pool).
@@ -315,7 +315,9 @@ Return your response as valid JSON only, with no additional text or explanation.
                 "performance_score": 0.0,
                 "baseline_score": 0.0,
                 "improvement": 0.0,
-                "execution_time": (datetime.now(timezone.utc) - start_time).total_seconds(),
+                "execution_time": (
+                    datetime.now(timezone.utc) - start_time
+                ).total_seconds(),
                 "training_examples_count": len(training_examples),
                 "validation_examples_count": 0,
                 "mode": mode,
@@ -599,26 +601,32 @@ Return valid JSON with the exact structure: {{"golden_nuggets": [...]}}"""
         return None
 
     async def get_optimization_history(
-        self, db: aiosqlite.Connection, limit: int = 50, days: int = None, mode: str = None
+        self,
+        db: aiosqlite.Connection,
+        limit: int = 50,
+        days: Optional[int] = None,
+        mode: Optional[str] = None,
     ) -> dict:
         """Get optimization history with performance analytics"""
-        
+
         # Build the WHERE clause based on filters
         where_conditions = []
         params = []
-        
+
         if days:
-            where_conditions.append("DATE(opt_run.started_at) >= DATE('now', '-' || ? || ' days')")
+            where_conditions.append(
+                "DATE(opt_run.started_at) >= DATE('now', '-' || ? || ' days')"
+            )
             params.append(days)
-            
-        if mode and mode != 'all':
+
+        if mode and mode != "all":
             where_conditions.append("opt_run.mode = ?")
             params.append(mode)
-        
+
         where_clause = ""
         if where_conditions:
             where_clause = "WHERE " + " AND ".join(where_conditions)
-        
+
         # Get the filtered optimization runs with calculated fields
         cursor = await db.execute(
             f"""
@@ -649,11 +657,13 @@ Return valid JSON with the exact structure: {{"golden_nuggets": [...]}}"""
         for result in results:
             # Use positive_rate as success_rate, fallback to performance_improvement
             success_rate = result[14]  # positive_rate
-            if success_rate is None and result[6] is not None:  # performance_improvement
+            if (
+                success_rate is None and result[6] is not None
+            ):  # performance_improvement
                 # Convert performance improvement to a success rate (0-1)
                 # Assuming performance_improvement is a percentage or ratio
                 success_rate = min(max(result[6], 0), 1) if result[6] >= 0 else None
-            
+
             run = {
                 "id": result[0],
                 "status": result[5],
@@ -664,22 +674,32 @@ Return valid JSON with the exact structure: {{"golden_nuggets": [...]}}"""
                 "api_cost": result[9] or 0.0,
                 "feedback_items_processed": result[7] or 0,  # feedback_count
                 "success_rate": success_rate,
-                "duration_seconds": result[15]  # duration_seconds calculated field
+                "duration_seconds": result[15],  # duration_seconds calculated field
             }
             runs.append(run)
 
         # Calculate performance trends from completed runs only
         completed_runs = [r for r in runs if r["status"] == "completed"]
-        
+
         if completed_runs:
             # Calculate averages
-            durations = [r["duration_seconds"] for r in completed_runs if r["duration_seconds"] is not None]
+            durations = [
+                r["duration_seconds"]
+                for r in completed_runs
+                if r["duration_seconds"] is not None
+            ]
             costs = [r["api_cost"] for r in completed_runs if r["api_cost"] is not None]
-            success_rates = [r["success_rate"] for r in completed_runs if r["success_rate"] is not None]
-            
+            success_rates = [
+                r["success_rate"]
+                for r in completed_runs
+                if r["success_rate"] is not None
+            ]
+
             avg_duration = sum(durations) / len(durations) if durations else 0
             avg_cost = sum(costs) / len(costs) if costs else 0.0
-            avg_success_rate = sum(success_rates) / len(success_rates) if success_rates else 0.0
+            avg_success_rate = (
+                sum(success_rates) / len(success_rates) if success_rates else 0.0
+            )
             total_processed = sum(r["feedback_items_processed"] for r in completed_runs)
         else:
             avg_duration = 0
@@ -706,6 +726,6 @@ Return valid JSON with the exact structure: {{"golden_nuggets": [...]}}"""
                 "avg_duration": avg_duration,
                 "avg_cost": avg_cost,
                 "avg_success_rate": avg_success_rate,
-                "total_processed": total_processed
-            }
+                "total_processed": total_processed,
+            },
         }

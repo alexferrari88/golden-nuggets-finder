@@ -20,7 +20,6 @@ import pytest
 import pytest_asyncio
 
 from app.database import (
-    cleanup_test_database,
     get_test_database_path,
     init_database,
     is_test_environment,
@@ -50,19 +49,19 @@ def event_loop():
 async def clean_database():
     """
     Provide a clean database for each test.
-    
+
     Creates a fresh database before each test and cleans up after.
     This ensures complete test isolation.
     """
     # Create a fresh database path for this test
     reset_database_for_test()
-    
+
     # Initialize the database with fresh schema
     await init_database()
-    
+
     # Yield control to the test
     yield
-    
+
     # Cleanup after test
     db_path = get_test_database_path()
     if os.path.exists(db_path):
@@ -71,7 +70,7 @@ async def clean_database():
             os.remove(db_path)
         except OSError:
             pass  # File might already be deleted
-        
+
         # Clean up the temp directory
         temp_dir = os.path.dirname(db_path)
         if os.path.exists(temp_dir) and temp_dir.startswith(tempfile.gettempdir()):
@@ -85,17 +84,17 @@ async def clean_database():
 async def setup_database():
     """
     Legacy fixture name for backward compatibility.
-    
+
     Uses clean_database under the hood for proper isolation.
     """
-    # Create a fresh database path for this test  
+    # Create a fresh database path for this test
     reset_database_for_test()
-    
+
     # Initialize the database
     await init_database()
-    
+
     yield
-    
+
     # Cleanup
     db_path = get_test_database_path()
     if os.path.exists(db_path):
@@ -103,7 +102,7 @@ async def setup_database():
             os.remove(db_path)
         except OSError:
             pass
-        
+
         temp_dir = os.path.dirname(db_path)
         if os.path.exists(temp_dir) and temp_dir.startswith(tempfile.gettempdir()):
             try:
@@ -117,7 +116,7 @@ async def setup_database():
 def cleanup_test_files():
     """Clean up any remaining test files at the end of the session"""
     yield
-    
+
     # Clean up any remaining test directories
     temp_base = tempfile.gettempdir()
     for item in os.listdir(temp_base):

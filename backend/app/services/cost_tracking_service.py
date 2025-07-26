@@ -5,10 +5,10 @@ Tracks detailed cost information including token usage, API calls,
 and cost breakdowns by operation type and model.
 """
 
-import json
-import uuid
 from datetime import datetime, timedelta, timezone
-from typing import Dict, List, Optional
+import json
+from typing import Optional
+import uuid
 
 import aiosqlite
 

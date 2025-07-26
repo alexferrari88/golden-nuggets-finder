@@ -9,20 +9,23 @@ from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 import os
 import sqlite3
+
+# Determine if we're in test environment
+import sys
 import tempfile
 
 import aiosqlite
 
-# Determine if we're in test environment
-import sys
 _IS_TESTING = (
-    "pytest" in sys.modules or
-    "PYTEST_CURRENT_TEST" in os.environ or 
-    "pytest" in os.environ.get("_", "") or
-    any("pytest" in arg for arg in sys.argv) or
-    os.environ.get("FORCE_TEST_DB", "").lower() in ("1", "true", "yes") or
+    "pytest" in sys.modules
+    or "PYTEST_CURRENT_TEST" in os.environ
+    or "pytest" in os.environ.get("_", "")
+    or any("pytest" in arg for arg in sys.argv)
+    or os.environ.get("FORCE_TEST_DB", "").lower() in ("1", "true", "yes")
+    or
     # Additional Docker-specific detection
-    (os.environ.get("ENVIRONMENT") == "test") or
+    (os.environ.get("ENVIRONMENT") == "test")
+    or
     # Detect if we're running inside pytest via command line in Docker
     any("pytest" in arg for arg in os.environ.get("PYTEST_ARGS", "").split())
 )
@@ -72,6 +75,7 @@ def get_sync_db():
 
 # Test database utilities
 
+
 def get_test_database_path():
     """Get the current database path (useful for tests)"""
     return DATABASE_PATH
@@ -87,7 +91,8 @@ def get_database_info():
     return {
         "is_testing": _IS_TESTING,
         "database_path": DATABASE_PATH,
-        "is_temp_db": "/tmp/" in DATABASE_PATH or "golden_nuggets_test_" in DATABASE_PATH,
+        "is_temp_db": "/tmp/" in DATABASE_PATH
+        or "golden_nuggets_test_" in DATABASE_PATH,
         "environment_vars": {
             "PYTEST_CURRENT_TEST": os.environ.get("PYTEST_CURRENT_TEST"),
             "FORCE_TEST_DB": os.environ.get("FORCE_TEST_DB"),
@@ -98,21 +103,24 @@ def get_database_info():
             "pytest_in_modules": "pytest" in sys.modules,
             "pytest_current_test": "PYTEST_CURRENT_TEST" in os.environ,
             "pytest_in_args": any("pytest" in arg for arg in sys.argv),
-            "force_test_db": os.environ.get("FORCE_TEST_DB", "").lower() in ("1", "true", "yes"),
+            "force_test_db": os.environ.get("FORCE_TEST_DB", "").lower()
+            in ("1", "true", "yes"),
             "env_is_test": os.environ.get("ENVIRONMENT") == "test",
-        }
+        },
     }
 
 
 async def cleanup_test_database():
     """Clean up test database (removes all data, recreates schema)"""
     if not _IS_TESTING:
-        raise RuntimeError("cleanup_test_database() can only be called in test environment")
-    
+        raise RuntimeError(
+            "cleanup_test_database() can only be called in test environment"
+        )
+
     # Remove the database file if it exists
     if os.path.exists(DATABASE_PATH):
         os.remove(DATABASE_PATH)
-    
+
     # Reinitialize with fresh schema
     await init_database()
 
@@ -121,8 +129,10 @@ def reset_database_for_test():
     """Create a new temporary database path for a test"""
     global DATABASE_PATH, _temp_dir
     if not _IS_TESTING:
-        raise RuntimeError("reset_database_for_test() can only be called in test environment")
-    
+        raise RuntimeError(
+            "reset_database_for_test() can only be called in test environment"
+        )
+
     # Create a new temporary directory and database path
     _temp_dir = tempfile.mkdtemp(prefix="golden_nuggets_test_")
     DATABASE_PATH = os.path.join(_temp_dir, "test_feedback.db")

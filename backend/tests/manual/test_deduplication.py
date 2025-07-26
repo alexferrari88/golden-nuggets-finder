@@ -10,11 +10,10 @@ This script tests the new deduplication feature by:
 """
 
 import asyncio
-import json
-import uuid
-from datetime import datetime
-import aiohttp
 import time
+import uuid
+
+import aiohttp
 
 # Test configuration
 BASE_URL = "http://localhost:7532"
@@ -141,7 +140,7 @@ async def test_deduplication():
         async with session.get(f"{BASE_URL}/dashboard/stats") as response:
             if response.status == 200:
                 stats = await response.json()
-                print(f"✅ Dashboard stats retrieved")
+                print("✅ Dashboard stats retrieved")
                 print(
                     f"   Total nugget reports: {stats.get('total_nugget_reports', 'N/A')}"
                 )

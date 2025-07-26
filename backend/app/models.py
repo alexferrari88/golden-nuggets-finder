@@ -42,6 +42,7 @@ class FeedbackSubmissionRequest(BaseModel):
 
 class UpdateFeedbackRequest(BaseModel):
     """Request model for updating feedback items"""
+
     content: Optional[str] = None
     rating: Optional[Literal["positive", "negative"]] = None
     corrected_type: Optional[
@@ -91,6 +92,7 @@ FeedbackStatus = Literal["new", "updated", "duplicate"]
 
 class DeduplicationInfo(BaseModel):
     """Enhanced deduplication information for feedback responses"""
+
     nugget_duplicates: int = 0
     missing_content_duplicates: int = 0
     nugget_updates: int = 0
@@ -102,6 +104,7 @@ class DeduplicationInfo(BaseModel):
 
 class FeedbackWithStatus(BaseModel):
     """Feedback item with processing status information"""
+
     type: Literal["nugget", "missing_content"]
     id: str
     content: str
@@ -120,6 +123,7 @@ class FeedbackWithStatus(BaseModel):
 
 class EnhancedFeedbackResponse(BaseModel):
     """Enhanced response for feedback submissions with detailed status"""
+
     success: bool = True
     message: str = "Feedback processed successfully"
     deduplication: DeduplicationInfo
@@ -235,7 +239,6 @@ class MonitoringResponse(BaseModel):
 
 
 # Deduplication models
-
 
 
 class FeedbackWithDeduplication(BaseModel):

@@ -5,10 +5,10 @@ Provides both in-memory (for real-time updates) and persistent
 (for historical tracking and recovery) progress tracking.
 """
 
-import json
-import uuid
 from datetime import datetime, timezone
+import json
 from typing import Dict, Optional
+import uuid
 
 import aiosqlite
 
@@ -178,10 +178,10 @@ class ProgressTrackingService:
             days_old: Delete entries older than this many days
         """
         await db.execute(
-            """
+            f"""
             DELETE FROM optimization_progress
-            WHERE created_at < datetime('now', '-{} days')
-            """.format(days_old)
+            WHERE created_at < datetime('now', '-{days_old} days')
+            """
         )
         await db.commit()
 
