@@ -44,7 +44,7 @@ export class GeminiClient {
 				action: "read",
 				timestamp: Date.now(),
 			});
-		} catch (apiKeyError: any) {
+		} catch (apiKeyError: unknown) {
 			debugLogger.error(
 				"[GeminiClient] API key retrieval failed:",
 				apiKeyError,

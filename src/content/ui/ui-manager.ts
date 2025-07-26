@@ -578,8 +578,10 @@ export class UIManager {
 
 		// Animate in
 		requestAnimationFrame(() => {
-			this.controlPanel?.style.transform = "translateY(0)";
-			this.controlPanel?.style.opacity = "1";
+			if (this.controlPanel) {
+				this.controlPanel.style.transform = "translateY(0)";
+				this.controlPanel.style.opacity = "1";
+			}
 		});
 	}
 
@@ -804,8 +806,10 @@ export class UIManager {
 
 		// Animate in
 		requestAnimationFrame(() => {
-			this.controlPanel?.style.transform = "translateY(0)";
-			this.controlPanel?.style.opacity = "1";
+			if (this.controlPanel) {
+				this.controlPanel.style.transform = "translateY(0)";
+				this.controlPanel.style.opacity = "1";
+			}
 		});
 
 		this.updateControlPanel();
@@ -1594,8 +1598,10 @@ export class UIManager {
 
 		// Animate in
 		requestAnimationFrame(() => {
-			this.controlPanel?.style.transform = "translateY(0)";
-			this.controlPanel?.style.opacity = "1";
+			if (this.controlPanel) {
+				this.controlPanel.style.transform = "translateY(0)";
+				this.controlPanel.style.opacity = "1";
+			}
 		});
 
 		this.updateMissingContentPanel();

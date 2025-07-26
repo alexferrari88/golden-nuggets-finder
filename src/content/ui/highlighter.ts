@@ -264,7 +264,8 @@ export class Highlighter {
 			const possibleRanges: Array<{ start: number; end: number }> = [];
 
 			// Look for all combinations of startContent -> endContent
-			while ((startIndex = fullText.indexOf(startContent, searchFrom)) !== -1) {
+			startIndex = fullText.indexOf(startContent, searchFrom);
+			while (startIndex !== -1) {
 				const endContentIndex = fullText.indexOf(
 					endContent,
 					startIndex + startContent.length,
@@ -274,6 +275,7 @@ export class Highlighter {
 					possibleRanges.push({ start: startIndex, end: endIndex });
 				}
 				searchFrom = startIndex + 1;
+				startIndex = fullText.indexOf(startContent, searchFrom);
 			}
 
 			if (possibleRanges.length === 0) {

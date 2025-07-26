@@ -140,7 +140,7 @@ describe("NotificationManager", () => {
 	describe("showApiKeyError", () => {
 		// Mock chrome.runtime for this test
 		beforeEach(() => {
-			(global as any).chrome = {
+			(global as typeof global & { chrome: Partial<typeof chrome> }).chrome = {
 				runtime: {
 					sendMessage: vi.fn(),
 				},
@@ -169,7 +169,10 @@ describe("NotificationManager", () => {
 			const clickEvent = new Event("click");
 			link?.dispatchEvent(clickEvent);
 
-			expect((global as any).chrome.runtime.sendMessage).toHaveBeenCalledWith({
+			expect(
+				(global as typeof global & { chrome: Partial<typeof chrome> }).chrome
+					.runtime?.sendMessage,
+			).toHaveBeenCalledWith({
 				type: "OPEN_OPTIONS_PAGE",
 			});
 		});

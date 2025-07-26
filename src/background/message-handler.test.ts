@@ -14,12 +14,14 @@ global.chrome = {
 	tabs: {
 		sendMessage: vi.fn().mockResolvedValue({}),
 	},
-} as any;
+} as Partial<typeof chrome>;
 
 describe("MessageHandler", () => {
 	let messageHandler: MessageHandler;
-	let mockGeminiClient: any;
-	let mockSendResponse: any;
+	let mockGeminiClient: {
+		analyzeContent: ReturnType<typeof vi.fn>;
+	};
+	let mockSendResponse: ReturnType<typeof vi.fn>;
 
 	beforeEach(() => {
 		mockGeminiClient = {
@@ -31,7 +33,7 @@ describe("MessageHandler", () => {
 
 	describe("Source placeholder replacement", () => {
 		beforeEach(() => {
-			(storage.getPrompts as any).mockResolvedValue([
+			(storage.getPrompts as ReturnType<typeof vi.fn>).mockResolvedValue([
 				{
 					id: "test-prompt",
 					name: "Test Prompt",
@@ -49,7 +51,11 @@ describe("MessageHandler", () => {
 				url: "https://news.ycombinator.com/item?id=12345",
 			};
 
-			await messageHandler.handleMessage(request, {} as any, mockSendResponse);
+			await messageHandler.handleMessage(
+				request,
+				{} as chrome.runtime.MessageSender,
+				mockSendResponse,
+			);
 
 			// Check if sendResponse was called with an error
 			if (mockSendResponse.mock.calls.length > 0) {
@@ -78,7 +84,11 @@ describe("MessageHandler", () => {
 				url: "https://www.reddit.com/r/programming/comments/abc123/test-post",
 			};
 
-			await messageHandler.handleMessage(request, {} as any, mockSendResponse);
+			await messageHandler.handleMessage(
+				request,
+				{} as chrome.runtime.MessageSender,
+				mockSendResponse,
+			);
 
 			expect(mockGeminiClient.analyzeContent).toHaveBeenCalledWith(
 				"Test content",
@@ -99,7 +109,11 @@ describe("MessageHandler", () => {
 				url: "https://twitter.com/user/status/123456789",
 			};
 
-			await messageHandler.handleMessage(request, {} as any, mockSendResponse);
+			await messageHandler.handleMessage(
+				request,
+				{} as chrome.runtime.MessageSender,
+				mockSendResponse,
+			);
 
 			expect(mockGeminiClient.analyzeContent).toHaveBeenCalledWith(
 				"Test content",
@@ -120,7 +134,11 @@ describe("MessageHandler", () => {
 				url: "https://x.com/user/status/123456789",
 			};
 
-			await messageHandler.handleMessage(request, {} as any, mockSendResponse);
+			await messageHandler.handleMessage(
+				request,
+				{} as chrome.runtime.MessageSender,
+				mockSendResponse,
+			);
 
 			expect(mockGeminiClient.analyzeContent).toHaveBeenCalledWith(
 				"Test content",
@@ -141,7 +159,11 @@ describe("MessageHandler", () => {
 				url: "https://example.com/some-article",
 			};
 
-			await messageHandler.handleMessage(request, {} as any, mockSendResponse);
+			await messageHandler.handleMessage(
+				request,
+				{} as chrome.runtime.MessageSender,
+				mockSendResponse,
+			);
 
 			expect(mockGeminiClient.analyzeContent).toHaveBeenCalledWith(
 				"Test content",
@@ -155,7 +177,7 @@ describe("MessageHandler", () => {
 		});
 
 		it("should handle multiple {{ source }} placeholders in the same prompt", async () => {
-			(storage.getPrompts as any).mockResolvedValue([
+			(storage.getPrompts as ReturnType<typeof vi.fn>).mockResolvedValue([
 				{
 					id: "multi-source-prompt",
 					name: "Multi Source Prompt",
@@ -172,7 +194,11 @@ describe("MessageHandler", () => {
 				url: "https://news.ycombinator.com/item?id=12345",
 			};
 
-			await messageHandler.handleMessage(request, {} as any, mockSendResponse);
+			await messageHandler.handleMessage(
+				request,
+				{} as chrome.runtime.MessageSender,
+				mockSendResponse,
+			);
 
 			expect(mockGeminiClient.analyzeContent).toHaveBeenCalledWith(
 				"Test content",
@@ -186,7 +212,7 @@ describe("MessageHandler", () => {
 		});
 
 		it("should handle prompts without {{ source }} placeholder", async () => {
-			(storage.getPrompts as any).mockResolvedValue([
+			(storage.getPrompts as ReturnType<typeof vi.fn>).mockResolvedValue([
 				{
 					id: "no-placeholder-prompt",
 					name: "No Placeholder Prompt",
@@ -202,7 +228,11 @@ describe("MessageHandler", () => {
 				url: "https://news.ycombinator.com/item?id=12345",
 			};
 
-			await messageHandler.handleMessage(request, {} as any, mockSendResponse);
+			await messageHandler.handleMessage(
+				request,
+				{} as chrome.runtime.MessageSender,
+				mockSendResponse,
+			);
 
 			expect(mockGeminiClient.analyzeContent).toHaveBeenCalledWith(
 				"Test content",
@@ -216,7 +246,7 @@ describe("MessageHandler", () => {
 		});
 
 		it("should handle {{ source }} with different spacing", async () => {
-			(storage.getPrompts as any).mockResolvedValue([
+			(storage.getPrompts as ReturnType<typeof vi.fn>).mockResolvedValue([
 				{
 					id: "spaced-prompt",
 					name: "Spaced Prompt",
@@ -233,7 +263,11 @@ describe("MessageHandler", () => {
 				url: "https://reddit.com/r/test",
 			};
 
-			await messageHandler.handleMessage(request, {} as any, mockSendResponse);
+			await messageHandler.handleMessage(
+				request,
+				{} as chrome.runtime.MessageSender,
+				mockSendResponse,
+			);
 
 			expect(mockGeminiClient.analyzeContent).toHaveBeenCalledWith(
 				"Test content",
