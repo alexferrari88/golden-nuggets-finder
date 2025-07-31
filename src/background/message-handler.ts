@@ -10,6 +10,10 @@ import {
 } from "../shared/types";
 import type { GeminiClient } from "./gemini-client";
 import { TypeFilterService } from "./type-filter-service";
+import { ProviderFactory } from "./services/provider-factory";
+import { ApiKeyStorage } from "../shared/storage/api-key-storage";
+import { ResponseNormalizer } from "./services/response-normalizer";
+import { type ProviderConfig, type ProviderId, type GoldenNuggetsResponse } from "../shared/types/providers";
 
 // Utility function to generate unique analysis IDs
 function generateAnalysisId(): string {
@@ -202,6 +206,66 @@ export class MessageHandler {
 		}
 	}
 
+	// Helper to get the selected provider configuration from storage
+	private static async getSelectedProvider(): Promise<ProviderConfig> {
+		// Get selected provider from storage
+		const result = await chrome.storage.local.get(['selectedProvider']);
+		const providerId = result.selectedProvider || 'gemini';
+		
+		// Get API key for provider
+		let apiKey: string;
+		if (providerId === 'gemini') {
+			// Use existing Gemini key storage
+			const geminiResult = await chrome.storage.local.get(['geminiApiKey']);
+			apiKey = geminiResult.geminiApiKey;
+		} else {
+			apiKey = await ApiKeyStorage.get(providerId);
+		}
+		
+		if (!apiKey) {
+			throw new Error(`No API key found for provider: ${providerId}`);
+		}
+		
+		return {
+			providerId,
+			apiKey,
+			modelName: ProviderFactory.getDefaultModel(providerId)
+		};
+	}
+
+	// Helper to handle golden nuggets extraction using provider routing
+	static async handleExtractGoldenNuggets(content: string, prompt: string): Promise<GoldenNuggetsResponse> {
+		try {
+			// Get provider configuration
+			const providerConfig = await this.getSelectedProvider();
+			
+			// Create provider instance
+			const provider = await ProviderFactory.createProvider(providerConfig);
+			
+			// Extract golden nuggets
+			const startTime = performance.now();
+			const rawResponse = await provider.extractGoldenNuggets(content, prompt);
+			const responseTime = performance.now() - startTime;
+			
+			// Normalize response
+			const normalizedResponse = ResponseNormalizer.normalize(rawResponse, providerConfig.providerId);
+			
+			// Store provider metadata for feedback
+			await chrome.storage.local.set({
+				lastUsedProvider: {
+					providerId: providerConfig.providerId,
+					modelName: providerConfig.modelName,
+					responseTime
+				}
+			});
+			
+			return normalizedResponse;
+		} catch (error) {
+			console.error('Golden nuggets extraction failed:', error);
+			throw error;
+		}
+	}
+
 	async handleMessage(
 		request: any,
 		sender: chrome.runtime.MessageSender,
@@ -371,25 +435,31 @@ export class MessageHandler {
 				sender.tab?.id,
 			);
 
-			const result = await this.geminiClient.analyzeContent(
+			// Send step 3 progress: API request start
+			this.sendProgressMessage(
+				MESSAGE_TYPES.ANALYSIS_API_REQUEST_START,
+				3,
+				"Sending to AI model",
+				analysisId,
+				source,
+				sender.tab?.id,
+			);
+
+			const result = await MessageHandler.handleExtractGoldenNuggets(
 				request.content,
 				processedPrompt,
-				{
-					analysisId,
-					source,
-					onProgress: (progressType, step, message) => {
-						this.sendProgressMessage(
-							progressType,
-							step,
-							message,
-							analysisId,
-							source,
-							sender.tab?.id,
-						);
-					},
-					typeFilter: request.typeFilter,
-				},
 			);
+
+			// Send step 4 progress: processing results
+			this.sendProgressMessage(
+				MESSAGE_TYPES.ANALYSIS_PROCESSING_RESULTS,
+				4,
+				"Processing results",
+				analysisId,
+				source,
+				sender.tab?.id,
+			);
+
 			sendResponse({ success: true, data: result });
 		} catch (error) {
 			console.error("Analysis failed:", error);
@@ -484,24 +554,29 @@ export class MessageHandler {
 				sender.tab?.id,
 			);
 
-			const result = await this.geminiClient.analyzeContent(
+			// Send step 3 progress: API request start
+			this.sendProgressMessage(
+				MESSAGE_TYPES.ANALYSIS_API_REQUEST_START,
+				3,
+				"Sending to AI model",
+				analysisId,
+				source,
+				sender.tab?.id,
+			);
+
+			const result = await MessageHandler.handleExtractGoldenNuggets(
 				request.content,
 				processedPrompt,
-				{
-					analysisId,
-					source,
-					onProgress: (progressType, step, message) => {
-						this.sendProgressMessage(
-							progressType,
-							step,
-							message,
-							analysisId,
-							source,
-							sender.tab?.id,
-						);
-					},
-					typeFilter: request.typeFilter,
-				},
+			);
+
+			// Send step 4 progress: processing results
+			this.sendProgressMessage(
+				MESSAGE_TYPES.ANALYSIS_PROCESSING_RESULTS,
+				4,
+				"Processing results",
+				analysisId,
+				source,
+				sender.tab?.id,
 			);
 
 			// Send results to content script for display
@@ -682,12 +757,12 @@ export class MessageHandler {
 				return;
 			}
 
-			// Add provider metadata (currently all feedback is from Gemini)
-			// TODO: Update when multi-provider system is implemented
+			// Add provider metadata from last used provider
+			const providerInfo = await chrome.storage.local.get(['lastUsedProvider']);
 			const feedbackWithProvider = {
 				...feedback,
-				modelProvider: "gemini",
-				modelName: "gemini-2.5-flash"
+				modelProvider: providerInfo.lastUsedProvider?.providerId || "gemini",
+				modelName: providerInfo.lastUsedProvider?.modelName || "gemini-2.5-flash"
 			};
 
 			// Store feedback locally as backup
@@ -795,12 +870,12 @@ export class MessageHandler {
 				return;
 			}
 
-			// Add provider metadata to all missing content feedback
-			// TODO: Update when multi-provider system is implemented
+			// Add provider metadata to all missing content feedback from last used provider
+			const providerInfo = await chrome.storage.local.get(['lastUsedProvider']);
 			const missingContentWithProvider = missingContentFeedback.map(feedback => ({
 				...feedback,
-				modelProvider: "gemini",
-				modelName: "gemini-2.5-flash"
+				modelProvider: providerInfo.lastUsedProvider?.providerId || "gemini",
+				modelName: providerInfo.lastUsedProvider?.modelName || "gemini-2.5-flash"
 			}));
 
 			// Store feedback locally as backup

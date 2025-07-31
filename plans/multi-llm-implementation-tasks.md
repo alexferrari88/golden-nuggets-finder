@@ -259,9 +259,9 @@ export class ProviderFactory {
   static getDefaultModel(providerId: ProviderId): string {
     const defaults = {
       'gemini': 'gemini-2.5-flash',
-      'openai': 'gpt-4o-mini',
-      'anthropic': 'claude-3-5-sonnet',
-      'openrouter': 'anthropic/claude-3-5-sonnet'
+      'openai': 'gpt-4.1-mini',
+      'anthropic': 'claude-sonnet-4-20250514',
+      'openrouter': 'deepseek/deepseek-r1-0528:free'
     };
     return defaults[providerId];
   }
@@ -380,7 +380,7 @@ export class LangChainOpenAIProvider implements LLMProvider {
   private model: ChatOpenAI;
 
   constructor(private config: ProviderConfig) {
-    this.modelName = config.modelName || 'gpt-4o-mini';
+    this.modelName = config.modelName || 'gpt-4.1-mini';
     this.model = new ChatOpenAI({
       apiKey: config.apiKey,
       model: this.modelName,
@@ -470,7 +470,7 @@ export class LangChainAnthropicProvider implements LLMProvider {
   private model: ChatAnthropic;
 
   constructor(private config: ProviderConfig) {
-    this.modelName = config.modelName || 'claude-3-5-sonnet-20241022';
+    this.modelName = config.modelName || 'claude-sonnet-4-20250514';
     this.model = new ChatAnthropic({
       apiKey: config.apiKey,
       model: this.modelName,
@@ -518,10 +518,10 @@ export class LangChainAnthropicProvider implements LLMProvider {
 - [ ] Returns consistent golden nuggets format
 - [ ] API key validation functional
 - [ ] Proper error handling and logging
-- [ ] Compatible with Claude-3.5-sonnet model
+- [ ] Compatible with Claude-4-sonnet model
 
 **Context for Future Sessions**:
-Anthropic Claude models work well with LangChain but can be less stable than OpenAI. The default model should be claude-3-5-sonnet-20241022 for best results.
+Anthropic Claude models work well with LangChain but can be less stable than OpenAI. The default model should be claude-sonnet-4-20250514 for best results.
 
 ---
 
@@ -557,7 +557,7 @@ export class LangChainOpenRouterProvider implements LLMProvider {
   private model: ChatOpenAI;
 
   constructor(private config: ProviderConfig) {
-    this.modelName = config.modelName || 'anthropic/claude-3-5-sonnet';
+    this.modelName = config.modelName || 'deepseek/deepseek-r1-0528:free';
     this.model = new ChatOpenAI({
       apiKey: config.apiKey,
       model: this.modelName,
@@ -612,7 +612,7 @@ export class LangChainOpenRouterProvider implements LLMProvider {
 - [ ] Model name format compatible with OpenRouter
 - [ ] API key validation works
 - [ ] Structured output functions correctly
-- [ ] Default model is anthropic/claude-3-5-sonnet
+- [ ] Default model is deepseek/deepseek-r1-0528:free
 
 **Context for Future Sessions**:
 OpenRouter uses OpenAI-compatible API but requires specific headers. The base URL should be https://openrouter.ai/api/v1. Model names follow format provider/model-name.
@@ -865,7 +865,7 @@ class Feedback(BaseModel):
     
     # NEW: Model tracking fields
     model_provider: str  # 'gemini', 'openai', 'anthropic', 'openrouter'
-    model_name: str      # 'gemini-2.5-flash', 'gpt-4o-mini', etc.
+    model_name: str      # 'gemini-2.5-flash', 'gpt-4.1-mini', etc.
     
     # Existing fields
     feedback_type: str
@@ -990,9 +990,9 @@ class DSPyMultiModelManager:
         # Model configurations for DSPy
         self.model_configs = {
             'gemini': dspy.LM('gemini/gemini-2.5-flash'),
-            'openai': dspy.LM('openai/gpt-4o-mini'), 
-            'anthropic': dspy.LM('anthropic/claude-3-5-sonnet'),
-            'openrouter': dspy.LM('openai/anthropic/claude-3-5-sonnet', api_base='https://openrouter.ai/api/v1')
+            'openai': dspy.LM('openai/gpt-4.1-mini'), 
+            'anthropic': dspy.LM('anthropic/claude-sonnet-4-20250514'),
+            'openrouter': dspy.LM('deepseek/deepseek-r1-0528:free', api_base='https://openrouter.ai/api/v1')
         }
     
     def optimize_for_provider(self, provider_id: str, feedback_data: List[Feedback]):
