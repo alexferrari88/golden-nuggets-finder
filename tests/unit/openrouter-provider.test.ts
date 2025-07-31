@@ -2,6 +2,10 @@ import { describe, it, expect, vi } from 'vitest';
 import { LangChainOpenRouterProvider } from '../../src/shared/providers/langchain-openrouter-provider';
 import { ProviderConfig } from '../../src/shared/types/providers';
 
+// Mock fetch globally
+const mockFetch = vi.fn();
+vi.stubGlobal('fetch', mockFetch);
+
 // Mock the LangChain modules
 vi.mock('@langchain/openai', () => ({
   ChatOpenAI: vi.fn().mockImplementation(() => ({
@@ -77,11 +81,24 @@ describe('LangChainOpenRouterProvider', () => {
   });
 
   it('should validate API key successfully', async () => {
+    // Mock successful API response
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      status: 200
+    });
+    
     const provider = new LangChainOpenRouterProvider(mockConfig);
     
     const isValid = await provider.validateApiKey();
     
     expect(isValid).toBe(true);
+    expect(mockFetch).toHaveBeenCalledWith('https://openrouter.ai/api/v1/models', {
+      headers: {
+        'Authorization': `Bearer ${mockConfig.apiKey}`,
+        'HTTP-Referer': 'https://golden-nuggets-finder.com',
+        'X-Title': 'Golden Nuggets Finder'
+      }
+    });
   });
 
   it('should handle API errors gracefully', async () => {
@@ -102,14 +119,11 @@ describe('LangChainOpenRouterProvider', () => {
   });
 
   it('should handle API key validation failure', async () => {
-    const { ChatOpenAI } = await import('@langchain/openai');
-    
-    // Mock a failure for validation
-    (ChatOpenAI as any).mockImplementationOnce(() => ({
-      withStructuredOutput: vi.fn().mockReturnValue({
-        invoke: vi.fn().mockRejectedValue(new Error('Invalid API key'))
-      })
-    }));
+    // Mock failed API response
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      status: 401
+    });
     
     const provider = new LangChainOpenRouterProvider(mockConfig);
     
@@ -174,21 +188,17 @@ describe('LangChainOpenRouterProvider', () => {
   });
 
   it('should validate empty response correctly during API key validation', async () => {
-    const { ChatOpenAI } = await import('@langchain/openai');
-    
-    (ChatOpenAI as any).mockImplementationOnce(() => ({
-      withStructuredOutput: vi.fn().mockReturnValue({
-        invoke: vi.fn().mockResolvedValue({
-          golden_nuggets: []
-        })
-      })
-    }));
+    // Mock successful API response
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      status: 200
+    });
     
     const provider = new LangChainOpenRouterProvider(mockConfig);
     
     const isValid = await provider.validateApiKey();
     
-    // Empty array should still be considered valid for API key validation
+    // API key validation should succeed when API responds with OK
     expect(isValid).toBe(true);
   });
 
