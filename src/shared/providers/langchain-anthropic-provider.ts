@@ -50,7 +50,7 @@ export class LangChainAnthropicProvider implements LLMProvider {
         'Test content for API validation',
         'Extract one simple insight from this text.'
       );
-      return testResult && testResult.golden_nuggets && Array.isArray(testResult.golden_nuggets);
+      return !!(testResult && testResult.golden_nuggets && Array.isArray(testResult.golden_nuggets));
     } catch (error) {
       console.warn(`Anthropic API key validation failed:`, error.message);
       return false;
