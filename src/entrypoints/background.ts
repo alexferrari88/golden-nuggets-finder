@@ -1,7 +1,7 @@
 import { GeminiClient } from "../background/gemini-client";
 import { MessageHandler } from "../background/message-handler";
 import { TypeFilterService } from "../background/type-filter-service";
-import { storage } from "../shared/storage";
+import { storage, StorageMigration } from "../shared/storage";
 import { MESSAGE_TYPES } from "../shared/types";
 
 export default defineBackground(() => {
@@ -13,6 +13,11 @@ export default defineBackground(() => {
 
 	// Prevent concurrent context menu setup
 	let isSettingUpContextMenu = false;
+
+	// Run storage migration on startup
+	StorageMigration.checkAndRunMigration().catch(error => {
+		console.error('[Background] Migration failed on startup:', error);
+	});
 
 	// Set up message listeners
 	chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
@@ -54,7 +59,12 @@ export default defineBackground(() => {
 	});
 
 	// Set up context menu and handle installation
-	chrome.runtime.onInstalled.addListener((details) => {
+	chrome.runtime.onInstalled.addListener(async (details) => {
+		// Run storage migration for updates
+		if (details.reason === "update") {
+			await StorageMigration.checkAndRunMigration();
+		}
+
 		updateContextMenuForActiveTab();
 
 		// Open options page on first install
