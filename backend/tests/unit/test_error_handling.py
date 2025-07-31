@@ -142,7 +142,7 @@ class TestExternalServiceErrorHandling:
         # Should provide meaningful error message
         assert "training examples" in str(exc_info.value)
 
-    @patch("app.services.dspy_config.DSPY_AVAILABLE", False)
+    @patch("app.services.dspy_config.DSPY_AVAILABLE", new=False)
     def test_dspy_environment_not_configured(self, optimization_service):
         """Test optimization when DSPy environment is not configured"""
         from app.services.dspy_config import generate_mock_feedback_data

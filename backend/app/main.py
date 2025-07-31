@@ -191,7 +191,7 @@ async def submit_feedback(feedback_data: FeedbackSubmissionRequest):
                 if total_duplicates == 1:
                     # Extract report count for readability
                     details = deduplication_results.duplicate_details[0]
-                    report_count = details['report_count']
+                    report_count = details["report_count"]
                     deduplication_results.user_message = (
                         f"This feedback was already submitted previously. "
                         f"Your report has been counted (total: {report_count} reports)."
