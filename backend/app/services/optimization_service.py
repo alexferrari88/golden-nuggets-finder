@@ -23,6 +23,7 @@ if not DSPY_AVAILABLE:
     print("Warning: DSPy not available. Optimization features will be limited.")
 
 from .feedback_service import FeedbackService
+from .dspy_multi_model_manager import dspy_multi_model_manager
 
 
 # Configure environment-aware structured logging
@@ -72,6 +73,9 @@ class OptimizationService:
 
         # In-memory progress tracking for active runs
         self.active_runs = {}
+        
+        # Multi-model manager for provider-specific optimization
+        self.multi_model_manager = dspy_multi_model_manager
 
         # Default baseline prompt (matches Chrome extension)
         self.baseline_prompt = """
@@ -730,3 +734,127 @@ Return valid JSON with the exact structure: {{"golden_nuggets": [...]}}"""
                 "total_processed": total_processed,
             },
         }
+
+    # Multi-Provider Optimization Methods
+
+    async def run_provider_optimization(
+        self, 
+        db: aiosqlite.Connection, 
+        provider_id: str, 
+        mode: str = 'cheap', 
+        auto_trigger: bool = False
+    ) -> dict:
+        """
+        Run DSPy optimization for a specific provider.
+        
+        Args:
+            db: Database connection
+            provider_id: Provider identifier (gemini, openai, anthropic, openrouter)
+            mode: Optimization mode (expensive or cheap)
+            auto_trigger: Whether this was triggered automatically
+        """
+        return await self.multi_model_manager.optimize_for_provider(
+            db, provider_id, mode, auto_trigger
+        )
+
+    async def check_provider_optimization_thresholds(
+        self, 
+        db: aiosqlite.Connection
+    ) -> dict:
+        """Check which providers should be optimized based on feedback thresholds"""
+        providers = ['gemini', 'openai', 'anthropic', 'openrouter']
+        results = {}
+        
+        for provider_id in providers:
+            results[provider_id] = await self.multi_model_manager.should_optimize_provider(
+                db, provider_id
+            )
+        
+        return results
+
+    async def get_provider_current_prompt(
+        self, 
+        db: aiosqlite.Connection, 
+        provider_id: str
+    ) -> Optional[dict]:
+        """Get current optimized prompt for specific provider"""
+        return await self.multi_model_manager.get_provider_current_prompt(
+            db, provider_id
+        )
+
+    def get_provider_run_progress(self, provider_id: str, run_id: str) -> Optional[dict]:
+        """Get progress for specific provider optimization run"""
+        return self.multi_model_manager.get_provider_run_progress(provider_id, run_id)
+
+    def get_all_provider_active_runs(self) -> dict:
+        """Get all active optimization runs across all providers"""
+        return self.multi_model_manager.get_all_provider_active_runs()
+
+    async def auto_trigger_provider_optimizations(self, db: aiosqlite.Connection) -> dict:
+        """
+        Check all providers and trigger optimization for those that meet thresholds.
+        This method should be called periodically by the backend.
+        """
+        results = {"triggered": [], "skipped": [], "errors": []}
+        
+        # Check thresholds for all providers
+        threshold_results = await self.check_provider_optimization_thresholds(db)
+        
+        for provider_id, threshold_data in threshold_results.items():
+            if threshold_data["should_optimize"]:
+                try:
+                    # Trigger optimization for this provider
+                    optimization_result = await self.run_provider_optimization(
+                        db, provider_id, mode='cheap', auto_trigger=True
+                    )
+                    
+                    results["triggered"].append({
+                        "provider_id": provider_id,
+                        "run_id": optimization_result.get("run_id"),
+                        "feedback_count": threshold_data["total_feedback"],
+                        "reason": f"Met threshold with {threshold_data['total_feedback']} feedback items"
+                    })
+                    
+                    logger.info(
+                        f"🤖 Auto-triggered optimization for {provider_id}",
+                        extra={
+                            "provider_id": provider_id,
+                            "run_id": optimization_result.get("run_id"),
+                            "feedback_count": threshold_data["total_feedback"],
+                            "auto_trigger": True
+                        }
+                    )
+                    
+                except Exception as e:
+                    results["errors"].append({
+                        "provider_id": provider_id,
+                        "error": str(e),
+                        "feedback_count": threshold_data["total_feedback"]
+                    })
+                    
+                    logger.error(
+                        f"❌ Auto-trigger failed for {provider_id}: {e}",
+                        extra={
+                            "provider_id": provider_id,
+                            "error": str(e),
+                            "auto_trigger": True
+                        }
+                    )
+            else:
+                results["skipped"].append({
+                    "provider_id": provider_id,
+                    "reason": f"Threshold not met ({threshold_data['total_feedback']}/{self.multi_model_manager.min_feedback_threshold})",
+                    "feedback_count": threshold_data["total_feedback"],
+                    "threshold_met": threshold_data["threshold_met"]
+                })
+        
+        logger.info(
+            f"🔄 Auto-trigger cycle completed",
+            extra={
+                "triggered_count": len(results["triggered"]),
+                "skipped_count": len(results["skipped"]),
+                "error_count": len(results["errors"])
+            }
+        )
+        
+        return results

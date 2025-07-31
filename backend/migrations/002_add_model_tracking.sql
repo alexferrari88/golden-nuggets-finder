@@ -18,6 +18,14 @@ ALTER TABLE nugget_feedback ADD COLUMN model_name TEXT;
 ALTER TABLE missing_content_feedback ADD COLUMN model_provider TEXT;
 ALTER TABLE missing_content_feedback ADD COLUMN model_name TEXT;
 
+-- Add model tracking to optimization_runs table
+ALTER TABLE optimization_runs ADD COLUMN model_provider TEXT;
+ALTER TABLE optimization_runs ADD COLUMN model_name TEXT;
+
+-- Add model tracking to optimized_prompts table
+ALTER TABLE optimized_prompts ADD COLUMN model_provider TEXT;
+ALTER TABLE optimized_prompts ADD COLUMN model_name TEXT;
+
 -- =============================================================================
 -- BACKFILL EXISTING DATA
 -- =============================================================================
@@ -29,6 +37,16 @@ WHERE model_provider IS NULL;
 
 -- Backfill existing missing_content_feedback records (assume they were Gemini)
 UPDATE missing_content_feedback 
+SET model_provider = 'gemini', model_name = 'gemini-2.5-flash' 
+WHERE model_provider IS NULL;
+
+-- Backfill existing optimization_runs records (assume they were Gemini)
+UPDATE optimization_runs 
+SET model_provider = 'gemini', model_name = 'gemini-2.5-flash' 
+WHERE model_provider IS NULL;
+
+-- Backfill existing optimized_prompts records (assume they were Gemini)
+UPDATE optimized_prompts 
 SET model_provider = 'gemini', model_name = 'gemini-2.5-flash' 
 WHERE model_provider IS NULL;
 
@@ -45,6 +63,10 @@ CREATE INDEX idx_nugget_feedback_provider ON nugget_feedback(model_provider);
 CREATE INDEX idx_nugget_feedback_model ON nugget_feedback(model_provider, model_name);
 CREATE INDEX idx_missing_content_provider ON missing_content_feedback(model_provider);
 CREATE INDEX idx_missing_content_model ON missing_content_feedback(model_provider, model_name);
+CREATE INDEX idx_optimization_runs_provider ON optimization_runs(model_provider);
+CREATE INDEX idx_optimization_runs_model ON optimization_runs(model_provider, model_name);
+CREATE INDEX idx_optimized_prompts_provider ON optimized_prompts(model_provider);
+CREATE INDEX idx_optimized_prompts_model ON optimized_prompts(model_provider, model_name);
 
 -- =============================================================================
 -- UPDATE VIEWS
