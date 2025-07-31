@@ -28,14 +28,14 @@ describe('LangChainOpenAIProvider', () => {
   const mockConfig: ProviderConfig = {
     providerId: 'openai',
     apiKey: 'test-key',
-    modelName: 'gpt-4o-mini'
+    modelName: 'gpt-4.1-mini'
   };
 
   it('should create provider with correct configuration', () => {
     const provider = new LangChainOpenAIProvider(mockConfig);
     
     expect(provider.providerId).toBe('openai');
-    expect(provider.modelName).toBe('gpt-4o-mini');
+    expect(provider.modelName).toBe('gpt-4.1-mini');
   });
 
   it('should use default model when not specified', () => {
@@ -46,7 +46,7 @@ describe('LangChainOpenAIProvider', () => {
     
     const provider = new LangChainOpenAIProvider(configWithoutModel as ProviderConfig);
     
-    expect(provider.modelName).toBe('gpt-4o-mini');
+    expect(provider.modelName).toBe('gpt-4.1-mini');
   });
 
   it('should extract golden nuggets successfully', async () => {
