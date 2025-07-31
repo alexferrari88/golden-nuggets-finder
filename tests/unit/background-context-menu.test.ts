@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { GeminiClient } from "../../src/background/gemini-client";
 import { MessageHandler } from "../../src/background/message-handler";
 import { TypeFilterService } from "../../src/background/type-filter-service";
-import { storage } from "../../src/shared/storage";
+import { storage, StorageMigration } from "../../src/shared/storage";
 import { MESSAGE_TYPES } from "../../src/shared/types";
 
 // Mock WXT global functions
@@ -12,7 +12,20 @@ global.defineBackground = vi.fn((callback) => callback());
 vi.mock("../../src/background/gemini-client");
 vi.mock("../../src/background/message-handler");
 vi.mock("../../src/background/type-filter-service");
-vi.mock("../../src/shared/storage");
+vi.mock("../../src/shared/storage", () => ({
+	storage: {
+		getPrompts: vi.fn(),
+		savePrompts: vi.fn(),
+		getApiKey: vi.fn(),
+		saveApiKey: vi.fn(),
+		getConfig: vi.fn(),
+		saveConfig: vi.fn(),
+	},
+	StorageMigration: {
+		checkAndRunMigration: vi.fn(),
+		validateMigration: vi.fn(),
+	},
+}));
 
 // Mock Chrome APIs
 const mockContextMenus = {
@@ -50,6 +63,12 @@ const mockRuntime = {
 const mockStorage = {
 	onChanged: {
 		addListener: vi.fn(),
+	},
+	sync: {
+		get: vi.fn(),
+		set: vi.fn(),
+		remove: vi.fn(),
+		clear: vi.fn(),
 	},
 };
 
@@ -108,6 +127,9 @@ describe("Background Script Context Menu", () => {
 		// Mock storage methods
 		(storage.getPrompts as any).mockResolvedValue(mockPrompts);
 
+		// Mock StorageMigration
+		(StorageMigration.checkAndRunMigration as any).mockResolvedValue(undefined);
+
 		// Mock TypeFilterService
 		(TypeFilterService as any).CONTEXT_MENU_OPTIONS = mockTypeFilterOptions;
 		(TypeFilterService.getContextMenuOption as any).mockImplementation(
@@ -116,6 +138,9 @@ describe("Background Script Context Menu", () => {
 
 		// Mock chrome.tabs.query to return a default active tab
 		mockTabs.query.mockResolvedValue([{ id: 123, url: "https://example.com" }]);
+
+		// Mock chrome.storage.sync to return empty data for migration
+		mockStorage.sync.get.mockResolvedValue({});
 
 		// Capture event listeners
 		mockRuntime.onMessage.addListener.mockImplementation((listener: any) => {

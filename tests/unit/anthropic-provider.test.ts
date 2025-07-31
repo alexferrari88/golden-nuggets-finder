@@ -2,6 +2,10 @@ import { describe, it, expect, vi } from 'vitest';
 import { LangChainAnthropicProvider } from '../../src/shared/providers/langchain-anthropic-provider';
 import { ProviderConfig } from '../../src/shared/types/providers';
 
+// Mock fetch globally
+const mockFetch = vi.fn();
+vi.stubGlobal('fetch', mockFetch);
+
 // Mock the LangChain modules
 vi.mock('@langchain/anthropic', () => ({
   ChatAnthropic: vi.fn().mockImplementation(() => ({
@@ -80,11 +84,23 @@ describe('LangChainAnthropicProvider', () => {
   });
 
   it('should validate API key successfully', async () => {
+    // Mock successful API response
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      status: 200
+    });
+    
     const provider = new LangChainAnthropicProvider(mockConfig);
     
     const isValid = await provider.validateApiKey();
     
     expect(isValid).toBe(true);
+    expect(mockFetch).toHaveBeenCalledWith('https://api.anthropic.com/v1/models', {
+      headers: {
+        'x-api-key': mockConfig.apiKey,
+        'anthropic-version': '2023-06-01'
+      }
+    });
   });
 
   it('should handle API errors gracefully during extraction', async () => {
@@ -105,14 +121,11 @@ describe('LangChainAnthropicProvider', () => {
   });
 
   it('should handle API key validation failure', async () => {
-    const { ChatAnthropic } = await import('@langchain/anthropic');
-    
-    // Mock a failure for validation
-    (ChatAnthropic as any).mockImplementationOnce(() => ({
-      withStructuredOutput: vi.fn().mockReturnValue({
-        invoke: vi.fn().mockRejectedValue(new Error('Invalid API key'))
-      })
-    }));
+    // Mock failed API response
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      status: 401
+    });
     
     const provider = new LangChainAnthropicProvider(mockConfig);
     
@@ -141,22 +154,17 @@ describe('LangChainAnthropicProvider', () => {
   });
 
   it('should handle empty golden nuggets array during validation', async () => {
-    const { ChatAnthropic } = await import('@langchain/anthropic');
-    
-    // Mock empty response
-    (ChatAnthropic as any).mockImplementationOnce(() => ({
-      withStructuredOutput: vi.fn().mockReturnValue({
-        invoke: vi.fn().mockResolvedValue({
-          golden_nuggets: []
-        })
-      })
-    }));
+    // Mock successful API response
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      status: 200
+    });
     
     const provider = new LangChainAnthropicProvider(mockConfig);
     
     const isValid = await provider.validateApiKey();
     
-    expect(isValid).toBe(true); // Empty array is still valid structure
+    expect(isValid).toBe(true); // API key validation should succeed regardless of response content
   });
 
   it('should handle credit balance errors appropriately', async () => {
