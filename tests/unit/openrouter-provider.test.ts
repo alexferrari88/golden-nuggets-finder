@@ -28,14 +28,14 @@ describe('LangChainOpenRouterProvider', () => {
   const mockConfig: ProviderConfig = {
     providerId: 'openrouter',
     apiKey: 'test-key',
-    modelName: 'anthropic/claude-3-5-sonnet'
+    modelName: 'z-ai/glm-4.5-air:free'
   };
 
   it('should create provider with correct configuration', () => {
     const provider = new LangChainOpenRouterProvider(mockConfig);
     
     expect(provider.providerId).toBe('openrouter');
-    expect(provider.modelName).toBe('anthropic/claude-3-5-sonnet');
+    expect(provider.modelName).toBe('z-ai/glm-4.5-air:free');
   });
 
   it('should use default model when not specified', () => {
@@ -46,7 +46,7 @@ describe('LangChainOpenRouterProvider', () => {
     
     const provider = new LangChainOpenRouterProvider(configWithoutModel as ProviderConfig);
     
-    expect(provider.modelName).toBe('anthropic/claude-3-5-sonnet');
+    expect(provider.modelName).toBe('z-ai/glm-4.5-air:free');
   });
 
   it('should use OpenRouter base URL in configuration', () => {
@@ -54,7 +54,7 @@ describe('LangChainOpenRouterProvider', () => {
     
     // Verify the provider was created successfully (tests constructor)
     expect(provider.providerId).toBe('openrouter');
-    expect(provider.modelName).toBe('anthropic/claude-3-5-sonnet');
+    expect(provider.modelName).toBe('z-ai/glm-4.5-air:free');
   });
 
   it('should extract golden nuggets successfully', async () => {
@@ -278,7 +278,7 @@ describe('LangChainOpenRouterProvider', () => {
       { modelName: 'openai/gpt-4o', expected: 'openai/gpt-4o' },
       { modelName: 'anthropic/claude-3-5-sonnet', expected: 'anthropic/claude-3-5-sonnet' },
       { modelName: 'google/gemini-pro', expected: 'google/gemini-pro' },
-      { modelName: undefined, expected: 'anthropic/claude-3-5-sonnet' }, // default
+      { modelName: undefined, expected: 'z-ai/glm-4.5-air:free' }, // default
     ];
 
     testCases.forEach(({ modelName, expected }) => {
