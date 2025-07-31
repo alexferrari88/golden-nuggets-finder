@@ -26,11 +26,11 @@ export class ProviderFactory {
 
   static getDefaultModel(providerId: ProviderId): string {
     const defaults = {
-      'gemini': 'gemini-2.5-flash',
-      'openai': 'gpt-4o-mini',
-      'anthropic': 'claude-3-5-sonnet',
-      'openrouter': 'anthropic/claude-3-5-sonnet'
-    };
+					gemini: "gemini-2.5-flash",
+					openai: "gpt-4.1-mini",
+					anthropic: "claude-sonnet-4-20250514",
+					openrouter: "openai/gpt-3.5-turbo",
+				};
     return defaults[providerId];
   }
 

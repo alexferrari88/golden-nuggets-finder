@@ -18,7 +18,7 @@ export class LangChainOpenAIProvider implements LLMProvider {
   private model: ChatOpenAI;
 
   constructor(private config: ProviderConfig) {
-    this.modelName = config.modelName || 'gpt-4o-mini';
+    this.modelName = config.modelName || 'gpt-4.1-mini';
     this.model = new ChatOpenAI({
       apiKey: config.apiKey,
       model: this.modelName,

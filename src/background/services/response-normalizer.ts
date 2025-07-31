@@ -21,7 +21,7 @@ export class ResponseNormalizer {
       // Ensure content and synthesis are strings and non-empty
       const normalized = {
         golden_nuggets: validated.golden_nuggets.map(nugget => ({
-          type: nugget.type,
+          type: this.normalizeType(nugget.type),
           content: String(nugget.content).trim(),
           synthesis: String(nugget.synthesis).trim()
         })).filter(nugget => nugget.content && nugget.synthesis)
@@ -50,10 +50,34 @@ export class ResponseNormalizer {
       ...response,
       golden_nuggets: response.golden_nuggets.map((nugget: any) => ({
         ...nugget,
+        type: nugget.type, // Keep original type for now, normalize later
         content: String(nugget.content || ''),
         synthesis: String(nugget.synthesis || '')
       }))
     };
+  }
+
+  private static normalizeType(type: string): 'tool' | 'media' | 'explanation' | 'analogy' | 'model' {
+    // Handle common variations that different models might return
+    const typeMap: Record<string, 'tool' | 'media' | 'explanation' | 'analogy' | 'model'> = {
+      'mental model': 'model',
+      'mental_model': 'model',
+      'framework': 'model',
+      'technique': 'tool',
+      'method': 'tool',
+      'resource': 'media',
+      'book': 'media',
+      'article': 'media',
+      'concept': 'explanation',
+      'comparison': 'analogy',
+      'metaphor': 'analogy'
+    };
+    
+    const normalized = typeMap[type.toLowerCase()] || type;
+    
+    // Validate against allowed types
+    const allowedTypes = ['tool', 'media', 'explanation', 'analogy', 'model'];
+    return allowedTypes.includes(normalized) ? normalized as any : 'explanation';
   }
 
   static validate(response: any): boolean {
