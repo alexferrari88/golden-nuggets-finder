@@ -59,7 +59,7 @@ export class LangChainOpenAIProvider implements LLMProvider {
   constructor(config: { apiKey: string; modelName: string }) {
     this.model = new ChatOpenAI({ 
       apiKey: config.apiKey,
-      model: config.modelName || 'gpt-4o-mini'
+      model: config.modelName || 'gpt-4.1-mini'
     });
   }
   
@@ -154,7 +154,7 @@ class Feedback(BaseModel):
     
     # NEW: Track which model was used
     model_provider: str  # 'gemini', 'openai', 'anthropic', 'openrouter'
-    model_name: str      # 'gemini-2.5-flash', 'gpt-4o-mini', etc.
+    model_name: str      # 'gemini-2.5-flash', 'gpt-4.1-mini', etc.
 ```
 
 ### 2. Simple DSPy Multi-Model Support
@@ -168,9 +168,9 @@ class DSPyManager:
         # Simple model configs
         self.models = {
             'gemini': dspy.LM('gemini/gemini-2.5-flash'),
-            'openai': dspy.LM('openai/gpt-4o-mini'), 
-            'anthropic': dspy.LM('anthropic/claude-3-5-sonnet'),
-            'openrouter': dspy.LM('openai/gpt-4o-mini', api_base='https://openrouter.ai/api/v1')
+            'openai': dspy.LM('openai/gpt-4.1-mini'), 
+            'anthropic': dspy.LM('anthropic/claude-sonnet-4-20250514'),
+            'openrouter': dspy.LM('openai/gpt-4.1-mini', api_base='https://openrouter.ai/api/v1')
         }
     
     def optimize_for_provider(self, provider_id: str, feedback_data: list):
