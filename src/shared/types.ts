@@ -1,5 +1,8 @@
 import type { GoldenNuggetType } from "./schemas";
 
+// Export provider types for multi-LLM support
+export * from "./types/providers";
+
 export interface GoldenNugget {
 	type: GoldenNuggetType;
 	startContent: string;
