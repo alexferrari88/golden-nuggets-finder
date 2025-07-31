@@ -17,7 +17,7 @@ export class LangChainOpenRouterProvider implements LLMProvider {
   private model: ChatOpenAI;
 
   constructor(private config: ProviderConfig) {
-    this.modelName = config.modelName || 'anthropic/claude-3-5-sonnet';
+    this.modelName = config.modelName || "z-ai/glm-4.5-air:free";
     this.model = new ChatOpenAI({
       apiKey: config.apiKey,
       model: this.modelName,
