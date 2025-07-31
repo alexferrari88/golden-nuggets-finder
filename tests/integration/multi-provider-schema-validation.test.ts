@@ -14,10 +14,6 @@ global.Headers = Headers;
 global.Request = Request as any;
 global.Response = Response as any;
 
-// Polyfill for markResourceTiming to avoid undici warnings in test environment
-global.performance = global.performance || {};
-global.performance.markResourceTiming = global.performance.markResourceTiming || (() => {});
-
 console.log('Using undici fetch for real HTTP calls');
 
 // Schema validation for golden nuggets response

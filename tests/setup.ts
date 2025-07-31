@@ -134,6 +134,8 @@ const mockPerformance = {
 		totalJSHeapSize: 2 * 1024 * 1024,
 		jsHeapSizeLimit: 4 * 1024 * 1024,
 	},
+	// Mock markResourceTiming to prevent undici errors in integration tests
+	markResourceTiming: vi.fn(),
 };
 
 // Apply mocks to global objects
