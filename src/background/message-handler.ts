@@ -13,6 +13,7 @@ import { TypeFilterService } from "./type-filter-service";
 import { ProviderFactory } from "./services/provider-factory";
 import { ApiKeyStorage } from "../shared/storage/api-key-storage";
 import { ResponseNormalizer } from "./services/response-normalizer";
+import { ProviderSwitcher } from "./services/provider-switcher";
 import { type ProviderConfig, type ProviderId, type GoldenNuggetsResponse } from "../shared/types/providers";
 
 // Utility function to generate unique analysis IDs
@@ -206,11 +207,26 @@ export class MessageHandler {
 		}
 	}
 
-	// Helper to get the selected provider configuration from storage
+	// Helper to get the selected provider configuration from storage with fallback support
 	private static async getSelectedProvider(): Promise<ProviderConfig> {
 		// Get selected provider from storage
 		const result = await chrome.storage.local.get(['selectedProvider']);
-		const providerId = result.selectedProvider || 'gemini';
+		let providerId = result.selectedProvider || 'gemini';
+		
+		// Check if selected provider is configured
+		const isConfigured = await ProviderSwitcher.isProviderConfigured(providerId);
+		if (!isConfigured) {
+			console.warn(`Selected provider ${providerId} is not configured, trying fallback...`);
+			
+			// Try to switch to a fallback provider
+			const fallbackProviderId = await ProviderSwitcher.switchToFallbackProvider();
+			if (fallbackProviderId) {
+				providerId = fallbackProviderId;
+				console.log(`Switched to fallback provider: ${providerId}`);
+			} else {
+				throw new Error(`No configured providers available. Please configure an API key in the options page.`);
+			}
+		}
 		
 		// Get API key for provider
 		let apiKey: string;
@@ -339,6 +355,22 @@ export class MessageHandler {
 
 				case MESSAGE_TYPES.GET_CURRENT_OPTIMIZED_PROMPT:
 					await this.handleGetCurrentOptimizedPrompt(sendResponse);
+					break;
+
+				case MESSAGE_TYPES.SWITCH_PROVIDER:
+					await this.handleSwitchProvider(request, sendResponse);
+					break;
+
+				case MESSAGE_TYPES.GET_AVAILABLE_PROVIDERS:
+					await this.handleGetAvailableProviders(sendResponse);
+					break;
+
+				case MESSAGE_TYPES.GET_CURRENT_PROVIDER:
+					await this.handleGetCurrentProvider(sendResponse);
+					break;
+
+				case MESSAGE_TYPES.VALIDATE_PROVIDER:
+					await this.handleValidateProvider(request, sendResponse);
 					break;
 
 				default:
@@ -1184,6 +1216,113 @@ export class MessageHandler {
 			throw error;
 		} finally {
 			clearTimeout(timeoutId);
+		}
+	}
+
+	// Provider Management Handlers
+
+	private async handleSwitchProvider(
+		request: any,
+		sendResponse: (response: any) => void,
+	): Promise<void> {
+		try {
+			const providerId: ProviderId = request.providerId;
+			
+			if (!providerId) {
+				sendResponse({ success: false, error: "Provider ID is required" });
+				return;
+			}
+			
+			const success = await ProviderSwitcher.switchProvider(providerId);
+			
+			if (success) {
+				sendResponse({ 
+					success: true, 
+					message: `Successfully switched to ${providerId}`,
+					providerId 
+				});
+			} else {
+				sendResponse({ 
+					success: false, 
+					error: `Failed to switch to ${providerId}. Check API key configuration.` 
+				});
+			}
+		} catch (error) {
+			console.error("Failed to switch provider:", error);
+			sendResponse({ success: false, error: (error as Error).message });
+		}
+	}
+
+	private async handleGetAvailableProviders(
+		sendResponse: (response: any) => void,
+	): Promise<void> {
+		try {
+			const availableProviders = await ProviderSwitcher.getAvailableProviders();
+			sendResponse({ success: true, data: availableProviders });
+		} catch (error) {
+			console.error("Failed to get available providers:", error);
+			sendResponse({ success: false, error: (error as Error).message });
+		}
+	}
+
+	private async handleGetCurrentProvider(
+		sendResponse: (response: any) => void,
+	): Promise<void> {
+		try {
+			const currentProvider = await ProviderSwitcher.getCurrentProvider();
+			sendResponse({ success: true, data: currentProvider });
+		} catch (error) {
+			console.error("Failed to get current provider:", error);
+			sendResponse({ success: false, error: (error as Error).message });
+		}
+	}
+
+	private async handleValidateProvider(
+		request: any,
+		sendResponse: (response: any) => void,
+	): Promise<void> {
+		try {
+			const providerId: ProviderId = request.providerId;
+			const apiKey: string = request.apiKey;
+			
+			if (!providerId) {
+				sendResponse({ success: false, error: "Provider ID is required" });
+				return;
+			}
+			
+			if (!apiKey) {
+				sendResponse({ success: false, error: "API key is required" });
+				return;
+			}
+			
+			// Create provider configuration
+			const config: ProviderConfig = {
+				providerId,
+				apiKey,
+				modelName: ProviderFactory.getDefaultModel(providerId)
+			};
+			
+			// Create provider instance and validate
+			const provider = await ProviderFactory.createProvider(config);
+			const isValid = await provider.validateApiKey();
+			
+			sendResponse({ 
+				success: true, 
+				data: { 
+					isValid, 
+					providerId, 
+					modelName: config.modelName 
+				} 
+			});
+		} catch (error) {
+			console.error("Failed to validate provider:", error);
+			sendResponse({ 
+				success: true, 
+				data: { 
+					isValid: false, 
+					error: (error as Error).message 
+				} 
+			});
 		}
 	}
 }
