@@ -5,6 +5,18 @@ import { MessageHandler } from "./message-handler";
 // Mock dependencies
 vi.mock("./gemini-client");
 vi.mock("../shared/storage");
+vi.mock("./services/provider-factory");
+vi.mock("../shared/storage/api-key-storage");
+vi.mock("./services/provider-switcher");
+vi.mock("./services/error-handler");
+vi.mock("./services/response-normalizer");
+
+// Import mocked modules for setup
+import { ProviderFactory } from "./services/provider-factory";
+import { ProviderSwitcher } from "./services/provider-switcher";
+import { ErrorHandler } from "./services/error-handler";
+import { ResponseNormalizer } from "./services/response-normalizer";
+import { ApiKeyStorage } from "../shared/storage/api-key-storage";
 
 // Mock Chrome APIs
 global.chrome = {
@@ -14,7 +26,16 @@ global.chrome = {
 	tabs: {
 		sendMessage: vi.fn().mockResolvedValue({}),
 	},
+	storage: {
+		local: {
+			get: vi.fn().mockResolvedValue({}),
+			set: vi.fn().mockResolvedValue({}),
+		},
+	},
 } as Partial<typeof chrome>;
+
+// Mock global fetch
+global.fetch = vi.fn();
 
 describe("MessageHandler", () => {
 	let messageHandler: MessageHandler;
@@ -29,6 +50,53 @@ describe("MessageHandler", () => {
 		};
 		mockSendResponse = vi.fn();
 		messageHandler = new MessageHandler(mockGeminiClient);
+		
+		// Mock fetch to reject (simulating no optimized prompt available)
+		(global.fetch as any).mockRejectedValue(new Error("No optimized prompt available"));
+		
+		// Mock Chrome storage for provider selection
+		(global.chrome.storage.local.get as any).mockImplementation((keys) => {
+			if (Array.isArray(keys) && keys.includes('selectedProvider')) {
+				return Promise.resolve({ selectedProvider: 'gemini' });
+			}
+			if (Array.isArray(keys) && keys.includes('geminiApiKey')) {
+				return Promise.resolve({ geminiApiKey: 'test-api-key' });
+			}
+			if (typeof keys === 'string' && keys === 'selectedProvider') {
+				return Promise.resolve({ selectedProvider: 'gemini' });
+			}
+			if (typeof keys === 'string' && keys === 'geminiApiKey') {
+				return Promise.resolve({ geminiApiKey: 'test-api-key' });
+			}
+			return Promise.resolve({});
+		});
+		
+		// Mock provider system
+		(ProviderSwitcher.isProviderConfigured as any).mockResolvedValue(true);
+		(ProviderFactory.getDefaultModel as any).mockReturnValue('gemini-2.5-flash');
+		
+		// Mock provider instance
+		const mockProvider = {
+			extractGoldenNuggets: vi.fn().mockResolvedValue({ golden_nuggets: [] }),
+			validateApiKey: vi.fn().mockResolvedValue(true),
+		};
+		(ProviderFactory.createProvider as any).mockResolvedValue(mockProvider);
+		
+		// Mock response normalizer
+		(ResponseNormalizer.normalize as any).mockImplementation((response) => response);
+		
+		// Mock error handler
+		(ErrorHandler.resetRetryCount as any).mockImplementation(() => {});
+		
+		// Clear all mocks
+		vi.clearAllMocks();
+		
+		// Ensure mocks are reset but keep the implementation
+		(global.fetch as any).mockRejectedValue(new Error("No optimized prompt available"));
+		(ProviderSwitcher.isProviderConfigured as any).mockResolvedValue(true);
+		(ProviderFactory.getDefaultModel as any).mockReturnValue('gemini-2.5-flash');
+		(ProviderFactory.createProvider as any).mockResolvedValue(mockProvider);
+		(ResponseNormalizer.normalize as any).mockImplementation((response) => response);
 	});
 
 	describe("Source placeholder replacement", () => {
@@ -65,14 +133,11 @@ describe("MessageHandler", () => {
 				}
 			}
 
-			expect(mockGeminiClient.analyzeContent).toHaveBeenCalledWith(
+			// Verify that the provider system was called correctly
+			const mockProvider = await (ProviderFactory.createProvider as any).mock.results[0].value;
+			expect(mockProvider.extractGoldenNuggets).toHaveBeenCalledWith(
 				"Test content",
-				"Analyze this HackerNews thread for insights.",
-				expect.objectContaining({
-					analysisId: expect.any(String),
-					source: "context-menu",
-					onProgress: expect.any(Function),
-				}),
+				"Analyze this HackerNews thread for insights."
 			);
 		});
 
@@ -90,14 +155,11 @@ describe("MessageHandler", () => {
 				mockSendResponse,
 			);
 
-			expect(mockGeminiClient.analyzeContent).toHaveBeenCalledWith(
+			// Verify that the provider system was called correctly
+			const mockProvider = await (ProviderFactory.createProvider as any).mock.results[0].value;
+			expect(mockProvider.extractGoldenNuggets).toHaveBeenCalledWith(
 				"Test content",
-				"Analyze this Reddit thread for insights.",
-				expect.objectContaining({
-					analysisId: expect.any(String),
-					source: "context-menu",
-					onProgress: expect.any(Function),
-				}),
+				"Analyze this Reddit thread for insights."
 			);
 		});
 
@@ -115,14 +177,11 @@ describe("MessageHandler", () => {
 				mockSendResponse,
 			);
 
-			expect(mockGeminiClient.analyzeContent).toHaveBeenCalledWith(
+			// Verify that the provider system was called correctly
+			const mockProvider = await (ProviderFactory.createProvider as any).mock.results[0].value;
+			expect(mockProvider.extractGoldenNuggets).toHaveBeenCalledWith(
 				"Test content",
-				"Analyze this Twitter thread for insights.",
-				expect.objectContaining({
-					analysisId: expect.any(String),
-					source: "context-menu",
-					onProgress: expect.any(Function),
-				}),
+				"Analyze this Twitter thread for insights."
 			);
 		});
 
@@ -140,14 +199,11 @@ describe("MessageHandler", () => {
 				mockSendResponse,
 			);
 
-			expect(mockGeminiClient.analyzeContent).toHaveBeenCalledWith(
+			// Verify that the provider system was called correctly
+			const mockProvider = await (ProviderFactory.createProvider as any).mock.results[0].value;
+			expect(mockProvider.extractGoldenNuggets).toHaveBeenCalledWith(
 				"Test content",
-				"Analyze this Twitter thread for insights.",
-				expect.objectContaining({
-					analysisId: expect.any(String),
-					source: "context-menu",
-					onProgress: expect.any(Function),
-				}),
+				"Analyze this Twitter thread for insights."
 			);
 		});
 
@@ -165,14 +221,11 @@ describe("MessageHandler", () => {
 				mockSendResponse,
 			);
 
-			expect(mockGeminiClient.analyzeContent).toHaveBeenCalledWith(
+			// Verify that the provider system was called correctly
+			const mockProvider = await (ProviderFactory.createProvider as any).mock.results[0].value;
+			expect(mockProvider.extractGoldenNuggets).toHaveBeenCalledWith(
 				"Test content",
-				"Analyze this text for insights.",
-				expect.objectContaining({
-					analysisId: expect.any(String),
-					source: "context-menu",
-					onProgress: expect.any(Function),
-				}),
+				"Analyze this text for insights."
 			);
 		});
 
@@ -200,14 +253,11 @@ describe("MessageHandler", () => {
 				mockSendResponse,
 			);
 
-			expect(mockGeminiClient.analyzeContent).toHaveBeenCalledWith(
+			// Verify that the provider system was called correctly
+			const mockProvider = await (ProviderFactory.createProvider as any).mock.results[0].value;
+			expect(mockProvider.extractGoldenNuggets).toHaveBeenCalledWith(
 				"Test content",
-				"First analyze this HackerNews thread and then review the HackerNews thread again.",
-				expect.objectContaining({
-					analysisId: expect.any(String),
-					source: "context-menu",
-					onProgress: expect.any(Function),
-				}),
+				"First analyze this HackerNews thread and then review the HackerNews thread again."
 			);
 		});
 
@@ -234,14 +284,11 @@ describe("MessageHandler", () => {
 				mockSendResponse,
 			);
 
-			expect(mockGeminiClient.analyzeContent).toHaveBeenCalledWith(
+			// Verify that the provider system was called correctly
+			const mockProvider = await (ProviderFactory.createProvider as any).mock.results[0].value;
+			expect(mockProvider.extractGoldenNuggets).toHaveBeenCalledWith(
 				"Test content",
-				"Analyze this content for insights.",
-				expect.objectContaining({
-					analysisId: expect.any(String),
-					source: "context-menu",
-					onProgress: expect.any(Function),
-				}),
+				"Analyze this content for insights."
 			);
 		});
 
@@ -269,14 +316,11 @@ describe("MessageHandler", () => {
 				mockSendResponse,
 			);
 
-			expect(mockGeminiClient.analyzeContent).toHaveBeenCalledWith(
+			// Verify that the provider system was called correctly
+			const mockProvider = await (ProviderFactory.createProvider as any).mock.results[0].value;
+			expect(mockProvider.extractGoldenNuggets).toHaveBeenCalledWith(
 				"Test content",
-				"Analyze this Reddit thread and this Reddit thread for insights.",
-				expect.objectContaining({
-					analysisId: expect.any(String),
-					source: "context-menu",
-					onProgress: expect.any(Function),
-				}),
+				"Analyze this Reddit thread and this Reddit thread for insights."
 			);
 		});
 	});
