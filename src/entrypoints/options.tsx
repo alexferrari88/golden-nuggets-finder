@@ -360,8 +360,8 @@ function OptionsPage() {
 				message: "Checking your API key with Google Gemini",
 			});
 
-			const client = new GeminiClient(apiKey);
-			await client.validateApiKey();
+			const client = new GeminiClient();
+			await client.validateApiKey(apiKey);
 
 			await storage.saveApiKey(apiKey, {
 				source: "options",
@@ -481,6 +481,99 @@ function OptionsPage() {
 				type: "error",
 				title: "Failed to Set Default",
 				message: "Failed to set the default prompt. Please try again.",
+			});
+		}
+	};
+
+	// Provider helper functions
+	const getCostEstimate = (providerId: ProviderId) => {
+		const costInfo = {
+			'gemini': { perRequest: 0.001, description: 'Cheapest option' },
+			'openai': { perRequest: 0.01, description: 'Higher quality' },
+			'anthropic': { perRequest: 0.008, description: 'Good balance' },
+			'openrouter': { perRequest: 0.005, description: 'Varies by model' }
+		};
+		return costInfo[providerId];
+	};
+
+	const getProviderDisplayName = (providerId: ProviderId) => {
+		const names = {
+			'gemini': 'Google Gemini',
+			'openai': 'OpenAI GPT',
+			'anthropic': 'Anthropic Claude',
+			'openrouter': 'OpenRouter'
+		};
+		return names[providerId];
+	};
+
+	const getProviderDescription = (providerId: ProviderId) => {
+		const descriptions = {
+			'gemini': 'Fast, reliable, low cost',
+			'openai': 'High quality, industry standard',
+			'anthropic': 'Safe, helpful responses',
+			'openrouter': 'Access to many models'
+		};
+		return descriptions[providerId];
+	};
+
+	const handleProviderChange = async (providerId: ProviderId) => {
+		setSelectedProvider(providerId);
+		await chrome.storage.local.set({ selectedProvider: providerId });
+	};
+
+	const handleApiKeyUpdate = async (providerId: ProviderId, apiKey: string) => {
+		setApiKeys(prev => ({ ...prev, [providerId]: apiKey }));
+		
+		// Clear validation status when key changes
+		setValidationStatus(prev => ({ ...prev, [providerId]: null }));
+		
+		if (apiKey) {
+			await ApiKeyStorage.store(providerId, apiKey);
+		}
+	};
+
+	const testApiKey = async (providerId: ProviderId) => {
+		const apiKey = apiKeys[providerId];
+		if (!apiKey) return;
+
+		try {
+			// Set validating state
+			setApiKeyStatus({
+				type: "info",
+				title: "Validating...",
+				message: `Testing your ${getProviderDisplayName(providerId)} API key`,
+			});
+
+			const provider = await ProviderFactory.createProvider({
+				providerId,
+				apiKey,
+				modelName: ProviderFactory.getDefaultModel(providerId)
+			});
+			
+			const isValid = await provider.validateApiKey();
+			setValidationStatus(prev => ({ ...prev, [providerId]: isValid }));
+
+			if (isValid) {
+				setApiKeyStatus({
+					type: "success",
+					title: "API Key Valid",
+					message: `Your ${getProviderDisplayName(providerId)} API key has been validated successfully`,
+				});
+			} else {
+				setApiKeyStatus({
+					type: "error",
+					title: "Invalid API Key",
+					message: `The ${getProviderDisplayName(providerId)} API key is invalid or doesn't have the required permissions. Please check your key and try again.`,
+				});
+			}
+
+			setTimeout(() => setApiKeyStatus(null), 5000);
+		} catch (error) {
+			setValidationStatus(prev => ({ ...prev, [providerId]: false }));
+			setApiKeyStatus({
+				type: "error",
+				title: "Validation Failed",
+				message: `Failed to validate ${getProviderDisplayName(providerId)} API key: ${error.message}`,
 			});
 		}
 	};

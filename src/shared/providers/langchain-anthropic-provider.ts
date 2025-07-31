@@ -46,11 +46,13 @@ export class LangChainAnthropicProvider implements LLMProvider {
 
   async validateApiKey(): Promise<boolean> {
     try {
-      const testResult = await this.extractGoldenNuggets(
-        'Test content for API validation',
-        'Extract one simple insight from this text.'
-      );
-      return !!(testResult && testResult.golden_nuggets && Array.isArray(testResult.golden_nuggets));
+      const response = await fetch('https://api.anthropic.com/v1/models', {
+        headers: {
+          'x-api-key': this.config.apiKey,
+          'anthropic-version': '2023-06-01'
+        }
+      });
+      return response.ok; // 200 = valid, 401 = invalid key
     } catch (error) {
       console.warn(`Anthropic API key validation failed:`, error.message);
       return false;

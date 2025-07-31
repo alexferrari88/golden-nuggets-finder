@@ -47,11 +47,12 @@ export class LangChainOpenAIProvider implements LLMProvider {
 
   async validateApiKey(): Promise<boolean> {
     try {
-      const testResult = await this.extractGoldenNuggets(
-        'Test content for API validation',
-        'Extract one simple insight from this text.'
-      );
-      return testResult && testResult.golden_nuggets && Array.isArray(testResult.golden_nuggets);
+      const response = await fetch('https://api.openai.com/v1/models', {
+        headers: {
+          'Authorization': `Bearer ${this.config.apiKey}`
+        }
+      });
+      return response.ok; // 200 = valid, 401 = invalid key
     } catch (error) {
       console.warn(`OpenAI API key validation failed:`, error.message);
       return false;

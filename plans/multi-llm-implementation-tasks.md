@@ -1562,16 +1562,86 @@ Robust error handling is critical for good user experience. The system should gr
 
 ### T19: Add API Key Validation
 **Status**: TODO  
-**Estimated Time**: 3 hours  
+**Estimated Time**: 2 hours  
 **Dependencies**: T18  
 
-**Description**: Implement thorough API key validation for all providers with user feedback.
+**Description**: Implement efficient API key validation using models list endpoints for all providers.
 
 **Files to Update**:
 - `/home/alex/src/golden-nuggets-finder/src/entrypoints/options.tsx`
 - `/home/alex/src/golden-nuggets-finder/src/shared/providers/` (all provider files)
 
 **Implementation Details**:
+
+**Provider-Specific Validation Endpoints**:
+Each provider implements validateApiKey() using their models list endpoint:
+
+```typescript
+// OpenAI Provider
+async validateApiKey(): Promise<boolean> {
+  try {
+    const response = await fetch('https://api.openai.com/v1/models', {
+      headers: {
+        'Authorization': `Bearer ${this.config.apiKey}`
+      }
+    });
+    return response.ok; // 200 = valid, 401 = invalid key
+  } catch (error) {
+    console.warn(`OpenAI API key validation failed:`, error.message);
+    return false;
+  }
+}
+
+// Gemini Provider  
+async validateApiKey(): Promise<boolean> {
+  try {
+    const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models', {
+      headers: {
+        'x-goog-api-key': this.config.apiKey
+      }
+    });
+    return response.ok; // 200 = valid, 400 = invalid key
+  } catch (error) {
+    console.warn(`Gemini API key validation failed:`, error.message);
+    return false;
+  }
+}
+
+// Anthropic Provider
+async validateApiKey(): Promise<boolean> {
+  try {
+    const response = await fetch('https://api.anthropic.com/v1/models', {
+      headers: {
+        'x-api-key': this.config.apiKey,
+        'anthropic-version': '2023-06-01'
+      }
+    });
+    return response.ok; // 200 = valid, 401 = invalid key
+  } catch (error) {
+    console.warn(`Anthropic API key validation failed:`, error.message);
+    return false;
+  }
+}
+
+// OpenRouter Provider
+async validateApiKey(): Promise<boolean> {
+  try {
+    const response = await fetch('https://openrouter.ai/api/v1/models', {
+      headers: {
+        'Authorization': `Bearer ${this.config.apiKey}`,
+        'HTTP-Referer': 'https://golden-nuggets-finder.com',
+        'X-Title': 'Golden Nuggets Finder'
+      }
+    });
+    return response.ok; // 200 = valid, 401 = invalid key  
+  } catch (error) {
+    console.warn(`OpenRouter API key validation failed:`, error.message);
+    return false;
+  }
+}
+```
+
+**UI Validation Component**:
 ```typescript
 // Enhanced API key validation in options.tsx
 const ApiKeyValidator = ({ providerId, apiKey, onValidation }) => {
@@ -1599,7 +1669,7 @@ const ApiKeyValidator = ({ providerId, apiKey, onValidation }) => {
         onValidation(true);
       } else {
         setValidationState('invalid');
-        setErrorMessage('API key validation failed');
+        setErrorMessage('Invalid API key - please check your key and try again');
         onValidation(false);
       }
     } catch (error) {
@@ -1641,43 +1711,29 @@ const ApiKeyValidator = ({ providerId, apiKey, onValidation }) => {
 };
 ```
 
-**Enhanced Provider Validation**:
-Update each provider's validateApiKey method with more thorough testing:
-
-```typescript
-// Example for OpenAI provider
-async validateApiKey(): Promise<boolean> {
-  try {
-    // Test with minimal, safe content
-    const testResponse = await this.extractGoldenNuggets(
-      'This is a test message for API validation.',
-      'Extract one simple insight from this test content.'
-    );
-    
-    // Validate response structure
-    return (
-      testResponse &&
-      testResponse.golden_nuggets &&
-      Array.isArray(testResponse.golden_nuggets) &&
-      testResponse.golden_nuggets.length >= 0
-    );
-  } catch (error) {
-    console.warn(`${this.providerId} API key validation failed:`, error.message);
-    return false;
-  }
-}
-```
+**Error Code Reference**:
+- **OpenAI**: 401 with `"invalid_api_key"` error code
+- **Gemini**: 400 with "API key not valid" message  
+- **Anthropic**: 401 with `"authentication_error"` type
+- **OpenRouter**: 401 with "Invalid credentials" message
 
 **Acceptance Criteria**:
-- [ ] API key validation works for all providers
-- [ ] Clear feedback on validation status
-- [ ] Helpful error messages for common issues
-- [ ] Validation doesn't interfere with normal operation
+- [ ] API key validation works for all providers using models endpoints
+- [ ] Fast validation (under 2 seconds for each provider)
+- [ ] No token consumption or API costs for validation
+- [ ] Clear feedback on validation status with provider-specific error messages
 - [ ] Loading states during validation
 - [ ] Validation results persist until key changes
+- [ ] Handles network errors gracefully
 
 **Context for Future Sessions**:
-Good API key validation prevents user frustration when keys are incorrect or expired. The validation should be thorough but not expensive.
+This approach is significantly more efficient than the previous golden nuggets extraction method:
+- **Speed**: Simple GET request vs full LLM inference
+- **Cost**: No token consumption vs paid extraction  
+- **Reliability**: Standard auth endpoints vs complex processing
+- **Accuracy**: Clear auth success/failure vs inference validation
+
+The models list endpoints are designed specifically for authentication testing and provide immediate, reliable feedback about API key validity.
 
 ---
 

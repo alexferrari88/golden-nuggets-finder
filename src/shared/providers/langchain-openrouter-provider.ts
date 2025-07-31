@@ -85,11 +85,14 @@ export class LangChainOpenRouterProvider implements LLMProvider {
 
   async validateApiKey(): Promise<boolean> {
     try {
-      const testResult = await this.extractGoldenNuggets(
-        'Test content for API validation',
-        'Extract one simple insight from this text.'
-      );
-      return testResult && testResult.golden_nuggets && Array.isArray(testResult.golden_nuggets);
+      const response = await fetch('https://openrouter.ai/api/v1/models', {
+        headers: {
+          'Authorization': `Bearer ${this.config.apiKey}`,
+          'HTTP-Referer': 'https://golden-nuggets-finder.com',
+          'X-Title': 'Golden Nuggets Finder'
+        }
+      });
+      return response.ok; // 200 = valid, 401 = invalid key  
     } catch (error) {
       console.warn(`OpenRouter API key validation failed:`, error.message);
       return false;
