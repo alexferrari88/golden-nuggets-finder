@@ -14,6 +14,7 @@ import {
 	Trash,
 	X,
 } from "lucide-react";
+import React from "react";
 import { useEffect, useState } from "react";
 import ReactDOM from "react-dom/client";
 import { GeminiClient } from "../background/gemini-client";
@@ -27,6 +28,9 @@ import {
 } from "../shared/design-system";
 import { storage } from "../shared/storage";
 import type { SavedPrompt } from "../shared/types";
+import { ApiKeyStorage } from "../shared/storage/api-key-storage";
+import { ProviderFactory } from "../background/services/provider-factory";
+import type { ProviderId } from "../shared/types/providers";
 
 type AlertType = "success" | "error" | "warning" | "info";
 
@@ -289,23 +293,48 @@ function OptionsPage() {
 		onConfirm: () => void;
 	}>({ isOpen: false, title: "", message: "", onConfirm: () => {} });
 
+	// Provider configuration state
+	const [selectedProvider, setSelectedProvider] = useState<ProviderId>('gemini');
+	const [apiKeys, setApiKeys] = useState<Record<ProviderId, string>>({});
+	const [validationStatus, setValidationStatus] = useState<Record<ProviderId, boolean | null>>({});
+
 	useEffect(() => {
 		loadData();
-	}, [loadData]);
+	}, []);
 
 	const loadData = async () => {
 		try {
 			setLoading(true);
-			const [savedApiKey, savedPrompts] = await Promise.all([
+			const [savedApiKey, savedPrompts, storageData] = await Promise.all([
 				storage.getApiKey({
 					source: "options",
 					action: "read",
 					timestamp: Date.now(),
 				}),
 				storage.getPrompts(),
+				chrome.storage.local.get(['selectedProvider'])
 			]);
 			setApiKey(savedApiKey);
 			setPrompts(savedPrompts);
+			setSelectedProvider(storageData.selectedProvider || 'gemini');
+			
+			// Load API keys for all providers
+			const providers: ProviderId[] = ['gemini', 'openai', 'anthropic', 'openrouter'];
+			const keyPromises = providers.map(async (providerId) => {
+				if (providerId === 'gemini') {
+					return { providerId, key: savedApiKey };
+				} else {
+					const key = await ApiKeyStorage.get(providerId);
+					return { providerId, key: key || '' };
+				}
+			});
+			
+			const keyResults = await Promise.all(keyPromises);
+			const keyMap: Record<ProviderId, string> = {};
+			keyResults.forEach(({ providerId, key }) => {
+				keyMap[providerId] = key;
+			});
+			setApiKeys(keyMap);
 		} catch (_err) {
 			setError("Failed to load data");
 		} finally {
@@ -652,7 +681,266 @@ function OptionsPage() {
 					/>
 				)}
 
-				{/* API Key Section */}
+				{/* Provider Selection Section */}
+				<div
+					style={{
+						marginBottom: spacing["3xl"],
+						backgroundColor: colors.background.primary,
+						padding: spacing["3xl"],
+						borderRadius: borderRadius.xl,
+						boxShadow: shadows.md,
+						border: `1px solid ${colors.border.light}`,
+					}}
+				>
+					<div
+						style={{
+							display: "flex",
+							alignItems: "center",
+							gap: spacing.md,
+							marginBottom: spacing["2xl"],
+						}}
+					>
+						<div style={{ color: colors.text.accent }}>
+							<Sparkles size={20} />
+						</div>
+						<h2
+							style={{
+								margin: 0,
+								fontSize: typography.fontSize.xl,
+								fontWeight: typography.fontWeight.semibold,
+								color: colors.text.primary,
+							}}
+						>
+							LLM Provider Selection
+						</h2>
+					</div>
+
+					<div
+						style={{
+							marginBottom: spacing["2xl"],
+							padding: spacing.lg,
+							backgroundColor: colors.background.secondary,
+							borderRadius: borderRadius.lg,
+							border: `1px solid ${colors.border.light}`,
+						}}
+					>
+						<p
+							style={{
+								margin: 0,
+								fontSize: typography.fontSize.sm,
+								color: colors.text.secondary,
+								lineHeight: typography.lineHeight.normal,
+							}}
+						>
+							Choose your preferred AI provider for golden nugget extraction. Each provider offers different strengths in terms of quality, cost, and model variety.
+						</p>
+					</div>
+
+					<div
+						style={{
+							display: "grid",
+							gap: spacing.lg,
+							marginBottom: spacing["2xl"],
+						}}
+					>
+						{(['gemini', 'openai', 'anthropic', 'openrouter'] as ProviderId[]).map((providerId) => {
+							const isSelected = selectedProvider === providerId;
+							const cost = getCostEstimate(providerId);
+							const monthlyEstimate = cost.perRequest * 100; // Assume 100 requests/month
+							const hasApiKey = Boolean(apiKeys[providerId]);
+							const validationResult = validationStatus[providerId];
+
+							return (
+								<div
+									key={providerId}
+									style={{
+										padding: spacing.lg,
+										backgroundColor: isSelected
+											? colors.background.secondary
+											: colors.background.primary,
+										borderRadius: borderRadius.lg,
+										border: `2px solid ${
+											isSelected ? colors.text.accent : colors.border.light
+										}`,
+										transition: "all 0.2s",
+										cursor: "pointer",
+									}}
+									onClick={() => handleProviderChange(providerId)}
+								>
+									<div
+										style={{
+											display: "flex",
+											alignItems: "flex-start",
+											gap: spacing.md,
+										}}
+									>
+										<input
+											type="radio"
+											name="provider"
+											value={providerId}
+											checked={isSelected}
+											readOnly
+											style={{
+												marginTop: "2px",
+												cursor: "pointer",
+											}}
+										/>
+										<div style={{ flex: 1 }}>
+											<div
+												style={{
+													display: "flex",
+													alignItems: "center",
+													gap: spacing.sm,
+													marginBottom: spacing.sm,
+												}}
+											>
+												<h3
+													style={{
+														margin: 0,
+														fontSize: typography.fontSize.lg,
+														fontWeight: typography.fontWeight.semibold,
+														color: colors.text.primary,
+													}}
+												>
+													{getProviderDisplayName(providerId)}
+												</h3>
+												{hasApiKey && validationResult === true && (
+													<div style={{ color: colors.success }}>
+														<CircleCheck size={16} />
+													</div>
+												)}
+												{hasApiKey && validationResult === false && (
+													<div style={{ color: colors.error }}>
+														<CircleAlert size={16} />
+													</div>
+												)}
+											</div>
+
+											<p
+												style={{
+													margin: `0 0 ${spacing.sm} 0`,
+													color: colors.text.secondary,
+													fontSize: typography.fontSize.sm,
+												}}
+											>
+												{getProviderDescription(providerId)}
+											</p>
+
+											<div
+												style={{
+													padding: spacing.sm,
+													backgroundColor: colors.background.secondary,
+													borderRadius: borderRadius.md,
+													fontSize: typography.fontSize.xs,
+													color: colors.text.tertiary,
+												}}
+											>
+												<div>~${cost.perRequest.toFixed(3)} per request</div>
+												<div>
+													~${monthlyEstimate.toFixed(2)}/month for 100 requests
+												</div>
+												<div style={{ marginTop: "4px", fontStyle: "italic" }}>
+													{cost.description}
+												</div>
+											</div>
+										</div>
+									</div>
+								</div>
+							);
+						})}
+					</div>
+
+					{/* API Key Configuration for selected provider */}
+					{selectedProvider !== 'gemini' && (
+						<div
+							style={{
+								padding: spacing.lg,
+								backgroundColor: colors.background.secondary,
+								borderRadius: borderRadius.lg,
+								border: `1px solid ${colors.border.light}`,
+							}}
+						>
+							<label
+								style={{
+									display: "block",
+									marginBottom: spacing.sm,
+									color: colors.text.primary,
+									fontSize: typography.fontSize.sm,
+									fontWeight: typography.fontWeight.medium,
+								}}
+							>
+								API Key for {getProviderDisplayName(selectedProvider)}:
+							</label>
+							<div
+								style={{
+									display: "flex",
+									gap: spacing.md,
+									alignItems: "stretch",
+								}}
+							>
+								<input
+									type="password"
+									value={apiKeys[selectedProvider] || ''}
+									onChange={(e) => handleApiKeyUpdate(selectedProvider, e.target.value)}
+									placeholder="Enter your API key"
+									style={{
+										...components.input.default,
+										flex: 1,
+										fontSize: typography.fontSize.base,
+										color: colors.text.primary,
+										fontFamily: typography.fontFamily.sans,
+									}}
+								/>
+								<button
+									onClick={() => testApiKey(selectedProvider)}
+									disabled={!apiKeys[selectedProvider]}
+									style={{
+										...components.button.primary,
+										backgroundColor: !apiKeys[selectedProvider]
+											? colors.text.secondary
+											: colors.text.accent,
+										cursor: !apiKeys[selectedProvider] ? "not-allowed" : "pointer",
+										fontSize: typography.fontSize.sm,
+										fontWeight: typography.fontWeight.medium,
+										minWidth: "120px",
+									}}
+								>
+									Test Connection
+								</button>
+							</div>
+							{validationStatus[selectedProvider] !== undefined && (
+								<div
+									style={{
+										marginTop: spacing.sm,
+										display: "flex",
+										alignItems: "center",
+										gap: spacing.sm,
+										fontSize: typography.fontSize.sm,
+										fontWeight: typography.fontWeight.medium,
+										color: validationStatus[selectedProvider]
+											? colors.success
+											: colors.error,
+									}}
+								>
+									{validationStatus[selectedProvider] ? (
+										<>
+											<CircleCheck size={16} />
+											✓ Valid
+										</>
+									) : (
+										<>
+											<CircleAlert size={16} />
+											✗ Invalid
+										</>
+									)}
+								</div>
+							)}
+						</div>
+					)}
+				</div>
+
+				{/* API Key Section (Gemini only when selected) */}
+				{selectedProvider === 'gemini' && (
 				<div
 					style={{
 						marginBottom: spacing["3xl"],
@@ -817,6 +1105,7 @@ function OptionsPage() {
 						</button>
 					</div>
 				</div>
+				)}
 
 				{/* Prompts Section */}
 				<div
