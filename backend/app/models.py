@@ -24,6 +24,9 @@ class NuggetFeedback(BaseModel):
     timestamp: int
     url: str
     context: str = Field(..., description="Full surrounding context from page")
+    # NEW: Model tracking fields for multi-provider support
+    modelProvider: str = Field(..., description="LLM provider used (gemini, openai, anthropic, openrouter)")
+    modelName: str = Field(..., description="Specific model used (e.g., gemini-2.5-flash, gpt-4o-mini)")
 
 
 class MissingContentFeedback(BaseModel):
@@ -33,6 +36,9 @@ class MissingContentFeedback(BaseModel):
     timestamp: int
     url: str
     context: str = Field(..., description="Page context")
+    # NEW: Model tracking fields for multi-provider support
+    modelProvider: str = Field(..., description="LLM provider used (gemini, openai, anthropic, openrouter)")
+    modelName: str = Field(..., description="Specific model used (e.g., gemini-2.5-flash, gpt-4o-mini)")
 
 
 class FeedbackSubmissionRequest(BaseModel):
@@ -119,6 +125,9 @@ class FeedbackWithStatus(BaseModel):
     usage_count: int = 0
     created_at: str
     client_timestamp: int
+    # NEW: Model tracking fields for multi-provider support  
+    model_provider: Optional[str] = None
+    model_name: Optional[str] = None
 
 
 class EnhancedFeedbackResponse(BaseModel):
@@ -149,6 +158,9 @@ class StoredNuggetFeedback(BaseModel):
     report_count: int = 1
     first_reported_at: datetime
     last_reported_at: datetime
+    # NEW: Model tracking fields for multi-provider support
+    model_provider: str
+    model_name: str
 
 
 class StoredMissingContentFeedback(BaseModel):
@@ -164,6 +176,9 @@ class StoredMissingContentFeedback(BaseModel):
     report_count: int = 1
     first_reported_at: datetime
     last_reported_at: datetime
+    # NEW: Model tracking fields for multi-provider support
+    model_provider: str
+    model_name: str
 
 
 class OptimizationRun(BaseModel):

@@ -123,7 +123,9 @@ class FeedbackService:
                             last_reported_at = ?,
                             context = ?,
                             corrected_type = ?,
-                            rating = ?
+                            rating = ?,
+                            model_provider = ?,
+                            model_name = ?
                         WHERE id = ?
                         """,
                         (
@@ -132,6 +134,8 @@ class FeedbackService:
                             feedback.context,
                             feedback.correctedType,
                             feedback.rating,
+                            feedback.modelProvider,  # NEW
+                            feedback.modelName,      # NEW
                             existing_id,
                         ),
                     )
@@ -147,7 +151,9 @@ class FeedbackService:
                         last_reported_at = ?,
                         context = ?,
                         corrected_type = ?,
-                        rating = ?
+                        rating = ?,
+                        model_provider = ?,
+                        model_name = ?
                     WHERE id = ?
                     """,
                     (
@@ -156,6 +162,8 @@ class FeedbackService:
                         feedback.context,
                         feedback.correctedType,
                         feedback.rating,
+                        feedback.modelProvider,  # NEW
+                        feedback.modelName,      # NEW
                         existing_id,
                     ),
                 )
@@ -170,8 +178,9 @@ class FeedbackService:
                 INSERT INTO nugget_feedback (
                     id, nugget_content, original_type, corrected_type,
                     rating, client_timestamp, url, context, created_at,
-                    report_count, first_reported_at, last_reported_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    report_count, first_reported_at, last_reported_at,
+                    model_provider, model_name
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
                 (
                     feedback.id,
@@ -186,6 +195,8 @@ class FeedbackService:
                     1,  # report_count
                     current_time,  # first_reported_at
                     current_time,  # last_reported_at
+                    feedback.modelProvider,  # NEW
+                    feedback.modelName,      # NEW
                 ),
             )
             await db.commit()
@@ -253,7 +264,9 @@ class FeedbackService:
                         SET report_count = ?,
                             last_reported_at = ?,
                             context = ?,
-                            suggested_type = ?
+                            suggested_type = ?,
+                            model_provider = ?,
+                            model_name = ?
                         WHERE id = ?
                         """,
                         (
@@ -261,6 +274,8 @@ class FeedbackService:
                             current_time,
                             feedback.context,
                             feedback.suggestedType,
+                            feedback.modelProvider,  # NEW
+                            feedback.modelName,      # NEW
                             existing_id,
                         ),
                     )
@@ -275,7 +290,9 @@ class FeedbackService:
                     SET report_count = ?,
                         last_reported_at = ?,
                         context = ?,
-                        suggested_type = ?
+                        suggested_type = ?,
+                        model_provider = ?,
+                        model_name = ?
                     WHERE id = ?
                     """,
                     (
@@ -283,6 +300,8 @@ class FeedbackService:
                         current_time,
                         feedback.context,
                         feedback.suggestedType,
+                        feedback.modelProvider,  # NEW
+                        feedback.modelName,      # NEW
                         existing_id,
                     ),
                 )
@@ -296,8 +315,9 @@ class FeedbackService:
                 """
                 INSERT INTO missing_content_feedback (
                     id, content, suggested_type, client_timestamp, url, context,
-                    created_at, report_count, first_reported_at, last_reported_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    created_at, report_count, first_reported_at, last_reported_at,
+                    model_provider, model_name
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
                 (
                     feedback.id,
@@ -310,6 +330,8 @@ class FeedbackService:
                     1,  # report_count
                     current_time,  # first_reported_at
                     current_time,  # last_reported_at
+                    feedback.modelProvider,  # NEW
+                    feedback.modelName,      # NEW
                 ),
             )
             await db.commit()
