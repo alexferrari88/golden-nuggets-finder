@@ -21,7 +21,12 @@ describe("Backend Integration Tests", () => {
 			},
 			storage: {
 				local: {
-					get: vi.fn().mockResolvedValue({}),
+					get: vi.fn().mockResolvedValue({
+						lastUsedProvider: {
+							providerId: "gemini",
+							modelName: "gemini-2.5-flash"
+						}
+					}),
 					set: vi.fn().mockResolvedValue(undefined),
 				},
 			},
@@ -74,23 +79,28 @@ describe("Backend Integration Tests", () => {
 
 			await messageHandler.handleMessage(request, sender, sendResponse);
 
-			// Verify backend API was called
+			// Verify backend API was called with provider metadata
+			const expectedFeedbackWithProvider = {
+				...feedbackData,
+				modelProvider: "gemini",
+				modelName: "gemini-2.5-flash"
+			};
 			expect(mockFetch).toHaveBeenCalledWith(
 				"http://localhost:7532/feedback",
 				expect.objectContaining({
 					method: "POST",
 					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({ nuggetFeedback: [feedbackData] }),
+					body: JSON.stringify({ nuggetFeedback: [expectedFeedbackWithProvider] }),
 					signal: expect.any(AbortSignal),
 				}),
 			);
 
-			// Verify local storage backup
+			// Verify local storage backup with provider metadata
 			expect(mockChrome.storage.local.set).toHaveBeenCalledWith(
 				expect.objectContaining({
 					nugget_feedback: expect.arrayContaining([
 						expect.objectContaining({
-							...feedbackData,
+							...expectedFeedbackWithProvider,
 							storedAt: expect.any(Number),
 						}),
 					]),
@@ -250,17 +260,22 @@ describe("Backend Integration Tests", () => {
 
 			await messageHandler.handleMessage(request, sender, sendResponse);
 
-			// Verify backend API was called with multiple feedback items
+			// Verify backend API was called with multiple feedback items including provider metadata
+			const expectedMissingContentWithProvider = missingContentFeedback.map(feedback => ({
+				...feedback,
+				modelProvider: "gemini",
+				modelName: "gemini-2.5-flash"
+			}));
 			expect(mockFetch).toHaveBeenCalledWith(
 				"http://localhost:7532/feedback",
 				expect.objectContaining({
 					method: "POST",
-					body: JSON.stringify({ missingContentFeedback }),
+					body: JSON.stringify({ missingContentFeedback: expectedMissingContentWithProvider }),
 					signal: expect.any(AbortSignal),
 				}),
 			);
 
-			// Verify local storage backup for both items
+			// Verify local storage backup for both items (plus the default mock setup)
 			expect(mockChrome.storage.local.set).toHaveBeenCalledTimes(2);
 
 			expect(sendResponse).toHaveBeenCalledWith({
