@@ -682,13 +682,21 @@ export class MessageHandler {
 				return;
 			}
 
+			// Add provider metadata (currently all feedback is from Gemini)
+			// TODO: Update when multi-provider system is implemented
+			const feedbackWithProvider = {
+				...feedback,
+				modelProvider: "gemini",
+				modelName: "gemini-2.5-flash"
+			};
+
 			// Store feedback locally as backup
-			await this.storeFeedbackLocally("nugget", feedback);
+			await this.storeFeedbackLocally("nugget", feedbackWithProvider);
 
 			// Send to backend API
 			try {
 				const result = await this.sendFeedbackToBackend({
-					nuggetFeedback: [feedback],
+					nuggetFeedback: [feedbackWithProvider],
 				});
 				console.log("Nugget feedback sent to backend:", result);
 
@@ -787,15 +795,23 @@ export class MessageHandler {
 				return;
 			}
 
+			// Add provider metadata to all missing content feedback
+			// TODO: Update when multi-provider system is implemented
+			const missingContentWithProvider = missingContentFeedback.map(feedback => ({
+				...feedback,
+				modelProvider: "gemini",
+				modelName: "gemini-2.5-flash"
+			}));
+
 			// Store feedback locally as backup
-			for (const feedback of missingContentFeedback) {
+			for (const feedback of missingContentWithProvider) {
 				await this.storeFeedbackLocally("missing", feedback);
 			}
 
 			// Send to backend API
 			try {
 				const result = await this.sendFeedbackToBackend({
-					missingContentFeedback,
+					missingContentFeedback: missingContentWithProvider,
 				});
 				console.log("Missing content feedback sent to backend:", result);
 
