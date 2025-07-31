@@ -1,66 +1,79 @@
-import { GoldenNugget, GeminiResponse, SavedPrompt, ExtensionConfig } from '../../src/shared/types';
+import type {
+	ExtensionConfig,
+	GeminiResponse,
+	GoldenNugget,
+	SavedPrompt,
+} from "../../src/shared/types";
 
 export const mockGoldenNuggets: GoldenNugget[] = [
-  {
-    type: 'tool',
-    startContent: 'Use regex101.com for testing',
-    endContent: 'regular expressions',
-    synthesis: 'Perfect for someone who values precision and testing - allows you to validate patterns before implementation'
-  },
-  {
-    type: 'explanation',
-    startContent: 'React hooks follow the principle',
-    endContent: 'modular and reusable',
-    synthesis: 'Aligns with first-principles thinking - explains the fundamental design philosophy behind React hooks'
-  },
-  {
-    type: 'analogy',
-    startContent: 'Database indexing is like having',
-    endContent: 'without scanning every page',
-    synthesis: 'Excellent mental model for understanding database performance optimization'
-  },
-  {
-    type: 'model',
-    startContent: 'The MVC pattern separates concerns:',
-    endContent: 'Controller (logic)',
-    synthesis: 'Fundamental architectural pattern that provides clear mental framework for organizing code'
-  },
-  {
-    type: 'media',
-    startContent: 'Check out this video on system',
-    endContent: 'https://youtube.com/watch?v=example',
-    synthesis: 'Visual learning resource that complements theoretical understanding of system architecture'
-  }
+	{
+		type: "tool",
+		startContent: "Use regex101.com for testing",
+		endContent: "regular expressions",
+		synthesis:
+			"Perfect for someone who values precision and testing - allows you to validate patterns before implementation",
+	},
+	{
+		type: "explanation",
+		startContent: "React hooks follow the principle",
+		endContent: "modular and reusable",
+		synthesis:
+			"Aligns with first-principles thinking - explains the fundamental design philosophy behind React hooks",
+	},
+	{
+		type: "analogy",
+		startContent: "Database indexing is like having",
+		endContent: "without scanning every page",
+		synthesis:
+			"Excellent mental model for understanding database performance optimization",
+	},
+	{
+		type: "model",
+		startContent: "The MVC pattern separates concerns:",
+		endContent: "Controller (logic)",
+		synthesis:
+			"Fundamental architectural pattern that provides clear mental framework for organizing code",
+	},
+	{
+		type: "media",
+		startContent: "Check out this video on system",
+		endContent: "https://youtube.com/watch?v=example",
+		synthesis:
+			"Visual learning resource that complements theoretical understanding of system architecture",
+	},
 ];
 
 export const mockGeminiResponse: GeminiResponse = {
-  golden_nuggets: mockGoldenNuggets
+	golden_nuggets: mockGoldenNuggets,
 };
 
 export const mockSavedPrompts: SavedPrompt[] = [
-  {
-    id: 'default-insights',
-    name: 'Find Key Insights',
-    prompt: 'Extract golden nuggets that would be valuable for a pragmatic synthesizer with ADHD. Focus on actionable insights, elegant principles, tools, analogies, and explanations that connect to first principles thinking.',
-    isDefault: true
-  },
-  {
-    id: 'technical-focus',
-    name: 'Technical Deep Dive',
-    prompt: 'Focus on technical explanations, code examples, and development tools that would be useful for a software engineer.',
-    isDefault: false
-  },
-  {
-    id: 'business-insights',
-    name: 'Business Strategy',
-    prompt: 'Identify strategic insights, market analysis, and business frameworks that would be valuable for decision-making.',
-    isDefault: false
-  }
+	{
+		id: "default-insights",
+		name: "Find Key Insights",
+		prompt:
+			"Extract golden nuggets that would be valuable for a pragmatic synthesizer with ADHD. Focus on actionable insights, elegant principles, tools, analogies, and explanations that connect to first principles thinking.",
+		isDefault: true,
+	},
+	{
+		id: "technical-focus",
+		name: "Technical Deep Dive",
+		prompt:
+			"Focus on technical explanations, code examples, and development tools that would be useful for a software engineer.",
+		isDefault: false,
+	},
+	{
+		id: "business-insights",
+		name: "Business Strategy",
+		prompt:
+			"Identify strategic insights, market analysis, and business frameworks that would be valuable for decision-making.",
+		isDefault: false,
+	},
 ];
 
 export const mockExtensionConfig: ExtensionConfig = {
-  geminiApiKey: 'test-api-key-12345',
-  userPrompts: mockSavedPrompts
+	geminiApiKey: "test-api-key-12345",
+	userPrompts: mockSavedPrompts,
 };
 
 export const mockRedditHTML = `
@@ -133,137 +146,159 @@ export const mockGenericHTML = `
 `;
 
 export const mockAPIResponses = {
-  validGeminiResponse: {
-    candidates: [{
-      content: {
-        parts: [{
-          text: JSON.stringify(mockGeminiResponse)
-        }]
-      }
-    }]
-  },
-  
-  emptyGeminiResponse: {
-    candidates: [{
-      content: {
-        parts: [{
-          text: JSON.stringify({ golden_nuggets: [] })
-        }]
-      }
-    }]
-  },
-  
-  invalidGeminiResponse: {
-    candidates: [{
-      content: {
-        parts: [{
-          text: JSON.stringify({ invalid: 'format' })
-        }]
-      }
-    }]
-  },
-  
-  malformedGeminiResponse: {
-    candidates: [{
-      content: {
-        parts: [{
-          text: 'invalid json response'
-        }]
-      }
-    }]
-  },
-  
-  noResponseText: {
-    candidates: [{
-      content: {
-        parts: [{}]
-      }
-    }]
-  }
+	validGeminiResponse: {
+		candidates: [
+			{
+				content: {
+					parts: [
+						{
+							text: JSON.stringify(mockGeminiResponse),
+						},
+					],
+				},
+			},
+		],
+	},
+
+	emptyGeminiResponse: {
+		candidates: [
+			{
+				content: {
+					parts: [
+						{
+							text: JSON.stringify({ golden_nuggets: [] }),
+						},
+					],
+				},
+			},
+		],
+	},
+
+	invalidGeminiResponse: {
+		candidates: [
+			{
+				content: {
+					parts: [
+						{
+							text: JSON.stringify({ invalid: "format" }),
+						},
+					],
+				},
+			},
+		],
+	},
+
+	malformedGeminiResponse: {
+		candidates: [
+			{
+				content: {
+					parts: [
+						{
+							text: "invalid json response",
+						},
+					],
+				},
+			},
+		],
+	},
+
+	noResponseText: {
+		candidates: [
+			{
+				content: {
+					parts: [{}],
+				},
+			},
+		],
+	},
 };
 
 export const mockStorageData = {
-  withApiKey: {
-    geminiApiKey: 'test-api-key-12345'
-  },
-  
-  withPrompts: {
-    userPrompts: mockSavedPrompts
-  },
-  
-  withComplete: {
-    geminiApiKey: 'test-api-key-12345',
-    userPrompts: mockSavedPrompts
-  },
-  
-  empty: {}
+	withApiKey: {
+		geminiApiKey: "test-api-key-12345",
+	},
+
+	withPrompts: {
+		userPrompts: mockSavedPrompts,
+	},
+
+	withComplete: {
+		geminiApiKey: "test-api-key-12345",
+		userPrompts: mockSavedPrompts,
+	},
+
+	empty: {},
 };
 
 export const mockErrors = {
-  networkError: new Error('Network connection failed'),
-  authError: new Error('API key authentication failed'),
-  rateLimitError: new Error('Rate limit exceeded'),
-  timeoutError: new Error('Request timeout'),
-  malformedError: new Error('Malformed request body'),
-  genericError: new Error('Something went wrong')
+	networkError: new Error("Network connection failed"),
+	authError: new Error("API key authentication failed"),
+	rateLimitError: new Error("Rate limit exceeded"),
+	timeoutError: new Error("Request timeout"),
+	malformedError: new Error("Malformed request body"),
+	genericError: new Error("Something went wrong"),
 };
 
 export const mockDOMElements = {
-  createVisibleElement: (tag: string, content: string, className?: string) => {
-    const element = document.createElement(tag);
-    element.textContent = content;
-    element.style.width = '100px';
-    element.style.height = '100px';
-    if (className) {
-      element.className = className;
-    }
-    return element;
-  },
-  
-  createHiddenElement: (tag: string, content: string, hideMethod: 'display' | 'visibility' = 'display') => {
-    const element = document.createElement(tag);
-    element.textContent = content;
-    if (hideMethod === 'display') {
-      element.style.display = 'none';
-    } else {
-      element.style.visibility = 'hidden';
-    }
-    return element;
-  },
-  
-  createRedditPost: (content: string) => {
-    const element = document.createElement('div');
-    element.setAttribute('slot', 'text-body');
-    element.style.width = '100px';
-    element.style.height = '100px';
-    element.textContent = content;
-    return element;
-  },
-  
-  createRedditComment: (content: string) => {
-    const element = document.createElement('div');
-    element.setAttribute('slot', 'comment');
-    element.style.width = '100px';
-    element.style.height = '100px';
-    element.textContent = content;
-    return element;
-  },
-  
-  createHackerNewsPost: (content: string) => {
-    const element = document.createElement('div');
-    element.className = 'toptext';
-    element.style.width = '100px';
-    element.style.height = '100px';
-    element.textContent = content;
-    return element;
-  },
-  
-  createHackerNewsComment: (content: string) => {
-    const element = document.createElement('div');
-    element.className = 'comment';
-    element.style.width = '100px';
-    element.style.height = '100px';
-    element.textContent = content;
-    return element;
-  }
+	createVisibleElement: (tag: string, content: string, className?: string) => {
+		const element = document.createElement(tag);
+		element.textContent = content;
+		element.style.width = "100px";
+		element.style.height = "100px";
+		if (className) {
+			element.className = className;
+		}
+		return element;
+	},
+
+	createHiddenElement: (
+		tag: string,
+		content: string,
+		hideMethod: "display" | "visibility" = "display",
+	) => {
+		const element = document.createElement(tag);
+		element.textContent = content;
+		if (hideMethod === "display") {
+			element.style.display = "none";
+		} else {
+			element.style.visibility = "hidden";
+		}
+		return element;
+	},
+
+	createRedditPost: (content: string) => {
+		const element = document.createElement("div");
+		element.setAttribute("slot", "text-body");
+		element.style.width = "100px";
+		element.style.height = "100px";
+		element.textContent = content;
+		return element;
+	},
+
+	createRedditComment: (content: string) => {
+		const element = document.createElement("div");
+		element.setAttribute("slot", "comment");
+		element.style.width = "100px";
+		element.style.height = "100px";
+		element.textContent = content;
+		return element;
+	},
+
+	createHackerNewsPost: (content: string) => {
+		const element = document.createElement("div");
+		element.className = "toptext";
+		element.style.width = "100px";
+		element.style.height = "100px";
+		element.textContent = content;
+		return element;
+	},
+
+	createHackerNewsComment: (content: string) => {
+		const element = document.createElement("div");
+		element.className = "comment";
+		element.style.width = "100px";
+		element.style.height = "100px";
+		element.textContent = content;
+		return element;
+	},
 };

@@ -1,46 +1,62 @@
-import { test, expect } from './fixtures';
+import { expect, test } from "./fixtures";
 
-test.describe('Context Menu E2E Tests', () => {
-	test('should load background script and initialize context menu system', async ({ context, extensionId }) => {
+test.describe("Context Menu E2E Tests", () => {
+	test("should load background script and initialize context menu system", async ({
+		context,
+		extensionId,
+	}) => {
 		// Extension should have a valid ID
 		expect(extensionId).toBeDefined();
 		expect(extensionId).toMatch(/^[a-z]{32}$/);
-		
+
 		// Should have a service worker (background script)
 		const serviceWorkers = context.serviceWorkers();
 		expect(serviceWorkers.length).toBeGreaterThan(0);
-		
+
 		const serviceWorker = serviceWorkers[0];
 		expect(serviceWorker.url()).toContain(extensionId);
 
 		// Service worker should be running (indicates background script loaded successfully)
 		// This verifies that our context menu initialization code executed without errors
 		const isRunning = await serviceWorker.evaluate(() => {
-			return typeof chrome !== 'undefined' && 
-				   typeof chrome.contextMenus !== 'undefined' &&
-				   typeof chrome.tabs !== 'undefined';
+			return (
+				typeof chrome !== "undefined" &&
+				typeof chrome.contextMenus !== "undefined" &&
+				typeof chrome.tabs !== "undefined"
+			);
 		});
 		expect(isRunning).toBe(true);
 	});
 
-	test('should have required Chrome APIs available in background script', async ({ context, extensionId }) => {
+	test("should have required Chrome APIs available in background script", async ({
+		context,
+		extensionId,
+	}) => {
 		const serviceWorkers = context.serviceWorkers();
 		const serviceWorker = serviceWorkers[0];
 
 		// Verify that the APIs we use for context menu functionality are available
 		const apisAvailable = await serviceWorker.evaluate(() => {
 			return {
-				contextMenus: typeof chrome.contextMenus !== 'undefined',
-				contextMenusCreate: typeof chrome.contextMenus?.create === 'function',
-				contextMenusRemoveAll: typeof chrome.contextMenus?.removeAll === 'function',
-				contextMenusOnClicked: typeof chrome.contextMenus?.onClicked?.addListener === 'function',
-				tabsQuery: typeof chrome.tabs?.query === 'function',
-				tabsOnRemoved: typeof chrome.tabs?.onRemoved?.addListener === 'function',
-				tabsOnUpdated: typeof chrome.tabs?.onUpdated?.addListener === 'function',
-				tabsOnActivated: typeof chrome.tabs?.onActivated?.addListener === 'function',
-				runtimeOnMessage: typeof chrome.runtime?.onMessage?.addListener === 'function',
-				runtimeOnInstalled: typeof chrome.runtime?.onInstalled?.addListener === 'function',
-				storageOnChanged: typeof chrome.storage?.onChanged?.addListener === 'function'
+				contextMenus: typeof chrome.contextMenus !== "undefined",
+				contextMenusCreate: typeof chrome.contextMenus?.create === "function",
+				contextMenusRemoveAll:
+					typeof chrome.contextMenus?.removeAll === "function",
+				contextMenusOnClicked:
+					typeof chrome.contextMenus?.onClicked?.addListener === "function",
+				tabsQuery: typeof chrome.tabs?.query === "function",
+				tabsOnRemoved:
+					typeof chrome.tabs?.onRemoved?.addListener === "function",
+				tabsOnUpdated:
+					typeof chrome.tabs?.onUpdated?.addListener === "function",
+				tabsOnActivated:
+					typeof chrome.tabs?.onActivated?.addListener === "function",
+				runtimeOnMessage:
+					typeof chrome.runtime?.onMessage?.addListener === "function",
+				runtimeOnInstalled:
+					typeof chrome.runtime?.onInstalled?.addListener === "function",
+				storageOnChanged:
+					typeof chrome.storage?.onChanged?.addListener === "function",
 			};
 		});
 
@@ -58,7 +74,10 @@ test.describe('Context Menu E2E Tests', () => {
 		expect(apisAvailable.storageOnChanged).toBe(true);
 	});
 
-	test('should handle extension installation correctly', async ({ context, extensionId }) => {
+	test("should handle extension installation correctly", async ({
+		context,
+		extensionId,
+	}) => {
 		const serviceWorkers = context.serviceWorkers();
 		const serviceWorker = serviceWorkers[0];
 
@@ -67,9 +86,9 @@ test.describe('Context Menu E2E Tests', () => {
 		const listenersSetup = await serviceWorker.evaluate(() => {
 			// Check if our global objects exist (indicating successful initialization)
 			return {
-				hasEventListeners: typeof chrome.runtime.onInstalled !== 'undefined',
-				hasContextMenuSupport: typeof chrome.contextMenus !== 'undefined',
-				hasTabSupport: typeof chrome.tabs !== 'undefined'
+				hasEventListeners: typeof chrome.runtime.onInstalled !== "undefined",
+				hasContextMenuSupport: typeof chrome.contextMenus !== "undefined",
+				hasTabSupport: typeof chrome.tabs !== "undefined",
 			};
 		});
 
@@ -78,13 +97,16 @@ test.describe('Context Menu E2E Tests', () => {
 		expect(listenersSetup.hasTabSupport).toBe(true);
 	});
 
-	test('should initialize without errors in service worker console', async ({ context, extensionId }) => {
+	test("should initialize without errors in service worker console", async ({
+		context,
+		extensionId,
+	}) => {
 		const serviceWorkers = context.serviceWorkers();
 		const serviceWorker = serviceWorkers[0];
 
 		// Get any console messages that might indicate errors during initialization
 		const consoleLogs: string[] = [];
-		serviceWorker.on('console', (msg) => {
+		serviceWorker.on("console", (msg) => {
 			consoleLogs.push(`${msg.type()}: ${msg.text()}`);
 		});
 
@@ -95,14 +117,17 @@ test.describe('Context Menu E2E Tests', () => {
 		});
 
 		// Wait a moment for any async initialization to complete
-		await new Promise(resolve => setTimeout(resolve, 100));
+		await new Promise((resolve) => setTimeout(resolve, 100));
 
 		// Check if there were any error messages (we allow warnings and info)
-		const errorLogs = consoleLogs.filter(log => log.startsWith('error:'));
+		const errorLogs = consoleLogs.filter((log) => log.startsWith("error:"));
 		expect(errorLogs).toHaveLength(0);
 	});
 
-	test('should have proper message passing system setup', async ({ context, extensionId }) => {
+	test("should have proper message passing system setup", async ({
+		context,
+		extensionId,
+	}) => {
 		const serviceWorkers = context.serviceWorkers();
 		const serviceWorker = serviceWorkers[0];
 
@@ -110,9 +135,9 @@ test.describe('Context Menu E2E Tests', () => {
 		const messageSystemReady = await serviceWorker.evaluate(() => {
 			// Check if message types are defined
 			return {
-				hasMessageTypes: typeof chrome.runtime !== 'undefined',
-				canSendMessage: typeof chrome.runtime?.sendMessage === 'function',
-				hasMessageListener: typeof chrome.runtime?.onMessage !== 'undefined'
+				hasMessageTypes: typeof chrome.runtime !== "undefined",
+				canSendMessage: typeof chrome.runtime?.sendMessage === "function",
+				hasMessageListener: typeof chrome.runtime?.onMessage !== "undefined",
 			};
 		});
 
@@ -121,7 +146,10 @@ test.describe('Context Menu E2E Tests', () => {
 		expect(messageSystemReady.hasMessageListener).toBe(true);
 	});
 
-	test('should respond to storage access for prompts', async ({ context, extensionId }) => {
+	test("should respond to storage access for prompts", async ({
+		context,
+		extensionId,
+	}) => {
 		const serviceWorkers = context.serviceWorkers();
 		const serviceWorker = serviceWorkers[0];
 
@@ -129,15 +157,19 @@ test.describe('Context Menu E2E Tests', () => {
 		const storageAccess = await serviceWorker.evaluate(async () => {
 			try {
 				// Try to access storage - this is what our context menu setup does
-				if (typeof chrome.storage !== 'undefined' && chrome.storage.sync) {
+				if (typeof chrome.storage !== "undefined" && chrome.storage.sync) {
 					// Don't actually read - just verify the API is accessible
 					return {
 						hasStorage: true,
-						hasSyncStorage: typeof chrome.storage.sync !== 'undefined',
-						hasGetMethod: typeof chrome.storage.sync.get === 'function'
+						hasSyncStorage: typeof chrome.storage.sync !== "undefined",
+						hasGetMethod: typeof chrome.storage.sync.get === "function",
 					};
 				}
-				return { hasStorage: false, hasSyncStorage: false, hasGetMethod: false };
+				return {
+					hasStorage: false,
+					hasSyncStorage: false,
+					hasGetMethod: false,
+				};
 			} catch (error) {
 				return { error: error.message };
 			}
@@ -149,20 +181,24 @@ test.describe('Context Menu E2E Tests', () => {
 		expect(storageAccess.error).toBeUndefined();
 	});
 
-	test('should handle tab state tracking system setup', async ({ context, extensionId }) => {
+	test("should handle tab state tracking system setup", async ({
+		context,
+		extensionId,
+	}) => {
 		const serviceWorkers = context.serviceWorkers();
 		const serviceWorker = serviceWorkers[0];
 
 		// Verify that tab management APIs are available for our state tracking
 		const tabManagement = await serviceWorker.evaluate(() => {
 			return {
-				hasTabsAPI: typeof chrome.tabs !== 'undefined',
-				hasTabQuery: typeof chrome.tabs?.query === 'function',
+				hasTabsAPI: typeof chrome.tabs !== "undefined",
+				hasTabQuery: typeof chrome.tabs?.query === "function",
 				hasTabListeners: {
-					onRemoved: typeof chrome.tabs?.onRemoved?.addListener === 'function',
-					onUpdated: typeof chrome.tabs?.onUpdated?.addListener === 'function',
-					onActivated: typeof chrome.tabs?.onActivated?.addListener === 'function'
-				}
+					onRemoved: typeof chrome.tabs?.onRemoved?.addListener === "function",
+					onUpdated: typeof chrome.tabs?.onUpdated?.addListener === "function",
+					onActivated:
+						typeof chrome.tabs?.onActivated?.addListener === "function",
+				},
 			};
 		});
 
@@ -173,26 +209,31 @@ test.describe('Context Menu E2E Tests', () => {
 		expect(tabManagement.hasTabListeners.onActivated).toBe(true);
 	});
 
-	test('should initialize context menu creation system', async ({ context, extensionId }) => {
+	test("should initialize context menu creation system", async ({
+		context,
+		extensionId,
+	}) => {
 		const serviceWorkers = context.serviceWorkers();
 		const serviceWorker = serviceWorkers[0];
 
 		// Test that context menu APIs are properly available and accessible
 		const contextMenuSystem = await serviceWorker.evaluate(() => {
 			return {
-				hasContextMenus: typeof chrome.contextMenus !== 'undefined',
-				hasCreateMethod: typeof chrome.contextMenus?.create === 'function',
-				hasRemoveAllMethod: typeof chrome.contextMenus?.removeAll === 'function',
-				hasClickListener: typeof chrome.contextMenus?.onClicked?.addListener === 'function',
+				hasContextMenus: typeof chrome.contextMenus !== "undefined",
+				hasCreateMethod: typeof chrome.contextMenus?.create === "function",
+				hasRemoveAllMethod:
+					typeof chrome.contextMenus?.removeAll === "function",
+				hasClickListener:
+					typeof chrome.contextMenus?.onClicked?.addListener === "function",
 				// Test that we can at least attempt to call removeAll (our init does this)
 				canCallRemoveAll: (() => {
 					try {
 						// Don't actually call it, just verify the method exists and is callable
-						return typeof chrome.contextMenus.removeAll === 'function';
+						return typeof chrome.contextMenus.removeAll === "function";
 					} catch (e) {
 						return false;
 					}
-				})()
+				})(),
 			};
 		});
 
