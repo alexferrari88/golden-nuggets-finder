@@ -3,9 +3,10 @@ import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { z } from "zod";
 import { LLMProvider, ProviderConfig, GoldenNuggetsResponse } from '../types/providers';
 
-const GoldenNuggetsSchema = z.object({
+// More flexible schema for OpenRouter that accepts common variations
+const FlexibleGoldenNuggetsSchema = z.object({
   golden_nuggets: z.array(z.object({
-    type: z.enum(['tool', 'media', 'explanation', 'analogy', 'model']),
+    type: z.string(), // Accept any string, normalize later
     content: z.string(),
     synthesis: z.string()
   }))
@@ -34,7 +35,7 @@ export class LangChainOpenRouterProvider implements LLMProvider {
 
   async extractGoldenNuggets(content: string, prompt: string): Promise<GoldenNuggetsResponse> {
     try {
-      const structuredModel = this.model.withStructuredOutput(GoldenNuggetsSchema, {
+      const structuredModel = this.model.withStructuredOutput(FlexibleGoldenNuggetsSchema, {
         name: "extract_golden_nuggets",
         method: "functionCalling"
       });
@@ -44,11 +45,42 @@ export class LangChainOpenRouterProvider implements LLMProvider {
         new HumanMessage(content)
       ]);
 
+      // Normalize type values that OpenRouter models might return
+      if (response && response.golden_nuggets) {
+        response.golden_nuggets = response.golden_nuggets.map(nugget => ({
+          ...nugget,
+          type: this.normalizeType(nugget.type)
+        }));
+      }
+
       return response as GoldenNuggetsResponse;
     } catch (error) {
       console.error(`OpenRouter provider error:`, error);
       throw new Error(`OpenRouter API call failed: ${error.message}`);
     }
+  }
+
+  private normalizeType(type: string): 'tool' | 'media' | 'explanation' | 'analogy' | 'model' {
+    // Handle common variations that OpenRouter models might return
+    const typeMap: Record<string, 'tool' | 'media' | 'explanation' | 'analogy' | 'model'> = {
+      'mental model': 'model',
+      'mental_model': 'model',
+      'framework': 'model',
+      'technique': 'tool',
+      'method': 'tool',
+      'resource': 'media',
+      'book': 'media',
+      'article': 'media',
+      'concept': 'explanation',
+      'comparison': 'analogy',
+      'metaphor': 'analogy'
+    };
+    
+    const normalized = typeMap[type.toLowerCase()] || type;
+    
+    // Validate against allowed types
+    const allowedTypes = ['tool', 'media', 'explanation', 'analogy', 'model'];
+    return allowedTypes.includes(normalized) ? normalized as any : 'explanation';
   }
 
   async validateApiKey(): Promise<boolean> {

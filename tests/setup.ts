@@ -4,10 +4,16 @@ import { vi } from "vitest";
 const mockChrome = {
 	storage: {
 		sync: {
-			get: vi.fn(),
-			set: vi.fn(),
-			clear: vi.fn(),
-			remove: vi.fn(),
+			get: vi.fn().mockResolvedValue({}),
+			set: vi.fn().mockResolvedValue(undefined),
+			clear: vi.fn().mockResolvedValue(undefined),
+			remove: vi.fn().mockResolvedValue(undefined),
+		},
+		local: {
+			get: vi.fn().mockResolvedValue({}),
+			set: vi.fn().mockResolvedValue(undefined),
+			clear: vi.fn().mockResolvedValue(undefined),
+			remove: vi.fn().mockResolvedValue(undefined),
 		},
 	},
 	runtime: {
