@@ -491,3 +491,6 @@ export class StorageManager {
 }
 
 export const storage = StorageManager.getInstance();
+
+// Export the new multi-provider API key storage
+export { ApiKeyStorage } from './storage/api-key-storage';
