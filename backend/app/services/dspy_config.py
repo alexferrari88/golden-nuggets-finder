@@ -11,7 +11,10 @@ from typing import Any
 
 try:
     import dspy  # type: ignore[import-untyped]
-    from dspy.teleprompt import BootstrapFewShotWithRandomSearch, MIPROv2  # type: ignore[import-untyped]
+    from dspy.teleprompt import (  # type: ignore[import-untyped]
+        BootstrapFewShotWithRandomSearch,
+        MIPROv2,
+    )
 
     DSPY_AVAILABLE = True
 except ImportError:
@@ -341,7 +344,11 @@ def generate_mock_feedback_data(count: int = 50) -> list:
                     {
                         "type": random.choice(nugget_types),
                         "content": f"Mock nugget content {i}_{j} with valuable insight",
-                        "synthesis": f"This is valuable because it provides {random.choice(['practical', 'theoretical', 'actionable'])} guidance",
+                        "synthesis": (
+                            f"This is valuable because it provides "
+                            f"{random.choice(['practical', 'theoretical', 'actionable'])} "
+                            f"guidance"
+                        ),
                     }
                 )
 

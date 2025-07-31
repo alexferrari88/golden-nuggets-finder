@@ -7,7 +7,7 @@ and cost breakdowns by operation type and model.
 
 from datetime import datetime, timedelta, timezone
 import json
-from typing import Optional
+from typing import ClassVar, Optional
 import uuid
 
 import aiosqlite
@@ -18,7 +18,7 @@ class CostTrackingService:
 
     # Cost per token for different models (in USD)
     # These should be updated based on current API pricing
-    TOKEN_COSTS = {
+    TOKEN_COSTS: ClassVar[dict[str, dict[str, float]]] = {
         "gpt-4o": {"input": 0.0000025, "output": 0.00001},  # $2.50/$10 per 1M tokens
         "gpt-4o-mini": {
             "input": 0.00000015,
@@ -50,7 +50,8 @@ class CostTrackingService:
         Args:
             db: Database connection
             optimization_run_id: ID of the optimization run
-            operation_type: Type of operation ('prompt_generation', 'optimization', 'evaluation', 'api_call')
+            operation_type: Type of operation ('prompt_generation', 'optimization',
+                'evaluation', 'api_call')
             model_name: Name of the model used
             input_tokens: Number of input tokens used
             output_tokens: Number of output tokens generated
@@ -269,7 +270,9 @@ class CostTrackingService:
             "total_cost": period_totals[0] if period_totals else 0,
             "total_tokens": period_totals[1] if period_totals else 0,
             "total_runs": period_totals[2] if period_totals else 0,
-            "average_cost_per_run": (period_totals[0] / max(period_totals[2], 1)) if period_totals else 0,
+            "average_cost_per_run": (period_totals[0] / max(period_totals[2], 1))
+            if period_totals
+            else 0,
             "daily_breakdown": [
                 {"date": row[0], "cost": row[1], "tokens": row[2], "runs": row[3]}
                 for row in daily_breakdown

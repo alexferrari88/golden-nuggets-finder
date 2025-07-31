@@ -135,7 +135,7 @@ class FeedbackService:
                             feedback.correctedType,
                             feedback.rating,
                             feedback.modelProvider,  # NEW
-                            feedback.modelName,      # NEW
+                            feedback.modelName,  # NEW
                             existing_id,
                         ),
                     )
@@ -163,7 +163,7 @@ class FeedbackService:
                         feedback.correctedType,
                         feedback.rating,
                         feedback.modelProvider,  # NEW
-                        feedback.modelName,      # NEW
+                        feedback.modelName,  # NEW
                         existing_id,
                     ),
                 )
@@ -196,7 +196,7 @@ class FeedbackService:
                     current_time,  # first_reported_at
                     current_time,  # last_reported_at
                     feedback.modelProvider,  # NEW
-                    feedback.modelName,      # NEW
+                    feedback.modelName,  # NEW
                 ),
             )
             await db.commit()
@@ -275,7 +275,7 @@ class FeedbackService:
                             feedback.context,
                             feedback.suggestedType,
                             feedback.modelProvider,  # NEW
-                            feedback.modelName,      # NEW
+                            feedback.modelName,  # NEW
                             existing_id,
                         ),
                     )
@@ -301,7 +301,7 @@ class FeedbackService:
                         feedback.context,
                         feedback.suggestedType,
                         feedback.modelProvider,  # NEW
-                        feedback.modelName,      # NEW
+                        feedback.modelName,  # NEW
                         existing_id,
                     ),
                 )
@@ -331,7 +331,7 @@ class FeedbackService:
                     current_time,  # first_reported_at
                     current_time,  # last_reported_at
                     feedback.modelProvider,  # NEW
-                    feedback.modelName,      # NEW
+                    feedback.modelName,  # NEW
                 ),
             )
             await db.commit()
