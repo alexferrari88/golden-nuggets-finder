@@ -14,6 +14,7 @@ import { ProviderFactory } from "./services/provider-factory";
 import { ApiKeyStorage } from "../shared/storage/api-key-storage";
 import { ResponseNormalizer } from "./services/response-normalizer";
 import { ProviderSwitcher } from "./services/provider-switcher";
+import { ErrorHandler } from "./services/error-handler";
 import { type ProviderConfig, type ProviderId, type GoldenNuggetsResponse } from "../shared/types/providers";
 
 // Utility function to generate unique analysis IDs
@@ -249,37 +250,91 @@ export class MessageHandler {
 		};
 	}
 
-	// Helper to handle golden nuggets extraction using provider routing
+	// Helper to handle golden nuggets extraction using provider routing with error handling and fallback
 	static async handleExtractGoldenNuggets(content: string, prompt: string): Promise<GoldenNuggetsResponse> {
-		try {
-			// Get provider configuration
-			const providerConfig = await this.getSelectedProvider();
-			
-			// Create provider instance
-			const provider = await ProviderFactory.createProvider(providerConfig);
-			
-			// Extract golden nuggets
-			const startTime = performance.now();
-			const rawResponse = await provider.extractGoldenNuggets(content, prompt);
-			const responseTime = performance.now() - startTime;
-			
-			// Normalize response
-			const normalizedResponse = ResponseNormalizer.normalize(rawResponse, providerConfig.providerId);
-			
-			// Store provider metadata for feedback
-			await chrome.storage.local.set({
-				lastUsedProvider: {
-					providerId: providerConfig.providerId,
-					modelName: providerConfig.modelName,
-					responseTime
+		let currentProviderId: ProviderId | null = null;
+		let attempts = 0;
+		const maxAttempts = 5; // Allow multiple attempts across different providers
+		
+		while (attempts < maxAttempts) {
+			try {
+				attempts++;
+				
+				// Get provider configuration (may change if we fall back)
+				const providerConfig = await this.getSelectedProvider();
+				currentProviderId = providerConfig.providerId;
+				
+				console.log(`Attempt ${attempts}: Using provider ${currentProviderId}`);
+				
+				// Create provider instance
+				const provider = await ProviderFactory.createProvider(providerConfig);
+				
+				// Extract golden nuggets
+				const startTime = performance.now();
+				const rawResponse = await provider.extractGoldenNuggets(content, prompt);
+				const responseTime = performance.now() - startTime;
+				
+				// Normalize response
+				const normalizedResponse = ResponseNormalizer.normalize(rawResponse, providerConfig.providerId);
+				
+				// Store provider metadata for feedback
+				await chrome.storage.local.set({
+					lastUsedProvider: {
+						providerId: providerConfig.providerId,
+						modelName: providerConfig.modelName,
+						responseTime
+					}
+				});
+				
+				// Clear retry count on success
+				if (currentProviderId) {
+					ErrorHandler.resetRetryCount(currentProviderId, 'extraction');
 				}
-			});
-			
-			return normalizedResponse;
-		} catch (error) {
-			console.error('Golden nuggets extraction failed:', error);
-			throw error;
+				
+				return normalizedResponse;
+				
+			} catch (error) {
+				console.error(`Golden nuggets extraction failed (attempt ${attempts}):`, error);
+				
+				if (currentProviderId) {
+					// Handle the error using our comprehensive error handler
+					const errorResult = await ErrorHandler.handleProviderError(
+						error as Error,
+						currentProviderId,
+						'extraction'
+					);
+					
+					if (errorResult.shouldRetry) {
+						console.log(`Retrying with ${currentProviderId} after error handling...`);
+						continue; // Retry with same provider
+					}
+					
+					if (errorResult.fallbackProvider) {
+						console.log(`Switching to fallback provider: ${errorResult.fallbackProvider}`);
+						
+						// Switch to fallback provider
+						const switchSuccess = await ProviderSwitcher.switchProvider(errorResult.fallbackProvider);
+						if (switchSuccess) {
+							console.log(`Successfully switched to fallback provider: ${errorResult.fallbackProvider}`);
+							continue; // Try again with fallback provider
+						} else {
+							console.error(`Failed to switch to fallback provider: ${errorResult.fallbackProvider}`);
+						}
+					}
+				}
+				
+				// If we're on the last attempt or no more fallbacks, throw the error
+				if (attempts >= maxAttempts) {
+					const userFriendlyMessage = currentProviderId 
+						? ErrorHandler.getUserFriendlyMessage(error as Error, currentProviderId)
+						: (error as Error).message;
+					throw new Error(userFriendlyMessage);
+				}
+			}
 		}
+		
+		// This should never be reached, but just in case
+		throw new Error('All providers failed after maximum attempts');
 	}
 
 	async handleMessage(
@@ -1236,6 +1291,9 @@ export class MessageHandler {
 			const success = await ProviderSwitcher.switchProvider(providerId);
 			
 			if (success) {
+				// Clear any existing retry counts for the new provider
+				ErrorHandler.resetRetryCount(providerId, 'extraction');
+				
 				sendResponse({ 
 					success: true, 
 					message: `Successfully switched to ${providerId}`,
@@ -1249,7 +1307,13 @@ export class MessageHandler {
 			}
 		} catch (error) {
 			console.error("Failed to switch provider:", error);
-			sendResponse({ success: false, error: (error as Error).message });
+			
+			// Use error handler for switch-specific error messages
+			const errorResult = ErrorHandler.handleSwitchError(error as Error, request.providerId);
+			sendResponse({ 
+				success: errorResult.success, 
+				error: errorResult.message 
+			});
 		}
 	}
 
@@ -1316,11 +1380,16 @@ export class MessageHandler {
 			});
 		} catch (error) {
 			console.error("Failed to validate provider:", error);
+			
+			// Use error handler for user-friendly validation error messages
+			const userFriendlyMessage = ErrorHandler.getUserFriendlyMessage(error as Error, request.providerId);
+			
 			sendResponse({ 
 				success: true, 
 				data: { 
 					isValid: false, 
-					error: (error as Error).message 
+					error: userFriendlyMessage,
+					originalError: (error as Error).message
 				} 
 			});
 		}
