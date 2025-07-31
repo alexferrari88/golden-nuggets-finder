@@ -1,4 +1,4 @@
-import { ChatAnthropic } from "@langchain/anthropic";
+import { ChatOpenAI } from "@langchain/openai";
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { z } from "zod";
 import { LLMProvider, ProviderConfig, GoldenNuggetsResponse } from '../types/providers';
@@ -11,17 +11,24 @@ const GoldenNuggetsSchema = z.object({
   }))
 });
 
-export class LangChainAnthropicProvider implements LLMProvider {
-  readonly providerId = 'anthropic' as const;
+export class LangChainOpenRouterProvider implements LLMProvider {
+  readonly providerId = 'openrouter' as const;
   readonly modelName: string;
-  private model: ChatAnthropic;
+  private model: ChatOpenAI;
 
   constructor(private config: ProviderConfig) {
-    this.modelName = config.modelName || "claude-3-5-haiku-latest";
-    this.model = new ChatAnthropic({
+    this.modelName = config.modelName || 'anthropic/claude-3-5-sonnet';
+    this.model = new ChatOpenAI({
       apiKey: config.apiKey,
       model: this.modelName,
       temperature: 0,
+      configuration: {
+        baseURL: 'https://openrouter.ai/api/v1',
+        defaultHeaders: {
+          'HTTP-Referer': 'https://golden-nuggets-finder.com',
+          'X-Title': 'Golden Nuggets Finder'
+        }
+      }
     });
   }
 
@@ -39,8 +46,8 @@ export class LangChainAnthropicProvider implements LLMProvider {
 
       return response as GoldenNuggetsResponse;
     } catch (error) {
-      console.error(`Anthropic provider error:`, error);
-      throw new Error(`Anthropic API call failed: ${error.message}`);
+      console.error(`OpenRouter provider error:`, error);
+      throw new Error(`OpenRouter API call failed: ${error.message}`);
     }
   }
 
@@ -52,7 +59,7 @@ export class LangChainAnthropicProvider implements LLMProvider {
       );
       return testResult && testResult.golden_nuggets && Array.isArray(testResult.golden_nuggets);
     } catch (error) {
-      console.warn(`Anthropic API key validation failed:`, error.message);
+      console.warn(`OpenRouter API key validation failed:`, error.message);
       return false;
     }
   }
