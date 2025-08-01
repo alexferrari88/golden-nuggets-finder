@@ -107,6 +107,18 @@ test-run:
 test-coverage:
     pnpm test:coverage
 
+# Run integration tests (with real API keys)
+test-integration:
+    pnpm test:integration
+
+# Run integration tests in watch mode
+test-integration-watch:
+    pnpm test:integration:watch
+
+# Run integration tests with UI
+test-integration-ui:
+    pnpm test:integration:ui
+
 # Run E2E tests
 test-e2e:
     pnpm test:e2e
