@@ -267,8 +267,8 @@ describe("NotificationManager", () => {
 			) as HTMLElement;
 			expect(banner.style.position).toBe("fixed");
 			expect(banner.style.top).toBe("20px");
-			expect(banner.style.left).toBe("50%");
-			expect(banner.style.transform).toBe("translateX(-50%)");
+			expect(banner.style.left).toBe("20px");
+			expect(banner.style.right).toBe("20px");
 			expect(banner.style.zIndex).toBe("10000");
 		});
 
