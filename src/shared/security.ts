@@ -453,7 +453,7 @@ export class SecurityManager {
 	logSecurityEvent(
 		event: "encryption" | "decryption" | "recovery" | "validation" | "error",
 		success: boolean,
-		details?: { [key: string]: any },
+		details?: Record<string, string | number | boolean | undefined>,
 	): void {
 		const logEntry = {
 			timestamp: Date.now(),

@@ -218,10 +218,9 @@
 	color: var(--color-text-secondary);
 	font-style: normal;
 	border-left: 2px solid var(--color-border-default);
-	padding-left: 12px;
 	margin-top: 12px;
 	background: var(--color-gray-50);
-	padding: 12px;
+	padding: 12px 12px 12px 24px;
 	border-radius: 6px;
 	border: 1px solid var(--color-border-light);
 }

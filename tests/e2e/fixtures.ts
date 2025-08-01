@@ -13,7 +13,7 @@ export const test = base.extend<{
 	cleanContext: BrowserContext;
 	cleanPage: Page;
 }>({
-	context: async ({}, use) => {
+	context: async (_, use) => {
 		const pathToExtension = path.join(__dirname, "../../dist/chrome-mv3-dev");
 		const context = await chromium.launchPersistentContext("", {
 			channel: "chromium",
@@ -34,7 +34,7 @@ export const test = base.extend<{
 		const extensionId = serviceWorker.url().split("/")[2];
 		await use(extensionId);
 	},
-	cleanContext: async ({}, use) => {
+	cleanContext: async (_, use) => {
 		// Clean browser context with stealth capabilities for bypassing bot detection
 		const browser = await chromium.launch({
 			channel: "chromium",
@@ -123,7 +123,7 @@ export const stealthTest = base.extend<{
 	stealthContext: BrowserContext;
 	stealthPage: Page;
 }>({
-	stealthContext: async ({}, use) => {
+	stealthContext: async (_, use) => {
 		// Lazy load stealth libraries to avoid import issues
 		if (!stealthChromium) {
 			try {

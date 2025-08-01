@@ -500,7 +500,12 @@ function IndexPopup() {
 				cleanupTimeoutRef.current = null;
 			}
 		};
-	}, []); // Remove dependencies to prevent infinite re-renders
+	}, [
+		checkBackendStatus,
+		completeAllPhases,
+		loadPrompts,
+		processRealTimePhase,
+	]); // Remove dependencies to prevent infinite re-renders
 
 	const analyzeWithPrompt = async (promptId: string) => {
 		try {

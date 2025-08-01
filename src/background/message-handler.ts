@@ -11,7 +11,6 @@ import {
 	MESSAGE_TYPES,
 	type MissingContentFeedback,
 	type NuggetFeedback,
-	type OptimizationRequest,
 	type OptimizedPrompt,
 	type SavedPrompt,
 	type TypeFilterOptions,
