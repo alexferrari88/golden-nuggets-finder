@@ -20,6 +20,7 @@ import {
 	type GoldenNugget,
 	MESSAGE_TYPES,
 	type MissingContentFeedback,
+	type ProviderId,
 	type SavedPrompt,
 	type SidebarNuggetItem,
 	type TypeFilterOptions,
@@ -121,6 +122,11 @@ export class UIManager {
 	async displayResults(
 		nuggets: GoldenNugget[],
 		pageContent?: string,
+		providerMetadata?: {
+			providerId: ProviderId;
+			modelName: string;
+			responseTime: number;
+		},
 	): Promise<void> {
 		console.log("[UIManager] displayResults called with:", {
 			nuggetsLength: nuggets.length,
@@ -202,7 +208,7 @@ export class UIManager {
 			"items",
 		);
 		measureDOMOperation("show_sidebar", () =>
-			this.sidebar.show(sidebarItems, this.highlighter, pageContent),
+			this.sidebar.show(sidebarItems, this.highlighter, pageContent, providerMetadata),
 		);
 
 		performanceMonitor.logTimer("display_results", "Complete results display");

@@ -641,9 +641,13 @@ export default defineContentScript({
 				nuggets = results.nuggets;
 			}
 
+			// Extract provider metadata
+			const providerMetadata = results.providerMetadata || null;
+
 			console.log("[Content Script] Nuggets extraction attempt:", {
 				foundStructure: nuggets.length > 0 ? "success" : "failed",
 				nuggetCount: nuggets.length,
+				providerMetadata: providerMetadata,
 			});
 
 			console.log("[Content Script] Extracted nuggets:", {
@@ -661,7 +665,7 @@ export default defineContentScript({
 				console.warn("[Content Script] No nuggets found, showing empty state");
 				uiManager.showNoResultsBanner();
 				// Still show sidebar with empty state for better UX
-				await uiManager.displayResults([], extractedPageContent || undefined);
+				await uiManager.displayResults([], extractedPageContent || undefined, providerMetadata);
 				return;
 			}
 
@@ -674,6 +678,7 @@ export default defineContentScript({
 			await uiManager.displayResults(
 				nuggets,
 				extractedPageContent || undefined,
+				providerMetadata,
 			);
 		}
 

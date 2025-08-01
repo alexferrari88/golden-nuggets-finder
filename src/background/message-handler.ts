@@ -710,15 +710,22 @@ export class MessageHandler {
 				sender.tab?.id,
 			);
 
+			// Get provider metadata to include in response
+			const providerMetadata = await chrome.storage.local.get(["lastUsedProvider"]);
+			const resultWithProvider = {
+				...result,
+				providerMetadata: providerMetadata.lastUsedProvider || null,
+			};
+
 			// Send results to content script for display
 			if (sender.tab?.id) {
 				await chrome.tabs.sendMessage(sender.tab.id, {
 					type: MESSAGE_TYPES.ANALYSIS_COMPLETE,
-					data: result,
+					data: resultWithProvider,
 				});
 			}
 
-			sendResponse({ success: true, data: result });
+			sendResponse({ success: true, data: resultWithProvider });
 		} catch (error) {
 			console.error("Analysis failed:", error);
 
@@ -850,15 +857,22 @@ export class MessageHandler {
 				sender.tab?.id,
 			);
 
+			// Get provider metadata to include in response
+			const providerMetadata = await chrome.storage.local.get(["lastUsedProvider"]);
+			const resultWithProvider = {
+				...result,
+				providerMetadata: providerMetadata.lastUsedProvider || null,
+			};
+
 			// Send results to content script for display
 			if (sender.tab?.id) {
 				await chrome.tabs.sendMessage(sender.tab.id, {
 					type: MESSAGE_TYPES.ANALYSIS_COMPLETE,
-					data: result,
+					data: resultWithProvider,
 				});
 			}
 
-			sendResponse({ success: true, data: result });
+			sendResponse({ success: true, data: resultWithProvider });
 		} catch (error) {
 			console.error("Selected content analysis failed:", error);
 

@@ -17,6 +17,7 @@ import {
 	type FeedbackRating,
 	MESSAGE_TYPES,
 	type NuggetFeedback,
+	type ProviderId,
 	type SidebarNuggetItem,
 } from "../../shared/types";
 import type { Highlighter } from "./highlighter";
@@ -35,6 +36,11 @@ export class Sidebar {
 	private restEndpointPanel: HTMLElement | null = null;
 	private restEndpointExpanded: boolean = false;
 	private pageContent: string | null = null; // Store page content for reconstruction
+	private providerMetadata: {
+		providerId: ProviderId;
+		modelName: string;
+		responseTime: number;
+	} | null = null; // Store provider metadata for display
 	private restEndpointConfig = {
 		url: "",
 		method: "POST",
@@ -144,6 +150,11 @@ export class Sidebar {
 		nuggetItems: SidebarNuggetItem[],
 		highlighter?: Highlighter,
 		pageContent?: string,
+		providerMetadata?: {
+			providerId: ProviderId;
+			modelName: string;
+			responseTime: number;
+		},
 	): void {
 		console.log("[Sidebar] show called with:", {
 			nuggetItemsLength: nuggetItems.length,
@@ -156,6 +167,9 @@ export class Sidebar {
 
 		// Store page content for reconstruction
 		this.pageContent = pageContent || null;
+
+		// Store provider metadata for display
+		this.providerMetadata = providerMetadata || null;
 
 		// Initialize selection state for all nuggets
 		this.allItems = nuggetItems.map((item) => ({
@@ -429,6 +443,24 @@ export class Sidebar {
 
 		titleContainer.appendChild(title);
 		titleContainer.appendChild(count);
+
+		// Add provider info if available
+		if (this.providerMetadata) {
+			const providerInfo = document.createElement("div");
+			providerInfo.style.cssText = `
+				font-size: ${typography.fontSize.xs};
+				color: ${colors.text.tertiary};
+				font-weight: ${typography.fontWeight.normal};
+				margin-top: ${spacing.xs};
+			`;
+			
+			// Format provider name for display (capitalize first letter)
+			const providerName = this.providerMetadata.providerId.charAt(0).toUpperCase() + 
+				this.providerMetadata.providerId.slice(1);
+			
+			providerInfo.textContent = `${providerName} • ${this.providerMetadata.modelName}`;
+			titleContainer.appendChild(providerInfo);
+		}
 
 		const actionsContainer = document.createElement("div");
 		actionsContainer.style.cssText = `

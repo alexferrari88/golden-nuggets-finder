@@ -123,6 +123,11 @@ export interface AnalysisResponse {
 	success: boolean;
 	data?: GeminiResponse;
 	error?: string;
+	providerMetadata?: {
+		providerId: ProviderId;
+		modelName: string;
+		responseTime: number;
+	};
 }
 
 // Feedback System Types
