@@ -22,7 +22,11 @@ import {
 	type ModelInfo,
 	ModelService,
 } from "../background/services/model-service";
-import { ProviderFactory } from "../background/services/provider-factory";
+import {
+	createProvider,
+	getDefaultModel,
+	getSelectedModel,
+} from "../background/services/provider-factory";
 import { debugLogger } from "../shared/debug";
 import {
 	borderRadius,
@@ -383,7 +387,7 @@ function OptionsPage() {
 			>;
 			for (const [providerId, model] of Object.entries(selectedModelsMap)) {
 				modelsWithFallbacks[providerId as ProviderId] =
-					model || ProviderFactory.getDefaultModel(providerId as ProviderId);
+					model || getDefaultModel(providerId as ProviderId);
 			}
 
 			setSelectedModels(modelsWithFallbacks);
@@ -547,10 +551,10 @@ function OptionsPage() {
 			console.log(`[DEBUG] Testing API key for ${providerId}`);
 			console.log(`[DEBUG] API key length: ${apiKey.length}`);
 
-			const selectedModel = await ProviderFactory.getSelectedModel(providerId);
+			const selectedModel = await getSelectedModel(providerId);
 			console.log(`[DEBUG] Selected model for ${providerId}: ${selectedModel}`);
 
-			const provider = await ProviderFactory.createProvider({
+			const provider = await createProvider({
 				providerId,
 				apiKey,
 				modelName: selectedModel,
@@ -719,7 +723,7 @@ function OptionsPage() {
 
 	const getSelectedModelName = (providerId: ProviderId): string => {
 		const selectedModelId =
-			selectedModels[providerId] || ProviderFactory.getDefaultModel(providerId);
+			selectedModels[providerId] || getDefaultModel(providerId);
 		const model = availableModels[providerId]?.find(
 			(m) => m.id === selectedModelId,
 		);
@@ -1124,7 +1128,7 @@ function OptionsPage() {
 							>
 								{selectedModels[selectedProvider]
 									? `Using ${selectedModels[selectedProvider]}`
-									: `Using default: ${ProviderFactory.getDefaultModel(selectedProvider)}`}
+									: `Using default: ${getDefaultModel(selectedProvider)}`}
 							</div>
 						</div>
 					</div>
@@ -1756,13 +1760,13 @@ function OptionsPage() {
 											}}
 										>
 											No models available. Using default model:{" "}
-											{ProviderFactory.getDefaultModel(selectedProvider)}
+											{getDefaultModel(selectedProvider)}
 										</div>
 									)}
 
 									{selectedModels[selectedProvider] &&
 										selectedModels[selectedProvider] !==
-											ProviderFactory.getDefaultModel(selectedProvider) && (
+											getDefaultModel(selectedProvider) && (
 											<div
 												style={{
 													marginTop: spacing.sm,
