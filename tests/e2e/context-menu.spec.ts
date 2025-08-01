@@ -1,5 +1,5 @@
-import { expect, test } from "./fixtures";
 import type { Page } from "@playwright/test";
+import { expect, test } from "./fixtures";
 
 // Helper function to wait for React popup to load
 async function waitForPopupToLoad(page: Page) {
@@ -104,7 +104,7 @@ test.describe("Context Menu E2E Tests", () => {
 		});
 
 		await popupPage.goto(`chrome-extension://${extensionId}/popup.html`);
-		
+
 		// Wait for React to render
 		await waitForPopupToLoad(popupPage);
 
@@ -112,8 +112,9 @@ test.describe("Context Menu E2E Tests", () => {
 		await popupPage.waitForTimeout(1000);
 
 		// Check for error messages (allow warnings and info)
-		const errorLogs = consoleLogs.filter((log) =>
-			log.startsWith("error:") && !log.includes("Failed to load resource")
+		const errorLogs = consoleLogs.filter(
+			(log) =>
+				log.startsWith("error:") && !log.includes("Failed to load resource"),
 		);
 		expect(errorLogs).toHaveLength(0);
 	});
@@ -124,7 +125,7 @@ test.describe("Context Menu E2E Tests", () => {
 	}) => {
 		const popupPage = await context.newPage();
 		await popupPage.goto(`chrome-extension://${extensionId}/popup.html`);
-		
+
 		// Wait for React to render
 		await waitForPopupToLoad(popupPage);
 
@@ -132,10 +133,12 @@ test.describe("Context Menu E2E Tests", () => {
 		const messageTest = await popupPage.evaluate(async () => {
 			try {
 				// Test sending a message (will fail gracefully if no listener)
-				const response = await chrome.runtime.sendMessage({
-					type: "TEST_MESSAGE",
-					test: true,
-				}).catch(() => ({ error: "No listener" }));
+				const response = await chrome.runtime
+					.sendMessage({
+						type: "TEST_MESSAGE",
+						test: true,
+					})
+					.catch(() => ({ error: "No listener" }));
 
 				return {
 					canSendMessage: true,
@@ -160,7 +163,7 @@ test.describe("Context Menu E2E Tests", () => {
 	}) => {
 		const popupPage = await context.newPage();
 		await popupPage.goto(`chrome-extension://${extensionId}/popup.html`);
-		
+
 		// Wait for React to render
 		await waitForPopupToLoad(popupPage);
 
@@ -199,21 +202,26 @@ test.describe("Context Menu E2E Tests", () => {
 
 		// Wait for React to render first
 		await waitForPopupToLoad(popupPage);
-		
+
 		// Then wait for prompts to load or API key prompt to appear
 		try {
-			await popupPage.waitForSelector('[data-testid="prompt-item"]', { timeout: 5000 });
+			await popupPage.waitForSelector('[data-testid="prompt-item"]', {
+				timeout: 5000,
+			});
 		} catch {
 			// If no prompts, should show API key setup message
-			await popupPage.waitForSelector('text=options page', { timeout: 5000 });
+			await popupPage.waitForSelector("text=options page", { timeout: 5000 });
 		}
 
 		// Check if we have prompts or need API key setup
 		const popupState = await popupPage.evaluate(() => {
-			const promptItems = document.querySelectorAll('[data-testid="prompt-item"]');
+			const promptItems = document.querySelectorAll(
+				'[data-testid="prompt-item"]',
+			);
 			const bodyText = document.body.textContent || "";
-			const needsApiKey = bodyText.includes("options page") && bodyText.includes("API key");
-			
+			const needsApiKey =
+				bodyText.includes("options page") && bodyText.includes("API key");
+
 			return {
 				hasPrompts: promptItems.length > 0,
 				needsApiKey: needsApiKey,
@@ -223,7 +231,7 @@ test.describe("Context Menu E2E Tests", () => {
 
 		// Either we have prompts loaded OR we need API key setup
 		expect(popupState.hasPrompts || popupState.needsApiKey).toBe(true);
-		
+
 		if (popupState.hasPrompts) {
 			expect(popupState.promptCount).toBeGreaterThan(0);
 		}
@@ -236,7 +244,7 @@ test.describe("Context Menu E2E Tests", () => {
 		// Open popup to test content script injection capability
 		const popupPage = await context.newPage();
 		await popupPage.goto(`chrome-extension://${extensionId}/popup.html`);
-		
+
 		// Wait for React to render
 		await waitForPopupToLoad(popupPage);
 
@@ -254,13 +262,16 @@ test.describe("Context Menu E2E Tests", () => {
 				}
 
 				// Get tabs to see if we can query them
-				const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-				
-				return { 
-					hasScriptingAPI: true, 
+				const tabs = await chrome.tabs.query({
+					active: true,
+					currentWindow: true,
+				});
+
+				return {
+					hasScriptingAPI: true,
 					canQueryTabs: true,
 					tabCount: tabs.length,
-					hasActiveTab: tabs.length > 0
+					hasActiveTab: tabs.length > 0,
 				};
 			} catch (error) {
 				return { hasScriptingAPI: false, error: error.message };
@@ -279,15 +290,18 @@ test.describe("Context Menu E2E Tests", () => {
 	}) => {
 		const popupPage = await context.newPage();
 		await popupPage.goto(`chrome-extension://${extensionId}/popup.html`);
-		
+
 		// Wait for React to render
 		await waitForPopupToLoad(popupPage);
 
 		// Test tab querying functionality
 		const tabTest = await popupPage.evaluate(async () => {
 			try {
-				const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-				
+				const tabs = await chrome.tabs.query({
+					active: true,
+					currentWindow: true,
+				});
+
 				return {
 					canQueryTabs: true,
 					tabCount: tabs.length,

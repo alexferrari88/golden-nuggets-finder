@@ -1,8 +1,8 @@
 import { Check, Star } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import ReactDOM from "react-dom/client";
-import { ProviderSwitcher } from "../background/services/provider-switcher";
 import { ProviderFactory } from "../background/services/provider-factory";
+import { ProviderSwitcher } from "../background/services/provider-switcher";
 import { TypeFilterService } from "../background/type-filter-service";
 import {
 	borderRadius,
@@ -28,28 +28,31 @@ function generateAnalysisId(): string {
 }
 
 // Utility function to truncate long error messages for better UX
-function truncateErrorMessage(message: string, maxLength: number = 200): string {
+function truncateErrorMessage(
+	message: string,
+	maxLength: number = 200,
+): string {
 	if (message.length <= maxLength) return message;
-	
+
 	// Try to truncate at a sentence boundary first
 	const truncated = message.substring(0, maxLength);
-	const lastSentence = truncated.lastIndexOf('. ');
-	const lastPeriod = truncated.lastIndexOf('.');
-	
+	const lastSentence = truncated.lastIndexOf(". ");
+	const lastPeriod = truncated.lastIndexOf(".");
+
 	if (lastSentence > maxLength * 0.6) {
-		return truncated.substring(0, lastSentence + 1) + ' [...]';
+		return truncated.substring(0, lastSentence + 1) + " [...]";
 	} else if (lastPeriod > maxLength * 0.6) {
-		return truncated.substring(0, lastPeriod + 1) + ' [...]';
+		return truncated.substring(0, lastPeriod + 1) + " [...]";
 	}
-	
+
 	// Fallback to word boundary
-	const lastSpace = truncated.lastIndexOf(' ');
+	const lastSpace = truncated.lastIndexOf(" ");
 	if (lastSpace > maxLength * 0.7) {
-		return truncated.substring(0, lastSpace) + '... [truncated]';
+		return truncated.substring(0, lastSpace) + "... [truncated]";
 	}
-	
+
 	// Hard truncation as last resort
-	return truncated + '... [truncated]';
+	return truncated + "... [truncated]";
 }
 
 // Utility function to format model names for display
@@ -57,12 +60,12 @@ function formatModelName(provider: string, model: string): string {
 	// Remove provider prefix if it's redundant
 	const providerLower = provider.toLowerCase();
 	const modelLower = model.toLowerCase();
-	
+
 	if (modelLower.startsWith(providerLower)) {
-		const withoutPrefix = model.substring(provider.length).replace(/^[-_]/, '');
+		const withoutPrefix = model.substring(provider.length).replace(/^[-_]/, "");
 		return withoutPrefix || model; // Fallback to original if result is empty
 	}
-	
+
 	return model;
 }
 
@@ -99,7 +102,10 @@ const useTypingEffect = (text: string, speed: number = 80) => {
 };
 
 // Custom hook for phase progression with real-time progress support
-const usePhaseProgression = (isTypingComplete: boolean, analysisId?: string) => {
+const usePhaseProgression = (
+	isTypingComplete: boolean,
+	analysisId?: string,
+) => {
 	const [currentPhase, setCurrentPhase] = useState(-1);
 	const [completedPhases, setCompletedPhases] = useState<number[]>([]);
 	const [visiblePhases, setVisiblePhases] = useState<number[]>([]);
@@ -136,21 +142,29 @@ const usePhaseProgression = (isTypingComplete: boolean, analysisId?: string) => 
 		let phaseIndex = -1;
 		let shouldComplete = false;
 
-		if (progressMessage.type === MESSAGE_TYPES.ANALYSIS_CONTENT_EXTRACTED || 
-			progressMessage.type === MESSAGE_TYPES.ANALYSIS_CONTENT_OPTIMIZED) {
+		if (
+			progressMessage.type === MESSAGE_TYPES.ANALYSIS_CONTENT_EXTRACTED ||
+			progressMessage.type === MESSAGE_TYPES.ANALYSIS_CONTENT_OPTIMIZED
+		) {
 			// Steps 1-2: Setup phase (instant)
 			phaseIndex = 0;
 			shouldComplete = true; // These are instant, complete immediately
-		} else if (progressMessage.type === MESSAGE_TYPES.ANALYSIS_API_REQUEST_START) {
+		} else if (
+			progressMessage.type === MESSAGE_TYPES.ANALYSIS_API_REQUEST_START
+		) {
 			// Step 3 start: AI thinking phase begins
 			phaseIndex = 1;
 			setAiStartTime(Date.now()); // Track AI start time
 			shouldComplete = false; // Don't complete yet, AI is thinking
-		} else if (progressMessage.type === MESSAGE_TYPES.ANALYSIS_API_RESPONSE_RECEIVED) {
+		} else if (
+			progressMessage.type === MESSAGE_TYPES.ANALYSIS_API_RESPONSE_RECEIVED
+		) {
 			// Step 3 complete: AI thinking phase completes
 			phaseIndex = 1;
 			shouldComplete = true;
-		} else if (progressMessage.type === MESSAGE_TYPES.ANALYSIS_PROCESSING_RESULTS) {
+		} else if (
+			progressMessage.type === MESSAGE_TYPES.ANALYSIS_PROCESSING_RESULTS
+		) {
 			// Step 4: Finalize phase (instant)
 			phaseIndex = 2;
 			shouldComplete = true;
@@ -181,7 +195,7 @@ const usePhaseProgression = (isTypingComplete: boolean, analysisId?: string) => 
 					}
 					return prev;
 				});
-				
+
 				// Clear current phase if completing
 				if (phaseIndex < 2) {
 					setCurrentPhase(-1);
@@ -222,16 +236,16 @@ const usePhaseProgression = (isTypingComplete: boolean, analysisId?: string) => 
 		setVisiblePhases([0]);
 		await new Promise((resolve) => setTimeout(resolve, 200));
 		setCompletedPhases([0]);
-		
+
 		// Phase 1: AI Thinking (show immediately, but don't complete - this is the long wait)
 		setVisiblePhases([0, 1]);
 		setCurrentPhase(1);
 		setAiStartTime(Date.now());
-		
+
 		// Phase 2: Will be shown when AI completes (or timeout)
 		// We don't fake complete the AI phase - that would be dishonest
 		// Just let it run until real completion or user gives up
-		
+
 		// Optional: After a very long time (2+ minutes), suggest the user might want to try again
 		const veryLongTimeoutTimer = setTimeout(() => {
 			// Don't automatically complete, just keep showing "AI thinking"
@@ -277,30 +291,31 @@ function IndexPopup() {
 
 	// Analysis phases data - reflects real workflow timing
 	const analysisPhases = [
-		{ 
-			id: "setup", 
-			text: "Extracted page content", 
+		{
+			id: "setup",
+			text: "Extracted page content",
 			description: "Reading and preparing your content",
-			isQuick: true // Steps 1-2 are instant
+			isQuick: true, // Steps 1-2 are instant
 		},
-		{ 
-			id: "ai_thinking", 
-			text: "AI is analyzing...", 
-			description: "The AI is reading through your content and identifying golden nuggets",
+		{
+			id: "ai_thinking",
+			text: "AI is analyzing...",
+			description:
+				"The AI is reading through your content and identifying golden nuggets",
 			isQuick: false, // Step 3 is the long wait
 			timeEstimate: "Usually takes 15-30 seconds",
 			tips: [
 				"💎 Looking for 5 types: Tools, Media, Explanations, Analogies, Mental Models",
 				"🔍 Analyzing context and relevance to your interests",
 				"⚡ Processing hundreds of words per second",
-				"🎯 Filtering for the most valuable insights"
-			]
+				"🎯 Filtering for the most valuable insights",
+			],
 		},
-		{ 
-			id: "finalize", 
-			text: "Results ready", 
+		{
+			id: "finalize",
+			text: "Results ready",
 			description: "Processing and displaying your golden nuggets",
-			isQuick: true // Step 4 is instant
+			isQuick: true, // Step 4 is instant
 		},
 	];
 
@@ -321,11 +336,11 @@ function IndexPopup() {
 	// Use ref to track current analysis ID for message listener
 	const currentAnalysisIdRef = useRef<string | null>(null);
 	const cleanupTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-	
+
 	// Force re-render for elapsed time counter
 	const [, setForceUpdate] = useState(0);
-	const forceUpdate = () => setForceUpdate(prev => prev + 1);
-	
+	const forceUpdate = () => setForceUpdate((prev) => prev + 1);
+
 	// Cycling tips during AI thinking
 	const [currentTipIndex, setCurrentTipIndex] = useState(0);
 
@@ -340,7 +355,7 @@ function IndexPopup() {
 			const interval = setInterval(() => {
 				forceUpdate(); // Force re-render to update elapsed time display
 			}, 1000);
-			
+
 			return () => clearInterval(interval);
 		}
 	}, [currentPhase, aiStartTime]);
@@ -351,9 +366,9 @@ function IndexPopup() {
 			const aiPhase = analysisPhases[1];
 			if (aiPhase.tips && aiPhase.tips.length > 1) {
 				const interval = setInterval(() => {
-					setCurrentTipIndex(prev => (prev + 1) % aiPhase.tips!.length);
+					setCurrentTipIndex((prev) => (prev + 1) % aiPhase.tips!.length);
 				}, 3000); // Change tip every 3 seconds
-				
+
 				return () => clearInterval(interval);
 			}
 		}
@@ -386,12 +401,13 @@ function IndexPopup() {
 			// Get current provider and check if it's configured
 			const provider = await ProviderSwitcher.getCurrentProvider();
 			setCurrentProvider(provider);
-			
+
 			// Get current model for the provider
 			const model = await ProviderFactory.getSelectedModel(provider);
 			setCurrentModel(model);
-			
-			const isConfigured = await ProviderSwitcher.isProviderConfigured(provider);
+
+			const isConfigured =
+				await ProviderSwitcher.isProviderConfigured(provider);
 			if (!isConfigured) {
 				setNoApiKey(true);
 				setLoading(false);
@@ -745,7 +761,8 @@ function IndexPopup() {
 	}
 
 	if (noApiKey) {
-		const providerName = currentProvider.charAt(0).toUpperCase() + currentProvider.slice(1);
+		const providerName =
+			currentProvider.charAt(0).toUpperCase() + currentProvider.slice(1);
 		return (
 			<div
 				style={{
@@ -796,10 +813,15 @@ function IndexPopup() {
 		};
 
 		// Find the current active phase
-		const activePhaseIndex = currentPhase >= 0 ? currentPhase : 
-			(completedPhases.length > 0 ? Math.max(...completedPhases) : -1);
-		const activePhase = activePhaseIndex >= 0 ? analysisPhases[activePhaseIndex] : null;
-		
+		const activePhaseIndex =
+			currentPhase >= 0
+				? currentPhase
+				: completedPhases.length > 0
+					? Math.max(...completedPhases)
+					: -1;
+		const activePhase =
+			activePhaseIndex >= 0 ? analysisPhases[activePhaseIndex] : null;
+
 		return (
 			<div
 				style={{
@@ -831,7 +853,8 @@ function IndexPopup() {
 							background: colors.text.accent,
 							boxShadow: `0 0 8px ${colors.text.accent}40`,
 							flexShrink: 0,
-							animation: currentPhase === 1 ? "glow 2s ease-in-out infinite" : "none",
+							animation:
+								currentPhase === 1 ? "glow 2s ease-in-out infinite" : "none",
 						}}
 					/>
 
@@ -901,10 +924,18 @@ function IndexPopup() {
 									opacity: isVisible ? 1 : 0,
 									transform: isVisible ? "translateY(0)" : "translateY(10px)",
 									transition: "all 0.3s ease",
-									padding: isInProgress && !phase.isQuick ? spacing.md : spacing.xs,
-									backgroundColor: isInProgress && !phase.isQuick ? colors.background.secondary : "transparent",
-									borderRadius: isInProgress && !phase.isQuick ? borderRadius.md : "0",
-									border: isInProgress && !phase.isQuick ? `1px solid ${colors.border.light}` : "none",
+									padding:
+										isInProgress && !phase.isQuick ? spacing.md : spacing.xs,
+									backgroundColor:
+										isInProgress && !phase.isQuick
+											? colors.background.secondary
+											: "transparent",
+									borderRadius:
+										isInProgress && !phase.isQuick ? borderRadius.md : "0",
+									border:
+										isInProgress && !phase.isQuick
+											? `1px solid ${colors.border.light}`
+											: "none",
 								}}
 							>
 								<div
@@ -937,7 +968,7 @@ function IndexPopup() {
 									>
 										{phase.text}
 									</div>
-									
+
 									{/* Show additional info for active AI phase */}
 									{isInProgress && !phase.isQuick && (
 										<>
@@ -954,12 +985,11 @@ function IndexPopup() {
 													transition: "opacity 0.3s ease",
 												}}
 											>
-												{phase.tips && phase.tips.length > 0 ? 
-													phase.tips[currentTipIndex] : 
-													phase.description
-												}
+												{phase.tips && phase.tips.length > 0
+													? phase.tips[currentTipIndex]
+													: phase.description}
 											</div>
-											
+
 											{/* Time estimate and elapsed time */}
 											<div
 												style={{
@@ -973,12 +1003,10 @@ function IndexPopup() {
 											>
 												<span>{phase.timeEstimate}</span>
 												{aiStartTime && (
-													<span>
-														{getElapsedTime()}s elapsed
-													</span>
+													<span>{getElapsedTime()}s elapsed</span>
 												)}
 											</div>
-											
+
 											{/* Indeterminate progress bar for AI thinking */}
 											<div
 												style={{

@@ -353,7 +353,8 @@ export class SecurityManager {
 
 			// Additional validation for sensitive operations
 			if (context.action === "write" && context.source === "content") {
-				const errorMsg = "Content script cannot write API keys - security policy violation";
+				const errorMsg =
+					"Content script cannot write API keys - security policy violation";
 				this.logAccess(context, false, errorMsg);
 				if (isDevMode()) {
 					console.error(`[Security] ${errorMsg}`);
@@ -363,11 +364,14 @@ export class SecurityManager {
 
 			this.logAccess(context, true);
 			if (isDevMode()) {
-				console.log(`[Security] Access granted for ${context.source}:${context.action}`);
+				console.log(
+					`[Security] Access granted for ${context.source}:${context.action}`,
+				);
 			}
 			return true;
 		} catch (error) {
-			const errorMsg = error instanceof Error ? error.message : "Unknown validation error";
+			const errorMsg =
+				error instanceof Error ? error.message : "Unknown validation error";
 			this.logAccess(context, false, errorMsg);
 			if (isDevMode()) {
 				console.error(`[Security] Validation error: ${errorMsg}`);

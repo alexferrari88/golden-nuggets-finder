@@ -99,7 +99,7 @@ describe("LangChainOpenAIProvider", () => {
 		const { ChatOpenAI } = await import("@langchain/openai");
 
 		// Mock a failure for this test
-		(ChatOpenAI as any).mockImplementationOnce(() => ({
+		(ChatOpenAI as ReturnType<typeof vi.fn>).mockImplementationOnce(() => ({
 			withStructuredOutput: vi.fn().mockReturnValue({
 				invoke: vi.fn().mockRejectedValue(new Error("API Error")),
 			}),

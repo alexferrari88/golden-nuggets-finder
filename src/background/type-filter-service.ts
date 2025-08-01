@@ -4,8 +4,7 @@ import {
 } from "../shared/schemas";
 import type { TypeConfiguration, TypeFilterOptions } from "../shared/types";
 
-export class TypeFilterService {
-	private static readonly TYPE_DEFINITIONS: Record<GoldenNuggetType, string> = {
+const TYPE_DEFINITIONS: Record<GoldenNuggetType, string> = {
 		tool: `1. **Actionable Tools:** A specific, tool/software/technique. Must include its specific, valuable application.
     *   **Bad:** "You should use a calendar."
     *   **Good:** "I use Trello's calendar power-up to visualize my content pipeline, which helps me manage deadlines when my ADHD makes time-planning difficult."`,
@@ -27,7 +26,7 @@ export class TypeFilterService {
     *   **Good:** "I apply the 'Inversion' mental model by asking 'What would guarantee failure?' before starting a new project. This helps me identify and mitigate risks proactively instead of just planning for success."`,
 	};
 
-	public static readonly TYPE_CONFIGURATIONS: TypeConfiguration[] = [
+export const TYPE_CONFIGURATIONS: TypeConfiguration[] = [
 		{ type: "tool", label: "Tools", emoji: "🛠️" },
 		{ type: "media", label: "Media", emoji: "📚" },
 		{ type: "explanation", label: "Explanations", emoji: "💡" },
@@ -35,7 +34,7 @@ export class TypeFilterService {
 		{ type: "model", label: "Mental Models", emoji: "🧠" },
 	];
 
-	public static readonly CONTEXT_MENU_OPTIONS = [
+export const CONTEXT_MENU_OPTIONS = [
 		{
 			id: "all",
 			title: "🔍 All Types",
@@ -74,10 +73,10 @@ export class TypeFilterService {
 		},
 	];
 
-	/**
-	 * Generates a filtered prompt based on selected types
-	 */
-	public static generateFilteredPrompt(
+/**
+ * Generates a filtered prompt based on selected types
+ */
+export function generateFilteredPrompt(
 		basePrompt: string,
 		selectedTypes: GoldenNuggetType[],
 	): string {
@@ -88,7 +87,7 @@ export class TypeFilterService {
 		// Build the filtered sections
 		const filteredSections = selectedTypes
 			.map((type, index) => {
-				const definition = TypeFilterService.TYPE_DEFINITIONS[type];
+				const definition = TYPE_DEFINITIONS[type];
 				return definition.replace(/^\d+\./, `${index + 1}.`);
 			})
 			.join("\n\n");
@@ -103,57 +102,57 @@ ${filteredSections}`;
 		return basePrompt.replace(extractionTargetsRegex, filteredExtraction);
 	}
 
-	/**
-	 * Generates a dynamic schema based on selected types
-	 */
-	public static generateDynamicSchema(selectedTypes: GoldenNuggetType[]) {
+/**
+ * Generates a dynamic schema based on selected types
+ */
+export function generateDynamicSchema(selectedTypes: GoldenNuggetType[]) {
 		return generateGoldenNuggetSchema(selectedTypes);
 	}
 
-	/**
-	 * Validates that selected types are valid
-	 */
-	public static validateSelectedTypes(
+/**
+ * Validates that selected types are valid
+ */
+export function validateSelectedTypes(
 		selectedTypes: GoldenNuggetType[],
 	): boolean {
 		const validTypes = ["tool", "media", "explanation", "analogy", "model"];
 		return selectedTypes.every((type) => validTypes.includes(type));
 	}
 
-	/**
-	 * Gets the configuration for a specific type
-	 */
-	public static getTypeConfiguration(
+/**
+ * Gets the configuration for a specific type
+ */
+export function getTypeConfiguration(
 		type: GoldenNuggetType,
 	): TypeConfiguration | undefined {
-		return TypeFilterService.TYPE_CONFIGURATIONS.find(
+		return TYPE_CONFIGURATIONS.find(
 			(config) => config.type === type,
 		);
 	}
 
-	/**
-	 * Gets context menu option by ID
-	 */
-	public static getContextMenuOption(id: string) {
-		return TypeFilterService.CONTEXT_MENU_OPTIONS.find(
+/**
+ * Gets context menu option by ID
+ */
+export function getContextMenuOption(id: string) {
+		return CONTEXT_MENU_OPTIONS.find(
 			(option) => option.id === id,
 		);
 	}
 
-	/**
-	 * Creates a default type filter with all types selected
-	 */
-	public static createDefaultTypeFilter(): TypeFilterOptions {
+/**
+ * Creates a default type filter with all types selected
+ */
+export function createDefaultTypeFilter(): TypeFilterOptions {
 		return {
 			selectedTypes: ["tool", "media", "explanation", "analogy", "model"],
 			analysisMode: "combination",
 		};
 	}
 
-	/**
-	 * Creates a single type filter for context menu usage
-	 */
-	public static createSingleTypeFilter(
+/**
+ * Creates a single type filter for context menu usage
+ */
+export function createSingleTypeFilter(
 		type: GoldenNuggetType,
 	): TypeFilterOptions {
 		return {
@@ -162,15 +161,34 @@ ${filteredSections}`;
 		};
 	}
 
-	/**
-	 * Creates a combination type filter for popup usage
-	 */
-	public static createCombinationTypeFilter(
+/**
+ * Creates a combination type filter for popup usage
+ */
+export function createCombinationTypeFilter(
 		types: GoldenNuggetType[],
 	): TypeFilterOptions {
 		return {
 			selectedTypes: types,
 			analysisMode: "combination",
 		};
-	}
 }
+
+/**
+ * TypeFilterService - Legacy class-like export for backward compatibility
+ */
+export const TypeFilterService = {
+	// Export all constants
+	TYPE_DEFINITIONS,
+	TYPE_CONFIGURATIONS,
+	CONTEXT_MENU_OPTIONS,
+	
+	// Export all functions
+	generateFilteredPrompt,
+	generateDynamicSchema,
+	validateSelectedTypes,
+	getTypeConfiguration,
+	getContextMenuOption,
+	createDefaultTypeFilter,
+	createSingleTypeFilter,
+	createCombinationTypeFilter,
+};

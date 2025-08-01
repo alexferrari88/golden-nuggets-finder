@@ -114,7 +114,7 @@ describe("LangChainAnthropicProvider", () => {
 		const { ChatAnthropic } = await import("@langchain/anthropic");
 
 		// Mock a failure for this test
-		(ChatAnthropic as any).mockImplementationOnce(() => ({
+		(ChatAnthropic as ReturnType<typeof vi.fn>).mockImplementationOnce(() => ({
 			withStructuredOutput: vi.fn().mockReturnValue({
 				invoke: vi.fn().mockRejectedValue(new Error("Anthropic API Error")),
 			}),
@@ -145,7 +145,7 @@ describe("LangChainAnthropicProvider", () => {
 		const { ChatAnthropic } = await import("@langchain/anthropic");
 
 		// Mock a malformed response (missing golden_nuggets field)
-		(ChatAnthropic as any).mockImplementationOnce(() => ({
+		(ChatAnthropic as ReturnType<typeof vi.fn>).mockImplementationOnce(() => ({
 			withStructuredOutput: vi.fn().mockReturnValue({
 				invoke: vi.fn().mockResolvedValue({
 					// Missing golden_nuggets field - malformed response
@@ -178,7 +178,7 @@ describe("LangChainAnthropicProvider", () => {
 		const { ChatAnthropic } = await import("@langchain/anthropic");
 
 		// Mock credit balance error
-		(ChatAnthropic as any).mockImplementationOnce(() => ({
+		(ChatAnthropic as ReturnType<typeof vi.fn>).mockImplementationOnce(() => ({
 			withStructuredOutput: vi.fn().mockReturnValue({
 				invoke: vi
 					.fn()
@@ -201,7 +201,7 @@ describe("LangChainAnthropicProvider", () => {
 		const { ChatAnthropic } = await import("@langchain/anthropic");
 
 		// Mock rate limit error
-		(ChatAnthropic as any).mockImplementationOnce(() => ({
+		(ChatAnthropic as ReturnType<typeof vi.fn>).mockImplementationOnce(() => ({
 			withStructuredOutput: vi.fn().mockReturnValue({
 				invoke: vi.fn().mockRejectedValue(new Error("Rate limit exceeded")),
 			}),
@@ -218,7 +218,7 @@ describe("LangChainAnthropicProvider", () => {
 		const { ChatAnthropic } = await import("@langchain/anthropic");
 
 		// Mock a null response
-		(ChatAnthropic as any).mockImplementationOnce(() => ({
+		(ChatAnthropic as ReturnType<typeof vi.fn>).mockImplementationOnce(() => ({
 			withStructuredOutput: vi.fn().mockReturnValue({
 				invoke: vi.fn().mockResolvedValue(null),
 			}),
@@ -235,7 +235,7 @@ describe("LangChainAnthropicProvider", () => {
 		const { ChatAnthropic } = await import("@langchain/anthropic");
 
 		// Mock response with undefined golden_nuggets
-		(ChatAnthropic as any).mockImplementationOnce(() => ({
+		(ChatAnthropic as ReturnType<typeof vi.fn>).mockImplementationOnce(() => ({
 			withStructuredOutput: vi.fn().mockReturnValue({
 				invoke: vi.fn().mockResolvedValue({
 					golden_nuggets: undefined,

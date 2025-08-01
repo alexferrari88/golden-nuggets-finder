@@ -9,8 +9,7 @@ import type {
 	ProviderId,
 } from "../../shared/types/providers";
 
-export class ProviderFactory {
-	static async createProvider(config: ProviderConfig): Promise<LLMProvider> {
+export async function createProvider(config: ProviderConfig): Promise<LLMProvider> {
 		switch (config.providerId) {
 			case "gemini":
 				return new GeminiDirectProvider(config);
@@ -29,7 +28,7 @@ export class ProviderFactory {
 		}
 	}
 
-	static getDefaultModel(providerId: ProviderId): string {
+export function getDefaultModel(providerId: ProviderId): string {
 		const defaults = {
 			gemini: "gemini-2.5-flash",
 			openai: "gpt-4.1-mini",
@@ -39,30 +38,29 @@ export class ProviderFactory {
 		return defaults[providerId];
 	}
 
-	static getSupportedProviders(): ProviderId[] {
+export function getSupportedProviders(): ProviderId[] {
 		return ["gemini", "openai", "anthropic", "openrouter"];
 	}
 
-	/**
-	 * Get the user-selected model for a provider, with fallback to default
-	 */
-	static async getSelectedModel(providerId: ProviderId): Promise<string> {
+/**
+ * Get the user-selected model for a provider, with fallback to default
+ */
+export async function getSelectedModel(providerId: ProviderId): Promise<string> {
 		const selectedModel = await ModelStorage.get(providerId);
-		return selectedModel || this.getDefaultModel(providerId);
+		return selectedModel || getDefaultModel(providerId);
 	}
 
-	/**
-	 * Create a provider using the user-selected model (convenience method)
-	 */
-	static async createProviderWithSelectedModel(
+/**
+ * Create a provider using the user-selected model (convenience method)
+ */
+export async function createProviderWithSelectedModel(
 		providerId: ProviderId,
 		apiKey: string,
 	): Promise<LLMProvider> {
-		const modelName = await this.getSelectedModel(providerId);
-		return this.createProvider({
+		const modelName = await getSelectedModel(providerId);
+		return createProvider({
 			providerId,
 			apiKey,
 			modelName,
 		});
-	}
 }

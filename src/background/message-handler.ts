@@ -15,11 +15,25 @@ import type {
 	ProviderConfig,
 	ProviderId,
 } from "../shared/types/providers";
-import { ErrorHandler } from "./services/error-handler";
-import { ProviderFactory } from "./services/provider-factory";
-import { ProviderSwitcher } from "./services/provider-switcher";
+import {
+	handleProviderError,
+	resetRetryCount,
+	getUserFriendlyMessage,
+	handleSwitchError,
+} from "./services/error-handler";
+import {
+	createProvider,
+	getSelectedModel,
+} from "./services/provider-factory";
+import {
+	switchProvider,
+	getAvailableProviders,
+	isProviderConfigured,
+	switchToFallbackProvider,
+	getCurrentProvider,
+} from "./services/provider-switcher";
 import { normalize as normalizeResponse } from "./services/response-normalizer";
-import { TypeFilterService } from "./type-filter-service";
+import { validateSelectedTypes, generateFilteredPrompt } from "./type-filter-service";
 
 // Utility function to generate unique analysis IDs
 function generateAnalysisId(): string {
@@ -221,10 +235,12 @@ export class MessageHandler {
 
 		// If no provider is explicitly selected, find the first configured provider
 		if (!providerId) {
-			const availableProviders = await ProviderSwitcher.getAvailableProviders();
+			const availableProviders = await getAvailableProviders();
 			if (availableProviders.length > 0) {
 				providerId = availableProviders[0];
-				console.log(`No provider selected, using first available: ${providerId}`);
+				console.log(
+					`No provider selected, using first available: ${providerId}`,
+				);
 				// Automatically set this as the selected provider
 				await chrome.storage.local.set({ selectedProvider: providerId });
 			} else {
@@ -235,7 +251,7 @@ export class MessageHandler {
 		} else {
 			// Check if selected provider is still configured
 			const isConfigured =
-				await ProviderSwitcher.isProviderConfigured(providerId);
+				await isProviderConfigured(providerId);
 			if (!isConfigured) {
 				console.warn(
 					`Selected provider ${providerId} is not configured, trying fallback...`,
@@ -243,7 +259,7 @@ export class MessageHandler {
 
 				// Try to switch to a fallback provider
 				const fallbackProviderId =
-					await ProviderSwitcher.switchToFallbackProvider();
+					await switchToFallbackProvider();
 				if (fallbackProviderId) {
 					providerId = fallbackProviderId;
 					console.log(`Switched to fallback provider: ${providerId}`);
@@ -279,7 +295,7 @@ export class MessageHandler {
 		return {
 			providerId,
 			apiKey,
-			modelName: await ProviderFactory.getSelectedModel(providerId),
+			modelName: await getSelectedModel(providerId),
 		};
 	}
 
@@ -314,10 +330,12 @@ export class MessageHandler {
 					const providerConfig = await MessageHandler.getSelectedProvider();
 					currentProviderId = providerConfig.providerId;
 
-					console.log(`Attempt ${attempts}: Using provider ${currentProviderId}`);
+					console.log(
+						`Attempt ${attempts}: Using provider ${currentProviderId}`,
+					);
 
 					// Create provider instance
-					const provider = await ProviderFactory.createProvider(providerConfig);
+					const provider = await createProvider(providerConfig);
 
 					// Extract golden nuggets
 					const startTime = performance.now();
@@ -344,31 +362,38 @@ export class MessageHandler {
 
 					// Clear retry count on success
 					if (currentProviderId) {
-						ErrorHandler.resetRetryCount(currentProviderId, "extraction");
+						resetRetryCount(currentProviderId, "extraction");
 					}
 
 					return normalizedResponse;
 				} catch (error) {
-					const errorMessage = error instanceof Error ? error.message : String(error);
+					const errorMessage =
+						error instanceof Error ? error.message : String(error);
 					console.error(
 						`Golden nuggets extraction failed (attempt ${attempts}):`,
 						errorMessage,
 					);
 
 					// Check for structural errors that indicate a programming bug (don't retry these)
-					const isStructuralError = errorMessage.includes("Cannot read properties of undefined") ||
+					const isStructuralError =
+						errorMessage.includes("Cannot read properties of undefined") ||
 						errorMessage.includes("is not a function") ||
 						errorMessage.includes("Cannot read property") ||
 						errorMessage.includes("undefined is not an object");
 
 					if (isStructuralError) {
-						console.error("Structural error detected, stopping retries:", errorMessage);
-						throw new Error(`Provider configuration error: ${errorMessage}. Please check extension configuration.`);
+						console.error(
+							"Structural error detected, stopping retries:",
+							errorMessage,
+						);
+						throw new Error(
+							`Provider configuration error: ${errorMessage}. Please check extension configuration.`,
+						);
 					}
 
 					if (currentProviderId) {
 						// Handle the error using our comprehensive error handler
-						const errorResult = await ErrorHandler.handleProviderError(
+						const errorResult = await handleProviderError(
 							error as Error,
 							currentProviderId,
 							"extraction",
@@ -389,7 +414,7 @@ export class MessageHandler {
 							);
 
 							// Switch to fallback provider
-							const switchSuccess = await ProviderSwitcher.switchProvider(
+							const switchSuccess = await switchProvider(
 								errorResult.fallbackProvider,
 							);
 							if (switchSuccess) {
@@ -408,12 +433,14 @@ export class MessageHandler {
 					// If we're on the last attempt or no more fallbacks, throw the error
 					if (attempts >= maxAttempts) {
 						const userFriendlyMessage = currentProviderId
-							? ErrorHandler.getUserFriendlyMessage(
+							? getUserFriendlyMessage(
 									error as Error,
 									currentProviderId,
 								)
 							: errorMessage;
-						console.error(`All attempts exhausted. Final error: ${userFriendlyMessage}`);
+						console.error(
+							`All attempts exhausted. Final error: ${userFriendlyMessage}`,
+						);
 						throw new Error(userFriendlyMessage);
 					}
 				}
@@ -526,10 +553,20 @@ export class MessageHandler {
 				case "DEBUG_TEST":
 					// Test logging in background script
 					console.log("🔍 [DEBUG TEST] Background script console logging test");
-					debugLogger.log("🔍 [DEBUG TEST] DebugLogger test from background script");
-					debugLogger.logLLMRequest("https://test-endpoint.com/background-test", { test: "This is a background test request" });
-					debugLogger.logLLMResponse({ test: "This is a background test response" });
-					sendResponse({ success: true, message: "Debug test completed in background script" });
+					debugLogger.log(
+						"🔍 [DEBUG TEST] DebugLogger test from background script",
+					);
+					debugLogger.logLLMRequest(
+						"https://test-endpoint.com/background-test",
+						{ test: "This is a background test request" },
+					);
+					debugLogger.logLLMResponse({
+						test: "This is a background test response",
+					});
+					sendResponse({
+						success: true,
+						message: "Debug test completed in background script",
+					});
 					break;
 
 				default:
@@ -559,7 +596,10 @@ export class MessageHandler {
 				console.log(`Analysis ${analysisId} was aborted by user`);
 				sendResponse({ success: true, message: "Analysis aborted" });
 			} else {
-				sendResponse({ success: false, error: "Analysis not found or already completed" });
+				sendResponse({
+					success: false,
+					error: "Analysis not found or already completed",
+				});
 			}
 		} catch (error) {
 			console.error("Failed to abort analysis:", error);
@@ -624,7 +664,7 @@ export class MessageHandler {
 			if (request.typeFilter && request.typeFilter.selectedTypes.length > 0) {
 				// Validate selected types
 				if (
-					!TypeFilterService.validateSelectedTypes(
+					!validateSelectedTypes(
 						request.typeFilter.selectedTypes,
 					)
 				) {
@@ -636,7 +676,7 @@ export class MessageHandler {
 				}
 
 				// Generate filtered prompt
-				processedPrompt = TypeFilterService.generateFilteredPrompt(
+				processedPrompt = generateFilteredPrompt(
 					processedPrompt,
 					request.typeFilter.selectedTypes,
 				);
@@ -690,19 +730,21 @@ export class MessageHandler {
 			sendResponse({ success: true, data: result });
 		} catch (error) {
 			console.error("Analysis failed:", error);
-			
+
 			// Send error to content script to clear loading states
 			if (sender.tab?.id) {
-				await chrome.tabs.sendMessage(sender.tab.id, {
-					type: MESSAGE_TYPES.ANALYSIS_ERROR,
-					error: (error as Error).message,
-					analysisId: request.analysisId || generateAnalysisId(),
-				}).catch(() => {
-					// Content script might not be ready, that's okay
-					console.log("Could not send analysis error to content script");
-				});
+				await chrome.tabs
+					.sendMessage(sender.tab.id, {
+						type: MESSAGE_TYPES.ANALYSIS_ERROR,
+						error: (error as Error).message,
+						analysisId: request.analysisId || generateAnalysisId(),
+					})
+					.catch(() => {
+						// Content script might not be ready, that's okay
+						console.log("Could not send analysis error to content script");
+					});
 			}
-			
+
 			sendResponse({ success: false, error: (error as Error).message });
 		}
 	}
@@ -766,7 +808,7 @@ export class MessageHandler {
 			if (request.typeFilter && request.typeFilter.selectedTypes.length > 0) {
 				// Validate selected types
 				if (
-					!TypeFilterService.validateSelectedTypes(
+					!validateSelectedTypes(
 						request.typeFilter.selectedTypes,
 					)
 				) {
@@ -778,7 +820,7 @@ export class MessageHandler {
 				}
 
 				// Generate filtered prompt
-				processedPrompt = TypeFilterService.generateFilteredPrompt(
+				processedPrompt = generateFilteredPrompt(
 					processedPrompt,
 					request.typeFilter.selectedTypes,
 				);
@@ -1447,11 +1489,11 @@ export class MessageHandler {
 				return;
 			}
 
-			const success = await ProviderSwitcher.switchProvider(providerId);
+			const success = await switchProvider(providerId);
 
 			if (success) {
 				// Clear any existing retry counts for the new provider
-				ErrorHandler.resetRetryCount(providerId, "extraction");
+				resetRetryCount(providerId, "extraction");
 
 				sendResponse({
 					success: true,
@@ -1468,7 +1510,7 @@ export class MessageHandler {
 			console.error("Failed to switch provider:", error);
 
 			// Use error handler for switch-specific error messages
-			const errorResult = ErrorHandler.handleSwitchError(
+			const errorResult = await handleSwitchError(
 				error as Error,
 				request.providerId,
 			);
@@ -1483,7 +1525,7 @@ export class MessageHandler {
 		sendResponse: (response: any) => void,
 	): Promise<void> {
 		try {
-			const availableProviders = await ProviderSwitcher.getAvailableProviders();
+			const availableProviders = await getAvailableProviders();
 			sendResponse({ success: true, data: availableProviders });
 		} catch (error) {
 			console.error("Failed to get available providers:", error);
@@ -1495,7 +1537,7 @@ export class MessageHandler {
 		sendResponse: (response: any) => void,
 	): Promise<void> {
 		try {
-			const currentProvider = await ProviderSwitcher.getCurrentProvider();
+			const currentProvider = await getCurrentProvider();
 			sendResponse({ success: true, data: currentProvider });
 		} catch (error) {
 			console.error("Failed to get current provider:", error);
@@ -1525,11 +1567,11 @@ export class MessageHandler {
 			const config: ProviderConfig = {
 				providerId,
 				apiKey,
-				modelName: await ProviderFactory.getSelectedModel(providerId),
+				modelName: await getSelectedModel(providerId),
 			};
 
 			// Create provider instance and validate
-			const provider = await ProviderFactory.createProvider(config);
+			const provider = await createProvider(config);
 			const isValid = await provider.validateApiKey();
 
 			sendResponse({
@@ -1544,7 +1586,7 @@ export class MessageHandler {
 			console.error("Failed to validate provider:", error);
 
 			// Use error handler for user-friendly validation error messages
-			const userFriendlyMessage = ErrorHandler.getUserFriendlyMessage(
+			const userFriendlyMessage = getUserFriendlyMessage(
 				error as Error,
 				request.providerId,
 			);

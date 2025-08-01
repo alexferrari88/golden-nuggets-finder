@@ -1,9 +1,23 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+// Mock types for Chrome API
+interface MockChrome {
+	tabs: {
+		sendMessage: ReturnType<typeof vi.fn>;
+	};
+	scripting: {
+		executeScript: ReturnType<typeof vi.fn>;
+	};
+}
+
+interface MockStorage {
+	getApiKey: ReturnType<typeof vi.fn>;
+}
+
 // Simplified tests focusing on core security logic
 describe("Background Script Security - Core Logic Tests", () => {
-	let mockChrome: any;
-	let mockStorage: any;
+	let mockChrome: MockChrome;
+	let mockStorage: MockStorage;
 
 	beforeEach(() => {
 		mockChrome = {
@@ -364,15 +378,15 @@ describe("Background Script Security - Core Logic Tests", () => {
 	});
 
 	describe("Input Validation Security", () => {
-		function validateTabId(tabId: any): boolean {
+		function validateTabId(tabId: unknown): boolean {
 			return typeof tabId === "number" && tabId > 0 && Number.isInteger(tabId);
 		}
 
-		function validatePromptId(promptId: any): boolean {
+		function validatePromptId(promptId: unknown): boolean {
 			return typeof promptId === "string" && promptId.trim().length > 0;
 		}
 
-		function validateTypeId(typeId: any): boolean {
+		function validateTypeId(typeId: unknown): boolean {
 			const validTypes = [
 				"all",
 				"tool",

@@ -4,6 +4,11 @@ import { DEFAULT_PROMPTS } from "./constants";
 import { type AccessContext, securityManager } from "./security";
 import { StorageManager } from "./storage";
 
+// Type for accessing static properties in tests
+interface StorageManagerWithStatic {
+	instance: StorageManager | null;
+}
+
 describe("StorageManager", () => {
 	let storageManager: StorageManager;
 
@@ -15,7 +20,7 @@ describe("StorageManager", () => {
 		// Clear sensitive data to reset any cached security state
 		storageManager.clearSensitiveData();
 		// Reset singleton instance to ensure clean state
-		(StorageManager as any).instance = null;
+		(StorageManager as unknown as StorageManagerWithStatic).instance = null;
 		storageManager = StorageManager.getInstance();
 	});
 

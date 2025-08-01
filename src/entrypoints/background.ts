@@ -229,10 +229,13 @@ export default defineBackground(() => {
 
 			// Check if current provider is configured before proceeding
 			const currentProvider = await ProviderSwitcher.getCurrentProvider();
-			const isConfigured = await ProviderSwitcher.isProviderConfigured(currentProvider);
-			
+			const isConfigured =
+				await ProviderSwitcher.isProviderConfigured(currentProvider);
+
 			if (!isConfigured) {
-				console.log(`[Background] Provider ${currentProvider} not configured - showing error message`);
+				console.log(
+					`[Background] Provider ${currentProvider} not configured - showing error message`,
+				);
 				// Show API key error message with link to options page
 				// Add a small delay to ensure content script is ready
 				await new Promise((resolve) => setTimeout(resolve, 100));
@@ -242,7 +245,9 @@ export default defineBackground(() => {
 				return;
 			}
 
-			console.log(`[Background] Provider ${currentProvider} configured - starting typed analysis`);
+			console.log(
+				`[Background] Provider ${currentProvider} configured - starting typed analysis`,
+			);
 
 			// Get the type filter configuration
 			const contextMenuOption = TypeFilterService.getContextMenuOption(typeId);
@@ -287,10 +292,13 @@ export default defineBackground(() => {
 
 			// Check if current provider is configured before proceeding
 			const currentProvider = await ProviderSwitcher.getCurrentProvider();
-			const isConfigured = await ProviderSwitcher.isProviderConfigured(currentProvider);
-			
+			const isConfigured =
+				await ProviderSwitcher.isProviderConfigured(currentProvider);
+
 			if (!isConfigured) {
-				console.log(`[Background] Provider ${currentProvider} not configured - showing error message`);
+				console.log(
+					`[Background] Provider ${currentProvider} not configured - showing error message`,
+				);
 				await new Promise((resolve) => setTimeout(resolve, 100));
 				await chrome.tabs.sendMessage(tab.id, {
 					type: MESSAGE_TYPES.SHOW_API_KEY_ERROR,
@@ -298,7 +306,9 @@ export default defineBackground(() => {
 				return;
 			}
 
-			console.log(`[Background] Provider ${currentProvider} configured - entering selection mode`);
+			console.log(
+				`[Background] Provider ${currentProvider} configured - entering selection mode`,
+			);
 			// Send message to content script to enter selection mode
 			await chrome.tabs.sendMessage(tab.id, {
 				type: MESSAGE_TYPES.ENTER_SELECTION_MODE,

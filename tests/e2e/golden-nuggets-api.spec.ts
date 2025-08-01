@@ -12,7 +12,7 @@ test.describe("Golden Nuggets API Integration", () => {
 
 		// Wait for page to load completely
 		await optionsPage.waitForLoadState("networkidle");
-		
+
 		// Wait for the API key input field to be visible
 		await optionsPage.waitForSelector('input[type="password"]', {
 			timeout: 10000,
@@ -20,13 +20,15 @@ test.describe("Golden Nuggets API Integration", () => {
 
 		// Configure API key (auto-saves when entered)
 		await optionsPage.fill('input[type="password"]', testApiKey);
-		
+
 		// Trigger blur to ensure auto-save happens
 		await optionsPage.locator('input[type="password"]').blur();
 
 		// Optionally validate the API key if needed for tests
-		const validateButton = optionsPage.locator('button:has-text("Validate API Key")');
-		if (await validateButton.count() > 0) {
+		const validateButton = optionsPage.locator(
+			'button:has-text("Validate API Key")',
+		);
+		if ((await validateButton.count()) > 0) {
 			await validateButton.click();
 			// Wait for validation to complete
 			await optionsPage.waitForTimeout(3000);

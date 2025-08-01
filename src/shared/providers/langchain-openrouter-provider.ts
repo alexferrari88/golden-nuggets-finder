@@ -31,16 +31,20 @@ export class LangChainOpenRouterProvider implements LLMProvider {
 	private getErrorMessage(error: unknown): string {
 		if (error instanceof Error) {
 			return error.message;
-		} else if (error && typeof error === 'object') {
+		} else if (error && typeof error === "object") {
 			// Handle OpenRouter API error format
-			if ('error' in error && typeof (error as any).error === 'object' && (error as any).error !== null) {
+			if (
+				"error" in error &&
+				typeof (error as any).error === "object" &&
+				(error as any).error !== null
+			) {
 				const apiError = (error as any).error;
-				if ('message' in apiError) {
+				if ("message" in apiError) {
 					return String(apiError.message);
 				}
 			}
 			// Handle other object-type errors
-			else if ('message' in error) {
+			else if ("message" in error) {
 				return String((error as any).message);
 			}
 		}
@@ -51,16 +55,18 @@ export class LangChainOpenRouterProvider implements LLMProvider {
 	 * Checks if an error is a rate limiting error (429)
 	 */
 	private isRateLimitError(errorMessage: string): boolean {
-		return errorMessage.toLowerCase().includes('429') || 
-			   errorMessage.toLowerCase().includes('rate limit') ||
-			   errorMessage.toLowerCase().includes('too many requests');
+		return (
+			errorMessage.toLowerCase().includes("429") ||
+			errorMessage.toLowerCase().includes("rate limit") ||
+			errorMessage.toLowerCase().includes("too many requests")
+		);
 	}
 
 	/**
 	 * Sleep utility for retry delays
 	 */
 	private sleep(ms: number): Promise<void> {
-		return new Promise(resolve => setTimeout(resolve, ms));
+		return new Promise((resolve) => setTimeout(resolve, ms));
 	}
 
 	/**
@@ -68,12 +74,14 @@ export class LangChainOpenRouterProvider implements LLMProvider {
 	 */
 	private validateOpenRouterResponse(response: any): void {
 		// Check if response contains error object (OpenRouter can return 200 with error content)
-		if (response && typeof response === 'object' && 'error' in response) {
+		if (response && typeof response === "object" && "error" in response) {
 			const error = response.error;
-			if (error && typeof error === 'object' && 'message' in error) {
+			if (error && typeof error === "object" && "message" in error) {
 				const errorMessage = String(error.message);
-				const errorCode = error.code ? String(error.code) : 'unknown';
-				debugLogger.log(`🚨 OpenRouter returned 200 with error object: ${errorMessage} (code: ${errorCode})`);
+				const errorCode = error.code ? String(error.code) : "unknown";
+				debugLogger.log(
+					`🚨 OpenRouter returned 200 with error object: ${errorMessage} (code: ${errorCode})`,
+				);
 				throw new Error(`OpenRouter API error (${errorCode}): ${errorMessage}`);
 			}
 		}
@@ -84,43 +92,53 @@ export class LangChainOpenRouterProvider implements LLMProvider {
 	 */
 	private async executeWithRetry<T>(
 		operation: () => Promise<T>,
-		maxRetries: number = 3
+		maxRetries: number = 3,
 	): Promise<T> {
 		let lastError: unknown;
-		
-		debugLogger.log(`🔄 Starting OpenRouter request with retry logic (max ${maxRetries} retries)`);
-		
+
+		debugLogger.log(
+			`🔄 Starting OpenRouter request with retry logic (max ${maxRetries} retries)`,
+		);
+
 		for (let attempt = 0; attempt <= maxRetries; attempt++) {
 			try {
-				debugLogger.log(`📤 OpenRouter attempt ${attempt + 1}/${maxRetries + 1} starting...`);
+				debugLogger.log(
+					`📤 OpenRouter attempt ${attempt + 1}/${maxRetries + 1} starting...`,
+				);
 				const result = await operation();
-				debugLogger.log(`✅ OpenRouter attempt ${attempt + 1}/${maxRetries + 1} succeeded`);
+				debugLogger.log(
+					`✅ OpenRouter attempt ${attempt + 1}/${maxRetries + 1} succeeded`,
+				);
 				return result;
 			} catch (error) {
 				lastError = error;
 				const errorMessage = this.getErrorMessage(error);
-				
-				debugLogger.log(`❌ OpenRouter attempt ${attempt + 1}/${maxRetries + 1} failed: ${errorMessage}`);
-				
+
+				debugLogger.log(
+					`❌ OpenRouter attempt ${attempt + 1}/${maxRetries + 1} failed: ${errorMessage}`,
+				);
+
 				// Only retry on rate limiting errors
 				if (!this.isRateLimitError(errorMessage)) {
 					debugLogger.log(`🚫 Not a rate limit error, stopping retries`);
 					throw error;
 				}
-				
+
 				// Don't retry on the last attempt
 				if (attempt === maxRetries) {
 					debugLogger.log(`🔚 Last attempt failed, no more retries`);
 					break;
 				}
-				
+
 				// Exponential backoff: 1s, 2s, 4s
-				const delayMs = Math.pow(2, attempt) * 1000;
-				debugLogger.log(`⏱️ Rate limit hit, retrying in ${delayMs}ms (attempt ${attempt + 1}/${maxRetries + 1})`);
+				const delayMs = 2 ** attempt * 1000;
+				debugLogger.log(
+					`⏱️ Rate limit hit, retrying in ${delayMs}ms (attempt ${attempt + 1}/${maxRetries + 1})`,
+				);
 				await this.sleep(delayMs);
 			}
 		}
-		
+
 		// All retries exhausted, throw with specific error for UI to handle
 		const finalErrorMessage = `RATE_LIMIT_RETRY_EXHAUSTED: Rate limit exceeded after ${maxRetries + 1} attempts. The OpenRouter API is temporarily limiting requests. You can try again.`;
 		debugLogger.log(`🔴 All retries exhausted, throwing: ${finalErrorMessage}`);
@@ -149,14 +167,17 @@ export class LangChainOpenRouterProvider implements LLMProvider {
 		prompt: string,
 	): Promise<GoldenNuggetsResponse> {
 		// Log the request
-		debugLogger.logLLMRequest(`https://openrouter.ai/api/v1/chat/completions (${this.modelName})`, {
-			model: this.modelName,
-			messages: [
-				{ role: "system", content: prompt },
-				{ role: "user", content: content.substring(0, 500) + "..." }, // Truncate for logging
-			],
-			provider: "openrouter"
-		});
+		debugLogger.logLLMRequest(
+			`https://openrouter.ai/api/v1/chat/completions (${this.modelName})`,
+			{
+				model: this.modelName,
+				messages: [
+					{ role: "system", content: prompt },
+					{ role: "user", content: content.substring(0, 500) + "..." }, // Truncate for logging
+				],
+				provider: "openrouter",
+			},
+		);
 
 		try {
 			const response = await this.executeWithRetry(async () => {
@@ -172,10 +193,10 @@ export class LangChainOpenRouterProvider implements LLMProvider {
 					new SystemMessage(prompt),
 					new HumanMessage(content),
 				]);
-				
+
 				// Validate response for error objects (OpenRouter can return 200 with error content)
 				this.validateOpenRouterResponse(result);
-				
+
 				return result;
 			});
 
@@ -189,36 +210,36 @@ export class LangChainOpenRouterProvider implements LLMProvider {
 
 			// Log the response
 			debugLogger.logLLMResponse(
-				{ 
+				{
 					provider: "openrouter",
 					model: this.modelName,
-					success: true 
-				}, 
-				response
+					success: true,
+				},
+				response,
 			);
 
 			return response as GoldenNuggetsResponse;
 		} catch (error) {
 			const errorMessage = this.getErrorMessage(error);
-			
+
 			// Log the error
-			debugLogger.logLLMResponse(
-				{ 
-					provider: "openrouter",
-					model: this.modelName,
-					success: false,
-					error: errorMessage 
-				}
-			);
+			debugLogger.logLLMResponse({
+				provider: "openrouter",
+				model: this.modelName,
+				success: false,
+				error: errorMessage,
+			});
 
 			debugLogger.log(`🔴 OpenRouter provider final error: ${errorMessage}`);
-			
+
 			// Re-throw rate limit retry exhausted errors as-is for UI to handle
-			if (errorMessage.startsWith('RATE_LIMIT_RETRY_EXHAUSTED:')) {
-				debugLogger.log(`🔄 Re-throwing rate limit retry exhausted error for UI handling`);
+			if (errorMessage.startsWith("RATE_LIMIT_RETRY_EXHAUSTED:")) {
+				debugLogger.log(
+					`🔄 Re-throwing rate limit retry exhausted error for UI handling`,
+				);
 				throw error;
 			}
-			
+
 			// For other errors, wrap with provider context
 			debugLogger.log(`❌ Wrapping non-retry error with provider context`);
 			throw new Error(`OpenRouter API call failed: ${errorMessage}`);
@@ -266,7 +287,8 @@ export class LangChainOpenRouterProvider implements LLMProvider {
 			});
 			return response.ok; // 200 = valid, 401 = invalid key
 		} catch (error) {
-			const errorMessage = error instanceof Error ? error.message : String(error);
+			const errorMessage =
+				error instanceof Error ? error.message : String(error);
 			console.warn(`OpenRouter API key validation failed:`, errorMessage);
 			return false;
 		}

@@ -13,10 +13,12 @@ type RawGoldenNugget = {
 	[key: string]: unknown;
 };
 
-type RawApiResponse = {
-	golden_nuggets?: RawGoldenNugget[];
-	[key: string]: unknown;
-} | unknown;
+type RawApiResponse =
+	| {
+			golden_nuggets?: RawGoldenNugget[];
+			[key: string]: unknown;
+	  }
+	| unknown;
 
 const GoldenNuggetsSchema = z.object({
 	golden_nuggets: z.array(
@@ -49,7 +51,10 @@ export function normalize(
 					endContent: String(nugget.endContent).trim(),
 					synthesis: String(nugget.synthesis).trim(),
 				}))
-				.filter((nugget) => nugget.startContent && nugget.endContent && nugget.synthesis),
+				.filter(
+					(nugget) =>
+						nugget.startContent && nugget.endContent && nugget.synthesis,
+				),
 		};
 
 		return normalized;
@@ -65,69 +70,72 @@ export function normalize(
 function preprocessResponse(response: RawApiResponse): {
 	golden_nuggets: RawGoldenNugget[];
 } {
-		if (!response || typeof response !== "object" || response === null) {
-			return { golden_nuggets: [] };
-		}
-
-		const responseObj = response as { golden_nuggets?: unknown; [key: string]: unknown };
-		if (!Array.isArray(responseObj.golden_nuggets)) {
-			return { golden_nuggets: [] };
-		}
-
-		return {
-			golden_nuggets: responseObj.golden_nuggets.map((nugget: unknown) => {
-				const nuggetObj = nugget as RawGoldenNugget;
-				
-				// Handle both new format (startContent/endContent) and legacy format (content)
-				let startContent = String(nuggetObj?.startContent || "");
-				let endContent = String(nuggetObj?.endContent || "");
-				
-				// If startContent/endContent are empty but content exists, use content as fallback
-				if ((!startContent || !endContent) && nuggetObj?.content) {
-					const contentStr = String(nuggetObj.content);
-					startContent = startContent || contentStr;
-					endContent = endContent || contentStr;
-				}
-				
-				return {
-					type: String(nuggetObj?.type || ""),
-					startContent,
-					endContent,
-					synthesis: String(nuggetObj?.synthesis || ""),
-				};
-			}),
-		};
+	if (!response || typeof response !== "object" || response === null) {
+		return { golden_nuggets: [] };
 	}
+
+	const responseObj = response as {
+		golden_nuggets?: unknown;
+		[key: string]: unknown;
+	};
+	if (!Array.isArray(responseObj.golden_nuggets)) {
+		return { golden_nuggets: [] };
+	}
+
+	return {
+		golden_nuggets: responseObj.golden_nuggets.map((nugget: unknown) => {
+			const nuggetObj = nugget as RawGoldenNugget;
+
+			// Handle both new format (startContent/endContent) and legacy format (content)
+			let startContent = String(nuggetObj?.startContent || "");
+			let endContent = String(nuggetObj?.endContent || "");
+
+			// If startContent/endContent are empty but content exists, use content as fallback
+			if ((!startContent || !endContent) && nuggetObj?.content) {
+				const contentStr = String(nuggetObj.content);
+				startContent = startContent || contentStr;
+				endContent = endContent || contentStr;
+			}
+
+			return {
+				type: String(nuggetObj?.type || ""),
+				startContent,
+				endContent,
+				synthesis: String(nuggetObj?.synthesis || ""),
+			};
+		}),
+	};
+}
 
 function normalizeType(
 	type: string,
 ): "tool" | "media" | "explanation" | "analogy" | "model" {
-		// Handle common variations that different models might return
-		const typeMap: Record<
-			string,
-			"tool" | "media" | "explanation" | "analogy" | "model"
-		> = {
-			"mental model": "model",
-			mental_model: "model",
-			framework: "model",
-			technique: "tool",
-			method: "tool",
-			resource: "media",
-			book: "media",
-			article: "media",
-			concept: "explanation",
-			comparison: "analogy",
-			metaphor: "analogy",
-		};
+	// Handle common variations that different models might return
+	const typeMap: Record<
+		string,
+		"tool" | "media" | "explanation" | "analogy" | "model"
+	> = {
+		"mental model": "model",
+		mental_model: "model",
+		framework: "model",
+		technique: "tool",
+		method: "tool",
+		resource: "media",
+		book: "media",
+		article: "media",
+		concept: "explanation",
+		comparison: "analogy",
+		metaphor: "analogy",
+	};
 
-		const normalized = typeMap[type.toLowerCase()] || type;
+	const normalized = typeMap[type.toLowerCase()] || type;
 
-		// Validate against allowed types
-		const allowedTypes = ["tool", "media", "explanation", "analogy", "model"];
-		return allowedTypes.includes(normalized)
-			? (normalized as "tool" | "media" | "explanation" | "analogy" | "model")
-			: "explanation";
-	}
+	// Validate against allowed types
+	const allowedTypes = ["tool", "media", "explanation", "analogy", "model"];
+	return allowedTypes.includes(normalized)
+		? (normalized as "tool" | "media" | "explanation" | "analogy" | "model")
+		: "explanation";
+}
 
 export function validate(response: RawApiResponse): boolean {
 	try {

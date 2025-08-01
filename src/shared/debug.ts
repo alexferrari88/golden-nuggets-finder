@@ -10,11 +10,15 @@ export function isDevMode(): boolean {
 	try {
 		const manifest = chrome.runtime.getManifest();
 		const isDev = !("update_url" in manifest);
-		console.log(`[DevMode Check] Development mode: ${isDev}, Update URL present: ${"update_url" in manifest}`);
+		console.log(
+			`[DevMode Check] Development mode: ${isDev}, Update URL present: ${"update_url" in manifest}`,
+		);
 		return isDev;
 	} catch (error) {
 		// During build time or if chrome API is not available, assume development
-		console.log(`[DevMode Check] Chrome API not available (${error}), assuming development mode`);
+		console.log(
+			`[DevMode Check] Chrome API not available (${error}), assuming development mode`,
+		);
 		return true;
 	}
 }
@@ -36,8 +40,10 @@ export class DebugLogger {
 	constructor() {
 		// Enable logging immediately in development mode, then check user setting
 		this.enabled = isDevMode();
-		console.log(`[DebugLogger] Constructor - Initial enabled state: ${this.enabled}`);
-		
+		console.log(
+			`[DebugLogger] Constructor - Initial enabled state: ${this.enabled}`,
+		);
+
 		// Asynchronously check user setting and update if needed
 		this.checkAndUpdateLoggingState();
 	}
@@ -45,21 +51,23 @@ export class DebugLogger {
 	private async checkAndUpdateLoggingState(): Promise<void> {
 		try {
 			console.log(`[DebugLogger] checkAndUpdateLoggingState() called`);
-			
+
 			if (typeof chrome === "undefined" || !chrome.runtime) {
-				console.log(`[DebugLogger] Chrome API not available, skipping storage check`);
+				console.log(
+					`[DebugLogger] Chrome API not available, skipping storage check`,
+				);
 				return;
 			}
 
 			// Check if we're in development mode
 			const isDev = isDevMode();
 			console.log(`[DebugLogger] Development mode check: ${isDev}`);
-			
+
 			// Check user's debug logging preference
 			let userDebugEnabled = false;
 			try {
 				console.log(`[DebugLogger] Checking storage for extensionConfig...`);
-				const result = await chrome.storage.local.get(['extensionConfig']);
+				const result = await chrome.storage.local.get(["extensionConfig"]);
 				console.log(`[DebugLogger] Storage result:`, result);
 				userDebugEnabled = result.extensionConfig?.enableDebugLogging || false;
 				console.log(`[DebugLogger] User debug setting: ${userDebugEnabled}`);
@@ -69,13 +77,17 @@ export class DebugLogger {
 
 			// Enable logging if either development mode or user has enabled it
 			const shouldBeEnabled = isDev || userDebugEnabled;
-			console.log(`[DebugLogger] Should be enabled: ${shouldBeEnabled} (dev: ${isDev} || user: ${userDebugEnabled})`);
-			
+			console.log(
+				`[DebugLogger] Should be enabled: ${shouldBeEnabled} (dev: ${isDev} || user: ${userDebugEnabled})`,
+			);
+
 			// Always update and log current state
 			const previousState = this.enabled;
 			this.enabled = shouldBeEnabled;
-			console.log(`[DebugLogger] State change - Previous: ${previousState}, Current: ${this.enabled}`);
-			
+			console.log(
+				`[DebugLogger] State change - Previous: ${previousState}, Current: ${this.enabled}`,
+			);
+
 			// Test logging immediately if enabled
 			if (this.enabled) {
 				console.log(`[DebugLogger] ✅ LOGGING IS NOW ENABLED - Testing...`);
@@ -113,7 +125,9 @@ export class DebugLogger {
 	}
 
 	logLLMRequest(endpoint: string, requestBody: any): void {
-		console.log(`[DebugLogger] logLLMRequest called - enabled: ${this.enabled}`);
+		console.log(
+			`[DebugLogger] logLLMRequest called - enabled: ${this.enabled}`,
+		);
 		if (!this.enabled) {
 			console.log(`[DebugLogger] logLLMRequest skipped - logging disabled`);
 			return;
@@ -123,7 +137,10 @@ export class DebugLogger {
 		let providerName = "Unknown API";
 		if (requestBody?.provider) {
 			// Provider explicitly set (OpenAI, Anthropic, OpenRouter)
-			providerName = requestBody.provider.charAt(0).toUpperCase() + requestBody.provider.slice(1) + " API";
+			providerName =
+				requestBody.provider.charAt(0).toUpperCase() +
+				requestBody.provider.slice(1) +
+				" API";
 		} else if (endpoint.includes("gemini")) {
 			providerName = "Gemini API";
 		} else if (endpoint.includes("openai.com")) {
@@ -228,23 +245,27 @@ export class DebugLogger {
 		console.log(`[DebugLogger] === MANUAL TEST LOGGING ===`);
 		console.log(`[DebugLogger] Current enabled state: ${this.enabled}`);
 		console.log(`[DebugLogger] isDevMode(): ${isDevMode()}`);
-		
+
 		// Force enable for test
 		const originalState = this.enabled;
 		this.enabled = true;
-		
+
 		console.log(`[DebugLogger] Testing with forced enabled state...`);
 		this.log("🧪 Test log message");
 		this.logLLMRequest("https://test.com/manual-test", { manual: "test" });
 		this.logLLMResponse({ manual: "test response" });
-		
+
 		// Restore original state
 		this.enabled = originalState;
-		console.log(`[DebugLogger] Test complete, restored enabled state to: ${this.enabled}`);
+		console.log(
+			`[DebugLogger] Test complete, restored enabled state to: ${this.enabled}`,
+		);
 	}
 
 	log(message: string, ...args: any[]): void {
-		console.log(`[DebugLogger] log() called - enabled: ${this.enabled}, message: ${message}`);
+		console.log(
+			`[DebugLogger] log() called - enabled: ${this.enabled}, message: ${message}`,
+		);
 		if (!this.enabled) {
 			console.log(`[DebugLogger] log() skipped - logging disabled`);
 			return;

@@ -113,7 +113,12 @@ export default defineContentScript({
 		}
 
 		function convertContentToText(content: Content | null): string {
-			if (!content || !content.items || !Array.isArray(content.items) || content.items.length === 0) {
+			if (
+				!content ||
+				!content.items ||
+				!Array.isArray(content.items) ||
+				content.items.length === 0
+			) {
 				return "";
 			}
 
@@ -479,21 +484,23 @@ export default defineContentScript({
 					if (source !== "popup") {
 						uiManager.hideProgressBanner();
 					}
-					
+
 					// Enhanced error message for provider failures
-					const errorMessage = response.error || "Analysis failed. Please try again.";
-					const isProviderError = errorMessage.toLowerCase().includes('provider') || 
-											errorMessage.toLowerCase().includes('openrouter') || 
-											errorMessage.toLowerCase().includes('gemini') || 
-											errorMessage.toLowerCase().includes('anthropic');
-					
-					const displayMessage = isProviderError 
+					const errorMessage =
+						response.error || "Analysis failed. Please try again.";
+					const isProviderError =
+						errorMessage.toLowerCase().includes("provider") ||
+						errorMessage.toLowerCase().includes("openrouter") ||
+						errorMessage.toLowerCase().includes("gemini") ||
+						errorMessage.toLowerCase().includes("anthropic");
+
+					const displayMessage = isProviderError
 						? `🔥 LLM Provider Error: ${errorMessage}`
 						: errorMessage;
-						
+
 					console.error("Analysis failed with provider error:", errorMessage);
 					uiManager.showErrorBanner(displayMessage);
-					
+
 					// Notify popup of error
 					chrome.runtime.sendMessage({
 						type: MESSAGE_TYPES.ANALYSIS_ERROR,
@@ -505,10 +512,15 @@ export default defineContentScript({
 				if (source !== "popup") {
 					uiManager.hideProgressBanner();
 				}
-				
-				const errorMessage = error instanceof Error ? error.message : "Analysis failed with an unexpected error.";
-				uiManager.showErrorBanner(`🔥 Analysis Error: ${errorMessage} Please try again.`);
-				
+
+				const errorMessage =
+					error instanceof Error
+						? error.message
+						: "Analysis failed with an unexpected error.";
+				uiManager.showErrorBanner(
+					`🔥 Analysis Error: ${errorMessage} Please try again.`,
+				);
+
 				// Notify popup of error
 				chrome.runtime.sendMessage({
 					type: MESSAGE_TYPES.ANALYSIS_ERROR,
@@ -599,18 +611,24 @@ export default defineContentScript({
 			console.log("[Content Script] handleAnalysisResults called with:", {
 				results,
 				resultsType: typeof results,
-				hasGoldenNuggets: results && 'golden_nuggets' in results,
-				goldenNuggetsType: results?.golden_nuggets ? typeof results.golden_nuggets : 'undefined',
-				goldenNuggetsLength: Array.isArray(results?.golden_nuggets) ? results.golden_nuggets.length : 'not array'
+				hasGoldenNuggets: results && "golden_nuggets" in results,
+				goldenNuggetsType: results?.golden_nuggets
+					? typeof results.golden_nuggets
+					: "undefined",
+				goldenNuggetsLength: Array.isArray(results?.golden_nuggets)
+					? results.golden_nuggets.length
+					: "not array",
 			});
 
 			// Validate results structure to prevent runtime errors
-			if (!results || typeof results !== 'object') {
+			if (!results || typeof results !== "object") {
 				console.error("Invalid analysis results:", results);
-				uiManager.showErrorBanner("Analysis failed due to invalid response data. Please try again.");
+				uiManager.showErrorBanner(
+					"Analysis failed due to invalid response data. Please try again.",
+				);
 				return;
 			}
-			
+
 			// Try multiple possible data structures
 			let nuggets: any[] = [];
 			if (Array.isArray(results.golden_nuggets)) {
@@ -622,16 +640,16 @@ export default defineContentScript({
 			} else if (results && Array.isArray(results.nuggets)) {
 				nuggets = results.nuggets;
 			}
-			
+
 			console.log("[Content Script] Nuggets extraction attempt:", {
-				foundStructure: nuggets.length > 0 ? 'success' : 'failed',
-				nuggetCount: nuggets.length
+				foundStructure: nuggets.length > 0 ? "success" : "failed",
+				nuggetCount: nuggets.length,
 			});
 
 			console.log("[Content Script] Extracted nuggets:", {
 				nuggetsLength: nuggets.length,
-				firstNugget: nuggets[0] || 'none',
-				extractedPageContentLength: extractedPageContent?.length || 0
+				firstNugget: nuggets[0] || "none",
+				extractedPageContentLength: extractedPageContent?.length || 0,
 			});
 
 			// Hide the progress banner now that we have results (only if not triggered from popup)
@@ -647,7 +665,11 @@ export default defineContentScript({
 				return;
 			}
 
-			console.log("[Content Script] Calling uiManager.displayResults with", nuggets.length, "nuggets");
+			console.log(
+				"[Content Script] Calling uiManager.displayResults with",
+				nuggets.length,
+				"nuggets",
+			);
 			// Highlight nuggets on the page and show sidebar with page content for reconstruction
 			await uiManager.displayResults(
 				nuggets,

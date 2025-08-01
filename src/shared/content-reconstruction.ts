@@ -11,10 +11,10 @@ import type { GoldenNugget } from "./types";
  */
 export function advancedNormalize(text: string): string {
 	// Handle null/undefined input gracefully
-	if (!text || typeof text !== 'string') {
-		return '';
+	if (!text || typeof text !== "string") {
+		return "";
 	}
-	
+
 	return text
 		.toLowerCase()
 		.replace(/[''`´]/g, "'") // All apostrophe variants
@@ -84,13 +84,17 @@ function findTextWithOriginalCasing(
 	searchText: string,
 ): string | null {
 	// Validate inputs before processing
-	if (!startContent || !endContent || !searchText || 
-		typeof startContent !== 'string' || 
-		typeof endContent !== 'string' || 
-		typeof searchText !== 'string') {
+	if (
+		!startContent ||
+		!endContent ||
+		!searchText ||
+		typeof startContent !== "string" ||
+		typeof endContent !== "string" ||
+		typeof searchText !== "string"
+	) {
 		return null;
 	}
-	
+
 	try {
 		// Step 1: Validate using original normalization approach (ensures reliability)
 		const normalizedSearch = normalizeText(searchText);
@@ -171,11 +175,11 @@ export function reconstructFullContent(
 ): string {
 	// Validate inputs to prevent errors with malformed data
 	if (!nugget || !nugget.startContent || !nugget.endContent || !pageContent) {
-		return nugget?.startContent && nugget?.endContent 
+		return nugget?.startContent && nugget?.endContent
 			? `${nugget.startContent}...${nugget.endContent}`
-			: '';
+			: "";
 	}
-	
+
 	const foundText = findTextBetweenStartAndEnd(
 		nugget.startContent,
 		nugget.endContent,
@@ -198,10 +202,10 @@ export function getDisplayContent(
 ): string {
 	// Validate nugget data to prevent errors
 	if (!nugget || !nugget.startContent || !nugget.endContent) {
-		return nugget?.content || '';
+		return nugget?.content || "";
 	}
-	
-	if (pageContent && typeof pageContent === 'string') {
+
+	if (pageContent && typeof pageContent === "string") {
 		const reconstructed = reconstructFullContent(nugget, pageContent);
 		// Only use reconstructed content if it's significantly longer than the truncated version
 		if (
@@ -308,7 +312,7 @@ export function improvedStartEndTextMatching(
 	if (!nugget || !nugget.startContent || !nugget.endContent || !searchText) {
 		return false;
 	}
-	
+
 	const normalizedSearch = normalizeText(searchText);
 	const normalizedStart = normalizeText(nugget.startContent);
 	const normalizedEnd = normalizeText(nugget.endContent);

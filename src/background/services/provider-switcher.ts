@@ -1,10 +1,9 @@
-import { ApiKeyStorage } from "../../shared/storage/api-key-storage";
 import { storage } from "../../shared/storage";
+import { ApiKeyStorage } from "../../shared/storage/api-key-storage";
 import type { ProviderConfig, ProviderId } from "../../shared/types/providers";
-import { ProviderFactory } from "./provider-factory";
+import { createProvider, getSelectedModel } from "./provider-factory";
 
-export class ProviderSwitcher {
-	static async switchProvider(providerId: ProviderId): Promise<boolean> {
+export async function switchProvider(providerId: ProviderId): Promise<boolean> {
 		try {
 			// Validate provider has API key
 			let apiKey: string;
@@ -26,10 +25,10 @@ export class ProviderSwitcher {
 			const config: ProviderConfig = {
 				providerId,
 				apiKey,
-				modelName: await ProviderFactory.getSelectedModel(providerId),
+				modelName: await getSelectedModel(providerId),
 			};
 
-			const provider = await ProviderFactory.createProvider(config);
+			const provider = await createProvider(config);
 			const isValid = await provider.validateApiKey();
 
 			if (!isValid) {
@@ -54,12 +53,12 @@ export class ProviderSwitcher {
 
 			return true;
 		} catch (error) {
-			console.error(`Failed to switch to provider ${providerId}:`, error);
-			return false;
-		}
+		console.error(`Failed to switch to provider ${providerId}:`, error);
+		return false;
 	}
+}
 
-	static async getAvailableProviders(): Promise<ProviderId[]> {
+export async function getAvailableProviders(): Promise<ProviderId[]> {
 		const available: ProviderId[] = [];
 
 		// Check Gemini
@@ -81,19 +80,19 @@ export class ProviderSwitcher {
 		available.push(...configuredProviders);
 
 		return [...new Set(available)]; // Remove duplicates
-	}
+}
 
-	static async getFallbackProvider(): Promise<ProviderId | null> {
-		const available = await ProviderSwitcher.getAvailableProviders();
-		return available.length > 0 ? available[0] : null;
-	}
+export async function getFallbackProvider(): Promise<ProviderId | null> {
+	const available = await getAvailableProviders();
+	return available.length > 0 ? available[0] : null;
+}
 
-	static async getCurrentProvider(): Promise<ProviderId> {
-		const result = await chrome.storage.local.get(["selectedProvider"]);
-		return result.selectedProvider || "gemini";
-	}
+export async function getCurrentProvider(): Promise<ProviderId> {
+	const result = await chrome.storage.local.get(["selectedProvider"]);
+	return result.selectedProvider || "gemini";
+}
 
-	static async isProviderConfigured(providerId: ProviderId): Promise<boolean> {
+export async function isProviderConfigured(providerId: ProviderId): Promise<boolean> {
 		if (providerId === "gemini") {
 			try {
 				const apiKey = await storage.getApiKey({
@@ -107,17 +106,16 @@ export class ProviderSwitcher {
 				return false;
 			}
 		} else {
-			const apiKey = await ApiKeyStorage.get(providerId);
-			return !!apiKey;
-		}
+		const apiKey = await ApiKeyStorage.get(providerId);
+		return !!apiKey;
 	}
+}
 
-	static async switchToFallbackProvider(): Promise<ProviderId | null> {
-		const fallbackProvider = await ProviderSwitcher.getFallbackProvider();
-		if (fallbackProvider) {
-			const success = await ProviderSwitcher.switchProvider(fallbackProvider);
-			return success ? fallbackProvider : null;
-		}
-		return null;
+export async function switchToFallbackProvider(): Promise<ProviderId | null> {
+	const fallbackProvider = await getFallbackProvider();
+	if (fallbackProvider) {
+		const success = await switchProvider(fallbackProvider);
+		return success ? fallbackProvider : null;
 	}
+	return null;
 }
