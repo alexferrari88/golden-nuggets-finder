@@ -1,13 +1,12 @@
 import { beforeEach, describe, expect, test, vi } from "vitest";
 import {
-	handleProviderError,
 	clearAllRetryCount,
+	handleProviderError,
 	resetRetryCount,
 } from "../../src/background/services/error-handler";
 import {
-	getCurrentProvider,
 	getAvailableProviders,
-	switchProvider,
+	getCurrentProvider,
 } from "../../src/background/services/provider-switcher";
 
 // Mock ProviderSwitcher functions
@@ -27,11 +26,7 @@ describe("ErrorHandler", () => {
 	describe("Error Classification", () => {
 		test("correctly identifies API key errors", async () => {
 			const apiKeyError = new Error("Invalid API key provided");
-			const result = await handleProviderError(
-				apiKeyError,
-				"openai",
-				"test",
-			);
+			const result = await handleProviderError(apiKeyError, "openai", "test");
 
 			expect(result.shouldRetry).toBe(false);
 			expect(result.fallbackProvider).toBeUndefined();
@@ -50,11 +45,7 @@ describe("ErrorHandler", () => {
 
 		test("correctly identifies temporary errors", async () => {
 			const tempError = new Error("Network error occurred");
-			const result = await handleProviderError(
-				tempError,
-				"openai",
-				"test",
-			);
+			const result = await handleProviderError(tempError, "openai", "test");
 
 			expect(result.shouldRetry).toBe(true);
 		});
@@ -63,19 +54,10 @@ describe("ErrorHandler", () => {
 			const seriousError = new Error("Unknown service error");
 
 			// Mock current provider and available providers
-			vi.mocked(getCurrentProvider).mockResolvedValue(
-				"openai",
-			);
-			vi.mocked(getAvailableProviders).mockResolvedValue([
-				"openai",
-				"gemini",
-			]);
+			vi.mocked(getCurrentProvider).mockResolvedValue("openai");
+			vi.mocked(getAvailableProviders).mockResolvedValue(["openai", "gemini"]);
 
-			const result = await handleProviderError(
-				seriousError,
-				"openai",
-				"test",
-			);
+			const result = await handleProviderError(seriousError, "openai", "test");
 
 			expect(result.shouldRetry).toBe(false);
 			expect(result.fallbackProvider).toBe("gemini");
@@ -115,20 +97,14 @@ describe("ErrorHandler", () => {
 		test("selects fallback provider based on priority order", async () => {
 			const error = new Error("Serious error");
 
-			vi.mocked(getCurrentProvider).mockResolvedValue(
-				"openrouter",
-			);
+			vi.mocked(getCurrentProvider).mockResolvedValue("openrouter");
 			vi.mocked(getAvailableProviders).mockResolvedValue([
 				"openrouter",
 				"anthropic",
 				"gemini",
 			]);
 
-			const result = await handleProviderError(
-				error,
-				"openrouter",
-				"test",
-			);
+			const result = await handleProviderError(error, "openrouter", "test");
 
 			expect(result.fallbackProvider).toBe("gemini"); // Gemini has highest priority
 		});
@@ -136,18 +112,10 @@ describe("ErrorHandler", () => {
 		test("handles no available fallback providers", async () => {
 			const error = new Error("Serious error");
 
-			vi.mocked(getCurrentProvider).mockResolvedValue(
-				"gemini",
-			);
-			vi.mocked(getAvailableProviders).mockResolvedValue([
-				"gemini",
-			]); // Only current provider
+			vi.mocked(getCurrentProvider).mockResolvedValue("gemini");
+			vi.mocked(getAvailableProviders).mockResolvedValue(["gemini"]); // Only current provider
 
-			const result = await handleProviderError(
-				error,
-				"gemini",
-				"test",
-			);
+			const result = await handleProviderError(error, "gemini", "test");
 
 			expect(result.fallbackProvider).toBeUndefined();
 		});

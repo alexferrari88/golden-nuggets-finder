@@ -1,7 +1,7 @@
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { ChatOpenAI } from "@langchain/openai";
 import { z } from "zod";
-import { debugLogger, isDevMode } from "../debug";
+import { debugLogger } from "../debug";
 import type {
 	GoldenNuggetsResponse,
 	LLMProvider,
@@ -94,7 +94,7 @@ export class LangChainOpenRouterProvider implements LLMProvider {
 		operation: () => Promise<T>,
 		maxRetries: number = 3,
 	): Promise<T> {
-		let lastError: unknown;
+		let _lastError: unknown;
 
 		debugLogger.log(
 			`🔄 Starting OpenRouter request with retry logic (max ${maxRetries} retries)`,
@@ -111,7 +111,7 @@ export class LangChainOpenRouterProvider implements LLMProvider {
 				);
 				return result;
 			} catch (error) {
-				lastError = error;
+				_lastError = error;
 				const errorMessage = this.getErrorMessage(error);
 
 				debugLogger.log(
@@ -173,7 +173,7 @@ export class LangChainOpenRouterProvider implements LLMProvider {
 				model: this.modelName,
 				messages: [
 					{ role: "system", content: prompt },
-					{ role: "user", content: content.substring(0, 500) + "..." }, // Truncate for logging
+					{ role: "user", content: `${content.substring(0, 500)}...` }, // Truncate for logging
 				],
 				provider: "openrouter",
 			},

@@ -28,19 +28,19 @@ function truncateErrorMessage(
 	const lastPeriod = truncated.lastIndexOf(".");
 
 	if (lastSentence > maxLength * 0.6) {
-		return truncated.substring(0, lastSentence + 1) + " [...]";
+		return `${truncated.substring(0, lastSentence + 1)} [...]`;
 	} else if (lastPeriod > maxLength * 0.6) {
-		return truncated.substring(0, lastPeriod + 1) + " [...]";
+		return `${truncated.substring(0, lastPeriod + 1)} [...]`;
 	}
 
 	// Fallback to word boundary
 	const lastSpace = truncated.lastIndexOf(" ");
 	if (lastSpace > maxLength * 0.7) {
-		return truncated.substring(0, lastSpace) + "... [message truncated]";
+		return `${truncated.substring(0, lastSpace)}... [message truncated]`;
 	}
 
 	// Hard truncation as last resort
-	return truncated + "... [truncated]";
+	return `${truncated}... [truncated]`;
 }
 
 export class NotificationManager {

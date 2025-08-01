@@ -5,16 +5,16 @@ import {
 	generateGoldenNuggetSchema,
 } from "../shared/schemas";
 import {
-	generateFilteredPrompt,
-	generateDynamicSchema,
-	validateSelectedTypes,
-	getTypeConfiguration,
-	getContextMenuOption,
+	CONTEXT_MENU_OPTIONS,
+	createCombinationTypeFilter,
 	createDefaultTypeFilter,
 	createSingleTypeFilter,
-	createCombinationTypeFilter,
+	generateDynamicSchema,
+	generateFilteredPrompt,
+	getContextMenuOption,
+	getTypeConfiguration,
 	TYPE_CONFIGURATIONS,
-	CONTEXT_MENU_OPTIONS,
+	validateSelectedTypes,
 } from "./type-filter-service";
 
 // For tests that need access to internal constants
@@ -60,9 +60,7 @@ Continue with analysis...`;
 		});
 
 		it("should filter prompt to only include selected single type", () => {
-			const result = generateFilteredPrompt(basePrompt, [
-				"tool",
-			]);
+			const result = generateFilteredPrompt(basePrompt, ["tool"]);
 
 			expect(result).toContain("## EXTRACTION TARGETS");
 			expect(result).toContain("1. **Actionable Tools:**");
@@ -73,10 +71,7 @@ Continue with analysis...`;
 		});
 
 		it("should filter prompt to include multiple selected types with renumbering", () => {
-			const result = generateFilteredPrompt(basePrompt, [
-				"tool",
-				"media",
-			]);
+			const result = generateFilteredPrompt(basePrompt, ["tool", "media"]);
 
 			expect(result).toContain("## EXTRACTION TARGETS");
 			expect(result).toContain("1. **Actionable Tools:**");
@@ -87,18 +82,14 @@ Continue with analysis...`;
 		});
 
 		it("should preserve analysis instructions section", () => {
-			const result = generateFilteredPrompt(basePrompt, [
-				"tool",
-			]);
+			const result = generateFilteredPrompt(basePrompt, ["tool"]);
 
 			expect(result).toContain("## ANALYSIS INSTRUCTIONS");
 			expect(result).toContain("Continue with analysis...");
 		});
 
 		it("should include complete type definitions with examples", () => {
-			const result = generateFilteredPrompt(basePrompt, [
-				"tool",
-			]);
+			const result = generateFilteredPrompt(basePrompt, ["tool"]);
 
 			expect(result).toContain("A specific, tool/software/technique");
 			expect(result).toContain('**Bad:** "You should use a calendar."');
@@ -113,10 +104,7 @@ Continue with analysis...`;
 				"analogy",
 				"model",
 			];
-			const result = generateFilteredPrompt(
-				basePrompt,
-				allTypes,
-			);
+			const result = generateFilteredPrompt(basePrompt, allTypes);
 
 			expect(result).toContain("1. **Actionable Tools:**");
 			expect(result).toContain("2. **High-Signal Media:**");
@@ -128,10 +116,7 @@ Continue with analysis...`;
 		it("should handle missing EXTRACTION TARGETS section gracefully", () => {
 			const promptWithoutTargets =
 				"# Simple prompt without extraction targets section";
-			const result = generateFilteredPrompt(
-				promptWithoutTargets,
-				["tool"],
-			);
+			const result = generateFilteredPrompt(promptWithoutTargets, ["tool"]);
 
 			// Should return original prompt since no EXTRACTION TARGETS section exists
 			expect(result).toBe(promptWithoutTargets);
@@ -184,24 +169,16 @@ Continue with analysis...`;
 		it("should return true for valid single type", () => {
 			expect(validateSelectedTypes(["tool"])).toBe(true);
 			expect(validateSelectedTypes(["media"])).toBe(true);
-			expect(validateSelectedTypes(["explanation"])).toBe(
-				true,
-			);
+			expect(validateSelectedTypes(["explanation"])).toBe(true);
 			expect(validateSelectedTypes(["analogy"])).toBe(true);
 			expect(validateSelectedTypes(["model"])).toBe(true);
 		});
 
 		it("should return true for valid multiple types", () => {
-			expect(validateSelectedTypes(["tool", "media"])).toBe(
+			expect(validateSelectedTypes(["tool", "media"])).toBe(true);
+			expect(validateSelectedTypes(["explanation", "analogy", "model"])).toBe(
 				true,
 			);
-			expect(
-				validateSelectedTypes([
-					"explanation",
-					"analogy",
-					"model",
-				]),
-			).toBe(true);
 		});
 
 		it("should return true for all valid types", () => {
@@ -223,16 +200,12 @@ Continue with analysis...`;
 			// @ts-expect-error Testing invalid input
 			expect(validateSelectedTypes(["invalid"])).toBe(false);
 			// @ts-expect-error Testing invalid input
-			expect(validateSelectedTypes(["tool", "invalid"])).toBe(
-				false,
-			);
+			expect(validateSelectedTypes(["tool", "invalid"])).toBe(false);
 		});
 
 		it("should return false for mixed valid and invalid types", () => {
 			// @ts-expect-error Testing invalid input
-			expect(
-				validateSelectedTypes(["tool", "media", "fake"]),
-			).toBe(false);
+			expect(validateSelectedTypes(["tool", "media", "fake"])).toBe(false);
 		});
 	});
 
@@ -367,9 +340,7 @@ Continue with analysis...`;
 		});
 
 		it("should handle single type in combination mode", () => {
-			const filter = createCombinationTypeFilter([
-				"explanation",
-			]);
+			const filter = createCombinationTypeFilter(["explanation"]);
 
 			expect(filter).toEqual({
 				selectedTypes: ["explanation"],
@@ -422,9 +393,7 @@ Continue with analysis...`;
 				"analogy",
 				"model",
 			];
-			const actualIds = CONTEXT_MENU_OPTIONS.map(
-				(option) => option.id,
-			);
+			const actualIds = CONTEXT_MENU_OPTIONS.map((option) => option.id);
 
 			expect(actualIds).toEqual(expectedIds);
 		});
@@ -440,8 +409,7 @@ Continue with analysis...`;
 	describe("Integration with schema generation", () => {
 		it("should produce schemas compatible with generateGoldenNuggetSchema", () => {
 			const types: GoldenNuggetType[] = ["tool", "media"];
-			const filterServiceSchema =
-				generateDynamicSchema(types);
+			const filterServiceSchema = generateDynamicSchema(types);
 			const directSchema = generateGoldenNuggetSchema(types);
 
 			expect(filterServiceSchema).toEqual(directSchema);

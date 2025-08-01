@@ -1,16 +1,14 @@
 import { Check, Star } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import ReactDOM from "react-dom/client";
-import { getSupportedProviders, getSelectedModel } from "../background/services/provider-factory";
+import { getSelectedModel } from "../background/services/provider-factory";
 import {
-	switchProvider,
-	getAvailableProviders,
 	getCurrentProvider,
 	isProviderConfigured,
 } from "../background/services/provider-switcher";
 import {
-	TYPE_CONFIGURATIONS,
 	createCombinationTypeFilter,
+	TYPE_CONFIGURATIONS,
 } from "../background/type-filter-service";
 import {
 	borderRadius,
@@ -48,19 +46,19 @@ function truncateErrorMessage(
 	const lastPeriod = truncated.lastIndexOf(".");
 
 	if (lastSentence > maxLength * 0.6) {
-		return truncated.substring(0, lastSentence + 1) + " [...]";
+		return `${truncated.substring(0, lastSentence + 1)} [...]`;
 	} else if (lastPeriod > maxLength * 0.6) {
-		return truncated.substring(0, lastPeriod + 1) + " [...]";
+		return `${truncated.substring(0, lastPeriod + 1)} [...]`;
 	}
 
 	// Fallback to word boundary
 	const lastSpace = truncated.lastIndexOf(" ");
 	if (lastSpace > maxLength * 0.7) {
-		return truncated.substring(0, lastSpace) + "... [truncated]";
+		return `${truncated.substring(0, lastSpace)}... [truncated]`;
 	}
 
 	// Hard truncation as last resort
-	return truncated + "... [truncated]";
+	return `${truncated}... [truncated]`;
 }
 
 // Utility function to format model names for display
@@ -232,7 +230,7 @@ const usePhaseProgression = (
 				clearTimeout(fallbackTimeoutRef.current);
 			}
 		};
-	}, [isTypingComplete, analysisId, useRealTiming]);
+	}, [isTypingComplete, analysisId, useRealTiming, startFallbackAnimation]);
 
 	const startFallbackAnimation = async () => {
 		// Clear any existing timers
@@ -366,7 +364,7 @@ function IndexPopup() {
 
 			return () => clearInterval(interval);
 		}
-	}, [currentPhase, aiStartTime]);
+	}, [currentPhase, aiStartTime, forceUpdate]);
 
 	// Cycle through tips during AI thinking
 	useEffect(() => {
@@ -374,7 +372,7 @@ function IndexPopup() {
 			const aiPhase = analysisPhases[1];
 			if (aiPhase.tips && aiPhase.tips.length > 1) {
 				const interval = setInterval(() => {
-					setCurrentTipIndex((prev) => (prev + 1) % aiPhase.tips!.length);
+					setCurrentTipIndex((prev) => (prev + 1) % aiPhase.tips?.length);
 				}, 3000); // Change tip every 3 seconds
 
 				return () => clearInterval(interval);
@@ -414,8 +412,7 @@ function IndexPopup() {
 			const model = await getSelectedModel(provider);
 			setCurrentModel(model);
 
-			const isConfigured =
-				await isProviderConfigured(provider);
+			const isConfigured = await isProviderConfigured(provider);
 			if (!isConfigured) {
 				setNoApiKey(true);
 				setLoading(false);
@@ -494,7 +491,12 @@ function IndexPopup() {
 				cleanupTimeoutRef.current = null;
 			}
 		};
-	}, []); // Remove dependencies to prevent infinite re-renders
+	}, [
+		checkBackendStatus,
+		completeAllPhases,
+		loadPrompts,
+		processRealTimePhase,
+	]); // Remove dependencies to prevent infinite re-renders
 
 	const analyzeWithPrompt = async (promptId: string) => {
 		try {
@@ -827,7 +829,7 @@ function IndexPopup() {
 				: completedPhases.length > 0
 					? Math.max(...completedPhases)
 					: -1;
-		const activePhase =
+		const _activePhase =
 			activePhaseIndex >= 0 ? analysisPhases[activePhaseIndex] : null;
 
 		return (

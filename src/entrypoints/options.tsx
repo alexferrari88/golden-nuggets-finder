@@ -17,7 +17,6 @@ import {
 import type React from "react";
 import { useCallback, useEffect, useState } from "react";
 import ReactDOM from "react-dom/client";
-import { GeminiClient } from "../background/gemini-client";
 import {
 	type ModelInfo,
 	ModelService,

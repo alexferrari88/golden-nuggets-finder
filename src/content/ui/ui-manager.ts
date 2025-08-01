@@ -167,8 +167,8 @@ export class UIManager {
 					`[UIManager] Processing nugget ${i + 1}/${enhancedNuggets.length}:`,
 					{
 						type: nugget.type,
-						startContent: nugget.startContent?.substring(0, 50) + "...",
-						endContent: nugget.endContent?.substring(0, 50) + "...",
+						startContent: `${nugget.startContent?.substring(0, 50)}...`,
+						endContent: `${nugget.endContent?.substring(0, 50)}...`,
 					},
 				);
 

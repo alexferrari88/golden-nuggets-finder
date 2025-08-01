@@ -7,7 +7,7 @@ import {
 } from "./security";
 
 // Types for testing with invalid values
-type InvalidAccessContext = Omit<AccessContext, 'source'> & {
+type InvalidAccessContext = Omit<AccessContext, "source"> & {
 	source: string;
 };
 
@@ -143,7 +143,9 @@ describe("SecurityManager", () => {
 				timestamp: Date.now(),
 			};
 
-			const result = securityManager.validateAccess(invalidContext as AccessContext);
+			const result = securityManager.validateAccess(
+				invalidContext as AccessContext,
+			);
 			expect(result).toBe(false);
 		});
 
@@ -154,7 +156,9 @@ describe("SecurityManager", () => {
 				timestamp: Date.now(),
 			};
 
-			const result = securityManager.validateAccess(invalidContext as AccessContext);
+			const result = securityManager.validateAccess(
+				invalidContext as AccessContext,
+			);
 			expect(result).toBe(false);
 		});
 
@@ -372,7 +376,9 @@ describe("SecurityManager", () => {
 			};
 
 			// Force an internal error by mocking the rate limit check to throw
-			const originalCheckRateLimit = (securityManager as SecurityManagerTestAccess).checkRateLimit;
+			const originalCheckRateLimit = (
+				securityManager as SecurityManagerTestAccess
+			).checkRateLimit;
 			vi.spyOn(securityManager as any, "checkRateLimit").mockImplementation(
 				() => {
 					throw new Error("Test error");
@@ -383,7 +389,8 @@ describe("SecurityManager", () => {
 			expect(result).toBe(false);
 
 			// Restore original method
-			(securityManager as SecurityManagerTestAccess).checkRateLimit = originalCheckRateLimit;
+			(securityManager as SecurityManagerTestAccess).checkRateLimit =
+				originalCheckRateLimit;
 		});
 	});
 });

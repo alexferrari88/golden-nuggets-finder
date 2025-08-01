@@ -1,21 +1,17 @@
-import {
-	MESSAGE_TYPES,
-	type RateLimitedMessage,
-	type RetryingMessage,
-} from "../../shared/types";
+import type { RateLimitedMessage, RetryingMessage } from "../../shared/types";
 import type { ProviderId } from "../../shared/types/providers";
-import { getCurrentProvider, getAvailableProviders } from "./provider-switcher";
+import { getAvailableProviders, getCurrentProvider } from "./provider-switcher";
 
 // State for retry attempts
 const retryAttempts = new Map<string, number>();
 const MAX_RETRIES = 3;
 
 export async function handleProviderError(
-		error: Error,
-		providerId: ProviderId,
-		context: string,
-		analysisId?: string,
-		tabId?: number,
+	error: Error,
+	providerId: ProviderId,
+	context: string,
+	analysisId?: string,
+	tabId?: number,
 ): Promise<{ shouldRetry: boolean; fallbackProvider?: ProviderId }> {
 	const errorKey = `${providerId}-${context}`;
 	const attempts = retryAttempts.get(errorKey) || 0;
@@ -85,155 +81,153 @@ export async function handleProviderError(
 }
 
 function isApiKeyError(error: Error): boolean {
-		const apiKeyErrors = [
-			"invalid api key",
-			"unauthorized",
-			"authentication failed",
-			"api key not found",
-			"forbidden",
-			"401",
-			"403",
-		];
-		return apiKeyErrors.some((msg) =>
-			error.message.toLowerCase().includes(msg),
-		);
-	}
+	const apiKeyErrors = [
+		"invalid api key",
+		"unauthorized",
+		"authentication failed",
+		"api key not found",
+		"forbidden",
+		"401",
+		"403",
+	];
+	return apiKeyErrors.some((msg) => error.message.toLowerCase().includes(msg));
+}
 
 function isRateLimitError(error: Error): boolean {
-		const rateLimitErrors = [
-			"rate limit",
-			"too many requests",
-			"quota exceeded",
-			"rate_limit_exceeded",
-			"429",
-			"requests per minute",
-			"daily quota",
-			// Secondary error patterns that may indicate masked rate limiting
-			"error parsing failed - potential rate limiting",
-			"provider returned error",
-		];
-		return rateLimitErrors.some((msg) =>
-			error.message.toLowerCase().includes(msg),
-		);
-	}
+	const rateLimitErrors = [
+		"rate limit",
+		"too many requests",
+		"quota exceeded",
+		"rate_limit_exceeded",
+		"429",
+		"requests per minute",
+		"daily quota",
+		// Secondary error patterns that may indicate masked rate limiting
+		"error parsing failed - potential rate limiting",
+		"provider returned error",
+	];
+	return rateLimitErrors.some((msg) =>
+		error.message.toLowerCase().includes(msg),
+	);
+}
 
 function isModelNotFoundError(error: Error): boolean {
-		const modelNotFoundErrors = [
-			"404",
-			"not found",
-			"model not found",
-			"no allowed providers",
-			"model_not_found",
-			"model not available",
-			"provider not available",
-			"model does not exist",
-		];
-		return modelNotFoundErrors.some((msg) =>
-			error.message.toLowerCase().includes(msg),
-		);
-	}
+	const modelNotFoundErrors = [
+		"404",
+		"not found",
+		"model not found",
+		"no allowed providers",
+		"model_not_found",
+		"model not available",
+		"provider not available",
+		"model does not exist",
+	];
+	return modelNotFoundErrors.some((msg) =>
+		error.message.toLowerCase().includes(msg),
+	);
+}
 
 function isTemporaryError(error: Error): boolean {
-		const temporaryErrors = [
-			"network error",
-			"timeout",
-			"service unavailable",
-			"server error",
-			"connection failed",
-			"temporarily unavailable",
-			"500",
-			"502",
-			"503",
-			"504",
-			"fetch failed",
-			"network request failed",
-			// Provider-specific errors that might indicate temporary issues
-			"cannot read properties of undefined",
-			"error parsing failed - potential provider issue",
-		];
-		return temporaryErrors.some((msg) =>
-			error.message.toLowerCase().includes(msg),
-		);
-	}
+	const temporaryErrors = [
+		"network error",
+		"timeout",
+		"service unavailable",
+		"server error",
+		"connection failed",
+		"temporarily unavailable",
+		"500",
+		"502",
+		"503",
+		"504",
+		"fetch failed",
+		"network request failed",
+		// Provider-specific errors that might indicate temporary issues
+		"cannot read properties of undefined",
+		"error parsing failed - potential provider issue",
+	];
+	return temporaryErrors.some((msg) =>
+		error.message.toLowerCase().includes(msg),
+	);
+}
 
 async function getFallbackProvider(
 	failedProvider: ProviderId,
 ): Promise<ProviderId | null> {
 	const availableProviders = await getAvailableProviders();
 
-		// Filter out the failed provider
-		const fallbackCandidates = availableProviders.filter(
-			(p) => p !== failedProvider,
-		);
+	// Filter out the failed provider
+	const fallbackCandidates = availableProviders.filter(
+		(p) => p !== failedProvider,
+	);
 
-		if (fallbackCandidates.length === 0) {
-			return null;
-		}
-
-		// Prioritize providers in order of reliability: gemini > openai > anthropic > openrouter
-		const priorityOrder: ProviderId[] = [
-			"gemini",
-			"openai",
-			"anthropic",
-			"openrouter",
-		];
-
-		for (const provider of priorityOrder) {
-			if (fallbackCandidates.includes(provider)) {
-				return provider;
-			}
-		}
-
-		// Return first available if no priority match
-		return fallbackCandidates[0];
+	if (fallbackCandidates.length === 0) {
+		return null;
 	}
+
+	// Prioritize providers in order of reliability: gemini > openai > anthropic > openrouter
+	const priorityOrder: ProviderId[] = [
+		"gemini",
+		"openai",
+		"anthropic",
+		"openrouter",
+	];
+
+	for (const provider of priorityOrder) {
+		if (fallbackCandidates.includes(provider)) {
+			return provider;
+		}
+	}
+
+	// Return first available if no priority match
+	return fallbackCandidates[0];
+}
 
 function sleep(ms: number): Promise<void> {
-		return new Promise((resolve) => setTimeout(resolve, ms));
-	}
+	return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 // Helper to send progress messages during rate limiting
 function sendProgressMessage(
-		type: "ANALYSIS_RATE_LIMITED" | "ANALYSIS_RETRYING",
-		providerId: ProviderId,
-		attempts: number,
-		analysisId?: string,
-		tabId?: number,
-		waitTime?: number,
-	): void {
-		if (!analysisId || !tabId) return;
+	type: "ANALYSIS_RATE_LIMITED" | "ANALYSIS_RETRYING",
+	providerId: ProviderId,
+	attempts: number,
+	analysisId?: string,
+	tabId?: number,
+	waitTime?: number,
+): void {
+	if (!analysisId || !tabId) return;
 
-		let message: RateLimitedMessage | RetryingMessage;
+	let message: RateLimitedMessage | RetryingMessage;
 
-		if (type === "ANALYSIS_RATE_LIMITED") {
-			message = {
-				type,
-				provider: providerId,
-				waitTime: waitTime || 0,
-				attempt: attempts,
-				maxAttempts: MAX_RETRIES,
-				analysisId,
-			} as RateLimitedMessage;
-		} else {
-			message = {
-				type,
-				provider: providerId,
-				attempt: attempts,
-				maxAttempts: MAX_RETRIES,
-				analysisId,
-			} as RetryingMessage;
-		}
-
-		// Send to tab specifically
-		chrome.tabs.sendMessage(tabId, message).catch(() => {
-			// Content script might not be ready, that's okay
-		});
-
-		// Also send to all extension contexts
-		chrome.runtime.sendMessage(message).catch(() => {
-			// Popup might not be open, that's okay
-		});
+	if (type === "ANALYSIS_RATE_LIMITED") {
+		message = {
+			type,
+			provider: providerId,
+			waitTime: waitTime || 0,
+			attempt: attempts,
+			maxAttempts: MAX_RETRIES,
+			analysisId,
+		} as RateLimitedMessage;
+	} else {
+		message = {
+			type,
+			provider: providerId,
+			attempt: attempts,
+			maxAttempts: MAX_RETRIES,
+			analysisId,
+		} as RetryingMessage;
 	}
+
+	// Send to tab specifically
+	chrome.tabs.sendMessage(tabId, message).catch(() => {
+		// Content script might not be ready, that's okay
+	});
+
+	// Also send to all extension contexts
+	chrome.runtime.sendMessage(message).catch(() => {
+		// Popup might not be open, that's okay
+	});
+}
 
 export function resetRetryCount(providerId: ProviderId, context: string): void {
 	const errorKey = `${providerId}-${context}`;
@@ -247,7 +241,10 @@ export function clearAllRetryCount(): void {
 /**
  * Gets a user-friendly error message for display
  */
-export function getUserFriendlyMessage(error: Error, providerId: ProviderId): string {
+export function getUserFriendlyMessage(
+	error: Error,
+	providerId: ProviderId,
+): string {
 	if (isApiKeyError(error)) {
 		return `Invalid API key for ${providerId}. Please check your API key in the extension options.`;
 	}
