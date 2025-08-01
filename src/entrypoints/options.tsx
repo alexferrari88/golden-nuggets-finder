@@ -15,7 +15,7 @@ import {
 	X,
 } from "lucide-react";
 import type React from "react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import ReactDOM from "react-dom/client";
 import { GeminiClient } from "../background/gemini-client";
 import { ProviderFactory } from "../background/services/provider-factory";
@@ -301,11 +301,7 @@ function OptionsPage() {
 		Record<ProviderId, boolean | null>
 	>({});
 
-	useEffect(() => {
-		loadData();
-	}, [loadData]);
-
-	const loadData = async () => {
+	const loadData = useCallback(async () => {
 		try {
 			setLoading(true);
 			const [savedApiKey, savedPrompts, storageData] = await Promise.all([
@@ -348,7 +344,11 @@ function OptionsPage() {
 		} finally {
 			setLoading(false);
 		}
-	};
+	}, []);
+
+	useEffect(() => {
+		loadData();
+	}, [loadData]);
 
 	const saveApiKey = async () => {
 		if (!apiKey.trim()) {
