@@ -316,6 +316,10 @@ function OptionsPage() {
 		Record<ProviderId, { success: boolean; timestamp: number } | null>
 	>({});
 	
+	// Model filtering state
+	const [modelFilter, setModelFilter] = useState<Record<ProviderId, string>>({});
+	const [showModelDropdown, setShowModelDropdown] = useState<Record<ProviderId, boolean>>({});
+	
 	// Debug logging state
 	const [debugLoggingEnabled, setDebugLoggingEnabled] = useState(false);
 
@@ -608,6 +612,10 @@ function OptionsPage() {
 			// Update local state immediately
 			setSelectedModels((prev) => ({ ...prev, [providerId]: modelId }));
 			
+			// Hide dropdown and clear filter
+			setShowModelDropdown((prev) => ({ ...prev, [providerId]: false }));
+			setModelFilter((prev) => ({ ...prev, [providerId]: "" }));
+			
 			// Save to storage
 			await ModelStorage.store(providerId, modelId);
 			
@@ -639,6 +647,49 @@ function OptionsPage() {
 				setModelSaveStatus((prev) => ({ ...prev, [providerId]: null }));
 			}, 5000);
 		}
+	};
+
+	// Model filtering helper functions
+	const getFilteredModels = (providerId: ProviderId): ModelInfo[] => {
+		const models = availableModels[providerId] || [];
+		const filterText = modelFilter[providerId] || "";
+		
+		if (!filterText.trim()) {
+			return models;
+		}
+		
+		const lowercaseFilter = filterText.toLowerCase();
+		return models.filter(model => 
+			model.name.toLowerCase().includes(lowercaseFilter) ||
+			model.id.toLowerCase().includes(lowercaseFilter)
+		);
+	};
+
+	const handleModelFilterChange = (providerId: ProviderId, filterText: string) => {
+		setModelFilter((prev) => ({ ...prev, [providerId]: filterText }));
+		setShowModelDropdown((prev) => ({ ...prev, [providerId]: true }));
+	};
+
+	const handleModelFilterFocus = (providerId: ProviderId) => {
+		setShowModelDropdown((prev) => ({ ...prev, [providerId]: true }));
+	};
+
+	const handleModelFilterBlur = (providerId: ProviderId) => {
+		// Delay hiding dropdown to allow clicking on options
+		setTimeout(() => {
+			setShowModelDropdown((prev) => ({ ...prev, [providerId]: false }));
+		}, 200);
+	};
+
+	const resetModelFilter = (providerId: ProviderId) => {
+		setModelFilter((prev) => ({ ...prev, [providerId]: "" }));
+		setShowModelDropdown((prev) => ({ ...prev, [providerId]: false }));
+	};
+
+	const getSelectedModelName = (providerId: ProviderId): string => {
+		const selectedModelId = selectedModels[providerId] || ProviderFactory.getDefaultModel(providerId);
+		const model = availableModels[providerId]?.find(m => m.id === selectedModelId);
+		return model?.name || selectedModelId;
 	};
 
 	// Debug logging handler
@@ -1451,24 +1502,139 @@ function OptionsPage() {
 											Loading available models...
 										</div>
 									) : availableModels[selectedProvider]?.length > 0 ? (
-										<select
-											value={selectedModels[selectedProvider] || ProviderFactory.getDefaultModel(selectedProvider)}
-											onChange={(e) => handleModelSelection(selectedProvider, e.target.value)}
-											style={{
-												...components.input.default,
-												width: "100%",
-												fontSize: typography.fontSize.base,
-												color: colors.text.primary,
-												fontFamily: typography.fontFamily.sans,
-											}}
-										>
-											{availableModels[selectedProvider].map((model) => (
-												<option key={model.id} value={model.id}>
-													{model.name}
-													{model.description && ` - ${ModelService.truncateDescription(model.description)}`}
-												</option>
-											))}
-										</select>
+										<div style={{ position: "relative" }}>
+											<div
+												style={{
+													display: "flex",
+													gap: spacing.sm,
+													alignItems: "stretch",
+												}}
+											>
+												<div style={{ flex: 1, position: "relative" }}>
+													<input
+														type="text"
+														value={modelFilter[selectedProvider] || ""}
+														onChange={(e) => handleModelFilterChange(selectedProvider, e.target.value)}
+														onFocus={() => handleModelFilterFocus(selectedProvider)}
+														onBlur={() => handleModelFilterBlur(selectedProvider)}
+														placeholder={`Search models... (Current: ${getSelectedModelName(selectedProvider)})`}
+														style={{
+															...components.input.default,
+															width: "100%",
+															fontSize: typography.fontSize.base,
+															color: colors.text.primary,
+															fontFamily: typography.fontFamily.sans,
+														}}
+													/>
+													{showModelDropdown[selectedProvider] && (
+														<div
+															style={{
+																position: "absolute",
+																top: "100%",
+																left: 0,
+																right: 0,
+																backgroundColor: colors.white,
+																border: `1px solid ${colors.border.default}`,
+																borderRadius: borderRadius.md,
+																boxShadow: shadows.lg,
+																maxHeight: "200px",
+																overflowY: "auto",
+																zIndex: 1000,
+																marginTop: "2px",
+															}}
+														>
+															{getFilteredModels(selectedProvider).length > 0 ? (
+																getFilteredModels(selectedProvider).map((model) => (
+																	<div
+																		key={model.id}
+																		onClick={() => handleModelSelection(selectedProvider, model.id)}
+																		style={{
+																			padding: spacing.md,
+																			cursor: "pointer",
+																			borderBottom: `1px solid ${colors.border.light}`,
+																			fontSize: typography.fontSize.sm,
+																			color: colors.text.primary,
+																			backgroundColor: selectedModels[selectedProvider] === model.id 
+																				? colors.background.secondary 
+																				: "transparent",
+																		}}
+																		onMouseEnter={(e) => {
+																			if (selectedModels[selectedProvider] !== model.id) {
+																				e.currentTarget.style.backgroundColor = colors.background.secondary;
+																			}
+																		}}
+																		onMouseLeave={(e) => {
+																			if (selectedModels[selectedProvider] !== model.id) {
+																				e.currentTarget.style.backgroundColor = "transparent";
+																			}
+																		}}
+																	>
+																		<div style={{ fontWeight: typography.fontWeight.medium }}>
+																			{model.name}
+																		</div>
+																		{model.description && (
+																			<div
+																				style={{
+																					fontSize: typography.fontSize.xs,
+																					color: colors.text.secondary,
+																					marginTop: spacing.xs,
+																				}}
+																			>
+																				{ModelService.truncateDescription(model.description)}
+																			</div>
+																		)}
+																	</div>
+																))
+															) : (
+																<div
+																	style={{
+																		padding: spacing.md,
+																		fontSize: typography.fontSize.sm,
+																		color: colors.text.secondary,
+																		fontStyle: "italic",
+																		textAlign: "center",
+																	}}
+																>
+																	No models match your search
+																</div>
+															)}
+														</div>
+													)}
+												</div>
+												{(modelFilter[selectedProvider] || "").trim() && (
+													<button
+														onClick={() => resetModelFilter(selectedProvider)}
+														title="Reset filter"
+														style={{
+															padding: spacing.sm,
+															backgroundColor: colors.background.secondary,
+															color: colors.text.secondary,
+															border: `1px solid ${colors.border.light}`,
+															borderRadius: borderRadius.md,
+															cursor: "pointer",
+															fontSize: typography.fontSize.sm,
+															fontWeight: typography.fontWeight.medium,
+															transition: "all 0.2s",
+															minWidth: "80px",
+															display: "flex",
+															alignItems: "center",
+															justifyContent: "center",
+														}}
+														onMouseEnter={(e) => {
+															e.currentTarget.style.backgroundColor = colors.background.tertiary;
+															e.currentTarget.style.borderColor = colors.border.default;
+														}}
+														onMouseLeave={(e) => {
+															e.currentTarget.style.backgroundColor = colors.background.secondary;
+															e.currentTarget.style.borderColor = colors.border.light;
+														}}
+													>
+														<X size={16} style={{ marginRight: spacing.xs }} />
+														Reset
+													</button>
+												)}
+											</div>
+										</div>
 									) : (
 										<div
 											style={{
