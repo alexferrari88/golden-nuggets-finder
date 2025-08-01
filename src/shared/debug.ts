@@ -119,8 +119,23 @@ export class DebugLogger {
 			return;
 		}
 
+		// Detect provider from request body or endpoint
+		let providerName = "Unknown API";
+		if (requestBody?.provider) {
+			// Provider explicitly set (OpenAI, Anthropic, OpenRouter)
+			providerName = requestBody.provider.charAt(0).toUpperCase() + requestBody.provider.slice(1) + " API";
+		} else if (endpoint.includes("gemini")) {
+			providerName = "Gemini API";
+		} else if (endpoint.includes("openai.com")) {
+			providerName = "OpenAI API";
+		} else if (endpoint.includes("anthropic.com")) {
+			providerName = "Anthropic API";
+		} else if (endpoint.includes("openrouter.ai")) {
+			providerName = "OpenRouter API";
+		}
+
 		// Log to service worker console
-		console.log("[LLM Request] Gemini API - Endpoint:", endpoint);
+		console.log(`[LLM Request] ${providerName} - Endpoint:`, endpoint);
 		console.log(
 			"[LLM Request] Request Body:",
 			JSON.stringify(requestBody, null, 2),
@@ -129,7 +144,7 @@ export class DebugLogger {
 		// Forward to page console
 		this.forwardToPageConsole({
 			type: "llm-request",
-			message: `Gemini API - Endpoint: ${endpoint}`,
+			message: `${providerName} - Endpoint: ${endpoint}`,
 			data: { endpoint, requestBody },
 		});
 	}
