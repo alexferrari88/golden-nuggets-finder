@@ -1,7 +1,89 @@
 /**
  * Debug and development logging utilities
  */
-import { type DebugLogMessage, MESSAGE_TYPES } from "./types";
+import { type DebugLogMessage, MESSAGE_TYPES, type ProviderId } from "./types";
+import type { GoldenNuggetsResponse } from "./types/providers";
+
+/**
+ * LLM request data structure for logging
+ */
+export interface LLMRequestData {
+	endpoint: string;
+	requestBody: LLMRequestBody;
+}
+
+/**
+ * LLM request body structure
+ */
+export interface LLMRequestBody {
+	provider?: ProviderId;
+	contents?: Array<{
+		parts: Array<{ text: string }>;
+	}>;
+	generationConfig?: {
+		temperature?: number;
+		maxOutputTokens?: number;
+		responseMimeType?: string;
+		responseSchema?: Record<string, unknown>;
+	};
+	// Additional fields for other providers
+	model?: string;
+	messages?: Array<{
+		role: string;
+		content: string;
+	}>;
+	max_tokens?: number;
+	temperature?: number;
+	[key: string]: unknown; // For additional provider-specific fields
+}
+
+/**
+ * LLM response data structure for logging
+ */
+export interface LLMResponseData {
+	candidates?: Array<{
+		content: {
+			parts: Array<{ text: string }>;
+		};
+		finishReason?: string;
+	}>;
+	usageMetadata?: {
+		promptTokenCount: number;
+		candidatesTokenCount: number;
+		totalTokenCount: number;
+	};
+	// Additional fields for other providers
+	choices?: Array<{
+		message?: { content: string };
+		finish_reason?: string;
+	}>;
+	usage?: {
+		prompt_tokens?: number;
+		completion_tokens?: number;
+		total_tokens?: number;
+	};
+	[key: string]: unknown; // For additional provider-specific fields
+}
+
+/**
+ * Validation result data structure
+ */
+export interface ValidationLogData {
+	endpoint: string;
+	requestBody: LLMRequestBody;
+	status: number;
+	statusText: string;
+	valid: boolean;
+}
+
+/**
+ * Extended window interface for global debug logger
+ */
+declare global {
+	interface Window {
+		debugLogger: DebugLogger;
+	}
+}
 
 /**
  * Development mode detection
@@ -124,7 +206,7 @@ export class DebugLogger {
 		}
 	}
 
-	logLLMRequest(endpoint: string, requestBody: any): void {
+	logLLMRequest(endpoint: string, requestBody: LLMRequestBody): void {
 		console.log(
 			`[DebugLogger] logLLMRequest called - enabled: ${this.enabled}`,
 		);
@@ -162,11 +244,11 @@ export class DebugLogger {
 		this.forwardToPageConsole({
 			type: "llm-request",
 			message: `${providerName} - Endpoint: ${endpoint}`,
-			data: { endpoint, requestBody },
+			data: { endpoint, requestBody } as LLMRequestData,
 		});
 	}
 
-	logLLMResponse(responseData: any, parsedResponse?: any): void {
+	logLLMResponse(responseData: LLMResponseData, parsedResponse?: GoldenNuggetsResponse): void {
 		if (!this.enabled) return;
 
 		// Log to service worker console
@@ -191,7 +273,7 @@ export class DebugLogger {
 
 	logLLMValidation(
 		endpoint: string,
-		requestBody: any,
+		requestBody: LLMRequestBody,
 		status: number,
 		statusText: string,
 		valid: boolean,
@@ -215,7 +297,7 @@ export class DebugLogger {
 		this.forwardToPageConsole({
 			type: "llm-validation",
 			message: `API Key Validation - Status: ${status} ${statusText} - Valid: ${valid}`,
-			data: { endpoint, requestBody, status, statusText, valid },
+			data: { endpoint, requestBody, status, statusText, valid } as ValidationLogData,
 		});
 	}
 
@@ -252,8 +334,8 @@ export class DebugLogger {
 
 		console.log(`[DebugLogger] Testing with forced enabled state...`);
 		this.log("🧪 Test log message");
-		this.logLLMRequest("https://test.com/manual-test", { manual: "test" });
-		this.logLLMResponse({ manual: "test response" });
+		this.logLLMRequest("https://test.com/manual-test", { manual: "test" } as LLMRequestBody);
+		this.logLLMResponse({ manual: "test response" } as LLMResponseData);
 
 		// Restore original state
 		this.enabled = originalState;
@@ -262,7 +344,7 @@ export class DebugLogger {
 		);
 	}
 
-	log(message: string, ...args: any[]): void {
+	log(message: string, ...args: unknown[]): void {
 		console.log(
 			`[DebugLogger] log() called - enabled: ${this.enabled}, message: ${message}`,
 		);
@@ -282,7 +364,7 @@ export class DebugLogger {
 		});
 	}
 
-	error(message: string, ...args: any[]): void {
+	error(message: string, ...args: unknown[]): void {
 		if (!this.enabled) return;
 
 		// Log to service worker console
@@ -296,7 +378,7 @@ export class DebugLogger {
 		});
 	}
 
-	warn(message: string, ...args: any[]): void {
+	warn(message: string, ...args: unknown[]): void {
 		if (!this.enabled) return;
 
 		// Log to service worker console
@@ -316,6 +398,6 @@ export const debugLogger = DebugLogger.getInstance();
 
 // Make debugLogger available in global scope for manual testing
 if (typeof window !== "undefined") {
-	(window as any).debugLogger = debugLogger;
+	window.debugLogger = debugLogger;
 	console.log("[DebugLogger] Available globally as window.debugLogger");
 }

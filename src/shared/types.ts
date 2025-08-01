@@ -195,7 +195,7 @@ export interface DebugLogMessage {
 		| "llm-response"
 		| "llm-validation";
 	message: string;
-	data?: any;
+	data?: unknown;
 }
 
 export interface AnalysisProgressMessage {
