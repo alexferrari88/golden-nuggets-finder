@@ -285,5 +285,49 @@ Return only the most valuable insights that would be genuinely useful to a softw
 				expect(provider.modelName).toBe(config.modelName);
 			}
 		});
+
+		it("should get selected model for providers (new functionality)", async () => {
+			const providers: ProviderId[] = [
+				"gemini",
+				"openai", 
+				"anthropic",
+				"openrouter",
+			];
+
+			// Test that getSelectedModel returns default models when no custom selection exists
+			for (const providerId of providers) {
+				const selectedModel = await ProviderFactory.getSelectedModel(providerId);
+				const defaultModel = ProviderFactory.getDefaultModel(providerId);
+				
+				expect(selectedModel).toBeDefined();
+				expect(typeof selectedModel).toBe("string");
+				expect(selectedModel.length).toBeGreaterThan(0);
+				// Should return default model when no custom selection
+				expect(selectedModel).toBe(defaultModel);
+			}
+		});
+
+		it("should create provider with selected model (new functionality)", async () => {
+			const providers: ProviderId[] = [
+				"gemini",
+				"openai",
+				"anthropic", 
+				"openrouter",
+			];
+
+			for (const providerId of providers) {
+				const provider = await ProviderFactory.createProviderWithSelectedModel(
+					providerId,
+					"test-key"
+				);
+				
+				expect(provider).toBeDefined();
+				expect(provider.providerId).toBe(providerId);
+				
+				// Should use the selected model (which defaults to default model)
+				const expectedModel = ProviderFactory.getDefaultModel(providerId);
+				expect(provider.modelName).toBe(expectedModel);
+			}
+		});
 	});
 });
