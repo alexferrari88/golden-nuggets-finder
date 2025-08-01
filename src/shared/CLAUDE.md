@@ -1,6 +1,47 @@
 # Shared Utilities Documentation
 
-This document covers the shared utilities, types, storage management, security, content processing, and performance monitoring for the Golden Nugget Finder extension.
+This document covers the shared utilities, multi-provider system, types, storage management, security, content processing, and performance monitoring for the Golden Nugget Finder extension.
+
+## Multi-Provider System
+
+### Provider Directory (`providers/`)
+The extension supports multiple AI providers through a unified interface:
+
+#### Gemini Direct Provider (`providers/gemini-direct-provider.ts`)
+Direct REST API integration with Google Gemini:
+- **API Integration**: Direct REST calls without SDK dependencies
+- **Structured Output**: Uses Gemini's structured output capabilities with schema enforcement
+- **Thinking Budget**: Configurable thinking budget for complex analysis
+- **Caching**: Built-in response caching for improved performance
+- **Error Handling**: Gemini-specific error patterns and retry logic
+
+#### LangChain Anthropic Provider (`providers/langchain-anthropic-provider.ts`)
+Anthropic Claude integration via LangChain:
+- **LangChain Integration**: Leverages LangChain's Anthropic adapter
+- **Model Support**: Supports Claude Sonnet 4 and other Claude models
+- **Structured Output**: Tool calling for consistent response formatting
+- **Advanced Reasoning**: Optimized for complex analytical tasks
+
+#### LangChain OpenAI Provider (`providers/langchain-openai-provider.ts`)
+OpenAI integration via LangChain:
+- **Model Range**: Supports GPT-4o, GPT-4, and other OpenAI models
+- **Tool Calling**: Uses OpenAI's function calling for structured responses
+- **Cost Optimization**: Efficient token usage and model selection
+- **Reliability**: Robust error handling and retry mechanisms
+
+#### LangChain OpenRouter Provider (`providers/langchain-openrouter-provider.ts`)
+OpenRouter integration providing access to multiple models:
+- **Multi-Model Access**: Access to various models through single API
+- **Cost Comparison**: Enables cost comparison across different providers
+- **Model Variety**: Supports both open-source and proprietary models
+- **Fallback Option**: Serves as fallback when primary providers are unavailable
+
+### Provider Interface (`types/providers.ts`)
+Unified interface for all AI providers:
+- **Common Interface**: `LLMProvider` interface ensures consistent API across providers
+- **Provider Configuration**: `ProviderConfig` for standardized provider setup
+- **Response Format**: `GoldenNuggetsResponse` standardizes output format
+- **Type Safety**: Strong typing for provider IDs and configurations
 
 ## Storage Management
 
@@ -11,9 +52,28 @@ Handles Chrome storage with caching and security integration:
 - Handles storage quota management
 - Ensures data consistency across extension components
 
+### Storage Directory (`storage/`)
+Modular storage system for different data types:
+
+#### API Key Storage (`storage/api-key-storage.ts`)
+Specialized storage for AI provider API keys:
+- **Multi-Provider Support**: Stores API keys for Gemini, OpenAI, Anthropic, and OpenRouter
+- **Encryption**: All API keys encrypted using SecurityManager with device-specific encryption
+- **Provider Management**: Get, set, and remove API keys for specific providers
+- **Validation Integration**: Works with provider validation systems
+
+#### Model Storage (`storage/model-storage.ts`)
+Manages user-selected models for each provider:
+- **Model Selection**: Stores user's preferred model for each provider
+- **Fallback Logic**: Automatic fallback to provider defaults when no selection exists
+- **Provider-Specific**: Separate model storage per provider
+- **Configuration Support**: Integrates with provider configuration system
+
 ### Storage Structure
-- `geminiApiKey`: User's Google Gemini API key (encrypted using SecurityManager)
-- `userPrompts`: Array of saved prompt objects with names, content, and default status
+- **Multi-Provider API Keys**: Encrypted storage for all supported AI providers
+- **Model Selections**: User-selected models per provider with fallback defaults
+- **User Prompts**: Array of saved prompt objects with names, content, and default status
+- **Provider Configuration**: Selected provider and provider-specific settings
 
 ### Storage Best Practices
 - Use local storage for user preferences and settings
@@ -104,15 +164,27 @@ Development and production logging system:
 
 ## Type System
 
-### Types (`types.ts`)
+### Core Types (`types.ts`)
 Comprehensive TypeScript interfaces for all extension data structures:
-- **Core Data Models**: GoldenNugget, GeminiResponse, SavedPrompt, ExtensionConfig
+- **Core Data Models**: GoldenNugget, SavedPrompt, ExtensionConfig with multi-provider support
 - **UI State Management**: NuggetDisplayState, SidebarNuggetItem, TypeFilterOptions
-- **Analysis System**: AnalysisRequest, AnalysisResponse, AnalysisProgressMessage
+- **Analysis System**: AnalysisRequest, AnalysisResponse, AnalysisProgressMessage with provider metadata
 - **Feedback System**: NuggetFeedback, MissingContentFeedback, FeedbackStats
 - **Export System**: ExportData, ExportOptions with multiple format support
 - **Message System**: Complete MessageTypes enum for inter-component communication
 - **Debug System**: DebugLogMessage for development logging
+- **Provider Integration**: Provider metadata types for UI display and analytics
+
+### Provider Types Directory (`types/`)
+Specialized type definitions for the multi-provider system:
+
+#### Provider Types (`types/providers.ts`)
+Core provider system types:
+- **Provider IDs**: `ProviderId` union type for all supported providers
+- **Provider Configuration**: `ProviderConfig` interface for provider setup
+- **LLM Interface**: `LLMProvider` interface ensuring consistent provider API
+- **Response Format**: `GoldenNuggetsResponse` for standardized output
+- **Storage Schema**: `ProviderStorageSchema` for provider data persistence
 
 ### Advanced Type Features
 - **Feedback Integration**: Complete feedback system types for prompt optimization
@@ -309,12 +381,21 @@ The shared utilities include comprehensive unit tests:
 ## Development Notes
 
 ### Adding New Utilities
-1. Follow existing naming conventions and file structure
-2. Implement proper TypeScript typing with strict mode
-3. Add comprehensive unit tests in corresponding `.test.ts` file
-4. Document usage examples and integration points
-5. Consider security implications for sensitive operations
-6. Update this CLAUDE.md file with new utility documentation
+1. **Naming Conventions**: Follow existing naming conventions and file structure
+2. **TypeScript Integration**: Implement proper TypeScript typing with strict mode
+3. **Provider Compatibility**: Ensure utilities work across all supported providers
+4. **Testing Coverage**: Add comprehensive unit tests in corresponding `.test.ts` file
+5. **Security Considerations**: Consider security implications for sensitive operations
+6. **Documentation**: Update this CLAUDE.md file with new utility documentation
+
+### Adding New Providers
+1. **Provider Implementation**: Create new provider class in `providers/` directory
+2. **Interface Compliance**: Implement `LLMProvider` interface from `types/providers.ts`
+3. **Type Updates**: Extend `ProviderId` union type and related interfaces
+4. **Model Service**: Add model fetching logic to model service
+5. **Error Handling**: Implement provider-specific error patterns
+6. **Storage Integration**: Update storage systems for new provider
+7. **Testing**: Comprehensive testing including API integration and error scenarios
 
 ### Security Considerations
 - All new utilities handling sensitive data must use SecurityManager

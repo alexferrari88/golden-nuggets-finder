@@ -35,17 +35,17 @@ export class LangChainOpenRouterProvider implements LLMProvider {
 			// Handle OpenRouter API error format
 			if (
 				"error" in error &&
-				typeof (error as any).error === "object" &&
-				(error as any).error !== null
+				typeof (error as Record<string, unknown>).error === "object" &&
+				(error as Record<string, unknown>).error !== null
 			) {
-				const apiError = (error as any).error;
+				const apiError = (error as Record<string, unknown>).error as Record<string, unknown>;
 				if ("message" in apiError) {
 					return String(apiError.message);
 				}
 			}
 			// Handle other object-type errors
 			else if ("message" in error) {
-				return String((error as any).message);
+				return String((error as Record<string, unknown>).message);
 			}
 		}
 		return String(error);
@@ -72,13 +72,14 @@ export class LangChainOpenRouterProvider implements LLMProvider {
 	/**
 	 * Validates OpenRouter response for error objects even in 200 responses
 	 */
-	private validateOpenRouterResponse(response: any): void {
+	private validateOpenRouterResponse(response: unknown): void {
 		// Check if response contains error object (OpenRouter can return 200 with error content)
 		if (response && typeof response === "object" && "error" in response) {
-			const error = response.error;
+			const error = (response as Record<string, unknown>).error;
 			if (error && typeof error === "object" && "message" in error) {
-				const errorMessage = String(error.message);
-				const errorCode = error.code ? String(error.code) : "unknown";
+				const errorObj = error as Record<string, unknown>;
+				const errorMessage = String(errorObj.message);
+				const errorCode = errorObj.code ? String(errorObj.code) : "unknown";
 				debugLogger.log(
 					`🚨 OpenRouter returned 200 with error object: ${errorMessage} (code: ${errorCode})`,
 				);

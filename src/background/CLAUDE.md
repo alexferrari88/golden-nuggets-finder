@@ -1,39 +1,77 @@
 # Background Script Architecture
 
-This document covers the background script architecture, AI integration, API management, and backend services for the Golden Nugget Finder extension.
+This document covers the background script architecture, AI integration, multi-provider system, and backend services for the Golden Nugget Finder extension.
 
 ## Background Script Overview
 
 The background script (`entrypoints/background.ts`) operates as a service worker that handles:
-- API calls to Google Gemini
+- Multi-provider AI integration (Gemini, OpenAI, Anthropic, OpenRouter)
 - Context menu creation and interactions with type filtering
 - Dynamic content script injection to prevent auto-loading on all pages
 - Communication with content scripts via message passing
 - Tab state tracking for analysis completion and missed nugget reporting
-- Backend integration for feedback collection and DSPy optimization
+- Provider switching and API key management
 
-## AI Integration
+## Multi-Provider AI Integration
 
-### Gemini Client (`gemini-client.ts`)
-Handles API communication with Google Gemini:
-- Uses REST API (not SDK due to WXT/Vite limitations)
-- Implements structured JSON output with schema validation
-- Features retry logic, caching, and enhanced error handling
-- Optimizes content size and uses thinking budget configuration
-- Supports dynamic schema generation based on type filters
-- Integrates with backend for optimized prompt selection
+### Provider Architecture
+The extension supports multiple AI providers through a unified interface:
+- **Gemini Direct Provider**: Direct REST API integration with Google Gemini
+- **LangChain Providers**: OpenAI, Anthropic, and OpenRouter via LangChain
+- **Provider Factory**: Creates appropriate provider instances based on configuration
+- **Provider Switching**: Automatic fallback and manual provider switching
 
-### API Configuration
-- **Model**: `gemini-2.5-flash`
-- **Thinking Budget**: `thinkingBudget: -1` (dynamic)
-- **Structured Output**: Enforced via `responseSchema` with dynamic schema support
-- **Content Optimization**: Limits requests to 30KB
-- **Caching**: API responses are cached for 5 minutes
-- **Enhanced Error Handling**: Comprehensive error classification and user-friendly messages
+### Provider Factory (`services/provider-factory.ts`)
+Central factory for creating provider instances:
+- **Provider Creation**: `createProvider(config)` creates appropriate provider based on ID
+- **Model Selection**: `getSelectedModel(providerId)` retrieves user-selected models
+- **Default Models**: Fallback to provider-specific defaults
+- **Convenience Methods**: `createProviderWithSelectedModel()` for common usage
+
+### Model Service (`services/model-service.ts`)
+Handles model discovery and management across providers:
+- **Dynamic Model Fetching**: Fetches available models from each provider's API
+- **Model Filtering**: Filters models by capability (text generation, chat completion)
+- **Fallback Models**: Hardcoded fallback models when API calls fail
+- **Model Information**: Returns model metadata including context length and descriptions
+
+### Provider Switching (`services/provider-switcher.ts`)
+Manages provider availability and switching:
+- **Provider Discovery**: `getAvailableProviders()` finds configured providers
+- **Current Provider**: `getCurrentProvider()` returns active provider with fallback logic
+- **Configuration Check**: `isProviderConfigured()` validates provider setup
+- **Automatic Switching**: `switchToFallbackProvider()` for error handling
+
+## Supported AI Providers
+
+### Google Gemini (Direct Integration)
+- **Implementation**: `shared/providers/gemini-direct-provider.ts`
+- **API**: Direct REST API calls (not SDK due to WXT/Vite limitations)
+- **Default Model**: `gemini-2.5-flash`
+- **Features**: Structured JSON output, thinking budget configuration
+- **Caching**: 5-minute response caching
+
+### OpenAI (LangChain Integration)
+- **Implementation**: `shared/providers/langchain-openai-provider.ts`
+- **API**: LangChain OpenAI integration
+- **Default Model**: `gpt-4.1-mini`
+- **Features**: Chat completion models, structured output via tool calling
+
+### Anthropic Claude (LangChain Integration)
+- **Implementation**: `shared/providers/langchain-anthropic-provider.ts`
+- **API**: LangChain Anthropic integration
+- **Default Model**: `claude-sonnet-4-20250514`
+- **Features**: Advanced reasoning capabilities, structured output
+
+### OpenRouter (LangChain Integration)
+- **Implementation**: `shared/providers/langchain-openrouter-provider.ts`
+- **API**: LangChain OpenRouter integration providing access to multiple models
+- **Default Model**: `openai/gpt-3.5-turbo`
+- **Features**: Access to multiple providers through single API
 
 ## Golden Nugget Response Schema
 
-The extension expects Gemini API responses in this exact format:
+All AI providers are normalized to return responses in this standardized format:
 ```json
 {
   "golden_nuggets": [
@@ -47,7 +85,7 @@ The extension expects Gemini API responses in this exact format:
 }
 ```
 
-**Note**: The schema can be dynamically filtered to only include selected nugget types when type filtering is active.
+**Note**: Response normalization is handled by `services/response-normalizer.ts` to ensure consistent data structure across all providers.
 
 ## Message Passing System
 
@@ -84,11 +122,12 @@ Uses typed message system with `MESSAGE_TYPES` constants for communication betwe
 
 ### Message Handler (`message-handler.ts`)
 Centralized message processing with:
-- Comprehensive error handling and user-friendly error messages
-- Backend integration for feedback and optimization
+- Multi-provider analysis orchestration
+- Comprehensive error handling with provider-specific error recovery
 - Progress tracking with 4-step analysis workflow
 - Type filtering support for nugget extraction
-- Automatic fallback to optimized prompts when available
+- Provider switching and fallback mechanisms
+- API key management and validation across providers
 
 ## Content Script Injection
 
@@ -174,59 +213,38 @@ Golden Nugget Finder
 - Enables "Report missed golden nugget" feature only after analysis completion
 - Cleans up state when tabs are closed or navigated
 
-## Backend Integration & DSPy Optimization
+## Service Architecture
 
-### Backend Services
-The extension integrates with a local backend service (`http://localhost:7532`) for advanced features:
+### Services Directory (`services/`)
+The background script is organized into modular services:
 
-#### Feedback Collection (`/feedback`)
-- **Purpose**: Collects user feedback on nugget quality and missed content
-- **Data**: Nugget feedback (helpful/not helpful) and missing content reports
-- **Fallback**: Stores feedback locally when backend unavailable
-- **Deduplication**: Backend prevents duplicate feedback submissions
+#### Error Handler (`services/error-handler.ts`)
+Comprehensive error handling across all providers:
+- **Provider-Specific Errors**: Handles unique error patterns for each AI provider
+- **User-Friendly Messages**: Converts technical errors to actionable user guidance
+- **Retry Logic**: Implements intelligent retry with exponential backoff
+- **Error Recovery**: Automatic provider switching on persistent failures
 
-#### DSPy Optimization (`/optimize`)
-- **Purpose**: Uses DSPy framework to optimize prompts based on user feedback
-- **Triggers**: Manual optimization requests and automatic threshold-based optimization
-- **Modes**: 'cheap' (faster) and 'thorough' (more comprehensive) optimization
-- **Monitoring**: Real-time progress tracking via `/monitor/*` endpoints
-
-#### Optimized Prompt Retrieval (`/optimize/current`)
-- **Purpose**: Fetches current optimized prompt for analysis
-- **Integration**: Automatically uses optimized prompts when available
-- **Fallback**: Uses default prompts when backend unavailable or no optimization exists
-- **Versioning**: Tracks optimization versions and performance metrics
-
-#### Feedback Statistics (`/feedback/stats`)
-- **Purpose**: Provides insights into feedback patterns and optimization triggers
-- **Metrics**: Total feedback count, positive/negative rates, optimization dates
-- **Usage**: Helps determine when new optimizations should be triggered
-
-### Backend Error Handling
-Sophisticated error classification system for backend failures:
-- **Network Errors**: "Backend service unavailable" with local fallback
-- **Database Errors**: "Database temporarily busy" with retry suggestions
-- **DSPy Configuration**: "Optimization system not configured" notifications
-- **API Errors**: Enhanced error messages with specific remediation steps
-- **Timeout Handling**: 10-second timeout for feedback, 5-second for prompt retrieval
-
-### Local Fallback Strategy
-- **Feedback Storage**: All feedback stored locally as backup
-- **Graceful Degradation**: Extension functions fully without backend
-- **User Notifications**: Informative messages about backend status
-- **Automatic Sync**: Future implementation for syncing when backend recovers
+#### Response Normalizer (`services/response-normalizer.ts`)
+Ensures consistent data structure across providers:
+- **Schema Normalization**: Converts all provider responses to unified format
+- **Validation**: Validates response structure and content quality
+- **Error Handling**: Graceful handling of malformed provider responses
+- **Testing Support**: Comprehensive test coverage for all normalization scenarios
 
 ## Error Handling
 
-### API Error Management
-- Robust retry logic for API calls with exponential backoff
-- User-friendly error messages for common issues
-- Comprehensive logging for debugging
+### Multi-Provider Error Management
+- **Provider-Specific Handling**: Each provider has tailored error handling for its API patterns
+- **Automatic Fallback**: Switches to alternative providers when primary provider fails
+- **Retry Logic**: Intelligent retry with exponential backoff and provider-specific limits
+- **User-Friendly Messages**: Technical errors converted to actionable guidance
 
 ### Network and Connectivity
-- Handles network timeouts and connectivity issues
-- Provides fallback mechanisms for service interruptions
-- Manages rate limiting and quota restrictions
+- **Timeout Handling**: Provider-specific timeout configurations
+- **Rate Limiting**: Handles rate limits across different provider APIs
+- **Quota Management**: Monitors and manages API quota restrictions
+- **Connection Recovery**: Automatic recovery from network interruptions
 
 ## Performance Optimization
 
@@ -243,46 +261,44 @@ Sophisticated error classification system for backend failures:
 ## Development Notes
 
 ### Testing Background Scripts
-- Test API integration with mock services and backend fallback scenarios
-- Verify message passing between scripts including new message types
-- Test context menu functionality with type filtering
-- Validate type filter service operations and schema generation
-- Test tab state tracking and cleanup operations
-- Mock backend services for feedback and optimization testing
+- **Multi-Provider Testing**: Test all providers (Gemini, OpenAI, Anthropic, OpenRouter) with mock services
+- **Provider Switching**: Verify automatic fallback and manual provider switching
+- **Message Passing**: Test message handling between scripts including provider-specific messages
+- **Context Menu**: Test context menu functionality with type filtering across providers
+- **Model Management**: Test model fetching and selection for all providers
+- **Error Scenarios**: Test provider failures, API key issues, and network problems
 
 ### API Key Management
-- Secure storage of API keys with security manager integration
-- Validation of API key format and permissions
-- Enhanced error handling for invalid or expired keys
-- Recovery mechanisms for device changes and key rotation
+- **Multi-Provider Storage**: Secure storage for all provider API keys using SecurityManager
+- **Provider Validation**: Validate API keys for each provider with provider-specific endpoints
+- **Error Handling**: Enhanced error messages for invalid/expired keys per provider
+- **Key Rotation**: Recovery mechanisms for device changes and key updates
 
-### Adding New AI Features
-1. Extend the Gemini client interface with new methods
-2. Update response schema validation and type definitions
-3. Add appropriate error handling and user feedback
-4. Test with representative data samples and edge cases
-5. Consider type filtering implications for new features
-6. Update backend integration if optimization support needed
+### Adding New AI Providers
+1. **Create Provider Implementation**: Add new provider class in `shared/providers/`
+2. **Update Provider Factory**: Add provider to factory and default model configuration
+3. **Update Provider Types**: Extend `ProviderId` union and related types
+4. **Add Model Service**: Implement model fetching for the new provider
+5. **Update Error Handling**: Add provider-specific error patterns
+6. **Test Integration**: Comprehensive testing across all provider scenarios
 
-### Type Filtering Development
-1. Update TypeFilterService with new type definitions
-2. Extend context menu options and emoji representations  
-3. Test dynamic prompt generation and schema filtering
-4. Validate type combinations and edge cases
-5. Ensure proper integration with backend optimization
+### Service Development
+1. **Service Modularity**: Keep services focused and testable
+2. **Provider Agnostic**: Ensure services work across all providers
+3. **Error Recovery**: Implement graceful degradation and fallback mechanisms
+4. **Testing Coverage**: Unit tests for all service methods and error cases
+5. **Documentation**: Update service documentation for API changes
 
-### Backend Integration Development
-1. Add new API endpoints to message handler
-2. Implement proper timeout and retry logic
-3. Test error classification and user notification
-4. Validate local fallback mechanisms
-5. Monitor performance impact of backend calls
-6. Document new endpoints and data structures
+### Multi-Provider Considerations
+- **Provider Parity**: Ensure feature parity across all supported providers
+- **Performance Monitoring**: Track response times and success rates per provider
+- **Cost Optimization**: Monitor token usage and costs across providers
+- **Model Updates**: Handle new model releases and deprecations
+- **Rate Limiting**: Implement provider-specific rate limiting strategies
 
 ### Service Worker Considerations
-- Handle service worker lifecycle events and state persistence
-- Manage persistent connections appropriately with backend
-- Ensure proper cleanup on extension updates including tab tracking
-- Monitor memory usage with increased backend integration
-- Handle network connectivity changes gracefully
-- Implement proper error boundaries for backend failures
+- **State Management**: Handle provider state across service worker restarts
+- **Connection Management**: Efficient connection handling for multiple providers
+- **Memory Optimization**: Monitor memory usage with multiple provider instances
+- **Cleanup**: Proper cleanup of provider resources on extension updates
+- **Error Boundaries**: Implement provider-specific error boundaries

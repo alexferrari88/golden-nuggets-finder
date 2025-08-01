@@ -25,14 +25,15 @@ matches: ['https://example.com/*'] // Restrictive pattern - DO NOT CHANGE
 ## Content Script Overview
 
 Content scripts are injected dynamically only when needed (not on all pages) and handle:
-- Content extraction from webpages using specialized extractors
-- DOM manipulation for highlighting and UI rendering
-- Analysis workflow and performance monitoring
+- Content extraction from webpages using the `threads-harvester` library
+- DOM manipulation for highlighting and UI rendering with design system integration
+- Analysis workflow and performance monitoring with real-time progress updates
 - Communication with background scripts via message passing
+- Multi-provider analysis support with provider metadata display
 
 ## Content Extraction System
 
-The content extraction system uses the external `threads-harvester` library (v1.1.1) for intelligent content extraction across different website types.
+The content extraction system uses the external `threads-harvester` library for intelligent content extraction across different website types.
 
 ### ContentScraper (`threads-harvester`)
 The extension uses `ContentScraper` from the threads-harvester library which provides:
@@ -80,12 +81,15 @@ Displays results in right sidebar with Notion-inspired design:
 
 ### NotificationManager (`ui/notifications.ts`)
 Manages different types of notification banners with automatic lifecycle:
-- **Multiple Banner Types**: Progress, error, success, info, and API key error banners
+- **Multiple Banner Types**: Progress, error, success, info, API key error, and provider-specific banners
+- **Real-time Progress**: Displays analysis progress with provider information and timing
+- **Provider Integration**: Shows provider metadata, response times, and model information
+- **Rate Limiting Support**: Displays rate limiting messages with retry countdown
 - **Auto-hide Behavior**: Automatic timeout for errors and success messages
 - **Interactive Options**: Info banners can include buttons with custom actions
 - **Single Banner Policy**: Only one banner shown at a time, with smart replacement
 - **Design System Integration**: Uses design system colors, typography, and timing
-- **Smooth Animations**: Fade-in and slide-in animations for polished feel
+- **Smooth Animations**: Fade-in and slide-in animations for professional feel
 
 ### Design System Integration
 Content script UI components follow the shared design system:
@@ -200,13 +204,17 @@ The threads-harvester library provides automatic site detection and optimized ex
 - Verify UI component interactions
 
 ### Working with ContentScraper
-1. ContentScraper automatically detects site types - no manual configuration needed
-2. Configure extraction options via constructor (`includeHtml`, `showCheckboxes`, etc.)
-3. Use `measureContentExtraction()` to monitor performance of extraction operations
-4. Test extraction across different site types and content structures
-5. For site-specific issues, consider contributing to the threads-harvester library
+1. **Automatic Detection**: ContentScraper automatically detects site types - no manual configuration needed
+2. **Design System Integration**: Configure extraction with design-system-compliant checkbox styling
+3. **Performance Monitoring**: Use `measureContentExtraction()` to monitor extraction performance
+4. **Multi-Mode Support**: Supports both analysis mode and selection mode with checkboxes
+5. **Site Types**: Test extraction across Reddit, Hacker News, and generic websites
+6. **Content Reconstruction**: Extracted content is stored for golden nugget text reconstruction
 
 ### UI Component Guidelines
-- Keep UI components lightweight and performant
-- Ensure proper cleanup on page navigation
-- Handle dynamic content updates gracefully
+- **Design System Compliance**: Always use design system variables for styling
+- **Provider Integration**: Display provider metadata and response times in UI
+- **Real-time Updates**: Handle progress messages and provider switching notifications
+- **Performance Optimization**: Keep components lightweight with efficient DOM operations
+- **Error Handling**: Graceful degradation for provider failures and network issues
+- **Memory Management**: Proper cleanup on page navigation and component destruction
