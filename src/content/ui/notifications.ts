@@ -130,8 +130,10 @@ export class NotificationManager {
 		const baseStyles = `
       position: fixed;
       top: 20px;
-      left: 50%;
-      transform: translateX(-50%);
+      left: 20px;
+      right: 20px;
+      max-width: 400px;
+      margin: 0 auto;
       padding: 12px 24px;
       border-radius: 4px;
       z-index: ${zIndex.notification};
@@ -139,14 +141,10 @@ export class NotificationManager {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       font-size: 14px;
       font-weight: 500;
-      max-width: min(400px, calc(100vw - 40px));
       text-align: left;
-      display: flex;
-      align-items: center;
-      justify-content: flex-start;
-      gap: 8px;
       word-wrap: break-word;
       overflow-wrap: break-word;
+      word-break: break-word;
       hyphens: auto;
       line-height: 1.4;
       white-space: normal;
@@ -195,6 +193,12 @@ export class NotificationManager {
 	}
 
 	private addProgressAnimation(banner: HTMLElement, message: string): void {
+		// For progress notifications, we need flexbox layout
+		banner.style.display = "flex";
+		banner.style.alignItems = "center";
+		banner.style.justifyContent = "center";
+		banner.style.gap = "8px";
+
 		// Add text element
 		const textElement = document.createElement("span");
 		textElement.textContent = message;
@@ -293,8 +297,10 @@ export class NotificationManager {
 		const baseStyles = `
       position: fixed;
       top: 20px;
-      left: 50%;
-      transform: translateX(-50%);
+      left: 20px;
+      right: 20px;
+      max-width: 400px;
+      margin: 0 auto;
       padding: 12px 24px;
       border-radius: 4px;
       z-index: ${zIndex.notification};
@@ -302,12 +308,12 @@ export class NotificationManager {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       font-size: 14px;
       font-weight: 500;
-      max-width: min(400px, calc(100vw - 40px));
       text-align: left;
       background: ${colors.error};
       color: white;
       word-wrap: break-word;
       overflow-wrap: break-word;
+      word-break: break-word;
       hyphens: auto;
       line-height: 1.4;
       white-space: normal;
