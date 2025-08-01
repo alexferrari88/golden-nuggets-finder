@@ -32,12 +32,14 @@ describe("Response Normalizer Functions", () => {
 				golden_nuggets: [
 					{
 						type: "tool",
-						content: "Test content 1",
+						startContent: "Test content 1",
+						endContent: "Test content 1",
 						synthesis: "Test synthesis 1",
 					},
 					{
 						type: "explanation",
-						content: "Test content 2",
+						startContent: "Test content 2",
+						endContent: "Test content 2",
 						synthesis: "Test synthesis 2",
 					},
 				],
@@ -60,7 +62,8 @@ describe("Response Normalizer Functions", () => {
 				"anthropic",
 			);
 
-			expect(result.golden_nuggets[0].content).toBe("Test content with spaces");
+			expect(result.golden_nuggets[0].startContent).toBe("Test content with spaces");
+			expect(result.golden_nuggets[0].endContent).toBe("Test content with spaces");
 			expect(result.golden_nuggets[0].synthesis).toBe(
 				"Test synthesis with newlines",
 			);
@@ -97,7 +100,8 @@ describe("Response Normalizer Functions", () => {
 			expect(result.golden_nuggets).toHaveLength(1);
 			expect(result.golden_nuggets[0]).toEqual({
 				type: "tool",
-				content: "Valid content",
+				startContent: "Valid content",
+				endContent: "Valid content",
 				synthesis: "Valid synthesis",
 			});
 		});
@@ -118,7 +122,8 @@ describe("Response Normalizer Functions", () => {
 				"openrouter",
 			);
 
-			expect(result.golden_nuggets[0].content).toBe("123");
+			expect(result.golden_nuggets[0].startContent).toBe("123");
+			expect(result.golden_nuggets[0].endContent).toBe("123");
 			expect(result.golden_nuggets[0].synthesis).toBe("true");
 		});
 
@@ -242,7 +247,8 @@ describe("Response Normalizer Functions", () => {
 				golden_nuggets: [
 					{
 						type: "tool" as const,
-						content: "Test content",
+						startContent: "Test content",
+						endContent: "Test content",
 						synthesis: "Test synthesis",
 					},
 				],
