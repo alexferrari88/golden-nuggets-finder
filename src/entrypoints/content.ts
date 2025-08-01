@@ -1,9 +1,7 @@
 import {
 	type AnalysisProgressMessage,
 	type AnalysisRequest,
-	type AnalysisResponse,
 	type DebugLogMessage,
-	type GeminiResponse,
 	type GoldenNugget,
 	MESSAGE_TYPES,
 	type ProviderId,
@@ -24,12 +22,6 @@ import {
 } from "threads-harvester";
 
 // Type definitions for content script functionality
-type MessageHandler = (
-	request: ContentScriptMessage,
-	sender: chrome.runtime.MessageSender,
-	sendResponse: (response: ContentScriptResponse) => void,
-) => Promise<void>;
-
 interface ContentScriptMessage {
 	type: string;
 	promptId?: string;
