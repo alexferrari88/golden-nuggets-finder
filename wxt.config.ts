@@ -18,17 +18,22 @@ export default defineConfig({
 			128: "assets/icon128.png",
 		},
 		permissions: ["activeTab", "storage", "contextMenus", "scripting"],
-		// Add host permissions for testing - only in development builds
-		...(process.env.NODE_ENV === "development" && {
-			host_permissions: [
+		// Host permissions for LLM provider APIs (always needed)
+		host_permissions: [
+			"https://generativelanguage.googleapis.com/*",
+			"https://openrouter.ai/*",
+			"https://api.anthropic.com/*",
+			"https://api.openai.com/*",
+			// Development and testing domains
+			...(process.env.NODE_ENV === "development" ? [
 				"https://www.reddit.com/*",
 				"https://news.ycombinator.com/*",
 				"https://twitter.com/*",
 				"https://x.com/*",
 				"https://example.com/*",
 				"http://localhost/*",
-			],
-		}),
+			] : []),
+		],
 		web_accessible_resources: [
 			{
 				resources: ["Readability.js"],
@@ -57,7 +62,7 @@ export default defineConfig({
 		content_security_policy: {
 			// Use specific port for dev server HMR connection
 			extension_pages:
-				"script-src 'self'; object-src 'self'; connect-src 'self' https://generativelanguage.googleapis.com ws://localhost:8624 http://localhost:7532; style-src 'self' 'unsafe-inline'",
+				"script-src 'self'; object-src 'self'; connect-src 'self' https://generativelanguage.googleapis.com https://openrouter.ai https://api.anthropic.com https://api.openai.com ws://localhost:8624 http://localhost:7532; style-src 'self' 'unsafe-inline'",
 		},
 	},
 
