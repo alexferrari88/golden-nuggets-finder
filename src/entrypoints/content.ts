@@ -595,6 +595,15 @@ export default defineContentScript({
 			results: any,
 			source?: string,
 		): Promise<void> {
+			// Debug logging to identify the issue
+			console.log("[Content Script] handleAnalysisResults called with:", {
+				results,
+				resultsType: typeof results,
+				hasGoldenNuggets: results && 'golden_nuggets' in results,
+				goldenNuggetsType: results?.golden_nuggets ? typeof results.golden_nuggets : 'undefined',
+				goldenNuggetsLength: Array.isArray(results?.golden_nuggets) ? results.golden_nuggets.length : 'not array'
+			});
+
 			// Validate results structure to prevent runtime errors
 			if (!results || typeof results !== 'object') {
 				console.error("Invalid analysis results:", results);
@@ -602,7 +611,28 @@ export default defineContentScript({
 				return;
 			}
 			
-			const nuggets = Array.isArray(results.golden_nuggets) ? results.golden_nuggets : [];
+			// Try multiple possible data structures
+			let nuggets: any[] = [];
+			if (Array.isArray(results.golden_nuggets)) {
+				nuggets = results.golden_nuggets;
+			} else if (Array.isArray(results)) {
+				nuggets = results;
+			} else if (results && Array.isArray(results.data?.golden_nuggets)) {
+				nuggets = results.data.golden_nuggets;
+			} else if (results && Array.isArray(results.nuggets)) {
+				nuggets = results.nuggets;
+			}
+			
+			console.log("[Content Script] Nuggets extraction attempt:", {
+				foundStructure: nuggets.length > 0 ? 'success' : 'failed',
+				nuggetCount: nuggets.length
+			});
+
+			console.log("[Content Script] Extracted nuggets:", {
+				nuggetsLength: nuggets.length,
+				firstNugget: nuggets[0] || 'none',
+				extractedPageContentLength: extractedPageContent?.length || 0
+			});
 
 			// Hide the progress banner now that we have results (only if not triggered from popup)
 			if (source !== "popup") {
@@ -610,12 +640,14 @@ export default defineContentScript({
 			}
 
 			if (nuggets.length === 0) {
+				console.warn("[Content Script] No nuggets found, showing empty state");
 				uiManager.showNoResultsBanner();
 				// Still show sidebar with empty state for better UX
 				await uiManager.displayResults([], extractedPageContent || undefined);
 				return;
 			}
 
+			console.log("[Content Script] Calling uiManager.displayResults with", nuggets.length, "nuggets");
 			// Highlight nuggets on the page and show sidebar with page content for reconstruction
 			await uiManager.displayResults(
 				nuggets,
