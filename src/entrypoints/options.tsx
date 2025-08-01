@@ -19,6 +19,7 @@ import { useCallback, useEffect, useState } from "react";
 import ReactDOM from "react-dom/client";
 import { GeminiClient } from "../background/gemini-client";
 import { ProviderFactory } from "../background/services/provider-factory";
+import { ModelService, type ModelInfo } from "../background/services/model-service";
 import {
 	borderRadius,
 	colors,
@@ -29,6 +30,7 @@ import {
 } from "../shared/design-system";
 import { storage } from "../shared/storage";
 import { ApiKeyStorage } from "../shared/storage/api-key-storage";
+import { ModelStorage } from "../shared/storage/model-storage";
 import type { SavedPrompt } from "../shared/types";
 import type { ProviderId } from "../shared/types/providers";
 
@@ -301,6 +303,17 @@ function OptionsPage() {
 		Record<ProviderId, boolean | null>
 	>({});
 
+	// Model selection state
+	const [availableModels, setAvailableModels] = useState<
+		Record<ProviderId, ModelInfo[]>
+	>({});
+	const [selectedModels, setSelectedModels] = useState<
+		Record<ProviderId, string>
+	>({});
+	const [modelLoadingStatus, setModelLoadingStatus] = useState<
+		Record<ProviderId, boolean>
+	>({});
+
 	const loadData = useCallback(async () => {
 		try {
 			setLoading(true);
@@ -339,6 +352,10 @@ function OptionsPage() {
 				keyMap[providerId] = key;
 			});
 			setApiKeys(keyMap);
+
+			// Load selected models for all providers
+			const selectedModelsMap = await ModelStorage.getAll();
+			setSelectedModels(selectedModelsMap);
 		} catch (_err) {
 			setError("Failed to load data");
 		} finally {
@@ -555,7 +572,7 @@ function OptionsPage() {
 			const provider = await ProviderFactory.createProvider({
 				providerId,
 				apiKey,
-				modelName: ProviderFactory.getDefaultModel(providerId),
+				modelName: await ProviderFactory.getSelectedModel(providerId),
 			});
 
 			const isValid = await provider.validateApiKey();
@@ -567,6 +584,9 @@ function OptionsPage() {
 					title: "API Key Valid",
 					message: `Your ${getProviderDisplayName(providerId)} API key has been validated successfully`,
 				});
+
+				// Fetch available models after successful validation
+				await fetchModelsForProvider(providerId, apiKey);
 			} else {
 				setApiKeyStatus({
 					type: "error",
@@ -583,6 +603,46 @@ function OptionsPage() {
 				title: "Validation Failed",
 				message: `Failed to validate ${getProviderDisplayName(providerId)} API key: ${error.message}`,
 			});
+		}
+	};
+
+	// Model management functions
+	const fetchModelsForProvider = async (providerId: ProviderId, apiKey: string) => {
+		try {
+			setModelLoadingStatus((prev) => ({ ...prev, [providerId]: true }));
+
+			const result = await ModelService.fetchModels(providerId, apiKey);
+			
+			if (result.error) {
+				console.warn(`Failed to fetch models for ${providerId}: ${result.error}`);
+				// Use fallback models
+				const fallbackModels = ModelService.getFallbackModels(providerId);
+				setAvailableModels((prev) => ({ ...prev, [providerId]: fallbackModels }));
+			} else {
+				setAvailableModels((prev) => ({ ...prev, [providerId]: result.models }));
+			}
+		} catch (error) {
+			console.error(`Error fetching models for ${providerId}:`, error);
+			// Use fallback models on error
+			const fallbackModels = ModelService.getFallbackModels(providerId);
+			setAvailableModels((prev) => ({ ...prev, [providerId]: fallbackModels }));
+		} finally {
+			setModelLoadingStatus((prev) => ({ ...prev, [providerId]: false }));
+		}
+	};
+
+	const handleModelSelection = async (providerId: ProviderId, modelId: string) => {
+		try {
+			// Update local state immediately
+			setSelectedModels((prev) => ({ ...prev, [providerId]: modelId }));
+			
+			// Save to storage
+			await ModelStorage.store(providerId, modelId);
+		} catch (error) {
+			console.error(`Failed to save selected model for ${providerId}:`, error);
+			// Revert local state on error
+			const currentModel = await ModelStorage.get(providerId);
+			setSelectedModels((prev) => ({ ...prev, [providerId]: currentModel }));
 		}
 	};
 
@@ -1039,6 +1099,101 @@ function OptionsPage() {
 										<>
 											<CircleAlert size={16} />✗ Invalid
 										</>
+									)}
+								</div>
+							)}
+
+							{/* Model Selection Dropdown - Show when API key is valid */}
+							{validationStatus[selectedProvider] === true && (
+								<div
+									style={{
+										marginTop: spacing.lg,
+										padding: spacing.lg,
+										backgroundColor: colors.background.secondary,
+										borderRadius: borderRadius.lg,
+										border: `1px solid ${colors.border.light}`,
+									}}
+								>
+									<label
+										style={{
+											display: "block",
+											marginBottom: spacing.sm,
+											color: colors.text.primary,
+											fontSize: typography.fontSize.sm,
+											fontWeight: typography.fontWeight.medium,
+										}}
+									>
+										Model Selection for {getProviderDisplayName(selectedProvider)}:
+									</label>
+									
+									{modelLoadingStatus[selectedProvider] ? (
+										<div
+											style={{
+												display: "flex",
+												alignItems: "center",
+												gap: spacing.sm,
+												padding: spacing.md,
+												color: colors.text.secondary,
+												fontSize: typography.fontSize.sm,
+											}}
+										>
+											<div
+												style={{
+													width: "16px",
+													height: "16px",
+													border: `2px solid ${colors.border.default}`,
+													borderTop: `2px solid ${colors.text.accent}`,
+													borderRadius: "50%",
+													animation: "spin 1s linear infinite",
+												}}
+											/>
+											Loading available models...
+										</div>
+									) : availableModels[selectedProvider]?.length > 0 ? (
+										<select
+											value={selectedModels[selectedProvider] || ProviderFactory.getDefaultModel(selectedProvider)}
+											onChange={(e) => handleModelSelection(selectedProvider, e.target.value)}
+											style={{
+												...components.input.default,
+												width: "100%",
+												fontSize: typography.fontSize.base,
+												color: colors.text.primary,
+												fontFamily: typography.fontFamily.sans,
+											}}
+										>
+											{availableModels[selectedProvider].map((model) => (
+												<option key={model.id} value={model.id}>
+													{model.name}
+													{model.description && ` - ${model.description}`}
+												</option>
+											))}
+										</select>
+									) : (
+										<div
+											style={{
+												padding: spacing.md,
+												color: colors.text.secondary,
+												fontSize: typography.fontSize.sm,
+												fontStyle: "italic",
+											}}
+										>
+											No models available. Using default model: {ProviderFactory.getDefaultModel(selectedProvider)}
+										</div>
+									)}
+
+									{selectedModels[selectedProvider] && selectedModels[selectedProvider] !== ProviderFactory.getDefaultModel(selectedProvider) && (
+										<div
+											style={{
+												marginTop: spacing.sm,
+												padding: spacing.sm,
+												backgroundColor: colors.background.primary,
+												borderRadius: borderRadius.md,
+												fontSize: typography.fontSize.xs,
+												color: colors.text.tertiary,
+											}}
+										>
+											Selected: {selectedModels[selectedProvider]}
+										</div>
 									)}
 								</div>
 							)}
