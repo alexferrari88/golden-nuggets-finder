@@ -142,7 +142,7 @@ const useStepProgression = (isTypingComplete: boolean, analysisId?: string) => {
 				clearTimeout(fallbackTimeoutRef.current);
 			}
 		};
-	}, [isTypingComplete, analysisId, useRealTiming, startFallbackAnimation]);
+	}, [isTypingComplete, analysisId, useRealTiming]);
 
 	const startFallbackAnimation = async () => {
 		// Clear any existing timers
@@ -237,56 +237,12 @@ function IndexPopup() {
 
 	// Use ref to track current analysis ID for message listener
 	const currentAnalysisIdRef = useRef<string | null>(null);
+	const cleanupTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
 	// Update ref when analysis ID changes
 	useEffect(() => {
 		currentAnalysisIdRef.current = currentAnalysisId;
 	}, [currentAnalysisId]);
-
-	useEffect(() => {
-		loadPrompts();
-		checkBackendStatus();
-
-		// Add message listener for analysis completion and progress
-		const messageListener = (message: any) => {
-			// Handle completion messages
-			if (message.type === MESSAGE_TYPES.ANALYSIS_COMPLETE) {
-				completeAllSteps();
-				// Brief delay to show completion, then clear analyzing state
-				setTimeout(() => {
-					setAnalyzing(null);
-					setCurrentAnalysisId(null);
-					currentAnalysisIdRef.current = null;
-				}, 600);
-			} else if (message.type === MESSAGE_TYPES.ANALYSIS_ERROR) {
-				completeAllSteps();
-				setAnalyzing(null); // Clear analyzing state immediately on error
-				setCurrentAnalysisId(null);
-				currentAnalysisIdRef.current = null;
-				// Display the actual error message to the user
-				setError(message.error || "Analysis failed. Please try again.");
-			}
-
-			// Handle real-time progress messages (only for current analysis)
-			if (
-				currentAnalysisIdRef.current &&
-				message.analysisId === currentAnalysisIdRef.current &&
-				(message.type === MESSAGE_TYPES.ANALYSIS_CONTENT_EXTRACTED ||
-					message.type === MESSAGE_TYPES.ANALYSIS_CONTENT_OPTIMIZED ||
-					message.type === MESSAGE_TYPES.ANALYSIS_API_REQUEST_START ||
-					message.type === MESSAGE_TYPES.ANALYSIS_API_RESPONSE_RECEIVED ||
-					message.type === MESSAGE_TYPES.ANALYSIS_PROCESSING_RESULTS)
-			) {
-				processRealTimeStep(message as AnalysisProgressMessage);
-			}
-		};
-
-		chrome.runtime.onMessage.addListener(messageListener);
-
-		return () => {
-			chrome.runtime.onMessage.removeListener(messageListener);
-		};
-	}, [checkBackendStatus, completeAllSteps, loadPrompts, processRealTimeStep]);
 
 	// Check backend availability
 	const checkBackendStatus = async () => {
@@ -342,6 +298,61 @@ function IndexPopup() {
 			setLoading(false);
 		}
 	};
+
+	useEffect(() => {
+		loadPrompts();
+		checkBackendStatus();
+
+		// Add message listener for analysis completion and progress
+		const messageListener = (message: any) => {
+			// Handle completion messages
+			if (message.type === MESSAGE_TYPES.ANALYSIS_COMPLETE) {
+				completeAllSteps();
+				// Brief delay to show completion, then clear analyzing state
+				cleanupTimeoutRef.current = setTimeout(() => {
+					setAnalyzing(null);
+					setCurrentAnalysisId(null);
+					currentAnalysisIdRef.current = null;
+					cleanupTimeoutRef.current = null;
+				}, 600);
+			} else if (message.type === MESSAGE_TYPES.ANALYSIS_ERROR) {
+				completeAllSteps();
+				// Clear any pending cleanup timeout
+				if (cleanupTimeoutRef.current) {
+					clearTimeout(cleanupTimeoutRef.current);
+					cleanupTimeoutRef.current = null;
+				}
+				setAnalyzing(null); // Clear analyzing state immediately on error
+				setCurrentAnalysisId(null);
+				currentAnalysisIdRef.current = null;
+				// Display the actual error message to the user
+				setError(message.error || "Analysis failed. Please try again.");
+			}
+
+			// Handle real-time progress messages (only for current analysis)
+			if (
+				currentAnalysisIdRef.current &&
+				message.analysisId === currentAnalysisIdRef.current &&
+				(message.type === MESSAGE_TYPES.ANALYSIS_CONTENT_EXTRACTED ||
+					message.type === MESSAGE_TYPES.ANALYSIS_CONTENT_OPTIMIZED ||
+					message.type === MESSAGE_TYPES.ANALYSIS_API_REQUEST_START ||
+					message.type === MESSAGE_TYPES.ANALYSIS_API_RESPONSE_RECEIVED ||
+					message.type === MESSAGE_TYPES.ANALYSIS_PROCESSING_RESULTS)
+			) {
+				processRealTimeStep(message as AnalysisProgressMessage);
+			}
+		};
+
+		chrome.runtime.onMessage.addListener(messageListener);
+
+		return () => {
+			chrome.runtime.onMessage.removeListener(messageListener);
+			if (cleanupTimeoutRef.current) {
+				clearTimeout(cleanupTimeoutRef.current);
+				cleanupTimeoutRef.current = null;
+			}
+		};
+	}, [completeAllSteps, processRealTimeStep]);
 
 	const analyzeWithPrompt = async (promptId: string) => {
 		try {
