@@ -311,6 +311,9 @@ function OptionsPage() {
 	const [modelLoadingStatus, setModelLoadingStatus] = useState<
 		Record<ProviderId, boolean>
 	>({});
+	const [modelSaveStatus, setModelSaveStatus] = useState<
+		Record<ProviderId, { success: boolean; timestamp: number } | null>
+	>({});
 
 	const loadData = useCallback(async () => {
 		try {
@@ -600,11 +603,34 @@ function OptionsPage() {
 			
 			// Save to storage
 			await ModelStorage.store(providerId, modelId);
+			
+			// Set success feedback
+			setModelSaveStatus((prev) => ({ 
+				...prev, 
+				[providerId]: { success: true, timestamp: Date.now() } 
+			}));
+			
+			// Clear success feedback after 3 seconds
+			setTimeout(() => {
+				setModelSaveStatus((prev) => ({ ...prev, [providerId]: null }));
+			}, 3000);
 		} catch (error) {
 			console.error(`Failed to save selected model for ${providerId}:`, error);
+			
+			// Set error feedback
+			setModelSaveStatus((prev) => ({ 
+				...prev, 
+				[providerId]: { success: false, timestamp: Date.now() } 
+			}));
+			
 			// Revert local state on error
 			const currentModel = await ModelStorage.get(providerId);
 			setSelectedModels((prev) => ({ ...prev, [providerId]: currentModel }));
+			
+			// Clear error feedback after 5 seconds
+			setTimeout(() => {
+				setModelSaveStatus((prev) => ({ ...prev, [providerId]: null }));
+			}, 5000);
 		}
 	};
 
@@ -804,6 +830,159 @@ function OptionsPage() {
 					/>
 				)}
 
+				{/* Current Configuration Status */}
+				<div
+					style={{
+						marginBottom: spacing["3xl"],
+						backgroundColor: colors.background.primary,
+						padding: spacing["3xl"],
+						borderRadius: borderRadius.xl,
+						boxShadow: shadows.md,
+						border: `1px solid ${colors.border.light}`,
+					}}
+				>
+					<div
+						style={{
+							display: "flex",
+							alignItems: "center",
+							gap: spacing.md,
+							marginBottom: spacing.lg,
+						}}
+					>
+						<div style={{ color: colors.success }}>
+							<CircleCheck size={20} />
+						</div>
+						<h2
+							style={{
+								margin: 0,
+								fontSize: typography.fontSize.xl,
+								fontWeight: typography.fontWeight.semibold,
+								color: colors.text.primary,
+							}}
+						>
+							Current Configuration
+						</h2>
+					</div>
+					
+					<div
+						style={{
+							display: "grid",
+							gap: spacing.lg,
+							gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+						}}
+					>
+						<div
+							style={{
+								padding: spacing.lg,
+								backgroundColor: colors.background.secondary,
+								borderRadius: borderRadius.lg,
+								border: `1px solid ${colors.border.light}`,
+							}}
+						>
+							<div
+								style={{
+									display: "flex",
+									alignItems: "center",
+									gap: spacing.sm,
+									marginBottom: spacing.sm,
+								}}
+							>
+								<div style={{ color: colors.text.accent }}>
+									<Sparkles size={16} />
+								</div>
+								<span
+									style={{
+										fontSize: typography.fontSize.sm,
+										fontWeight: typography.fontWeight.medium,
+										color: colors.text.secondary,
+										textTransform: "uppercase",
+										letterSpacing: "0.05em",
+									}}
+								>
+									Active Provider
+								</span>
+							</div>
+							<div
+								style={{
+									fontSize: typography.fontSize.lg,
+									fontWeight: typography.fontWeight.semibold,
+									color: colors.text.primary,
+								}}
+							>
+								{getProviderDisplayName(selectedProvider)}
+							</div>
+							<div
+								style={{
+									fontSize: typography.fontSize.sm,
+									color: colors.text.secondary,
+									marginTop: spacing.xs,
+								}}
+							>
+								{apiKeys[selectedProvider] && validationStatus[selectedProvider] === true 
+									? "API key validated" 
+									: apiKeys[selectedProvider] 
+										? "API key not validated" 
+										: "No API key configured"
+								}
+							</div>
+						</div>
+
+						<div
+							style={{
+								padding: spacing.lg,
+								backgroundColor: colors.background.secondary,
+								borderRadius: borderRadius.lg,
+								border: `1px solid ${colors.border.light}`,
+							}}
+						>
+							<div
+								style={{
+									display: "flex",
+									alignItems: "center",
+									gap: spacing.sm,
+									marginBottom: spacing.sm,
+								}}
+							>
+								<div style={{ color: colors.text.accent }}>
+									<Key size={16} />
+								</div>
+								<span
+									style={{
+										fontSize: typography.fontSize.sm,
+										fontWeight: typography.fontWeight.medium,
+										color: colors.text.secondary,
+										textTransform: "uppercase",
+										letterSpacing: "0.05em",
+									}}
+								>
+									Active Model
+								</span>
+							</div>
+							<div
+								style={{
+									fontSize: typography.fontSize.lg,
+									fontWeight: typography.fontWeight.semibold,
+									color: colors.text.primary,
+								}}
+							>
+								{selectedModels[selectedProvider] || "Default Model"}
+							</div>
+							<div
+								style={{
+									fontSize: typography.fontSize.sm,
+									color: colors.text.secondary,
+									marginTop: spacing.xs,
+								}}
+							>
+								{selectedModels[selectedProvider] 
+									? `Using ${selectedModels[selectedProvider]}` 
+									: `Using default: ${ProviderFactory.getDefaultModel(selectedProvider)}`
+								}
+							</div>
+						</div>
+					</div>
+				</div>
+
 				{/* Provider Selection Section */}
 				<div
 					style={{
@@ -847,18 +1026,107 @@ function OptionsPage() {
 							border: `1px solid ${colors.border.light}`,
 						}}
 					>
-						<p
+						<div
 							style={{
-								margin: 0,
-								fontSize: typography.fontSize.sm,
-								color: colors.text.secondary,
-								lineHeight: typography.lineHeight.normal,
+								display: "flex",
+								alignItems: "flex-start",
+								gap: spacing.md,
+								marginBottom: spacing.md,
 							}}
 						>
-							Choose your preferred AI provider for golden nugget extraction.
-							Each provider offers different strengths in terms of quality,
-							cost, and model variety.
-						</p>
+							<div style={{ color: colors.text.accent, marginTop: "2px" }}>
+								<Lock size={16} />
+							</div>
+							<div>
+								<h3
+									style={{
+										margin: "0 0 4px 0",
+										fontSize: typography.fontSize.sm,
+										fontWeight: typography.fontWeight.semibold,
+										color: colors.text.primary,
+									}}
+								>
+									Setup Instructions
+								</h3>
+								<p
+									style={{
+										margin: 0,
+										fontSize: typography.fontSize.sm,
+										color: colors.text.secondary,
+										lineHeight: typography.lineHeight.normal,
+									}}
+								>
+									Choose your AI provider, enter your API key, and validate it to unlock model selection. Your API key is stored locally and never shared.
+								</p>
+							</div>
+						</div>
+						
+						<div
+							style={{
+								display: "flex",
+								gap: spacing.lg,
+								fontSize: typography.fontSize.xs,
+								color: colors.text.secondary,
+							}}
+						>
+							<div style={{ display: "flex", alignItems: "center", gap: spacing.xs }}>
+								<div
+									style={{
+										width: "20px",
+										height: "20px",
+										borderRadius: "50%",
+										backgroundColor: colors.text.accent,
+										color: colors.white,
+										display: "flex",
+										alignItems: "center",
+										justifyContent: "center",
+										fontSize: "10px",
+										fontWeight: "600",
+									}}
+								>
+									1
+								</div>
+								Select Provider
+							</div>
+							<div style={{ display: "flex", alignItems: "center", gap: spacing.xs }}>
+								<div
+									style={{
+										width: "20px",
+										height: "20px",
+										borderRadius: "50%",
+										backgroundColor: apiKeys[selectedProvider] ? colors.text.accent : colors.border.default,
+										color: apiKeys[selectedProvider] ? colors.white : colors.text.secondary,
+										display: "flex",
+										alignItems: "center",
+										justifyContent: "center",
+										fontSize: "10px",
+										fontWeight: "600",
+									}}
+								>
+									2
+								</div>
+								Enter API Key
+							</div>
+							<div style={{ display: "flex", alignItems: "center", gap: spacing.xs }}>
+								<div
+									style={{
+										width: "20px",
+										height: "20px",
+										borderRadius: "50%",
+										backgroundColor: validationStatus[selectedProvider] === true ? colors.success : colors.border.default,
+										color: validationStatus[selectedProvider] === true ? colors.white : colors.text.secondary,
+										display: "flex",
+										alignItems: "center",
+										justifyContent: "center",
+										fontSize: "10px",
+										fontWeight: "600",
+									}}
+								>
+									3
+								</div>
+								Validate & Select Model
+							</div>
+						</div>
 					</div>
 
 					<div
@@ -956,17 +1224,63 @@ function OptionsPage() {
 								border: `1px solid ${colors.border.light}`,
 							}}
 						>
-							<label
-								style={{
-									display: "block",
-									marginBottom: spacing.sm,
-									color: colors.text.primary,
-									fontSize: typography.fontSize.sm,
-									fontWeight: typography.fontWeight.medium,
-								}}
-							>
-								API Key for {getProviderDisplayName(selectedProvider)}:
-							</label>
+							<div style={{ marginBottom: spacing.sm }}>
+								<div
+									style={{
+										display: "flex",
+										alignItems: "center",
+										justifyContent: "space-between",
+										marginBottom: spacing.xs,
+									}}
+								>
+									<label
+										style={{
+											color: colors.text.primary,
+											fontSize: typography.fontSize.sm,
+											fontWeight: typography.fontWeight.medium,
+										}}
+									>
+										API Key for {getProviderDisplayName(selectedProvider)}:
+									</label>
+									<a
+										href={(() => {
+											const links = {
+												gemini: "https://makersuite.google.com/app/apikey",
+												openai: "https://platform.openai.com/api-keys", 
+												anthropic: "https://console.anthropic.com/keys",
+												openrouter: "https://openrouter.ai/keys"
+											};
+											return links[selectedProvider];
+										})()}
+										target="_blank"
+										rel="noopener noreferrer"
+										style={{
+											display: "flex",
+											alignItems: "center",
+											gap: spacing.xs,
+											color: colors.text.accent,
+											fontSize: typography.fontSize.xs,
+											textDecoration: "none",
+											fontWeight: typography.fontWeight.medium,
+										}}
+									>
+										<ExternalLink size={12} />
+										Get API Key
+									</a>
+								</div>
+								{!apiKeys[selectedProvider] && (
+									<p
+										style={{
+											margin: 0,
+											fontSize: typography.fontSize.xs,
+											color: colors.text.secondary,
+											lineHeight: typography.lineHeight.normal,
+										}}
+									>
+										You'll need an API key from {getProviderDisplayName(selectedProvider)} to use this provider. Click "Get API Key" above to create one.
+									</p>
+								)}
+							</div>
 							<div
 								style={{
 									display: "flex",
@@ -1005,7 +1319,7 @@ function OptionsPage() {
 										minWidth: "120px",
 									}}
 								>
-									Test Connection
+									Validate API Key
 								</button>
 							</div>
 							{typeof validationStatus[selectedProvider] === 'boolean' && (
@@ -1124,6 +1438,44 @@ function OptionsPage() {
 											}}
 										>
 											Selected: {selectedModels[selectedProvider]}
+										</div>
+									)}
+
+									{/* Model Save Status Feedback */}
+									{modelSaveStatus[selectedProvider] && (
+										<div
+											style={{
+												marginTop: spacing.sm,
+												padding: spacing.sm,
+												backgroundColor: modelSaveStatus[selectedProvider]?.success 
+													? colors.background.secondary 
+													: colors.background.secondary,
+												borderRadius: borderRadius.md,
+												fontSize: typography.fontSize.xs,
+												fontWeight: typography.fontWeight.medium,
+												color: modelSaveStatus[selectedProvider]?.success 
+													? colors.success 
+													: colors.error,
+												display: "flex",
+												alignItems: "center",
+												gap: spacing.xs,
+												border: `1px solid ${modelSaveStatus[selectedProvider]?.success 
+													? `${colors.success}33`
+													: `${colors.error}33`
+												}`,
+											}}
+										>
+											{modelSaveStatus[selectedProvider]?.success ? (
+												<>
+													<CircleCheck size={12} />
+													Model selection saved successfully
+												</>
+											) : (
+												<>
+													<CircleAlert size={12} />
+													Failed to save model selection
+												</>
+											)}
 										</div>
 									)}
 								</div>
