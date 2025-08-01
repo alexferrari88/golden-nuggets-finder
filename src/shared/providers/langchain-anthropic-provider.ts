@@ -1,6 +1,7 @@
 import { ChatAnthropic } from "@langchain/anthropic";
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { z } from "zod";
+import { debugLogger } from "../debug";
 import type {
 	GoldenNuggetsResponse,
 	LLMProvider,
@@ -36,6 +37,16 @@ export class LangChainAnthropicProvider implements LLMProvider {
 		prompt: string,
 	): Promise<GoldenNuggetsResponse> {
 		try {
+			// Log the request
+			debugLogger.logLLMRequest(`https://api.anthropic.com/v1/messages (${this.modelName})`, {
+				model: this.modelName,
+				messages: [
+					{ role: "system", content: prompt },
+					{ role: "user", content: content.substring(0, 500) + "..." }, // Truncate for logging
+				],
+				provider: "anthropic"
+			});
+
 			const structuredModel = this.model.withStructuredOutput(
 				GoldenNuggetsSchema,
 				{
@@ -49,8 +60,28 @@ export class LangChainAnthropicProvider implements LLMProvider {
 				new HumanMessage(content),
 			]);
 
+			// Log the response
+			debugLogger.logLLMResponse(
+				{ 
+					provider: "anthropic",
+					model: this.modelName,
+					success: true 
+				}, 
+				response
+			);
+
 			return response as GoldenNuggetsResponse;
 		} catch (error) {
+			// Log the error
+			debugLogger.logLLMResponse(
+				{ 
+					provider: "anthropic",
+					model: this.modelName,
+					success: false,
+					error: error.message 
+				}
+			);
+			
 			console.error(`Anthropic provider error:`, error);
 			throw new Error(`Anthropic API call failed: ${error.message}`);
 		}
