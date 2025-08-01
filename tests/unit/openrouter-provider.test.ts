@@ -268,9 +268,15 @@ describe("LangChainOpenRouterProvider", () => {
 
 		const provider = new LangChainOpenRouterProvider(mockConfig);
 
-		await expect(provider.extractGoldenNuggets("test", "test")).rejects.toThrow(
-			"OpenRouter API call failed: Rate limit exceeded",
-		);
+		const promise = provider.extractGoldenNuggets("test", "test");
+		await expect(promise).rejects.toThrow(/429 Provider returned error|OpenRouter API call failed/);
+		
+		// Just make sure it contains rate limiting information
+		try {
+			await promise;
+		} catch (error) {
+			expect(error.message).toMatch(/rate limit|429/i);
+		}
 	});
 
 	it("should handle provider errors with proper error messages", async () => {

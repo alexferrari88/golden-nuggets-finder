@@ -105,6 +105,9 @@ export class ErrorHandler {
 			"429",
 			"requests per minute",
 			"daily quota",
+			// Secondary error patterns that may indicate masked rate limiting
+			"error parsing failed - potential rate limiting",
+			"provider returned error",
 		];
 		return rateLimitErrors.some((msg) =>
 			error.message.toLowerCase().includes(msg),
@@ -141,6 +144,9 @@ export class ErrorHandler {
 			"504",
 			"fetch failed",
 			"network request failed",
+			// Provider-specific errors that might indicate temporary issues
+			"cannot read properties of undefined",
+			"error parsing failed - potential provider issue",
 		];
 		return temporaryErrors.some((msg) =>
 			error.message.toLowerCase().includes(msg),
