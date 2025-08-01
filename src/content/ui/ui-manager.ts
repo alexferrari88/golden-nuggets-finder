@@ -235,6 +235,7 @@ export class UIManager {
 		if (
 			!selectedContent ||
 			!selectedContent.items ||
+			!Array.isArray(selectedContent.items) ||
 			selectedContent.items.length === 0
 		) {
 			this.notifications.showError("No content selected for analysis.");
@@ -1631,6 +1632,7 @@ export class UIManager {
 		if (
 			!selectedContent ||
 			!selectedContent.items ||
+			!Array.isArray(selectedContent.items) ||
 			selectedContent.items.length === 0
 		) {
 			this.notifications.showError(
