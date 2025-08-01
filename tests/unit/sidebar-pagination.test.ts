@@ -4,14 +4,26 @@
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Sidebar } from "../../src/content/ui/sidebar";
-import type { SidebarNuggetItem } from "../../src/shared/types";
+import type { GoldenNugget, SidebarNuggetItem } from "../../src/shared/types";
+
+// Chrome API type definitions for testing
+interface MockChromeRuntimeAPI {
+	sendMessage: ReturnType<typeof vi.fn>;
+}
+
+interface MockChromeAPI {
+	runtime: MockChromeRuntimeAPI;
+}
 
 // Mock chrome API
-global.chrome = {
+const mockChrome: MockChromeAPI = {
 	runtime: {
 		sendMessage: vi.fn(),
 	},
-} as any;
+};
+
+// Type assertion is acceptable here as we're mocking for tests
+global.chrome = mockChrome as unknown as typeof chrome;
 
 // Mock design system imports
 vi.mock("../../src/shared/design-system", () => ({
@@ -105,11 +117,11 @@ vi.mock("../../src/shared/content-reconstruction", () => ({
 function createMockNuggetItems(count: number): SidebarNuggetItem[] {
 	return Array.from({ length: count }, (_, i) => ({
 		nugget: {
-			type: "explanation" as any,
+			type: "explanation" as const,
 			startContent: `Start content ${i + 1}`,
 			endContent: `End content ${i + 1}`,
 			synthesis: `Synthesis ${i + 1}`,
-		},
+		} as GoldenNugget,
 		status: "highlighted" as "highlighted" | "not-found",
 		selected: false,
 		highlightVisited: false,

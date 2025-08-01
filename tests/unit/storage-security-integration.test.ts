@@ -20,10 +20,28 @@ import { StorageManager } from "../../src/shared/storage";
  * Date: 2025-01-25
  */
 
+// Chrome Storage API type definitions for testing
+interface MockChromeSyncStorage {
+	get: ReturnType<typeof vi.fn>;
+	set: ReturnType<typeof vi.fn>;
+	remove: ReturnType<typeof vi.fn>;
+	clear: ReturnType<typeof vi.fn>;
+}
+
+interface MockChromeStorageAPI {
+	sync: MockChromeSyncStorage;
+}
+
+interface MockChromeAPI {
+	storage: MockChromeStorageAPI;
+}
+
+type StorageValue = string | number | boolean | object | null | undefined;
+
 describe("Storage-Security Integration Tests", () => {
-	let mockChrome: any;
+	let mockChrome: MockChromeAPI;
 	let storageManager: StorageManager;
-	let mockStorageData: Map<string, any>;
+	let mockStorageData: Map<string, StorageValue>;
 
 	beforeEach(() => {
 		// Reset storage data for each test
@@ -32,8 +50,8 @@ describe("Storage-Security Integration Tests", () => {
 		mockChrome = {
 			storage: {
 				sync: {
-					get: vi.fn().mockImplementation((keys) => {
-						const result: any = {};
+					get: vi.fn().mockImplementation((keys: string | string[] | null | undefined) => {
+						const result: Record<string, StorageValue> = {};
 						if (typeof keys === "string") {
 							result[keys] = mockStorageData.get(keys);
 						} else if (Array.isArray(keys)) {
@@ -48,13 +66,13 @@ describe("Storage-Security Integration Tests", () => {
 						}
 						return Promise.resolve(result);
 					}),
-					set: vi.fn().mockImplementation((data) => {
+					set: vi.fn().mockImplementation((data: Record<string, StorageValue>) => {
 						Object.entries(data).forEach(([key, value]) => {
 							mockStorageData.set(key, value);
 						});
 						return Promise.resolve();
 					}),
-					remove: vi.fn().mockImplementation((keys) => {
+					remove: vi.fn().mockImplementation((keys: string | string[]) => {
 						const keysArray = Array.isArray(keys) ? keys : [keys];
 						keysArray.forEach((key) => mockStorageData.delete(key));
 						return Promise.resolve();
@@ -67,7 +85,8 @@ describe("Storage-Security Integration Tests", () => {
 			},
 		};
 
-		global.chrome = mockChrome;
+		// Type assertion is acceptable here as we're mocking for tests
+		global.chrome = mockChrome as unknown as typeof chrome;
 
 		// Get fresh instance for each test
 		storageManager = StorageManager.getInstance();

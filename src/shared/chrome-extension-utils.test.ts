@@ -5,8 +5,22 @@ import {
 	injectContentScript,
 } from "./chrome-extension-utils";
 
+// Chrome API type definitions for testing
+interface MockChromeTabsAPI {
+	sendMessage: ReturnType<typeof vi.fn>;
+}
+
+interface MockChromeScriptingAPI {
+	executeScript: ReturnType<typeof vi.fn>;
+}
+
+interface MockChromeAPI {
+	tabs: MockChromeTabsAPI;
+	scripting: MockChromeScriptingAPI;
+}
+
 // Mock Chrome APIs
-const mockChrome = {
+const mockChrome: MockChromeAPI = {
 	tabs: {
 		sendMessage: vi.fn(),
 	},
@@ -15,7 +29,8 @@ const mockChrome = {
 	},
 };
 
-global.chrome = mockChrome as any;
+// Type assertion is acceptable here as we're mocking for tests
+global.chrome = mockChrome as unknown as typeof chrome;
 
 describe("chrome-extension-utils", () => {
 	beforeEach(() => {
