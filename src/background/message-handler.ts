@@ -672,6 +672,14 @@ export class MessageHandler {
 				sender.tab?.id,
 			);
 
+			// Send results to content script for display
+			if (sender.tab?.id) {
+				await chrome.tabs.sendMessage(sender.tab.id, {
+					type: MESSAGE_TYPES.ANALYSIS_COMPLETE,
+					data: result,
+				});
+			}
+
 			sendResponse({ success: true, data: result });
 		} catch (error) {
 			console.error("Analysis failed:", error);
