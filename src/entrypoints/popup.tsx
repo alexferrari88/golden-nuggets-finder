@@ -26,6 +26,31 @@ function generateAnalysisId(): string {
 	return `analysis_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 }
 
+// Utility function to truncate long error messages for better UX
+function truncateErrorMessage(message: string, maxLength: number = 200): string {
+	if (message.length <= maxLength) return message;
+	
+	// Try to truncate at a sentence boundary first
+	const truncated = message.substring(0, maxLength);
+	const lastSentence = truncated.lastIndexOf('. ');
+	const lastPeriod = truncated.lastIndexOf('.');
+	
+	if (lastSentence > maxLength * 0.6) {
+		return truncated.substring(0, lastSentence + 1) + ' [...]';
+	} else if (lastPeriod > maxLength * 0.6) {
+		return truncated.substring(0, lastPeriod + 1) + ' [...]';
+	}
+	
+	// Fallback to word boundary
+	const lastSpace = truncated.lastIndexOf(' ');
+	if (lastSpace > maxLength * 0.7) {
+		return truncated.substring(0, lastSpace) + '... [truncated]';
+	}
+	
+	// Hard truncation as last resort
+	return truncated + '... [truncated]';
+}
+
 // Custom hook for typing effect
 const useTypingEffect = (text: string, speed: number = 80) => {
 	const [displayText, setDisplayText] = useState("");
@@ -597,7 +622,18 @@ function IndexPopup() {
 						alignItems: "center",
 					}}
 				>
-					<div>{error}</div>
+					<div
+						style={{
+							wordWrap: "break-word",
+							overflowWrap: "break-word",
+							hyphens: "auto",
+							maxWidth: "100%",
+							lineHeight: "1.4",
+						}}
+						title={error.length > 200 ? error : undefined} // Show full error on hover if truncated
+					>
+						{truncateErrorMessage(error)}
+					</div>
 					<button
 						onClick={() => {
 							setError(null);

@@ -6,6 +6,33 @@ import {
 	zIndex,
 } from "../../shared/design-system";
 
+/**
+ * Truncates long error messages for better UX while preserving important information
+ */
+function truncateErrorMessage(message: string, maxLength: number = 300): string {
+	if (message.length <= maxLength) return message;
+	
+	// Try to truncate at a sentence boundary first
+	const truncated = message.substring(0, maxLength);
+	const lastSentence = truncated.lastIndexOf('. ');
+	const lastPeriod = truncated.lastIndexOf('.');
+	
+	if (lastSentence > maxLength * 0.6) {
+		return truncated.substring(0, lastSentence + 1) + ' [...]';
+	} else if (lastPeriod > maxLength * 0.6) {
+		return truncated.substring(0, lastPeriod + 1) + ' [...]';
+	}
+	
+	// Fallback to word boundary
+	const lastSpace = truncated.lastIndexOf(' ');
+	if (lastSpace > maxLength * 0.7) {
+		return truncated.substring(0, lastSpace) + '... [message truncated]';
+	}
+	
+	// Hard truncation as last resort
+	return truncated + '... [truncated]';
+}
+
 export class NotificationManager {
 	private currentBanner: HTMLElement | null = null;
 	private autoHideTimeout: number | null = null;
@@ -18,13 +45,15 @@ export class NotificationManager {
 
 	showError(message: string): void {
 		this.hideBanner();
-		this.currentBanner = this.createBanner(message, "error");
+		const truncatedMessage = truncateErrorMessage(message);
+		this.currentBanner = this.createBanner(truncatedMessage, "error");
 		document.body.appendChild(this.currentBanner);
 
-		// Auto-hide error after timeout
+		// Auto-hide error after timeout (longer for longer messages)
+		const timeout = truncatedMessage.length > 150 ? ui.notificationTimeout * 1.5 : ui.notificationTimeout;
 		this.autoHideTimeout = setTimeout(() => {
 			this.hideBanner();
-		}, ui.notificationTimeout);
+		}, timeout);
 	}
 
 	showSuccess(message: string): void {
@@ -103,12 +132,17 @@ export class NotificationManager {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       font-size: 14px;
       font-weight: 500;
-      max-width: 400px;
+      max-width: min(400px, calc(100vw - 40px));
       text-align: center;
       display: flex;
       align-items: center;
       justify-content: center;
       gap: 8px;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+      hyphens: auto;
+      line-height: 1.4;
+      white-space: pre-wrap;
     `;
 
 		let typeStyles = "";
