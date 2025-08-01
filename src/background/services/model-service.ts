@@ -142,17 +142,7 @@ async function fetchGeminiModels(apiKey: string): Promise<ModelListResponse> {
 			description: model.description,
 			contextLength: model.inputTokenLimit,
 		}))
-		.sort((a: ModelInfo, b: ModelInfo) => {
-			// Prioritize popular models
-			const popularModels = ["gemini-2.5-flash", "gemini-2.5-flash-lite"];
-			const aIndex = popularModels.indexOf(a.id);
-			const bIndex = popularModels.indexOf(b.id);
-
-			if (aIndex !== -1 && bIndex !== -1) return aIndex - bIndex;
-			if (aIndex !== -1) return -1;
-			if (bIndex !== -1) return 1;
-			return (a.name || a.id).localeCompare(b.name || b.id);
-		});
+		.sort((a: ModelInfo, b: ModelInfo) => (a.name || a.id).localeCompare(b.name || b.id));
 
 	return {
 		models: textGenerationModels || [],
@@ -197,17 +187,7 @@ async function fetchOpenAIModels(apiKey: string): Promise<ModelListResponse> {
 			name: model.id,
 			description: `OpenAI ${model.id}`,
 		}))
-		.sort((a: ModelInfo, b: ModelInfo) => {
-			// Prioritize popular models
-			const popularModels = ["gpt-4.1-mini", "gpt-4.1-nano", "o4-mini"];
-			const aIndex = popularModels.indexOf(a.id);
-			const bIndex = popularModels.indexOf(b.id);
-
-			if (aIndex !== -1 && bIndex !== -1) return aIndex - bIndex;
-			if (aIndex !== -1) return -1;
-			if (bIndex !== -1) return 1;
-			return (a.name || a.id).localeCompare(b.name || b.id);
-		});
+		.sort((a: ModelInfo, b: ModelInfo) => (a.name || a.id).localeCompare(b.name || b.id));
 
 	return {
 		models: chatModels || [],
@@ -241,20 +221,7 @@ async function fetchAnthropicModels(
 			name: model.display_name || model.id,
 			description: `Anthropic ${model.display_name || model.id}`,
 		}))
-		.sort((a: ModelInfo, b: ModelInfo) => {
-			// Prioritize popular models
-			const popularModels = [
-				"claude-3-5-haiku-latest",
-				"claude-sonnet-4-20250514",
-			];
-			const aIndex = popularModels.indexOf(a.id);
-			const bIndex = popularModels.indexOf(b.id);
-
-			if (aIndex !== -1 && bIndex !== -1) return aIndex - bIndex;
-			if (aIndex !== -1) return -1;
-			if (bIndex !== -1) return 1;
-			return (a.name || a.id).localeCompare(b.name || b.id);
-		});
+		.sort((a: ModelInfo, b: ModelInfo) => (a.name || a.id).localeCompare(b.name || b.id));
 
 	return {
 		models: models || [],
@@ -295,22 +262,7 @@ async function fetchOpenRouterModels(
 			description: model.description,
 			contextLength: model.context_length,
 		}))
-		.sort((a: ModelInfo, b: ModelInfo) => {
-			// Prioritize popular models
-			const popularModels = [
-				"anthropic/claude-sonnet-4",
-				"anthropic/claude-haiku-4",
-				"openai/gpt-4o-mini",
-				"google/gemini-2.5-flash",
-			];
-			const aIndex = popularModels.indexOf(a.id);
-			const bIndex = popularModels.indexOf(b.id);
-
-			if (aIndex !== -1 && bIndex !== -1) return aIndex - bIndex;
-			if (aIndex !== -1) return -1;
-			if (bIndex !== -1) return 1;
-			return (a.name || a.id).localeCompare(b.name || b.id);
-		});
+		.sort((a: ModelInfo, b: ModelInfo) => (a.name || a.id).localeCompare(b.name || b.id));
 
 	return {
 		models: textModels || [],
