@@ -1,6 +1,13 @@
 // Design System - Notion-inspired minimalistic design
 // This file contains the core design tokens for the Golden Nugget Finder extension
 
+import type { CSSProperties } from "react";
+
+// Type for CSS-in-JS objects that can include pseudo-selectors
+type CSSInJSProperties = CSSProperties & {
+	[key: string]: CSSProperties | string | number | undefined;
+};
+
 export const colors = {
 	// Notion-inspired ultra-minimal palette
 	// Focus on subtlety, elegance, and exceptional readability
@@ -224,12 +231,12 @@ export const components = {
 
 // Utility functions for consistent styling
 export const createHoverStyles = (
-	baseStyles: Record<string, any>,
-	hoverStyles: Record<string, any>,
+	baseStyles: CSSInJSProperties,
+	hoverStyles: CSSProperties,
 ) => ({
 	...baseStyles,
 	":hover": {
-		...baseStyles[":hover"],
+		...(typeof baseStyles[":hover"] === "object" ? baseStyles[":hover"] as CSSProperties : {}),
 		...hoverStyles,
 	},
 });
@@ -252,12 +259,12 @@ export const generateInlineStyles = {
 };
 
 export const createFocusStyles = (
-	baseStyles: Record<string, any>,
-	focusStyles: Record<string, any>,
+	baseStyles: CSSInJSProperties,
+	focusStyles: CSSProperties,
 ) => ({
 	...baseStyles,
 	":focus": {
-		...baseStyles[":focus"],
+		...(typeof baseStyles[":focus"] === "object" ? baseStyles[":focus"] as CSSProperties : {}),
 		...focusStyles,
 		outline: "none",
 	},
