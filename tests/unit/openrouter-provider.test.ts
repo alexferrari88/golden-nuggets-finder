@@ -175,7 +175,6 @@ describe("LangChainOpenRouterProvider", () => {
 			{
 				name: "extract_golden_nuggets",
 				method: "functionCalling",
-				includeRaw: expect.any(Boolean), // Depends on debug mode
 			},
 		);
 	});
