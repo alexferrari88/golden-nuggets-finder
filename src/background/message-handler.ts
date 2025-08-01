@@ -1,6 +1,6 @@
 import { debugLogger } from "../shared/debug";
 import { storage } from "../shared/storage";
-import { ApiKeyStorage } from "../shared/storage/api-key-storage";
+import { getApiKey } from "../shared/storage/api-key-storage";
 import {
 	type AnalysisProgressMessage,
 	type AnalysisRequest,
@@ -527,7 +527,7 @@ export class MessageHandler {
 				apiKey = "";
 			}
 		} else {
-			apiKey = await ApiKeyStorage.get(providerId);
+			apiKey = await getApiKey(providerId);
 		}
 
 		if (!apiKey) {

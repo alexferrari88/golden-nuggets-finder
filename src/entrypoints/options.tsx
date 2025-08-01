@@ -36,8 +36,8 @@ import {
 	typography,
 } from "../shared/design-system";
 import { storage } from "../shared/storage";
-import { ApiKeyStorage } from "../shared/storage/api-key-storage";
-import { ModelStorage } from "../shared/storage/model-storage";
+import * as ApiKeyStorage from "../shared/storage/api-key-storage";
+import * as ModelStorage from "../shared/storage/model-storage";
 import type { SavedPrompt } from "../shared/types";
 import type { ProviderId } from "../shared/types/providers";
 
@@ -364,7 +364,7 @@ function OptionsPage() {
 					});
 					return { providerId, key };
 				} else {
-					const key = await ApiKeyStorage.get(providerId);
+					const key = await ApiKeyStorage.getApiKey(providerId);
 					return { providerId, key: key || "" };
 				}
 			});
@@ -377,7 +377,7 @@ function OptionsPage() {
 			setApiKeys(keyMap);
 
 			// Load selected models for all providers
-			const selectedModelsMap = await ModelStorage.getAll();
+			const selectedModelsMap = await ModelStorage.getAllModels();
 
 			// Apply fallbacks to defaults where no model is selected
 			const modelsWithFallbacks: Record<ProviderId, string> = {} as Record<
@@ -530,7 +530,7 @@ function OptionsPage() {
 					timestamp: Date.now(),
 				});
 			} else {
-				await ApiKeyStorage.store(providerId, apiKey);
+				await ApiKeyStorage.storeApiKey(providerId, apiKey);
 			}
 		}
 	};
@@ -647,7 +647,7 @@ function OptionsPage() {
 			setModelFilter((prev) => ({ ...prev, [providerId]: "" }));
 
 			// Save to storage
-			await ModelStorage.store(providerId, modelId);
+			await ModelStorage.storeModel(providerId, modelId);
 
 			// Set success feedback
 			setModelSaveStatus((prev) => ({
@@ -669,7 +669,7 @@ function OptionsPage() {
 			}));
 
 			// Revert local state on error
-			const currentModel = await ModelStorage.get(providerId);
+			const currentModel = await ModelStorage.getModel(providerId);
 			setSelectedModels((prev) => ({ ...prev, [providerId]: currentModel }));
 
 			// Clear error feedback after 5 seconds

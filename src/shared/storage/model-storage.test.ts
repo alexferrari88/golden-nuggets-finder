@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ProviderId } from "../types/providers";
-import { ModelStorage } from "./model-storage";
+import * as ModelStorage from "./model-storage";
 
 // Mock chrome.storage.local
 const mockStorageLocal = {
@@ -13,7 +13,7 @@ global.chrome = {
 	storage: {
 		local: mockStorageLocal,
 	},
-} as any;
+} as typeof chrome;
 
 // Mock ProviderFactory
 vi.mock("../../background/services/provider-factory", () => ({
@@ -39,7 +39,7 @@ describe("ModelStorage", () => {
 		it("should store model selection for a provider", async () => {
 			mockStorageLocal.set.mockResolvedValueOnce(undefined);
 
-			await ModelStorage.store("gemini", "gemini-2.5-pro");
+			await ModelStorage.storeModel("gemini", "gemini-2.5-pro");
 
 			expect(mockStorageLocal.set).toHaveBeenCalledWith({
 				selected_model_gemini: "gemini-2.5-pro",
@@ -49,7 +49,7 @@ describe("ModelStorage", () => {
 		it("should store model selection for different providers", async () => {
 			mockStorageLocal.set.mockResolvedValueOnce(undefined);
 
-			await ModelStorage.store("openai", "gpt-4o");
+			await ModelStorage.storeModel("openai", "gpt-4o");
 
 			expect(mockStorageLocal.set).toHaveBeenCalledWith({
 				selected_model_openai: "gpt-4o",
@@ -60,7 +60,7 @@ describe("ModelStorage", () => {
 			mockStorageLocal.set.mockRejectedValueOnce(new Error("Storage error"));
 
 			await expect(
-				ModelStorage.store("gemini", "gemini-2.5-pro"),
+				ModelStorage.storeModel("gemini", "gemini-2.5-pro"),
 			).rejects.toThrow("Storage error");
 		});
 	});
@@ -71,7 +71,7 @@ describe("ModelStorage", () => {
 				selected_model_gemini: "gemini-2.5-pro",
 			});
 
-			const result = await ModelStorage.get("gemini");
+			const result = await ModelStorage.getModel("gemini");
 
 			expect(result).toBe("gemini-2.5-pro");
 			expect(mockStorageLocal.get).toHaveBeenCalledWith(
@@ -82,7 +82,7 @@ describe("ModelStorage", () => {
 		it("should return null when no selection exists", async () => {
 			mockStorageLocal.get.mockResolvedValueOnce({}); // Empty result
 
-			const result = await ModelStorage.get("gemini");
+			const result = await ModelStorage.getModel("gemini");
 
 			expect(result).toBe(null); // No default fallback in ModelStorage
 		});
@@ -92,7 +92,7 @@ describe("ModelStorage", () => {
 				selected_model_openai: "gpt-4o",
 			});
 
-			const result = await ModelStorage.get("openai");
+			const result = await ModelStorage.getModel("openai");
 
 			expect(result).toBe("gpt-4o");
 			expect(mockStorageLocal.get).toHaveBeenCalledWith(
@@ -103,7 +103,7 @@ describe("ModelStorage", () => {
 		it("should handle storage errors", async () => {
 			mockStorageLocal.get.mockRejectedValueOnce(new Error("Storage error"));
 
-			await expect(ModelStorage.get("gemini")).rejects.toThrow("Storage error");
+			await expect(ModelStorage.getModel("gemini")).rejects.toThrow("Storage error");
 		});
 	});
 
@@ -111,7 +111,7 @@ describe("ModelStorage", () => {
 		it("should remove stored model selection", async () => {
 			mockStorageLocal.remove.mockResolvedValueOnce(undefined);
 
-			await ModelStorage.remove("gemini");
+			await ModelStorage.removeModel("gemini");
 
 			expect(mockStorageLocal.remove).toHaveBeenCalledWith(
 				"selected_model_gemini",
@@ -121,7 +121,7 @@ describe("ModelStorage", () => {
 		it("should handle storage errors", async () => {
 			mockStorageLocal.remove.mockRejectedValueOnce(new Error("Storage error"));
 
-			await expect(ModelStorage.remove("gemini")).rejects.toThrow(
+			await expect(ModelStorage.removeModel("gemini")).rejects.toThrow(
 				"Storage error",
 			);
 		});
@@ -140,7 +140,7 @@ describe("ModelStorage", () => {
 					selected_model_openrouter: "anthropic/claude-sonnet-4",
 				}); // openrouter
 
-			const result = await ModelStorage.getAll();
+			const result = await ModelStorage.getAllModels();
 
 			expect(result).toEqual({
 				gemini: "gemini-2.5-pro",
@@ -161,7 +161,7 @@ describe("ModelStorage", () => {
 				})
 				.mockResolvedValueOnce({});
 
-			await expect(ModelStorage.getAll()).rejects.toThrow("Storage error");
+			await expect(ModelStorage.getAllModels()).rejects.toThrow("Storage error");
 		});
 	});
 
@@ -175,7 +175,7 @@ describe("ModelStorage", () => {
 				anthropic: "claude-3-5-sonnet-20241022",
 			};
 
-			await ModelStorage.setAll(models);
+			await ModelStorage.setAllModels(models);
 
 			expect(mockStorageLocal.set).toHaveBeenCalledWith({
 				selected_model_gemini: "gemini-2.5-pro",
@@ -193,7 +193,7 @@ describe("ModelStorage", () => {
 				anthropic: undefined, // Undefined
 			};
 
-			await ModelStorage.setAll(models as any);
+			await ModelStorage.setAllModels(models as Partial<Record<ProviderId, string>>);
 
 			expect(mockStorageLocal.set).toHaveBeenCalledWith({
 				selected_model_gemini: "gemini-2.5-pro",
@@ -206,7 +206,7 @@ describe("ModelStorage", () => {
 				anthropic: undefined,
 			};
 
-			await ModelStorage.setAll(models as any);
+			await ModelStorage.setAllModels(models as Partial<Record<ProviderId, string>>);
 
 			expect(mockStorageLocal.set).not.toHaveBeenCalled();
 		});
@@ -216,7 +216,7 @@ describe("ModelStorage", () => {
 
 			const models = { gemini: "gemini-2.5-pro" };
 
-			await expect(ModelStorage.setAll(models)).rejects.toThrow(
+			await expect(ModelStorage.setAllModels(models)).rejects.toThrow(
 				"Storage error",
 			);
 		});
@@ -257,7 +257,7 @@ describe("ModelStorage", () => {
 		it("should remove stored model selection", async () => {
 			mockStorageLocal.remove.mockResolvedValueOnce(undefined);
 
-			await ModelStorage.resetToDefault("gemini");
+			await ModelStorage.resetToDefaultModel("gemini");
 
 			expect(mockStorageLocal.remove).toHaveBeenCalledWith(
 				"selected_model_gemini",
@@ -269,7 +269,7 @@ describe("ModelStorage", () => {
 		it("should remove all stored model selections", async () => {
 			mockStorageLocal.remove.mockResolvedValueOnce(undefined);
 
-			await ModelStorage.resetAllToDefaults();
+			await ModelStorage.resetAllToDefaultModels();
 
 			expect(mockStorageLocal.remove).toHaveBeenCalledWith([
 				"selected_model_gemini",
@@ -282,7 +282,7 @@ describe("ModelStorage", () => {
 		it("should handle storage errors", async () => {
 			mockStorageLocal.remove.mockRejectedValueOnce(new Error("Storage error"));
 
-			await expect(ModelStorage.resetAllToDefaults()).rejects.toThrow(
+			await expect(ModelStorage.resetAllToDefaultModels()).rejects.toThrow(
 				"Storage error",
 			);
 		});
@@ -300,7 +300,7 @@ describe("ModelStorage", () => {
 			mockStorageLocal.get.mockResolvedValue({});
 
 			for (const provider of providers) {
-				await ModelStorage.get(provider);
+				await ModelStorage.getModel(provider);
 				expect(mockStorageLocal.get).toHaveBeenCalledWith(
 					`selected_model_${provider}`,
 				);
@@ -313,7 +313,7 @@ describe("ModelStorage", () => {
 			// Chrome storage returns empty object when key doesn't exist
 			mockStorageLocal.get.mockResolvedValueOnce({});
 
-			const result = await ModelStorage.get("gemini");
+			const result = await ModelStorage.getModel("gemini");
 
 			expect(result).toBe(null); // No fallback in ModelStorage
 		});
@@ -323,9 +323,9 @@ describe("ModelStorage", () => {
 
 			// Start multiple store operations simultaneously
 			const promises = [
-				ModelStorage.store("gemini", "gemini-2.5-pro"),
-				ModelStorage.store("openai", "gpt-4o"),
-				ModelStorage.store("anthropic", "claude-3-5-sonnet-20241022"),
+				ModelStorage.storeModel("gemini", "gemini-2.5-pro"),
+				ModelStorage.storeModel("openai", "gpt-4o"),
+				ModelStorage.storeModel("anthropic", "claude-3-5-sonnet-20241022"),
 			];
 
 			await Promise.all(promises);
@@ -337,7 +337,7 @@ describe("ModelStorage", () => {
 			const longModelName = "a".repeat(1000); // Very long model name
 			mockStorageLocal.set.mockResolvedValueOnce(undefined);
 
-			await ModelStorage.store("gemini", longModelName);
+			await ModelStorage.storeModel("gemini", longModelName);
 
 			expect(mockStorageLocal.set).toHaveBeenCalledWith({
 				selected_model_gemini: longModelName,

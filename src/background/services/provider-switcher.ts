@@ -1,5 +1,5 @@
 import { storage } from "../../shared/storage";
-import { ApiKeyStorage } from "../../shared/storage/api-key-storage";
+import { getApiKey, listConfiguredProviders } from "../../shared/storage/api-key-storage";
 import type { ProviderConfig, ProviderId } from "../../shared/types/providers";
 import { createProvider, getSelectedModel } from "./provider-factory";
 
@@ -14,7 +14,7 @@ export async function switchProvider(providerId: ProviderId): Promise<boolean> {
 				timestamp: Date.now(),
 			});
 		} else {
-			apiKey = await ApiKeyStorage.get(providerId);
+			apiKey = await getApiKey(providerId);
 		}
 
 		if (!apiKey) {
@@ -78,7 +78,7 @@ export async function getAvailableProviders(): Promise<ProviderId[]> {
 	}
 
 	// Check other providers
-	const configuredProviders = await ApiKeyStorage.listConfiguredProviders();
+	const configuredProviders = await listConfiguredProviders();
 	available.push(...configuredProviders);
 
 	return [...new Set(available)]; // Remove duplicates
@@ -110,7 +110,7 @@ export async function isProviderConfigured(
 			return false;
 		}
 	} else {
-		const apiKey = await ApiKeyStorage.get(providerId);
+		const apiKey = await getApiKey(providerId);
 		return !!apiKey;
 	}
 }

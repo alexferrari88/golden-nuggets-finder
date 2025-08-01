@@ -2,7 +2,7 @@ import { GeminiDirectProvider } from "../../shared/providers/gemini-direct-provi
 import { LangChainAnthropicProvider } from "../../shared/providers/langchain-anthropic-provider";
 import { LangChainOpenAIProvider } from "../../shared/providers/langchain-openai-provider";
 import { LangChainOpenRouterProvider } from "../../shared/providers/langchain-openrouter-provider";
-import { ModelStorage } from "../../shared/storage/model-storage";
+import { getModel } from "../../shared/storage/model-storage";
 import type {
 	LLMProvider,
 	ProviderConfig,
@@ -50,7 +50,7 @@ export function getSupportedProviders(): ProviderId[] {
 export async function getSelectedModel(
 	providerId: ProviderId,
 ): Promise<string> {
-	const selectedModel = await ModelStorage.get(providerId);
+	const selectedModel = await getModel(providerId);
 	return selectedModel || getDefaultModel(providerId);
 }
 
