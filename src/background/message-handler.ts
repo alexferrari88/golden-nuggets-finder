@@ -280,7 +280,7 @@ export class MessageHandler {
 	): Promise<GoldenNuggetsResponse> {
 		let currentProviderId: ProviderId | null = null;
 		let attempts = 0;
-		const maxAttempts = 5; // Allow multiple attempts across different providers
+		const maxAttempts = 2; // Limit to 2 attempts to prevent infinite loops
 
 		while (attempts < maxAttempts) {
 			try {
@@ -325,10 +325,22 @@ export class MessageHandler {
 
 				return normalizedResponse;
 			} catch (error) {
+				const errorMessage = error instanceof Error ? error.message : String(error);
 				console.error(
 					`Golden nuggets extraction failed (attempt ${attempts}):`,
-					error,
+					errorMessage,
 				);
+
+				// Check for structural errors that indicate a programming bug (don't retry these)
+				const isStructuralError = errorMessage.includes("Cannot read properties of undefined") ||
+					errorMessage.includes("is not a function") ||
+					errorMessage.includes("Cannot read property") ||
+					errorMessage.includes("undefined is not an object");
+
+				if (isStructuralError) {
+					console.error("Structural error detected, stopping retries:", errorMessage);
+					throw new Error(`Provider configuration error: ${errorMessage}. Please check extension configuration.`);
+				}
 
 				if (currentProviderId) {
 					// Handle the error using our comprehensive error handler
@@ -338,14 +350,14 @@ export class MessageHandler {
 						"extraction",
 					);
 
-					if (errorResult.shouldRetry) {
+					if (errorResult.shouldRetry && attempts < maxAttempts) {
 						console.log(
-							`Retrying with ${currentProviderId} after error handling...`,
+							`Retrying with ${currentProviderId} after error handling... (attempt ${attempts}/${maxAttempts})`,
 						);
 						continue; // Retry with same provider
 					}
 
-					if (errorResult.fallbackProvider) {
+					if (errorResult.fallbackProvider && attempts < maxAttempts) {
 						console.log(
 							`Switching to fallback provider: ${errorResult.fallbackProvider}`,
 						);
@@ -374,7 +386,8 @@ export class MessageHandler {
 								error as Error,
 								currentProviderId,
 							)
-						: (error as Error).message;
+						: errorMessage;
+					console.error(`All attempts exhausted. Final error: ${userFriendlyMessage}`);
 					throw new Error(userFriendlyMessage);
 				}
 			}
@@ -606,6 +619,19 @@ export class MessageHandler {
 			sendResponse({ success: true, data: result });
 		} catch (error) {
 			console.error("Analysis failed:", error);
+			
+			// Send error to content script to clear loading states
+			if (sender.tab?.id) {
+				await chrome.tabs.sendMessage(sender.tab.id, {
+					type: MESSAGE_TYPES.ANALYSIS_ERROR,
+					error: (error as Error).message,
+					analysisId: request.analysisId || generateAnalysisId(),
+				}).catch(() => {
+					// Content script might not be ready, that's okay
+					console.log("Could not send analysis error to content script");
+				});
+			}
+			
 			sendResponse({ success: false, error: (error as Error).message });
 		}
 	}
