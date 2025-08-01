@@ -10,34 +10,37 @@ import {
  * Truncates long error messages for better UX while preserving important information
  * Also normalizes whitespace and line breaks for consistent notification display
  */
-function truncateErrorMessage(message: string, maxLength: number = 250): string {
+function truncateErrorMessage(
+	message: string,
+	maxLength: number = 250,
+): string {
 	// First, normalize the message by collapsing whitespace and removing line breaks
 	// This prevents awkward multi-line layouts in notification banners
 	const normalizedMessage = message
-		.replace(/\s+/g, ' ') // Replace all whitespace (including line breaks) with single spaces
+		.replace(/\s+/g, " ") // Replace all whitespace (including line breaks) with single spaces
 		.trim(); // Remove leading/trailing whitespace
-	
+
 	if (normalizedMessage.length <= maxLength) return normalizedMessage;
-	
+
 	// Try to truncate at a sentence boundary first
 	const truncated = normalizedMessage.substring(0, maxLength);
-	const lastSentence = truncated.lastIndexOf('. ');
-	const lastPeriod = truncated.lastIndexOf('.');
-	
+	const lastSentence = truncated.lastIndexOf(". ");
+	const lastPeriod = truncated.lastIndexOf(".");
+
 	if (lastSentence > maxLength * 0.6) {
-		return truncated.substring(0, lastSentence + 1) + ' [...]';
+		return truncated.substring(0, lastSentence + 1) + " [...]";
 	} else if (lastPeriod > maxLength * 0.6) {
-		return truncated.substring(0, lastPeriod + 1) + ' [...]';
+		return truncated.substring(0, lastPeriod + 1) + " [...]";
 	}
-	
+
 	// Fallback to word boundary
-	const lastSpace = truncated.lastIndexOf(' ');
+	const lastSpace = truncated.lastIndexOf(" ");
 	if (lastSpace > maxLength * 0.7) {
-		return truncated.substring(0, lastSpace) + '... [message truncated]';
+		return truncated.substring(0, lastSpace) + "... [message truncated]";
 	}
-	
+
 	// Hard truncation as last resort
-	return truncated + '... [truncated]';
+	return truncated + "... [truncated]";
 }
 
 export class NotificationManager {
@@ -57,7 +60,10 @@ export class NotificationManager {
 		document.body.appendChild(this.currentBanner);
 
 		// Auto-hide error after timeout (longer for longer messages)
-		const timeout = truncatedMessage.length > 150 ? ui.notificationTimeout * 1.5 : ui.notificationTimeout;
+		const timeout =
+			truncatedMessage.length > 150
+				? ui.notificationTimeout * 1.5
+				: ui.notificationTimeout;
 		this.autoHideTimeout = setTimeout(() => {
 			this.hideBanner();
 		}, timeout);
@@ -392,7 +398,9 @@ export class NotificationManager {
 		let remainingTime = waitTime;
 		const timer = setInterval(() => {
 			remainingTime--;
-			const countdownElement = document.getElementById(`countdown-${analysisId}`);
+			const countdownElement = document.getElementById(
+				`countdown-${analysisId}`,
+			);
 			if (countdownElement) {
 				countdownElement.textContent = remainingTime.toString();
 			}

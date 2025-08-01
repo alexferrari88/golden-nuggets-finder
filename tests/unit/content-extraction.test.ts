@@ -14,7 +14,12 @@ interface MockContent {
 
 // Extract the convertContentToText function logic for isolated testing
 function convertContentToText(content: MockContent | null): string {
-	if (!content || !content.items || !Array.isArray(content.items) || content.items.length === 0) {
+	if (
+		!content ||
+		!content.items ||
+		!Array.isArray(content.items) ||
+		content.items.length === 0
+	) {
 		return "";
 	}
 

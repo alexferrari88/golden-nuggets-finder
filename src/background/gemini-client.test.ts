@@ -578,7 +578,7 @@ describe("GeminiClient", () => {
 
 			await geminiClient.validateApiKey("test-api-key");
 
-			const fetchCall = (global.fetch as any).mock.calls[0];
+			const fetchCall = (global.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
 			expect(fetchCall[0]).toBe(
 				"https://generativelanguage.googleapis.com/v1beta/models",
 			);

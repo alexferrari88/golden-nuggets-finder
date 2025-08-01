@@ -6,6 +6,16 @@ import {
 	SecurityManager,
 } from "./security";
 
+// Types for testing with invalid values
+type InvalidAccessContext = Omit<AccessContext, 'source'> & {
+	source: string;
+};
+
+// Type for accessing private methods in tests
+interface SecurityManagerTestAccess {
+	checkRateLimit(source: string): boolean;
+}
+
 describe("SecurityManager", () => {
 	let securityManager: SecurityManager;
 
@@ -116,7 +126,7 @@ describe("SecurityManager", () => {
 
 	describe("Access Control", () => {
 		it("should allow valid access contexts", () => {
-			const validContext: AccessContext = {
+			const validContext: InvalidAccessContext = {
 				source: "background",
 				action: "read",
 				timestamp: Date.now(),
@@ -127,29 +137,29 @@ describe("SecurityManager", () => {
 		});
 
 		it("should reject invalid source", () => {
-			const invalidContext: AccessContext = {
-				source: "invalid" as any,
+			const invalidContext: InvalidAccessContext = {
+				source: "invalid",
 				action: "read",
 				timestamp: Date.now(),
 			};
 
-			const result = securityManager.validateAccess(invalidContext);
+			const result = securityManager.validateAccess(invalidContext as AccessContext);
 			expect(result).toBe(false);
 		});
 
 		it("should reject content script writing API keys", () => {
-			const invalidContext: AccessContext = {
+			const invalidContext: InvalidAccessContext = {
 				source: "content",
 				action: "write",
 				timestamp: Date.now(),
 			};
 
-			const result = securityManager.validateAccess(invalidContext);
+			const result = securityManager.validateAccess(invalidContext as AccessContext);
 			expect(result).toBe(false);
 		});
 
 		it("should allow content script reading API keys", () => {
-			const validContext: AccessContext = {
+			const validContext: InvalidAccessContext = {
 				source: "content",
 				action: "read",
 				timestamp: Date.now(),
@@ -160,7 +170,7 @@ describe("SecurityManager", () => {
 		});
 
 		it("should enforce rate limiting", () => {
-			const context: AccessContext = {
+			const context: InvalidAccessContext = {
 				source: "background",
 				action: "read",
 				timestamp: Date.now(),
@@ -168,11 +178,11 @@ describe("SecurityManager", () => {
 
 			// Make multiple requests quickly
 			for (let i = 0; i < 20; i++) {
-				securityManager.validateAccess(context);
+				securityManager.validateAccess(context as AccessContext);
 			}
 
 			// The 21st request should be rate limited
-			const result = securityManager.validateAccess(context);
+			const result = securityManager.validateAccess(context as AccessContext);
 			expect(result).toBe(false);
 		});
 	});
@@ -279,13 +289,13 @@ describe("SecurityManager", () => {
 
 	describe("Audit Logging", () => {
 		it("should log access attempts", () => {
-			const context: AccessContext = {
+			const context: InvalidAccessContext = {
 				source: "background",
 				action: "read",
 				timestamp: Date.now(),
 			};
 
-			securityManager.validateAccess(context);
+			securityManager.validateAccess(context as AccessContext);
 
 			const logs = securityManager.getAuditLogs();
 			expect(logs.length).toBeGreaterThan(0);
@@ -294,13 +304,13 @@ describe("SecurityManager", () => {
 		});
 
 		it("should log failed access attempts", () => {
-			const context: AccessContext = {
-				source: "invalid" as any,
+			const context: InvalidAccessContext = {
+				source: "invalid",
 				action: "read",
 				timestamp: Date.now(),
 			};
 
-			securityManager.validateAccess(context);
+			securityManager.validateAccess(context as AccessContext);
 
 			const logs = securityManager.getAuditLogs();
 			expect(logs.length).toBeGreaterThan(0);
@@ -310,7 +320,7 @@ describe("SecurityManager", () => {
 		});
 
 		it("should limit audit log size", () => {
-			const context: AccessContext = {
+			const context: InvalidAccessContext = {
 				source: "background",
 				action: "read",
 				timestamp: Date.now(),
@@ -318,7 +328,7 @@ describe("SecurityManager", () => {
 
 			// Generate more than 100 log entries
 			for (let i = 0; i < 120; i++) {
-				securityManager.validateAccess(context);
+				securityManager.validateAccess(context as AccessContext);
 			}
 
 			const logs = securityManager.getAuditLogs();
@@ -328,14 +338,14 @@ describe("SecurityManager", () => {
 
 	describe("Memory Management", () => {
 		it("should clear sensitive data from memory", () => {
-			const context: AccessContext = {
+			const context: InvalidAccessContext = {
 				source: "background",
 				action: "read",
 				timestamp: Date.now(),
 			};
 
 			// Generate some audit logs
-			securityManager.validateAccess(context);
+			securityManager.validateAccess(context as AccessContext);
 
 			let logs = securityManager.getAuditLogs();
 			expect(logs.length).toBeGreaterThan(0);
@@ -348,21 +358,21 @@ describe("SecurityManager", () => {
 		});
 
 		it("should handle errors gracefully during access validation", () => {
-			const _context: AccessContext = {
+			const _context: InvalidAccessContext = {
 				source: "background",
 				action: "read",
 				timestamp: Date.now(),
 			};
 
 			// Mock an error condition by using invalid context that will trigger internal error
-			const errorContext: AccessContext = {
+			const errorContext: InvalidAccessContext = {
 				source: "background",
 				action: "read",
 				timestamp: Date.now(),
 			};
 
 			// Force an internal error by mocking the rate limit check to throw
-			const originalCheckRateLimit = (securityManager as any).checkRateLimit;
+			const originalCheckRateLimit = (securityManager as SecurityManagerTestAccess).checkRateLimit;
 			vi.spyOn(securityManager as any, "checkRateLimit").mockImplementation(
 				() => {
 					throw new Error("Test error");
@@ -373,7 +383,7 @@ describe("SecurityManager", () => {
 			expect(result).toBe(false);
 
 			// Restore original method
-			(securityManager as any).checkRateLimit = originalCheckRateLimit;
+			(securityManager as SecurityManagerTestAccess).checkRateLimit = originalCheckRateLimit;
 		});
 	});
 });

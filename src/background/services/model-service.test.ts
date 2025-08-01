@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { ModelService } from "./model-service";
 import type { ProviderId } from "../../shared/types/providers";
+import { ModelService } from "./model-service";
 
 // Mock fetch globally
 const mockFetch = vi.fn();
@@ -29,7 +29,7 @@ describe("ModelService", () => {
 						inputTokenLimit: 1048576,
 					},
 					{
-						name: "models/gemini-2.5-pro", 
+						name: "models/gemini-2.5-pro",
 						displayName: "Gemini 2.5 Pro",
 						description: "Most capable model",
 						supportedGenerationMethods: ["generateContent"],
@@ -60,7 +60,7 @@ describe("ModelService", () => {
 			});
 			expect(result.models[1]).toEqual({
 				id: "gemini-2.5-pro",
-				name: "Gemini 2.5 Pro", 
+				name: "Gemini 2.5 Pro",
 				description: "Most capable model",
 				contextLength: 2097152,
 			});
@@ -70,7 +70,7 @@ describe("ModelService", () => {
 				"https://generativelanguage.googleapis.com/v1beta/models?key=test-api-key",
 				expect.objectContaining({
 					signal: expect.any(AbortSignal),
-				})
+				}),
 			);
 		});
 
@@ -85,7 +85,7 @@ describe("ModelService", () => {
 					},
 					{
 						id: "gpt-3.5-turbo",
-						object: "model", 
+						object: "model",
 						created: 1677610602,
 						owned_by: "openai",
 					},
@@ -131,7 +131,7 @@ describe("ModelService", () => {
 						Authorization: "Bearer test-api-key",
 					},
 					signal: expect.any(AbortSignal),
-				})
+				}),
 			);
 		});
 
@@ -156,7 +156,10 @@ describe("ModelService", () => {
 				json: () => Promise.resolve(mockAnthropicResponse),
 			});
 
-			const result = await ModelService.fetchModels("anthropic", "test-api-key");
+			const result = await ModelService.fetchModels(
+				"anthropic",
+				"test-api-key",
+			);
 
 			expect(result.models).toHaveLength(2);
 			expect(result.models[0]).toEqual({
@@ -179,7 +182,7 @@ describe("ModelService", () => {
 						"anthropic-version": "2023-06-01",
 					},
 					signal: expect.any(AbortSignal),
-				})
+				}),
 			);
 		});
 
@@ -214,7 +217,10 @@ describe("ModelService", () => {
 				json: () => Promise.resolve(mockOpenRouterResponse),
 			});
 
-			const result = await ModelService.fetchModels("openrouter", "test-api-key");
+			const result = await ModelService.fetchModels(
+				"openrouter",
+				"test-api-key",
+			);
 
 			expect(result.models).toHaveLength(2); // Only text generation models
 			expect(result.models[0]).toEqual({
@@ -238,7 +244,7 @@ describe("ModelService", () => {
 						Authorization: "Bearer test-api-key",
 					},
 					signal: expect.any(AbortSignal),
-				})
+				}),
 			);
 		});
 
@@ -252,7 +258,9 @@ describe("ModelService", () => {
 			const result = await ModelService.fetchModels("gemini", "invalid-key");
 
 			expect(result.models).toEqual([]);
-			expect(result.error).toBe("Failed to fetch models: HTTP 401: Unauthorized");
+			expect(result.error).toBe(
+				"Failed to fetch models: HTTP 401: Unauthorized",
+			);
 		});
 
 		it("should handle network errors", async () => {
@@ -267,7 +275,7 @@ describe("ModelService", () => {
 		it("should handle timeout errors", async () => {
 			const abortError = new Error("Request timeout");
 			abortError.name = "AbortError";
-			
+
 			mockFetch.mockRejectedValueOnce(abortError);
 
 			const result = await ModelService.fetchModels("gemini", "test-key");
@@ -277,7 +285,10 @@ describe("ModelService", () => {
 		});
 
 		it("should handle unsupported provider", async () => {
-			const result = await ModelService.fetchModels("unsupported" as ProviderId, "test-key");
+			const result = await ModelService.fetchModels(
+				"unsupported" as ProviderId,
+				"test-key",
+			);
 
 			expect(result.models).toEqual([]);
 			expect(result.error).toBe("Unsupported provider: unsupported");
@@ -335,14 +346,18 @@ describe("ModelService", () => {
 			const models = ModelService.getFallbackModels("openai");
 
 			expect(models).toHaveLength(3);
-			expect(models.map(m => m.id)).toEqual(["gpt-4o", "gpt-4", "gpt-3.5-turbo"]);
+			expect(models.map((m) => m.id)).toEqual([
+				"gpt-4o",
+				"gpt-4",
+				"gpt-3.5-turbo",
+			]);
 		});
 
 		it("should return Anthropic fallback models", () => {
 			const models = ModelService.getFallbackModels("anthropic");
 
 			expect(models).toHaveLength(3);
-			expect(models.map(m => m.id)).toEqual([
+			expect(models.map((m) => m.id)).toEqual([
 				"claude-sonnet-4-20250514",
 				"claude-3-5-sonnet-20241022",
 				"claude-3-5-haiku-20241022",
@@ -353,7 +368,7 @@ describe("ModelService", () => {
 			const models = ModelService.getFallbackModels("openrouter");
 
 			expect(models).toHaveLength(3);
-			expect(models.map(m => m.id)).toEqual([
+			expect(models.map((m) => m.id)).toEqual([
 				"openai/gpt-4o",
 				"anthropic/claude-sonnet-4",
 				"google/gemini-pro",
@@ -361,7 +376,9 @@ describe("ModelService", () => {
 		});
 
 		it("should return empty array for unsupported provider", () => {
-			const models = ModelService.getFallbackModels("unsupported" as ProviderId);
+			const models = ModelService.getFallbackModels(
+				"unsupported" as ProviderId,
+			);
 			expect(models).toEqual([]);
 		});
 	});
@@ -370,7 +387,7 @@ describe("ModelService", () => {
 		it("should abort request on timeout", async () => {
 			const abortError = new Error("Request timeout");
 			abortError.name = "AbortError";
-			
+
 			mockFetch.mockRejectedValueOnce(abortError);
 
 			try {
@@ -382,7 +399,7 @@ describe("ModelService", () => {
 		});
 
 		it("should clear timeout on successful response", async () => {
-			const clearTimeoutSpy = vi.spyOn(global, 'clearTimeout');
+			const clearTimeoutSpy = vi.spyOn(global, "clearTimeout");
 
 			mockFetch.mockResolvedValueOnce({
 				ok: true,

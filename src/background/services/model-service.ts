@@ -142,7 +142,9 @@ async function fetchGeminiModels(apiKey: string): Promise<ModelListResponse> {
 			description: model.description,
 			contextLength: model.inputTokenLimit,
 		}))
-		.sort((a: ModelInfo, b: ModelInfo) => (a.name || a.id).localeCompare(b.name || b.id));
+		.sort((a: ModelInfo, b: ModelInfo) =>
+			(a.name || a.id).localeCompare(b.name || b.id),
+		);
 
 	return {
 		models: textGenerationModels || [],
@@ -187,7 +189,9 @@ async function fetchOpenAIModels(apiKey: string): Promise<ModelListResponse> {
 			name: model.id,
 			description: `OpenAI ${model.id}`,
 		}))
-		.sort((a: ModelInfo, b: ModelInfo) => (a.name || a.id).localeCompare(b.name || b.id));
+		.sort((a: ModelInfo, b: ModelInfo) =>
+			(a.name || a.id).localeCompare(b.name || b.id),
+		);
 
 	return {
 		models: chatModels || [],
@@ -221,7 +225,9 @@ async function fetchAnthropicModels(
 			name: model.display_name || model.id,
 			description: `Anthropic ${model.display_name || model.id}`,
 		}))
-		.sort((a: ModelInfo, b: ModelInfo) => (a.name || a.id).localeCompare(b.name || b.id));
+		.sort((a: ModelInfo, b: ModelInfo) =>
+			(a.name || a.id).localeCompare(b.name || b.id),
+		);
 
 	return {
 		models: models || [],
@@ -262,7 +268,9 @@ async function fetchOpenRouterModels(
 			description: model.description,
 			contextLength: model.context_length,
 		}))
-		.sort((a: ModelInfo, b: ModelInfo) => (a.name || a.id).localeCompare(b.name || b.id));
+		.sort((a: ModelInfo, b: ModelInfo) =>
+			(a.name || a.id).localeCompare(b.name || b.id),
+		);
 
 	return {
 		models: textModels || [],

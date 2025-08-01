@@ -5,7 +5,10 @@ import { fetch, Headers, Request, Response } from "undici";
 import { beforeAll, describe, expect, it } from "vitest";
 import { z } from "zod";
 import { ProviderFactory } from "../../src/background/services/provider-factory";
-import { normalize as normalizeResponse, validate as validateResponse } from "../../src/background/services/response-normalizer";
+import {
+	normalize as normalizeResponse,
+	validate as validateResponse,
+} from "../../src/background/services/response-normalizer";
 import type {
 	ProviderConfig,
 	ProviderId,
@@ -295,16 +298,17 @@ Return only the most valuable insights that would be genuinely useful to a softw
 		it("should get selected model for providers (new functionality)", async () => {
 			const providers: ProviderId[] = [
 				"gemini",
-				"openai", 
+				"openai",
 				"anthropic",
 				"openrouter",
 			];
 
 			// Test that getSelectedModel returns default models when no custom selection exists
 			for (const providerId of providers) {
-				const selectedModel = await ProviderFactory.getSelectedModel(providerId);
+				const selectedModel =
+					await ProviderFactory.getSelectedModel(providerId);
 				const defaultModel = ProviderFactory.getDefaultModel(providerId);
-				
+
 				expect(selectedModel).toBeDefined();
 				expect(typeof selectedModel).toBe("string");
 				expect(selectedModel.length).toBeGreaterThan(0);
@@ -317,19 +321,19 @@ Return only the most valuable insights that would be genuinely useful to a softw
 			const providers: ProviderId[] = [
 				"gemini",
 				"openai",
-				"anthropic", 
+				"anthropic",
 				"openrouter",
 			];
 
 			for (const providerId of providers) {
 				const provider = await ProviderFactory.createProviderWithSelectedModel(
 					providerId,
-					"test-key"
+					"test-key",
 				);
-				
+
 				expect(provider).toBeDefined();
 				expect(provider.providerId).toBe(providerId);
-				
+
 				// Should use the selected model (which defaults to default model)
 				const expectedModel = ProviderFactory.getDefaultModel(providerId);
 				expect(provider.modelName).toBe(expectedModel);

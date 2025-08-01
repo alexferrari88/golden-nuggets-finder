@@ -18,8 +18,12 @@ import type React from "react";
 import { useCallback, useEffect, useState } from "react";
 import ReactDOM from "react-dom/client";
 import { GeminiClient } from "../background/gemini-client";
+import {
+	type ModelInfo,
+	ModelService,
+} from "../background/services/model-service";
 import { ProviderFactory } from "../background/services/provider-factory";
-import { ModelService, type ModelInfo } from "../background/services/model-service";
+import { debugLogger } from "../shared/debug";
 import {
 	borderRadius,
 	colors,
@@ -28,7 +32,6 @@ import {
 	spacing,
 	typography,
 } from "../shared/design-system";
-import { debugLogger } from "../shared/debug";
 import { storage } from "../shared/storage";
 import { ApiKeyStorage } from "../shared/storage/api-key-storage";
 import { ModelStorage } from "../shared/storage/model-storage";
@@ -315,11 +318,15 @@ function OptionsPage() {
 	const [modelSaveStatus, setModelSaveStatus] = useState<
 		Record<ProviderId, { success: boolean; timestamp: number } | null>
 	>({});
-	
+
 	// Model filtering state
-	const [modelFilter, setModelFilter] = useState<Record<ProviderId, string>>({});
-	const [showModelDropdown, setShowModelDropdown] = useState<Record<ProviderId, boolean>>({});
-	
+	const [modelFilter, setModelFilter] = useState<Record<ProviderId, string>>(
+		{},
+	);
+	const [showModelDropdown, setShowModelDropdown] = useState<
+		Record<ProviderId, boolean>
+	>({});
+
 	// Debug logging state
 	const [debugLoggingEnabled, setDebugLoggingEnabled] = useState(false);
 
@@ -332,9 +339,11 @@ function OptionsPage() {
 			]);
 			setPrompts(savedPrompts);
 			setSelectedProvider(storageData.selectedProvider || "gemini");
-			
+
 			// Load debug logging setting
-			setDebugLoggingEnabled(storageData.extensionConfig?.enableDebugLogging || false);
+			setDebugLoggingEnabled(
+				storageData.extensionConfig?.enableDebugLogging || false,
+			);
 
 			// Load API keys for all providers
 			const providers: ProviderId[] = [
@@ -366,14 +375,17 @@ function OptionsPage() {
 
 			// Load selected models for all providers
 			const selectedModelsMap = await ModelStorage.getAll();
-			
+
 			// Apply fallbacks to defaults where no model is selected
-			const modelsWithFallbacks: Record<ProviderId, string> = {} as Record<ProviderId, string>;
+			const modelsWithFallbacks: Record<ProviderId, string> = {} as Record<
+				ProviderId,
+				string
+			>;
 			for (const [providerId, model] of Object.entries(selectedModelsMap)) {
-				modelsWithFallbacks[providerId as ProviderId] = 
+				modelsWithFallbacks[providerId as ProviderId] =
 					model || ProviderFactory.getDefaultModel(providerId as ProviderId);
 			}
-			
+
 			setSelectedModels(modelsWithFallbacks);
 		} catch (_err) {
 			setError("Failed to load data");
@@ -385,7 +397,6 @@ function OptionsPage() {
 	useEffect(() => {
 		loadData();
 	}, [loadData]);
-
 
 	const validatePromptForm = () => {
 		const errors: { name?: string; prompt?: string } = {};
@@ -497,7 +508,6 @@ function OptionsPage() {
 		return names[providerId];
 	};
 
-
 	const handleProviderChange = async (providerId: ProviderId) => {
 		setSelectedProvider(providerId);
 		await chrome.storage.local.set({ selectedProvider: providerId });
@@ -536,21 +546,21 @@ function OptionsPage() {
 
 			console.log(`[DEBUG] Testing API key for ${providerId}`);
 			console.log(`[DEBUG] API key length: ${apiKey.length}`);
-			
+
 			const selectedModel = await ProviderFactory.getSelectedModel(providerId);
 			console.log(`[DEBUG] Selected model for ${providerId}: ${selectedModel}`);
-			
+
 			const provider = await ProviderFactory.createProvider({
 				providerId,
 				apiKey,
 				modelName: selectedModel,
 			});
-			
+
 			console.log(`[DEBUG] Provider created successfully for ${providerId}`);
 
 			const isValid = await provider.validateApiKey();
 			console.log(`[DEBUG] Validation result for ${providerId}: ${isValid}`);
-			
+
 			setValidationStatus((prev) => ({ ...prev, [providerId]: isValid }));
 
 			if (isValid) {
@@ -572,7 +582,10 @@ function OptionsPage() {
 
 			setTimeout(() => setApiKeyStatus(null), 5000);
 		} catch (error) {
-			console.error(`[DEBUG] Error validating API key for ${providerId}:`, error);
+			console.error(
+				`[DEBUG] Error validating API key for ${providerId}:`,
+				error,
+			);
 			setValidationStatus((prev) => ({ ...prev, [providerId]: false }));
 			setApiKeyStatus({
 				type: "error",
@@ -583,19 +596,30 @@ function OptionsPage() {
 	};
 
 	// Model management functions
-	const fetchModelsForProvider = async (providerId: ProviderId, apiKey: string) => {
+	const fetchModelsForProvider = async (
+		providerId: ProviderId,
+		apiKey: string,
+	) => {
 		try {
 			setModelLoadingStatus((prev) => ({ ...prev, [providerId]: true }));
 
 			const result = await ModelService.fetchModels(providerId, apiKey);
-			
+
 			if (result.error) {
-				console.warn(`Failed to fetch models for ${providerId}: ${result.error}`);
+				console.warn(
+					`Failed to fetch models for ${providerId}: ${result.error}`,
+				);
 				// Use fallback models
 				const fallbackModels = ModelService.getFallbackModels(providerId);
-				setAvailableModels((prev) => ({ ...prev, [providerId]: fallbackModels }));
+				setAvailableModels((prev) => ({
+					...prev,
+					[providerId]: fallbackModels,
+				}));
 			} else {
-				setAvailableModels((prev) => ({ ...prev, [providerId]: result.models }));
+				setAvailableModels((prev) => ({
+					...prev,
+					[providerId]: result.models,
+				}));
 			}
 		} catch (error) {
 			console.error(`Error fetching models for ${providerId}:`, error);
@@ -607,41 +631,44 @@ function OptionsPage() {
 		}
 	};
 
-	const handleModelSelection = async (providerId: ProviderId, modelId: string) => {
+	const handleModelSelection = async (
+		providerId: ProviderId,
+		modelId: string,
+	) => {
 		try {
 			// Update local state immediately
 			setSelectedModels((prev) => ({ ...prev, [providerId]: modelId }));
-			
+
 			// Hide dropdown and clear filter
 			setShowModelDropdown((prev) => ({ ...prev, [providerId]: false }));
 			setModelFilter((prev) => ({ ...prev, [providerId]: "" }));
-			
+
 			// Save to storage
 			await ModelStorage.store(providerId, modelId);
-			
+
 			// Set success feedback
-			setModelSaveStatus((prev) => ({ 
-				...prev, 
-				[providerId]: { success: true, timestamp: Date.now() } 
+			setModelSaveStatus((prev) => ({
+				...prev,
+				[providerId]: { success: true, timestamp: Date.now() },
 			}));
-			
+
 			// Clear success feedback after 3 seconds
 			setTimeout(() => {
 				setModelSaveStatus((prev) => ({ ...prev, [providerId]: null }));
 			}, 3000);
 		} catch (error) {
 			console.error(`Failed to save selected model for ${providerId}:`, error);
-			
+
 			// Set error feedback
-			setModelSaveStatus((prev) => ({ 
-				...prev, 
-				[providerId]: { success: false, timestamp: Date.now() } 
+			setModelSaveStatus((prev) => ({
+				...prev,
+				[providerId]: { success: false, timestamp: Date.now() },
 			}));
-			
+
 			// Revert local state on error
 			const currentModel = await ModelStorage.get(providerId);
 			setSelectedModels((prev) => ({ ...prev, [providerId]: currentModel }));
-			
+
 			// Clear error feedback after 5 seconds
 			setTimeout(() => {
 				setModelSaveStatus((prev) => ({ ...prev, [providerId]: null }));
@@ -653,19 +680,23 @@ function OptionsPage() {
 	const getFilteredModels = (providerId: ProviderId): ModelInfo[] => {
 		const models = availableModels[providerId] || [];
 		const filterText = modelFilter[providerId] || "";
-		
+
 		if (!filterText.trim()) {
 			return models;
 		}
-		
+
 		const lowercaseFilter = filterText.toLowerCase();
-		return models.filter(model => 
-			model.name.toLowerCase().includes(lowercaseFilter) ||
-			model.id.toLowerCase().includes(lowercaseFilter)
+		return models.filter(
+			(model) =>
+				model.name.toLowerCase().includes(lowercaseFilter) ||
+				model.id.toLowerCase().includes(lowercaseFilter),
 		);
 	};
 
-	const handleModelFilterChange = (providerId: ProviderId, filterText: string) => {
+	const handleModelFilterChange = (
+		providerId: ProviderId,
+		filterText: string,
+	) => {
 		setModelFilter((prev) => ({ ...prev, [providerId]: filterText }));
 		setShowModelDropdown((prev) => ({ ...prev, [providerId]: true }));
 	};
@@ -687,8 +718,11 @@ function OptionsPage() {
 	};
 
 	const getSelectedModelName = (providerId: ProviderId): string => {
-		const selectedModelId = selectedModels[providerId] || ProviderFactory.getDefaultModel(providerId);
-		const model = availableModels[providerId]?.find(m => m.id === selectedModelId);
+		const selectedModelId =
+			selectedModels[providerId] || ProviderFactory.getDefaultModel(providerId);
+		const model = availableModels[providerId]?.find(
+			(m) => m.id === selectedModelId,
+		);
 		return model?.name || selectedModelId;
 	};
 
@@ -696,43 +730,50 @@ function OptionsPage() {
 	const handleDebugLoggingToggle = async (enabled: boolean) => {
 		try {
 			setDebugLoggingEnabled(enabled);
-			
+
 			// Update the extension config in storage
-			const existingConfig = await chrome.storage.local.get(['extensionConfig']);
+			const existingConfig = await chrome.storage.local.get([
+				"extensionConfig",
+			]);
 			const updatedConfig = {
 				...existingConfig.extensionConfig,
 				enableDebugLogging: enabled,
 			};
-			
+
 			await chrome.storage.local.set({ extensionConfig: updatedConfig });
-			
+
 			// Refresh the debug logger state
 			await debugLogger.refreshLoggingState();
-			
+
 			// Test logging immediately when enabled
 			if (enabled) {
 				console.log("🔍 [DEBUG TEST] Options page console logging test");
 				debugLogger.log("🔍 [DEBUG TEST] DebugLogger test from options page");
-				debugLogger.logLLMRequest("https://test-endpoint.com/test", { test: "This is a test request" });
+				debugLogger.logLLMRequest("https://test-endpoint.com/test", {
+					test: "This is a test request",
+				});
 				debugLogger.logLLMResponse({ test: "This is a test response" });
-				
+
 				// Also test background logging by sending a message
 				try {
 					await chrome.runtime.sendMessage({ type: "DEBUG_TEST" });
 				} catch (e) {
-					console.log("🔍 [DEBUG TEST] Background script may not be ready:", e.message);
+					console.log(
+						"🔍 [DEBUG TEST] Background script may not be ready:",
+						e.message,
+					);
 				}
 			}
-			
+
 			setApiKeyStatus({
 				type: "success",
 				title: "Debug Logging Updated",
-				message: `Debug logging has been ${enabled ? 'enabled' : 'disabled'}. ${enabled ? 'Check the browser console for test logs above! Also check the service worker console in chrome://extensions/' : 'API logging is now disabled.'}`,
+				message: `Debug logging has been ${enabled ? "enabled" : "disabled"}. ${enabled ? "Check the browser console for test logs above! Also check the service worker console in chrome://extensions/" : "API logging is now disabled."}`,
 			});
-			
+
 			setTimeout(() => setApiKeyStatus(null), 8000);
 		} catch (error) {
-			console.error('Failed to update debug logging setting:', error);
+			console.error("Failed to update debug logging setting:", error);
 			setApiKeyStatus({
 				type: "error",
 				title: "Update Failed",
@@ -970,7 +1011,7 @@ function OptionsPage() {
 							Current Configuration
 						</h2>
 					</div>
-					
+
 					<div
 						style={{
 							display: "grid",
@@ -1025,12 +1066,12 @@ function OptionsPage() {
 									marginTop: spacing.xs,
 								}}
 							>
-								{apiKeys[selectedProvider] && validationStatus[selectedProvider] === true 
-									? "API key validated" 
-									: apiKeys[selectedProvider] 
-										? "API key not validated" 
-										: "No API key configured"
-								}
+								{apiKeys[selectedProvider] &&
+								validationStatus[selectedProvider] === true
+									? "API key validated"
+									: apiKeys[selectedProvider]
+										? "API key not validated"
+										: "No API key configured"}
 							</div>
 						</div>
 
@@ -1081,10 +1122,9 @@ function OptionsPage() {
 									marginTop: spacing.xs,
 								}}
 							>
-								{selectedModels[selectedProvider] 
-									? `Using ${selectedModels[selectedProvider]}` 
-									: `Using default: ${ProviderFactory.getDefaultModel(selectedProvider)}`
-								}
+								{selectedModels[selectedProvider]
+									? `Using ${selectedModels[selectedProvider]}`
+									: `Using default: ${ProviderFactory.getDefaultModel(selectedProvider)}`}
 							</div>
 						</div>
 					</div>
@@ -1163,11 +1203,13 @@ function OptionsPage() {
 										lineHeight: typography.lineHeight.normal,
 									}}
 								>
-									Choose your AI provider, enter your API key, and validate it to unlock model selection. Your API key is stored locally and never shared.
+									Choose your AI provider, enter your API key, and validate it
+									to unlock model selection. Your API key is stored locally and
+									never shared.
 								</p>
 							</div>
 						</div>
-						
+
 						<div
 							style={{
 								display: "flex",
@@ -1176,7 +1218,13 @@ function OptionsPage() {
 								color: colors.text.secondary,
 							}}
 						>
-							<div style={{ display: "flex", alignItems: "center", gap: spacing.xs }}>
+							<div
+								style={{
+									display: "flex",
+									alignItems: "center",
+									gap: spacing.xs,
+								}}
+							>
 								<div
 									style={{
 										width: "20px",
@@ -1195,14 +1243,24 @@ function OptionsPage() {
 								</div>
 								Select Provider
 							</div>
-							<div style={{ display: "flex", alignItems: "center", gap: spacing.xs }}>
+							<div
+								style={{
+									display: "flex",
+									alignItems: "center",
+									gap: spacing.xs,
+								}}
+							>
 								<div
 									style={{
 										width: "20px",
 										height: "20px",
 										borderRadius: "50%",
-										backgroundColor: apiKeys[selectedProvider] ? colors.text.accent : colors.border.default,
-										color: apiKeys[selectedProvider] ? colors.white : colors.text.secondary,
+										backgroundColor: apiKeys[selectedProvider]
+											? colors.text.accent
+											: colors.border.default,
+										color: apiKeys[selectedProvider]
+											? colors.white
+											: colors.text.secondary,
 										display: "flex",
 										alignItems: "center",
 										justifyContent: "center",
@@ -1214,14 +1272,26 @@ function OptionsPage() {
 								</div>
 								Enter API Key
 							</div>
-							<div style={{ display: "flex", alignItems: "center", gap: spacing.xs }}>
+							<div
+								style={{
+									display: "flex",
+									alignItems: "center",
+									gap: spacing.xs,
+								}}
+							>
 								<div
 									style={{
 										width: "20px",
 										height: "20px",
 										borderRadius: "50%",
-										backgroundColor: validationStatus[selectedProvider] === true ? colors.success : colors.border.default,
-										color: validationStatus[selectedProvider] === true ? colors.white : colors.text.secondary,
+										backgroundColor:
+											validationStatus[selectedProvider] === true
+												? colors.success
+												: colors.border.default,
+										color:
+											validationStatus[selectedProvider] === true
+												? colors.white
+												: colors.text.secondary,
 										display: "flex",
 										alignItems: "center",
 										justifyContent: "center",
@@ -1322,7 +1392,7 @@ function OptionsPage() {
 					</div>
 
 					{/* API Key Configuration for selected provider */}
-					{(
+					{
 						<div
 							style={{
 								padding: spacing.lg,
@@ -1353,9 +1423,9 @@ function OptionsPage() {
 										href={(() => {
 											const links = {
 												gemini: "https://makersuite.google.com/app/apikey",
-												openai: "https://platform.openai.com/api-keys", 
+												openai: "https://platform.openai.com/api-keys",
 												anthropic: "https://console.anthropic.com/keys",
-												openrouter: "https://openrouter.ai/keys"
+												openrouter: "https://openrouter.ai/keys",
 											};
 											return links[selectedProvider];
 										})()}
@@ -1384,7 +1454,9 @@ function OptionsPage() {
 											lineHeight: typography.lineHeight.normal,
 										}}
 									>
-										You'll need an API key from {getProviderDisplayName(selectedProvider)} to use this provider. Click "Get API Key" above to create one.
+										You'll need an API key from{" "}
+										{getProviderDisplayName(selectedProvider)} to use this
+										provider. Click "Get API Key" above to create one.
 									</p>
 								)}
 							</div>
@@ -1429,7 +1501,7 @@ function OptionsPage() {
 									Validate API Key
 								</button>
 							</div>
-							{typeof validationStatus[selectedProvider] === 'boolean' && (
+							{typeof validationStatus[selectedProvider] === "boolean" && (
 								<div
 									style={{
 										marginTop: spacing.sm,
@@ -1475,9 +1547,10 @@ function OptionsPage() {
 											fontWeight: typography.fontWeight.medium,
 										}}
 									>
-										Model Selection for {getProviderDisplayName(selectedProvider)}:
+										Model Selection for{" "}
+										{getProviderDisplayName(selectedProvider)}:
 									</label>
-									
+
 									{modelLoadingStatus[selectedProvider] ? (
 										<div
 											style={{
@@ -1514,9 +1587,18 @@ function OptionsPage() {
 													<input
 														type="text"
 														value={modelFilter[selectedProvider] || ""}
-														onChange={(e) => handleModelFilterChange(selectedProvider, e.target.value)}
-														onFocus={() => handleModelFilterFocus(selectedProvider)}
-														onBlur={() => handleModelFilterBlur(selectedProvider)}
+														onChange={(e) =>
+															handleModelFilterChange(
+																selectedProvider,
+																e.target.value,
+															)
+														}
+														onFocus={() =>
+															handleModelFilterFocus(selectedProvider)
+														}
+														onBlur={() =>
+															handleModelFilterBlur(selectedProvider)
+														}
 														placeholder={`Search models... (Current: ${getSelectedModelName(selectedProvider)})`}
 														style={{
 															...components.input.default,
@@ -1543,48 +1625,73 @@ function OptionsPage() {
 																marginTop: "2px",
 															}}
 														>
-															{getFilteredModels(selectedProvider).length > 0 ? (
-																getFilteredModels(selectedProvider).map((model) => (
-																	<div
-																		key={model.id}
-																		onClick={() => handleModelSelection(selectedProvider, model.id)}
-																		style={{
-																			padding: spacing.md,
-																			cursor: "pointer",
-																			borderBottom: `1px solid ${colors.border.light}`,
-																			fontSize: typography.fontSize.sm,
-																			color: colors.text.primary,
-																			backgroundColor: selectedModels[selectedProvider] === model.id 
-																				? colors.background.secondary 
-																				: "transparent",
-																		}}
-																		onMouseEnter={(e) => {
-																			if (selectedModels[selectedProvider] !== model.id) {
-																				e.currentTarget.style.backgroundColor = colors.background.secondary;
+															{getFilteredModels(selectedProvider).length >
+															0 ? (
+																getFilteredModels(selectedProvider).map(
+																	(model) => (
+																		<div
+																			key={model.id}
+																			onClick={() =>
+																				handleModelSelection(
+																					selectedProvider,
+																					model.id,
+																				)
 																			}
-																		}}
-																		onMouseLeave={(e) => {
-																			if (selectedModels[selectedProvider] !== model.id) {
-																				e.currentTarget.style.backgroundColor = "transparent";
-																			}
-																		}}
-																	>
-																		<div style={{ fontWeight: typography.fontWeight.medium }}>
-																			{model.name}
-																		</div>
-																		{model.description && (
+																			style={{
+																				padding: spacing.md,
+																				cursor: "pointer",
+																				borderBottom: `1px solid ${colors.border.light}`,
+																				fontSize: typography.fontSize.sm,
+																				color: colors.text.primary,
+																				backgroundColor:
+																					selectedModels[selectedProvider] ===
+																					model.id
+																						? colors.background.secondary
+																						: "transparent",
+																			}}
+																			onMouseEnter={(e) => {
+																				if (
+																					selectedModels[selectedProvider] !==
+																					model.id
+																				) {
+																					e.currentTarget.style.backgroundColor =
+																						colors.background.secondary;
+																				}
+																			}}
+																			onMouseLeave={(e) => {
+																				if (
+																					selectedModels[selectedProvider] !==
+																					model.id
+																				) {
+																					e.currentTarget.style.backgroundColor =
+																						"transparent";
+																				}
+																			}}
+																		>
 																			<div
 																				style={{
-																					fontSize: typography.fontSize.xs,
-																					color: colors.text.secondary,
-																					marginTop: spacing.xs,
+																					fontWeight:
+																						typography.fontWeight.medium,
 																				}}
 																			>
-																				{ModelService.truncateDescription(model.description)}
+																				{model.name}
 																			</div>
-																		)}
-																	</div>
-																))
+																			{model.description && (
+																				<div
+																					style={{
+																						fontSize: typography.fontSize.xs,
+																						color: colors.text.secondary,
+																						marginTop: spacing.xs,
+																					}}
+																				>
+																					{ModelService.truncateDescription(
+																						model.description,
+																					)}
+																				</div>
+																			)}
+																		</div>
+																	),
+																)
 															) : (
 																<div
 																	style={{
@@ -1621,12 +1728,16 @@ function OptionsPage() {
 															justifyContent: "center",
 														}}
 														onMouseEnter={(e) => {
-															e.currentTarget.style.backgroundColor = colors.background.tertiary;
-															e.currentTarget.style.borderColor = colors.border.default;
+															e.currentTarget.style.backgroundColor =
+																colors.background.tertiary;
+															e.currentTarget.style.borderColor =
+																colors.border.default;
 														}}
 														onMouseLeave={(e) => {
-															e.currentTarget.style.backgroundColor = colors.background.secondary;
-															e.currentTarget.style.borderColor = colors.border.light;
+															e.currentTarget.style.backgroundColor =
+																colors.background.secondary;
+															e.currentTarget.style.borderColor =
+																colors.border.light;
 														}}
 													>
 														<X size={16} style={{ marginRight: spacing.xs }} />
@@ -1644,24 +1755,27 @@ function OptionsPage() {
 												fontStyle: "italic",
 											}}
 										>
-											No models available. Using default model: {ProviderFactory.getDefaultModel(selectedProvider)}
+											No models available. Using default model:{" "}
+											{ProviderFactory.getDefaultModel(selectedProvider)}
 										</div>
 									)}
 
-									{selectedModels[selectedProvider] && selectedModels[selectedProvider] !== ProviderFactory.getDefaultModel(selectedProvider) && (
-										<div
-											style={{
-												marginTop: spacing.sm,
-												padding: spacing.sm,
-												backgroundColor: colors.background.primary,
-												borderRadius: borderRadius.md,
-												fontSize: typography.fontSize.xs,
-												color: colors.text.tertiary,
-											}}
-										>
-											Selected: {selectedModels[selectedProvider]}
-										</div>
-									)}
+									{selectedModels[selectedProvider] &&
+										selectedModels[selectedProvider] !==
+											ProviderFactory.getDefaultModel(selectedProvider) && (
+											<div
+												style={{
+													marginTop: spacing.sm,
+													padding: spacing.sm,
+													backgroundColor: colors.background.primary,
+													borderRadius: borderRadius.md,
+													fontSize: typography.fontSize.xs,
+													color: colors.text.tertiary,
+												}}
+											>
+												Selected: {selectedModels[selectedProvider]}
+											</div>
+										)}
 
 									{/* Model Save Status Feedback */}
 									{modelSaveStatus[selectedProvider] && (
@@ -1669,21 +1783,23 @@ function OptionsPage() {
 											style={{
 												marginTop: spacing.sm,
 												padding: spacing.sm,
-												backgroundColor: modelSaveStatus[selectedProvider]?.success 
-													? colors.background.secondary 
+												backgroundColor: modelSaveStatus[selectedProvider]
+													?.success
+													? colors.background.secondary
 													: colors.background.secondary,
 												borderRadius: borderRadius.md,
 												fontSize: typography.fontSize.xs,
 												fontWeight: typography.fontWeight.medium,
-												color: modelSaveStatus[selectedProvider]?.success 
-													? colors.success 
+												color: modelSaveStatus[selectedProvider]?.success
+													? colors.success
 													: colors.error,
 												display: "flex",
 												alignItems: "center",
 												gap: spacing.xs,
-												border: `1px solid ${modelSaveStatus[selectedProvider]?.success 
-													? `${colors.success}33`
-													: `${colors.error}33`
+												border: `1px solid ${
+													modelSaveStatus[selectedProvider]?.success
+														? `${colors.success}33`
+														: `${colors.error}33`
 												}`,
 											}}
 										>
@@ -1703,7 +1819,7 @@ function OptionsPage() {
 								</div>
 							)}
 						</div>
-					)}
+					}
 				</div>
 
 				{/* Debug Settings Section */}
@@ -1789,13 +1905,16 @@ function OptionsPage() {
 										lineHeight: typography.lineHeight.normal,
 									}}
 								>
-									Enable detailed logging of API requests and responses in the browser console. 
-									Useful for debugging API issues and understanding how the extension communicates with AI providers.
+									Enable detailed logging of API requests and responses in the
+									browser console. Useful for debugging API issues and
+									understanding how the extension communicates with AI
+									providers.
 									{debugLoggingEnabled && (
 										<>
 											<br />
 											<strong style={{ color: colors.text.accent }}>
-												Logging is enabled - check the browser console for API logs.
+												Logging is enabled - check the browser console for API
+												logs.
 											</strong>
 										</>
 									)}

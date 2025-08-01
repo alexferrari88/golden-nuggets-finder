@@ -2,6 +2,16 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { GeminiClient } from "../../src/background/gemini-client";
 import { GeminiDirectProvider } from "../../src/shared/providers/gemini-direct-provider";
 
+// Mock types
+interface MockGeminiClient {
+	analyzeContent: ReturnType<typeof vi.fn>;
+	validateApiKey: ReturnType<typeof vi.fn>;
+}
+
+interface GeminiDirectProviderWithClient {
+	geminiClient: MockGeminiClient;
+}
+
 // Mock GeminiClient
 vi.mock("../../src/background/gemini-client", () => ({
 	GeminiClient: vi.fn().mockImplementation(() => ({
@@ -12,7 +22,7 @@ vi.mock("../../src/background/gemini-client", () => ({
 
 describe("GeminiDirectProvider", () => {
 	let provider: GeminiDirectProvider;
-	let mockGeminiClient: any;
+	let mockGeminiClient: MockGeminiClient;
 
 	beforeEach(() => {
 		vi.clearAllMocks();
@@ -24,7 +34,7 @@ describe("GeminiDirectProvider", () => {
 		});
 
 		// Get the mocked GeminiClient instance
-		mockGeminiClient = (provider as any).geminiClient;
+		mockGeminiClient = (provider as GeminiDirectProviderWithClient).geminiClient;
 	});
 
 	describe("Provider Interface", () => {

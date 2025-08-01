@@ -40,14 +40,17 @@ export class LangChainOpenAIProvider implements LLMProvider {
 	): Promise<GoldenNuggetsResponse> {
 		try {
 			// Log the request
-			debugLogger.logLLMRequest(`https://api.openai.com/v1/chat/completions (${this.modelName})`, {
-				model: this.modelName,
-				messages: [
-					{ role: "system", content: prompt },
-					{ role: "user", content: content.substring(0, 500) + "..." }, // Truncate for logging
-				],
-				provider: "openai"
-			});
+			debugLogger.logLLMRequest(
+				`https://api.openai.com/v1/chat/completions (${this.modelName})`,
+				{
+					model: this.modelName,
+					messages: [
+						{ role: "system", content: prompt },
+						{ role: "user", content: content.substring(0, 500) + "..." }, // Truncate for logging
+					],
+					provider: "openai",
+				},
+			);
 
 			const structuredModel = this.model.withStructuredOutput(
 				GoldenNuggetsSchema,
@@ -64,25 +67,23 @@ export class LangChainOpenAIProvider implements LLMProvider {
 
 			// Log the response
 			debugLogger.logLLMResponse(
-				{ 
+				{
 					provider: "openai",
 					model: this.modelName,
-					success: true 
-				}, 
-				response
+					success: true,
+				},
+				response,
 			);
 
 			return response as GoldenNuggetsResponse;
 		} catch (error) {
 			// Log the error
-			debugLogger.logLLMResponse(
-				{ 
-					provider: "openai",
-					model: this.modelName,
-					success: false,
-					error: error.message 
-				}
-			);
+			debugLogger.logLLMResponse({
+				provider: "openai",
+				model: this.modelName,
+				success: false,
+				error: error.message,
+			});
 
 			console.error(`OpenAI provider error:`, error);
 			throw new Error(`OpenAI API call failed: ${error.message}`);

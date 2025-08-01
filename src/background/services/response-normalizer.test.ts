@@ -57,13 +57,14 @@ describe("Response Normalizer Functions", () => {
 				],
 			};
 
-			const result = normalize(
-				responseWithWhitespace,
-				"anthropic",
-			);
+			const result = normalize(responseWithWhitespace, "anthropic");
 
-			expect(result.golden_nuggets[0].startContent).toBe("Test content with spaces");
-			expect(result.golden_nuggets[0].endContent).toBe("Test content with spaces");
+			expect(result.golden_nuggets[0].startContent).toBe(
+				"Test content with spaces",
+			);
+			expect(result.golden_nuggets[0].endContent).toBe(
+				"Test content with spaces",
+			);
 			expect(result.golden_nuggets[0].synthesis).toBe(
 				"Test synthesis with newlines",
 			);
@@ -117,10 +118,7 @@ describe("Response Normalizer Functions", () => {
 				],
 			};
 
-			const result = normalize(
-				responseWithNonStrings,
-				"openrouter",
-			);
+			const result = normalize(responseWithNonStrings, "openrouter");
 
 			expect(result.golden_nuggets[0].startContent).toBe("123");
 			expect(result.golden_nuggets[0].endContent).toBe("123");
@@ -149,10 +147,7 @@ describe("Response Normalizer Functions", () => {
 				],
 			};
 
-			const result = normalize(
-				responseWithInvalidType,
-				"anthropic",
-			);
+			const result = normalize(responseWithInvalidType, "anthropic");
 
 			expect(result).toEqual({ golden_nuggets: [] });
 			expect(consoleSpy).toHaveBeenCalled();
@@ -183,10 +178,7 @@ describe("Response Normalizer Functions", () => {
 				],
 			};
 
-			const result = normalize(
-				responseWithMissingFields,
-				"openrouter",
-			);
+			const result = normalize(responseWithMissingFields, "openrouter");
 
 			// After preprocessing, missing fields become empty strings and get filtered out
 			expect(result).toEqual({ golden_nuggets: [] });
@@ -225,10 +217,7 @@ describe("Response Normalizer Functions", () => {
 				],
 			};
 
-			const result = normalize(
-				responseWithAllTypes,
-				"gemini",
-			);
+			const result = normalize(responseWithAllTypes, "gemini");
 
 			expect(result.golden_nuggets).toHaveLength(5);
 			expect(result.golden_nuggets.map((n) => n.type)).toEqual([
@@ -290,9 +279,7 @@ describe("Response Normalizer Functions", () => {
 				],
 			};
 
-			expect(validate(responseWithMissingFields)).toBe(
-				false,
-			);
+			expect(validate(responseWithMissingFields)).toBe(false);
 		});
 
 		it("should return false for null or undefined", () => {

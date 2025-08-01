@@ -1,5 +1,6 @@
 import { storage } from "../shared/storage";
 import { MESSAGE_TYPES } from "../shared/types";
+import type { LLMProvider, GoldenNuggetsResponse } from "../shared/types/providers";
 import { MessageHandler } from "./message-handler";
 
 // Mock dependencies
@@ -17,8 +18,39 @@ import { ProviderFactory } from "./services/provider-factory";
 import { ProviderSwitcher } from "./services/provider-switcher";
 import * as ResponseNormalizer from "./services/response-normalizer";
 
-// Mock Chrome APIs
-global.chrome = {
+// Type definitions for mocks
+interface MockChromeStorage {
+	get: ReturnType<typeof vi.fn>;
+	set: ReturnType<typeof vi.fn>;
+}
+
+interface MockChromeRuntime {
+	sendMessage: ReturnType<typeof vi.fn>;
+}
+
+interface MockChromeTabs {
+	sendMessage: ReturnType<typeof vi.fn>;
+}
+
+interface MockChrome {
+	runtime: MockChromeRuntime;
+	tabs: MockChromeTabs;
+	storage: {
+		local: MockChromeStorage;
+	};
+}
+
+interface MockGeminiClient {
+	analyzeContent: ReturnType<typeof vi.fn>;
+}
+
+interface MockProvider extends LLMProvider {
+	extractGoldenNuggets: ReturnType<typeof vi.fn>;
+	validateApiKey: ReturnType<typeof vi.fn>;
+}
+
+// Mock Chrome APIs with proper typing
+const mockChrome: MockChrome = {
 	runtime: {
 		sendMessage: vi.fn().mockResolvedValue({}),
 	},
@@ -31,18 +63,19 @@ global.chrome = {
 			set: vi.fn().mockResolvedValue({}),
 		},
 	},
-} as Partial<typeof chrome>;
+};
 
-// Mock global fetch
-global.fetch = vi.fn();
+global.chrome = mockChrome as unknown as typeof chrome;
+
+// Mock global fetch with proper typing
+const mockFetch = vi.fn() as ReturnType<typeof vi.fn> & typeof fetch;
+global.fetch = mockFetch;
 
 describe("MessageHandler", () => {
 	let messageHandler: MessageHandler;
-	let mockGeminiClient: {
-		analyzeContent: ReturnType<typeof vi.fn>;
-	};
+	let mockGeminiClient: MockGeminiClient;
 	let mockSendResponse: ReturnType<typeof vi.fn>;
-	let mockProvider: any;
+	let mockProvider: MockProvider;
 
 	beforeEach(() => {
 		mockGeminiClient = {
@@ -52,12 +85,12 @@ describe("MessageHandler", () => {
 		messageHandler = new MessageHandler(mockGeminiClient);
 
 		// Mock fetch to reject (simulating no optimized prompt available)
-		(global.fetch as any).mockRejectedValue(
+		mockFetch.mockRejectedValue(
 			new Error("No optimized prompt available"),
 		);
 
 		// Mock Chrome storage for provider selection
-		(global.chrome.storage.local.get as any).mockImplementation((keys) => {
+		mockChrome.storage.local.get.mockImplementation((keys: string | string[] | Record<string, unknown> | null) => {
 			if (Array.isArray(keys) && keys.includes("selectedProvider")) {
 				return Promise.resolve({ selectedProvider: "gemini" });
 			}
@@ -74,46 +107,52 @@ describe("MessageHandler", () => {
 		});
 
 		// Mock provider system
-		(ProviderSwitcher.isProviderConfigured as any).mockResolvedValue(true);
-		(ProviderFactory.getDefaultModel as any).mockReturnValue(
+		(ProviderSwitcher.isProviderConfigured as ReturnType<typeof vi.fn>).mockResolvedValue(true);
+		(ProviderFactory.getDefaultModel as ReturnType<typeof vi.fn>).mockReturnValue(
 			"gemini-2.5-flash",
 		);
 
 		// Mock provider instance
+		const mockResponse: GoldenNuggetsResponse = { golden_nuggets: [] };
 		mockProvider = {
-			extractGoldenNuggets: vi.fn().mockResolvedValue({ golden_nuggets: [] }),
+			providerId: "gemini",
+			modelName: "gemini-2.5-flash",
+			extractGoldenNuggets: vi.fn().mockResolvedValue(mockResponse),
 			validateApiKey: vi.fn().mockResolvedValue(true),
 		};
-		(ProviderFactory.createProvider as any).mockResolvedValue(mockProvider);
+		(ProviderFactory.createProvider as ReturnType<typeof vi.fn>).mockResolvedValue(mockProvider);
 
 		// Mock response normalizer
-		vi.spyOn(ResponseNormalizer, 'normalize').mockImplementation(
-			(response) => response as any,
+		vi.spyOn(ResponseNormalizer, "normalize").mockImplementation(
+			(response: GoldenNuggetsResponse) => response,
 		);
 
 		// Mock error handler
-		(ErrorHandler.resetRetryCount as any).mockImplementation(() => {});
+		(ErrorHandler.resetRetryCount as ReturnType<typeof vi.fn>).mockImplementation(() => {});
 
 		// Clear all mocks
 		vi.clearAllMocks();
 
 		// Re-initialize mockProvider after clearAllMocks
+		const mockResponseAfterClear: GoldenNuggetsResponse = { golden_nuggets: [] };
 		mockProvider = {
-			extractGoldenNuggets: vi.fn().mockResolvedValue({ golden_nuggets: [] }),
+			providerId: "gemini",
+			modelName: "gemini-2.5-flash",
+			extractGoldenNuggets: vi.fn().mockResolvedValue(mockResponseAfterClear),
 			validateApiKey: vi.fn().mockResolvedValue(true),
 		};
 
 		// Ensure mocks are reset but keep the implementation
-		(global.fetch as any).mockRejectedValue(
+		mockFetch.mockRejectedValue(
 			new Error("No optimized prompt available"),
 		);
-		(ProviderSwitcher.isProviderConfigured as any).mockResolvedValue(true);
-		(ProviderFactory.getDefaultModel as any).mockReturnValue(
+		(ProviderSwitcher.isProviderConfigured as ReturnType<typeof vi.fn>).mockResolvedValue(true);
+		(ProviderFactory.getDefaultModel as ReturnType<typeof vi.fn>).mockReturnValue(
 			"gemini-2.5-flash",
 		);
-		(ProviderFactory.createProvider as any).mockResolvedValue(mockProvider);
-		vi.spyOn(ResponseNormalizer, 'normalize').mockImplementation(
-			(response) => response as any,
+		(ProviderFactory.createProvider as ReturnType<typeof vi.fn>).mockResolvedValue(mockProvider);
+		vi.spyOn(ResponseNormalizer, "normalize").mockImplementation(
+			(response: GoldenNuggetsResponse) => response,
 		);
 
 		// Mock storage.getPrompts with default prompts
@@ -127,7 +166,9 @@ describe("MessageHandler", () => {
 		]);
 
 		// Mock storage.getApiKey
-		(storage.getApiKey as ReturnType<typeof vi.fn>).mockResolvedValue("test-api-key");
+		(storage.getApiKey as ReturnType<typeof vi.fn>).mockResolvedValue(
+			"test-api-key",
+		);
 	});
 
 	describe("Source placeholder replacement", () => {

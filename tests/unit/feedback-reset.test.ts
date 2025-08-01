@@ -47,7 +47,7 @@ describe("Feedback Reset Functionality", () => {
 			const sendResponse = vi.fn();
 
 			// Mock successful backend response
-			(global.fetch as any).mockResolvedValueOnce({
+			(global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
 				ok: true,
 				json: () => Promise.resolve({ success: true }),
 			});
@@ -78,7 +78,7 @@ describe("Feedback Reset Functionality", () => {
 			const sendResponse = vi.fn();
 
 			// Mock backend failure
-			(global.fetch as any).mockRejectedValueOnce(
+			(global.fetch as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
 				new Error("Backend unavailable"),
 			);
 
@@ -124,7 +124,7 @@ describe("Feedback Reset Functionality", () => {
 			const sendResponse = vi.fn();
 
 			// Mock backend returning 404
-			(global.fetch as any).mockRejectedValueOnce(
+			(global.fetch as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
 				new Error("404 Not Found - Feedback item not found"),
 			);
 
@@ -155,7 +155,7 @@ describe("Feedback Reset Functionality", () => {
 			const sendResponse = vi.fn();
 
 			// Mock successful backend response
-			(global.fetch as any).mockResolvedValueOnce({
+			(global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
 				ok: true,
 				json: () =>
 					Promise.resolve({ success: true, message: "Deleted successfully" }),
@@ -190,7 +190,7 @@ describe("Feedback Reset Functionality", () => {
 			// Mock timeout error
 			const abortError = new Error("The operation was aborted");
 			abortError.name = "AbortError";
-			(global.fetch as any).mockRejectedValueOnce(abortError);
+			(global.fetch as ReturnType<typeof vi.fn>).mockRejectedValueOnce(abortError);
 
 			// Mock local storage
 			mockChrome.storage.local.get.mockResolvedValueOnce({
@@ -229,7 +229,7 @@ describe("Feedback Reset Functionality", () => {
 			});
 
 			// Mock successful backend response
-			(global.fetch as any).mockResolvedValueOnce({
+			(global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
 				ok: true,
 				json: () => Promise.resolve({ success: true }),
 			});
@@ -255,7 +255,7 @@ describe("Feedback Reset Functionality", () => {
 			mockChrome.storage.local.get.mockResolvedValueOnce({});
 
 			// Mock backend failure (should still work with local-only removal)
-			(global.fetch as any).mockRejectedValueOnce(
+			(global.fetch as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
 				new Error("Backend unavailable"),
 			);
 
@@ -279,7 +279,7 @@ describe("Feedback Reset Functionality", () => {
 			const sendResponse = vi.fn();
 
 			// Mock network error
-			(global.fetch as any).mockRejectedValueOnce(new Error("Failed to fetch"));
+			(global.fetch as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error("Failed to fetch"));
 
 			// Mock local storage
 			mockChrome.storage.local.get.mockResolvedValueOnce({
@@ -306,7 +306,7 @@ describe("Feedback Reset Functionality", () => {
 			const sendResponse = vi.fn();
 
 			// Mock 500 server error
-			(global.fetch as any).mockRejectedValueOnce(
+			(global.fetch as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
 				new Error("500 Internal Server Error"),
 			);
 
@@ -341,7 +341,7 @@ describe("Feedback Reset Functionality", () => {
 			global.chrome.tabs = { sendMessage: mockTabsSendMessage };
 
 			// Mock backend failure
-			(global.fetch as any).mockRejectedValueOnce(new Error("Network error"));
+			(global.fetch as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error("Network error"));
 
 			// Mock local storage
 			mockChrome.storage.local.get.mockResolvedValueOnce({

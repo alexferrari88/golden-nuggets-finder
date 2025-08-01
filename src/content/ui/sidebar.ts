@@ -147,9 +147,9 @@ export class Sidebar {
 	): void {
 		console.log("[Sidebar] show called with:", {
 			nuggetItemsLength: nuggetItems.length,
-			firstNuggetItem: nuggetItems[0] || 'none',
+			firstNuggetItem: nuggetItems[0] || "none",
 			pageContentLength: pageContent?.length || 0,
-			hasHighlighter: !!highlighter
+			hasHighlighter: !!highlighter,
 		});
 
 		this.hide(); // Remove existing sidebar if any
@@ -166,7 +166,7 @@ export class Sidebar {
 
 		console.log("[Sidebar] Initialized allItems:", {
 			allItemsLength: this.allItems.length,
-			firstAllItem: this.allItems[0] || 'none'
+			firstAllItem: this.allItems[0] || "none",
 		});
 
 		this.selectedItems.clear();
@@ -510,7 +510,10 @@ export class Sidebar {
 	}
 
 	private createNuggetList(): HTMLElement {
-		console.log("[Sidebar] createNuggetList called with allItems.length:", this.allItems.length);
+		console.log(
+			"[Sidebar] createNuggetList called with allItems.length:",
+			this.allItems.length,
+		);
 
 		const nuggetList = document.createElement("div");
 		nuggetList.id = "nugget-list-container";
@@ -521,7 +524,9 @@ export class Sidebar {
     `;
 
 		if (this.allItems.length === 0) {
-			console.log("[Sidebar] Showing empty state because allItems.length === 0");
+			console.log(
+				"[Sidebar] Showing empty state because allItems.length === 0",
+			);
 			const emptyState = this.createEmptyState();
 			nuggetList.appendChild(emptyState);
 		} else {

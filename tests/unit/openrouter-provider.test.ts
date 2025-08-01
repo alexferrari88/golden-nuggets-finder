@@ -114,7 +114,7 @@ describe("LangChainOpenRouterProvider", () => {
 		const { ChatOpenAI } = await import("@langchain/openai");
 
 		// Mock a failure for function calling
-		(ChatOpenAI as any).mockImplementationOnce(() => ({
+		(ChatOpenAI as ReturnType<typeof vi.fn>).mockImplementationOnce(() => ({
 			withStructuredOutput: vi.fn().mockReturnValue({
 				invoke: vi.fn().mockRejectedValue(new Error("API Error")),
 			}),
@@ -182,7 +182,7 @@ describe("LangChainOpenRouterProvider", () => {
 	it("should handle empty response gracefully", async () => {
 		const { ChatOpenAI } = await import("@langchain/openai");
 
-		(ChatOpenAI as any).mockImplementationOnce(() => ({
+		(ChatOpenAI as ReturnType<typeof vi.fn>).mockImplementationOnce(() => ({
 			withStructuredOutput: vi.fn().mockReturnValue({
 				invoke: vi.fn().mockResolvedValue({
 					golden_nuggets: [],
@@ -231,7 +231,7 @@ describe("LangChainOpenRouterProvider", () => {
 	it("should handle network timeouts", async () => {
 		const { ChatOpenAI } = await import("@langchain/openai");
 
-		(ChatOpenAI as any).mockImplementationOnce(() => ({
+		(ChatOpenAI as ReturnType<typeof vi.fn>).mockImplementationOnce(() => ({
 			withStructuredOutput: vi.fn().mockReturnValue({
 				invoke: vi.fn().mockRejectedValue(new Error("Network timeout")),
 			}),
@@ -265,7 +265,7 @@ describe("LangChainOpenRouterProvider", () => {
 			};
 		});
 
-		(ChatOpenAI as any).mockImplementationOnce(() => ({
+		(ChatOpenAI as ReturnType<typeof vi.fn>).mockImplementationOnce(() => ({
 			withStructuredOutput: vi.fn().mockReturnValue({
 				invoke: mockInvoke,
 			}),
@@ -274,7 +274,7 @@ describe("LangChainOpenRouterProvider", () => {
 		const provider = new LangChainOpenRouterProvider(mockConfig);
 
 		// Mock sleep to avoid actual delays in tests
-		vi.spyOn(provider as any, 'sleep').mockResolvedValue(undefined);
+		vi.spyOn(provider as any, "sleep").mockResolvedValue(undefined);
 
 		const result = await provider.extractGoldenNuggets("test", "test");
 
@@ -294,9 +294,11 @@ describe("LangChainOpenRouterProvider", () => {
 	it("should exhaust retries and throw specific error after 3 attempts", async () => {
 		const { ChatOpenAI } = await import("@langchain/openai");
 
-		const mockInvoke = vi.fn().mockRejectedValue(new Error("429 Rate limit exceeded"));
+		const mockInvoke = vi
+			.fn()
+			.mockRejectedValue(new Error("429 Rate limit exceeded"));
 
-		(ChatOpenAI as any).mockImplementationOnce(() => ({
+		(ChatOpenAI as ReturnType<typeof vi.fn>).mockImplementationOnce(() => ({
 			withStructuredOutput: vi.fn().mockReturnValue({
 				invoke: mockInvoke,
 			}),
@@ -305,10 +307,10 @@ describe("LangChainOpenRouterProvider", () => {
 		const provider = new LangChainOpenRouterProvider(mockConfig);
 
 		// Mock sleep to avoid actual delays in tests
-		vi.spyOn(provider as any, 'sleep').mockResolvedValue(undefined);
+		vi.spyOn(provider as any, "sleep").mockResolvedValue(undefined);
 
 		await expect(provider.extractGoldenNuggets("test", "test")).rejects.toThrow(
-			"RATE_LIMIT_RETRY_EXHAUSTED: Rate limit exceeded after 4 attempts. The OpenRouter API is temporarily limiting requests. You can try again."
+			"RATE_LIMIT_RETRY_EXHAUSTED: Rate limit exceeded after 4 attempts. The OpenRouter API is temporarily limiting requests. You can try again.",
 		);
 
 		// Should attempt 4 times (initial + 3 retries)
@@ -320,7 +322,7 @@ describe("LangChainOpenRouterProvider", () => {
 
 		const mockInvoke = vi.fn().mockRejectedValue(new Error("Invalid API key"));
 
-		(ChatOpenAI as any).mockImplementationOnce(() => ({
+		(ChatOpenAI as ReturnType<typeof vi.fn>).mockImplementationOnce(() => ({
 			withStructuredOutput: vi.fn().mockReturnValue({
 				invoke: mockInvoke,
 			}),
@@ -329,7 +331,7 @@ describe("LangChainOpenRouterProvider", () => {
 		const provider = new LangChainOpenRouterProvider(mockConfig);
 
 		await expect(provider.extractGoldenNuggets("test", "test")).rejects.toThrow(
-			"Invalid API key"
+			"Invalid API key",
 		);
 
 		// Should only attempt once (no retries)
@@ -349,7 +351,6 @@ describe("LangChainOpenRouterProvider", () => {
 		expect(isValid).toBe(false);
 		spy.mockRestore();
 	});
-
 
 	it("should normalize response format consistently", async () => {
 		const provider = new LangChainOpenRouterProvider(mockConfig);
@@ -412,12 +413,12 @@ describe("LangChainOpenRouterProvider", () => {
 		const errorResponse = {
 			error: {
 				message: "Internal Server Error",
-				code: 500
+				code: 500,
 			},
-			user_id: "user_2yCxNwyhwzv2qzz9IiogKaKcG13"
+			user_id: "user_2yCxNwyhwzv2qzz9IiogKaKcG13",
 		};
 
-		(ChatOpenAI as any).mockImplementationOnce(() => ({
+		(ChatOpenAI as ReturnType<typeof vi.fn>).mockImplementationOnce(() => ({
 			withStructuredOutput: vi.fn().mockReturnValue({
 				invoke: vi.fn().mockResolvedValue(errorResponse),
 			}),
@@ -426,7 +427,7 @@ describe("LangChainOpenRouterProvider", () => {
 		const provider = new LangChainOpenRouterProvider(mockConfig);
 
 		await expect(provider.extractGoldenNuggets("test", "test")).rejects.toThrow(
-			"OpenRouter API error (500): Internal Server Error"
+			"OpenRouter API error (500): Internal Server Error",
 		);
 	});
 
@@ -436,12 +437,12 @@ describe("LangChainOpenRouterProvider", () => {
 		// Mock OpenRouter returning 200 but with error object (no code field)
 		const errorResponse = {
 			error: {
-				message: "Service temporarily unavailable"
+				message: "Service temporarily unavailable",
 			},
-			user_id: "user_2yCxNwyhwzv2qzz9IiogKaKcG13"
+			user_id: "user_2yCxNwyhwzv2qzz9IiogKaKcG13",
 		};
 
-		(ChatOpenAI as any).mockImplementationOnce(() => ({
+		(ChatOpenAI as ReturnType<typeof vi.fn>).mockImplementationOnce(() => ({
 			withStructuredOutput: vi.fn().mockReturnValue({
 				invoke: vi.fn().mockResolvedValue(errorResponse),
 			}),
@@ -450,8 +451,7 @@ describe("LangChainOpenRouterProvider", () => {
 		const provider = new LangChainOpenRouterProvider(mockConfig);
 
 		await expect(provider.extractGoldenNuggets("test", "test")).rejects.toThrow(
-			"OpenRouter API error (unknown): Service temporarily unavailable"
+			"OpenRouter API error (unknown): Service temporarily unavailable",
 		);
 	});
-
 });
