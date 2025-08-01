@@ -160,14 +160,14 @@ describe("ModelService", () => {
 
 			expect(result.models).toHaveLength(2);
 			expect(result.models[0]).toEqual({
-				id: "claude-sonnet-4-20250514",
-				name: "Claude Sonnet 4",
-				description: "Anthropic Claude Sonnet 4",
-			});
-			expect(result.models[1]).toEqual({
 				id: "claude-3-5-sonnet-20241022",
 				name: "Claude 3.5 Sonnet",
 				description: "Anthropic Claude 3.5 Sonnet",
+			});
+			expect(result.models[1]).toEqual({
+				id: "claude-sonnet-4-20250514",
+				name: "Claude Sonnet 4",
+				description: "Anthropic Claude Sonnet 4",
 			});
 			expect(result.error).toBeUndefined();
 
