@@ -243,20 +243,96 @@ describe("LangChainOpenRouterProvider", () => {
 		);
 	});
 
-	it("should handle rate limiting errors with user-friendly message", async () => {
+	it("should retry on rate limiting errors and succeed on second attempt", async () => {
 		const { ChatOpenAI } = await import("@langchain/openai");
+
+		let callCount = 0;
+		const mockInvoke = vi.fn().mockImplementation(() => {
+			callCount++;
+			if (callCount === 1) {
+				throw new Error("Rate limit exceeded");
+			}
+			return {
+				golden_nuggets: [
+					{
+						type: "tool",
+						startContent: "Test start",
+						endContent: "Test end",
+						synthesis: "Test synthesis",
+					},
+				],
+			};
+		});
 
 		(ChatOpenAI as any).mockImplementationOnce(() => ({
 			withStructuredOutput: vi.fn().mockReturnValue({
-				invoke: vi.fn().mockRejectedValue(new Error("Rate limit exceeded")),
+				invoke: mockInvoke,
+			}),
+		}));
+
+		const provider = new LangChainOpenRouterProvider(mockConfig);
+
+		// Mock sleep to avoid actual delays in tests
+		vi.spyOn(provider as any, 'sleep').mockResolvedValue(undefined);
+
+		const result = await provider.extractGoldenNuggets("test", "test");
+
+		expect(mockInvoke).toHaveBeenCalledTimes(2);
+		expect(result).toEqual({
+			golden_nuggets: [
+				{
+					type: "tool",
+					startContent: "Test start",
+					endContent: "Test end",
+					synthesis: "Test synthesis",
+				},
+			],
+		});
+	});
+
+	it("should exhaust retries and throw specific error after 3 attempts", async () => {
+		const { ChatOpenAI } = await import("@langchain/openai");
+
+		const mockInvoke = vi.fn().mockRejectedValue(new Error("429 Rate limit exceeded"));
+
+		(ChatOpenAI as any).mockImplementationOnce(() => ({
+			withStructuredOutput: vi.fn().mockReturnValue({
+				invoke: mockInvoke,
+			}),
+		}));
+
+		const provider = new LangChainOpenRouterProvider(mockConfig);
+
+		// Mock sleep to avoid actual delays in tests
+		vi.spyOn(provider as any, 'sleep').mockResolvedValue(undefined);
+
+		await expect(provider.extractGoldenNuggets("test", "test")).rejects.toThrow(
+			"RATE_LIMIT_RETRY_EXHAUSTED: Rate limit exceeded after 4 attempts. The OpenRouter API is temporarily limiting requests. You can try again."
+		);
+
+		// Should attempt 4 times (initial + 3 retries)
+		expect(mockInvoke).toHaveBeenCalledTimes(4);
+	});
+
+	it("should not retry on non-rate-limit errors", async () => {
+		const { ChatOpenAI } = await import("@langchain/openai");
+
+		const mockInvoke = vi.fn().mockRejectedValue(new Error("Invalid API key"));
+
+		(ChatOpenAI as any).mockImplementationOnce(() => ({
+			withStructuredOutput: vi.fn().mockReturnValue({
+				invoke: mockInvoke,
 			}),
 		}));
 
 		const provider = new LangChainOpenRouterProvider(mockConfig);
 
 		await expect(provider.extractGoldenNuggets("test", "test")).rejects.toThrow(
-			"Rate limit exceeded. Please wait a moment and try again. The OpenRouter API is temporarily limiting requests."
+			"Invalid API key"
 		);
+
+		// Should only attempt once (no retries)
+		expect(mockInvoke).toHaveBeenCalledTimes(1);
 	});
 
 	it("should handle provider errors with proper error messages", async () => {
