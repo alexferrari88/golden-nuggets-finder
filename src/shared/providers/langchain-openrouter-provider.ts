@@ -8,12 +8,13 @@ import type {
 	ProviderConfig,
 } from "../types/providers";
 
-// More flexible schema for OpenRouter that accepts common variations
+// Schema that matches the main extension's GoldenNugget interface
 const FlexibleGoldenNuggetsSchema = z.object({
 	golden_nuggets: z.array(
 		z.object({
 			type: z.string(), // Accept any string, normalize later
-			content: z.string(),
+			startContent: z.string(),
+			endContent: z.string(),
 			synthesis: z.string(),
 		}),
 	),
@@ -77,188 +78,19 @@ export class LangChainOpenRouterProvider implements LLMProvider {
 				provider: "openrouter"
 			});
 
-			let response: any;
-			let lastError: string | null = null;
-			
-			// Try functionCalling first (most reliable when supported)
-			try {
-				const structuredModel = this.model.withStructuredOutput(
-					FlexibleGoldenNuggetsSchema,
-					{
-						name: "extract_golden_nuggets",
-						method: "functionCalling",
-						includeRaw: isDevMode() || debugLogger.isEnabled(), // Enable raw response access for debugging only in development or when debug logging is enabled
-					},
-				);
+			const structuredModel = this.model.withStructuredOutput(
+				FlexibleGoldenNuggetsSchema,
+				{
+					name: "extract_golden_nuggets",
+					method: "functionCalling",
+					includeRaw: isDevMode() || debugLogger.isEnabled(),
+				},
+			);
 
-				response = await structuredModel.invoke([
-					new SystemMessage(prompt),
-					new HumanMessage(content),
-				]);
-				
-				console.log("Function calling succeeded for OpenRouter");
-			} catch (functionCallingError) {
-				const errorMessage = this.getErrorMessage(functionCallingError);
-				lastError = errorMessage;
-				
-				// Check if this looks like a rate limiting error
-				if (errorMessage.toLowerCase().includes('429') || 
-					errorMessage.toLowerCase().includes('rate limit') ||
-					errorMessage.toLowerCase().includes('too many requests')) {
-					// Re-throw with clear rate limiting indicator
-					throw new Error(`429 Provider returned error: ${errorMessage}`);
-				}
-				
-				// Check for structural errors that indicate provider corruption
-				if (errorMessage.includes('Cannot read properties of undefined') ||
-					errorMessage.includes('is not a function') ||
-					errorMessage.includes('Cannot read property') ||
-					errorMessage.includes('undefined is not an object')) {
-					
-					console.warn("Structural error detected in LangChain, recreating model instance:", errorMessage);
-					
-					// Recreate the model instance to clear any corrupted state
-					this.model = new ChatOpenAI({
-						apiKey: this.config.apiKey,
-						model: this.modelName,
-						temperature: 0,
-						configuration: {
-							baseURL: "https://openrouter.ai/api/v1",
-							defaultHeaders: {
-								"HTTP-Referer": "https://golden-nuggets-finder.com",
-								"X-Title": "Golden Nuggets Finder",
-							},
-						},
-					});
-				}
-				
-				console.warn("Function calling failed, falling back to JSON mode:", errorMessage);
-				
-				// First fallback: Try jsonMode with fresh model
-				try {
-					const jsonModeModel = this.model.withStructuredOutput(
-						FlexibleGoldenNuggetsSchema,
-						{
-							name: "extract_golden_nuggets",
-							method: "jsonMode",
-							includeRaw: isDevMode() || debugLogger.isEnabled(), // Enable raw response access for debugging only in development or when debug logging is enabled
-						},
-					);
-
-					// Enhanced prompt for JSON mode with explicit JSON instructions
-					const enhancedPrompt = `${prompt}
-
-CRITICAL: You MUST respond with valid JSON only. Use this exact format:
-{
-  "golden_nuggets": [
-    {
-      "type": "tool|media|explanation|analogy|model",
-      "content": "Original text verbatim",
-      "synthesis": "Why this is relevant"
-    }
-  ]
-}
-
-Ensure your response is valid JSON with no additional text.`;
-
-					response = await jsonModeModel.invoke([
-						new SystemMessage(enhancedPrompt),
-						new HumanMessage(content),
-					]);
-					
-					console.log("JSON mode succeeded for OpenRouter");
-				} catch (jsonModeError) {
-					const errorMessage = this.getErrorMessage(jsonModeError);
-					lastError = errorMessage;
-					
-					// Check if this looks like a rate limiting error
-					if (errorMessage.toLowerCase().includes('429') || 
-						errorMessage.toLowerCase().includes('rate limit') ||
-						errorMessage.toLowerCase().includes('too many requests')) {
-						// Re-throw with clear rate limiting indicator
-						throw new Error(`429 Provider returned error: ${errorMessage}`);
-					}
-					
-					// Check for structural errors that indicate provider corruption
-					if (errorMessage.includes('Cannot read properties of undefined') ||
-						errorMessage.includes('is not a function') ||
-						errorMessage.includes('Cannot read property') ||
-						errorMessage.includes('undefined is not an object')) {
-						
-						console.warn("Structural error detected in JSON mode, recreating model instance:", errorMessage);
-						
-						// Recreate the model instance to clear any corrupted state
-						this.model = new ChatOpenAI({
-							apiKey: this.config.apiKey,
-							model: this.modelName,
-							temperature: 0,
-							configuration: {
-								baseURL: "https://openrouter.ai/api/v1",
-								defaultHeaders: {
-									"HTTP-Referer": "https://golden-nuggets-finder.com",
-									"X-Title": "Golden Nuggets Finder",
-								},
-							},
-						});
-					}
-					
-					console.warn("JSON mode failed, falling back to prompt engineering:", errorMessage);
-					
-					// Last resort: Use regular model with strict JSON prompt instructions
-					const jsonPrompt = `${prompt}
-
-CRITICAL INSTRUCTION: You MUST respond with valid JSON only. No explanations, no additional text.
-
-Required JSON format:
-{
-  "golden_nuggets": [
-    {
-      "type": "tool|media|explanation|analogy|model", 
-      "content": "Original text verbatim",
-      "synthesis": "Why this is relevant"
-    }
-  ]
-}
-
-Content to analyze: ${content}
-
-JSON Response:`;
-
-					try {
-						const rawResponse = await this.model.invoke([
-							new SystemMessage("You are a JSON-only response assistant. Return valid JSON without any additional formatting or text."),
-							new HumanMessage(jsonPrompt),
-						]);
-
-						// Parse the raw response as JSON
-						const responseText = rawResponse.content.toString().trim();
-						
-						// Clean up common JSON formatting issues
-						let cleanedJson = responseText;
-						if (cleanedJson.startsWith("```json")) {
-							cleanedJson = cleanedJson.replace(/```json/g, "").replace(/```/g, "").trim();
-						}
-						if (cleanedJson.startsWith("```")) {
-							cleanedJson = cleanedJson.replace(/```/g, "").trim();
-						}
-
-						response = JSON.parse(cleanedJson);
-						console.log("Prompt engineering fallback succeeded for OpenRouter");
-					} catch (parseError) {
-						console.error("Failed to parse JSON response from raw model");
-						
-						// If all methods failed with structural errors, provide better error message
-						if (lastError && (lastError.includes('Cannot read properties of undefined') ||
-							lastError.includes('is not a function') ||
-							lastError.includes('Cannot read property') ||
-							lastError.includes('undefined is not an object'))) {
-							throw new Error(`OpenRouter provider encountered internal errors. This may be due to API instability or rate limiting. Please try again. Last error: ${lastError}`);
-						}
-						
-						throw new Error(`Failed to parse structured response: ${parseError.message}`);
-					}
-				}
-			}
+			const response = await structuredModel.invoke([
+				new SystemMessage(prompt),
+				new HumanMessage(content),
+			]);
 
 			// Normalize type values that OpenRouter models might return
 			if (response?.golden_nuggets) {
@@ -281,6 +113,24 @@ JSON Response:`;
 			return response as GoldenNuggetsResponse;
 		} catch (error) {
 			const errorMessage = this.getErrorMessage(error);
+			
+			// Handle rate limiting errors with user-friendly message
+			if (errorMessage.toLowerCase().includes('429') || 
+				errorMessage.toLowerCase().includes('rate limit') ||
+				errorMessage.toLowerCase().includes('too many requests')) {
+				
+				// Log the error
+				debugLogger.logLLMResponse(
+					{ 
+						provider: "openrouter",
+						model: this.modelName,
+						success: false,
+						error: errorMessage 
+					}
+				);
+
+				throw new Error(`Rate limit exceeded. Please wait a moment and try again. The OpenRouter API is temporarily limiting requests.`);
+			}
 			
 			// Log the error
 			debugLogger.logLLMResponse(
