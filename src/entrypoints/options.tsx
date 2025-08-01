@@ -1193,7 +1193,7 @@ function OptionsPage() {
 											{availableModels[selectedProvider].map((model) => (
 												<option key={model.id} value={model.id}>
 													{model.name}
-													{model.description && ` - ${model.description}`}
+													{model.description && ` - ${ModelService.truncateDescription(model.description)}`}
 												</option>
 											))}
 										</select>
