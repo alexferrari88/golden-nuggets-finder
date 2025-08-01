@@ -1,6 +1,6 @@
 /**
  * Provider Validation Utilities
- * 
+ *
  * Shared utilities for validating AI provider configuration.
  * Extracted from popup.tsx and background.ts to eliminate code duplication
  * and provide consistent provider validation across the extension.
@@ -47,7 +47,7 @@ export class ProviderValidationUtils {
 	/**
 	 * Validates the current provider configuration
 	 * Consolidates provider checking logic from popup.tsx and background.ts
-	 * 
+	 *
 	 * @returns Promise<ProviderValidationResult> Complete provider validation info
 	 */
 	static async validateCurrentProvider(): Promise<ProviderValidationResult> {
@@ -65,9 +65,12 @@ export class ProviderValidationUtils {
 				model,
 			};
 		} catch (error) {
-			const errorMessage = error instanceof Error ? error.message : "Unknown provider validation error";
+			const errorMessage =
+				error instanceof Error
+					? error.message
+					: "Unknown provider validation error";
 			console.error("[ProviderValidation] Failed to validate provider:", error);
-			
+
 			return {
 				isConfigured: false,
 				provider: "gemini", // fallback to default
@@ -80,13 +83,13 @@ export class ProviderValidationUtils {
 	/**
 	 * Validates provider configuration and throws error if not configured
 	 * Useful for operations that require a configured provider
-	 * 
+	 *
 	 * @throws {ProviderConfigurationError} When provider is not configured
 	 * @returns Promise<ProviderValidationResult> Validated provider info
 	 */
 	static async requireConfiguredProvider(): Promise<ProviderValidationResult> {
-		const result = await this.validateCurrentProvider();
-		
+		const result = await ProviderValidationUtils.validateCurrentProvider();
+
 		if (!result.isConfigured) {
 			throw new ProviderConfigurationError(
 				`Provider ${result.provider} is not configured. Please set up your API key.`,

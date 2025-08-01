@@ -453,11 +453,12 @@ export class Sidebar {
 				font-weight: ${typography.fontWeight.normal};
 				margin-top: ${spacing.xs};
 			`;
-			
+
 			// Format provider name for display (capitalize first letter)
-			const providerName = this.providerMetadata.providerId.charAt(0).toUpperCase() + 
+			const providerName =
+				this.providerMetadata.providerId.charAt(0).toUpperCase() +
 				this.providerMetadata.providerId.slice(1);
-			
+
 			providerInfo.textContent = `${providerName} • ${this.providerMetadata.modelName}`;
 			titleContainer.appendChild(providerInfo);
 		}

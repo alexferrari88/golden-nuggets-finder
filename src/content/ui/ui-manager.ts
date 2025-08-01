@@ -208,7 +208,12 @@ export class UIManager {
 			"items",
 		);
 		measureDOMOperation("show_sidebar", () =>
-			this.sidebar.show(sidebarItems, this.highlighter, pageContent, providerMetadata),
+			this.sidebar.show(
+				sidebarItems,
+				this.highlighter,
+				pageContent,
+				providerMetadata,
+			),
 		);
 
 		performanceMonitor.logTimer("display_results", "Complete results display");

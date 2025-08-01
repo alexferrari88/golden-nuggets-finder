@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, test, vi } from "vitest";
 import {
 	clearAllRetryCount,
-	handleProviderError,
-	resetRetryCount,
-	getUserFriendlyMessage,
-	handleSwitchError,
 	getRetryDelay,
+	getUserFriendlyMessage,
+	handleProviderError,
+	handleSwitchError,
+	resetRetryCount,
 } from "../../src/background/services/error-handler";
 import {
 	getAvailableProviders,
@@ -127,10 +127,7 @@ describe("ErrorHandler", () => {
 	describe("User-Friendly Messages", () => {
 		test("provides helpful message for API key errors", () => {
 			const apiKeyError = new Error("Invalid API key");
-			const message = getUserFriendlyMessage(
-				apiKeyError,
-				"openai",
-			);
+			const message = getUserFriendlyMessage(apiKeyError, "openai");
 
 			expect(message).toContain("Invalid API key for openai");
 			expect(message).toContain("extension options");
@@ -138,10 +135,7 @@ describe("ErrorHandler", () => {
 
 		test("provides helpful message for rate limit errors", () => {
 			const rateLimitError = new Error("Rate limit exceeded");
-			const message = getUserFriendlyMessage(
-				rateLimitError,
-				"openai",
-			);
+			const message = getUserFriendlyMessage(rateLimitError, "openai");
 
 			expect(message).toContain("Rate limit reached");
 			expect(message).toContain("wait a moment");
@@ -159,10 +153,7 @@ describe("ErrorHandler", () => {
 	describe("Provider Switching Errors", () => {
 		test("handles API key errors during switching", async () => {
 			const apiKeyError = new Error("Unauthorized access");
-			const result = await handleSwitchError(
-				apiKeyError,
-				"anthropic",
-			);
+			const result = await handleSwitchError(apiKeyError, "anthropic");
 
 			expect(result.success).toBe(false);
 			expect(result.message).toContain("Invalid or missing API key");
@@ -171,10 +162,7 @@ describe("ErrorHandler", () => {
 
 		test("handles temporary errors during switching", async () => {
 			const tempError = new Error("Service temporarily unavailable");
-			const result = await handleSwitchError(
-				tempError,
-				"anthropic",
-			);
+			const result = await handleSwitchError(tempError, "anthropic");
 
 			expect(result.success).toBe(false);
 			expect(result.message).toContain("Service temporarily unavailable");
@@ -182,10 +170,7 @@ describe("ErrorHandler", () => {
 
 		test("handles generic errors during switching", async () => {
 			const genericError = new Error("Unknown error occurred");
-			const result = await handleSwitchError(
-				genericError,
-				"anthropic",
-			);
+			const result = await handleSwitchError(genericError, "anthropic");
 
 			expect(result.success).toBe(false);
 			expect(result.message).toContain("anthropic");

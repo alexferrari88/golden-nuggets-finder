@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
-	ProviderValidationUtils,
 	ProviderConfigurationError,
 	type ProviderValidationResult,
+	ProviderValidationUtils,
 } from "./provider-validation-utils";
 
 // Mock the provider services
@@ -82,9 +82,7 @@ describe("ProviderValidationUtils", () => {
 		it("should handle all services failing", async () => {
 			mockGetCurrentProvider.mockRejectedValue(new Error("Service 1 failed"));
 			mockGetSelectedModel.mockRejectedValue(new Error("Service 2 failed"));
-			mockIsProviderConfigured.mockRejectedValue(
-				new Error("Service 3 failed"),
-			);
+			mockIsProviderConfigured.mockRejectedValue(new Error("Service 3 failed"));
 
 			const result: ProviderValidationResult =
 				await ProviderValidationUtils.validateCurrentProvider();
