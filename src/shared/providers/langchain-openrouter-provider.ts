@@ -64,6 +64,22 @@ export class LangChainOpenRouterProvider implements LLMProvider {
 	}
 
 	/**
+	 * Validates OpenRouter response for error objects even in 200 responses
+	 */
+	private validateOpenRouterResponse(response: any): void {
+		// Check if response contains error object (OpenRouter can return 200 with error content)
+		if (response && typeof response === 'object' && 'error' in response) {
+			const error = response.error;
+			if (error && typeof error === 'object' && 'message' in error) {
+				const errorMessage = String(error.message);
+				const errorCode = error.code ? String(error.code) : 'unknown';
+				debugLogger.log(`🚨 OpenRouter returned 200 with error object: ${errorMessage} (code: ${errorCode})`);
+				throw new Error(`OpenRouter API error (${errorCode}): ${errorMessage}`);
+			}
+		}
+	}
+
+	/**
 	 * Execute API call with retry logic and exponential backoff for rate limiting errors
 	 */
 	private async executeWithRetry<T>(
@@ -153,10 +169,15 @@ export class LangChainOpenRouterProvider implements LLMProvider {
 					},
 				);
 
-				return await structuredModel.invoke([
+				const result = await structuredModel.invoke([
 					new SystemMessage(prompt),
 					new HumanMessage(content),
 				]);
+				
+				// Validate response for error objects (OpenRouter can return 200 with error content)
+				this.validateOpenRouterResponse(result);
+				
+				return result;
 			});
 
 			// Normalize type values that OpenRouter models might return

@@ -406,4 +406,53 @@ describe("LangChainOpenRouterProvider", () => {
 		expect(provider.providerId).toBe("openrouter");
 	});
 
+	it("should handle OpenRouter 200 response with error object", async () => {
+		const { ChatOpenAI } = await import("@langchain/openai");
+
+		// Mock OpenRouter returning 200 but with error object in response body
+		const errorResponse = {
+			error: {
+				message: "Internal Server Error",
+				code: 500
+			},
+			user_id: "user_2yCxNwyhwzv2qzz9IiogKaKcG13"
+		};
+
+		(ChatOpenAI as any).mockImplementationOnce(() => ({
+			withStructuredOutput: vi.fn().mockReturnValue({
+				invoke: vi.fn().mockResolvedValue(errorResponse),
+			}),
+		}));
+
+		const provider = new LangChainOpenRouterProvider(mockConfig);
+
+		await expect(provider.extractGoldenNuggets("test", "test")).rejects.toThrow(
+			"OpenRouter API error (500): Internal Server Error"
+		);
+	});
+
+	it("should handle OpenRouter 200 response with error object without code", async () => {
+		const { ChatOpenAI } = await import("@langchain/openai");
+
+		// Mock OpenRouter returning 200 but with error object (no code field)
+		const errorResponse = {
+			error: {
+				message: "Service temporarily unavailable"
+			},
+			user_id: "user_2yCxNwyhwzv2qzz9IiogKaKcG13"
+		};
+
+		(ChatOpenAI as any).mockImplementationOnce(() => ({
+			withStructuredOutput: vi.fn().mockReturnValue({
+				invoke: vi.fn().mockResolvedValue(errorResponse),
+			}),
+		}));
+
+		const provider = new LangChainOpenRouterProvider(mockConfig);
+
+		await expect(provider.extractGoldenNuggets("test", "test")).rejects.toThrow(
+			"OpenRouter API error (unknown): Service temporarily unavailable"
+		);
+	});
+
 });
