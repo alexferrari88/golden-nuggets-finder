@@ -14,18 +14,8 @@ vi.mock("@langchain/openai", () => ({
 				golden_nuggets: [
 					{
 						type: "tool",
-						content: "Test content",
-						synthesis: "Test synthesis",
-					},
-				],
-			}),
-		}),
-		invoke: vi.fn().mockResolvedValue({
-			content: JSON.stringify({
-				golden_nuggets: [
-					{
-						type: "tool",
-						content: "Test content",
+						startContent: "Test start",
+						endContent: "Test end",
 						synthesis: "Test synthesis",
 					},
 				],
@@ -86,7 +76,8 @@ describe("LangChainOpenRouterProvider", () => {
 			golden_nuggets: [
 				{
 					type: "tool",
-					content: "Test content",
+					startContent: "Test start",
+					endContent: "Test end",
 					synthesis: "Test synthesis",
 				},
 			],
@@ -120,18 +111,17 @@ describe("LangChainOpenRouterProvider", () => {
 	it("should handle API errors gracefully", async () => {
 		const { ChatOpenAI } = await import("@langchain/openai");
 
-		// Mock a failure for both jsonMode and fallback
+		// Mock a failure for function calling
 		(ChatOpenAI as any).mockImplementationOnce(() => ({
 			withStructuredOutput: vi.fn().mockReturnValue({
-				invoke: vi.fn().mockRejectedValue(new Error("JSON mode error")),
+				invoke: vi.fn().mockRejectedValue(new Error("API Error")),
 			}),
-			invoke: vi.fn().mockRejectedValue(new Error("API Error")),
 		}));
 
 		const provider = new LangChainOpenRouterProvider(mockConfig);
 
 		await expect(provider.extractGoldenNuggets("test", "test")).rejects.toThrow(
-			"OpenRouter API call failed: Failed to parse structured response: API Error",
+			"OpenRouter API call failed: API Error",
 		);
 	});
 
@@ -172,9 +162,6 @@ describe("LangChainOpenRouterProvider", () => {
 			() =>
 				({
 					withStructuredOutput: mockWithStructuredOutput,
-					invoke: vi.fn().mockResolvedValue({
-						content: JSON.stringify({ golden_nuggets: [] }),
-					}),
 				}) as any,
 		);
 
@@ -185,8 +172,8 @@ describe("LangChainOpenRouterProvider", () => {
 			expect.any(Object), // Schema object
 			{
 				name: "extract_golden_nuggets",
-				method: "functionCalling", // Primary method should be functionCalling
-				includeRaw: true, // Now includes raw response access for debugging
+				method: "functionCalling",
+				includeRaw: expect.any(Boolean), // Depends on debug mode
 			},
 		);
 	});
@@ -245,39 +232,31 @@ describe("LangChainOpenRouterProvider", () => {
 
 		(ChatOpenAI as any).mockImplementationOnce(() => ({
 			withStructuredOutput: vi.fn().mockReturnValue({
-				invoke: vi.fn().mockRejectedValue(new Error("JSON mode timeout")),
+				invoke: vi.fn().mockRejectedValue(new Error("Network timeout")),
 			}),
-			invoke: vi.fn().mockRejectedValue(new Error("Network timeout")),
 		}));
 
 		const provider = new LangChainOpenRouterProvider(mockConfig);
 
 		await expect(provider.extractGoldenNuggets("test", "test")).rejects.toThrow(
-			"OpenRouter API call failed: Failed to parse structured response: Network timeout",
+			"OpenRouter API call failed: Network timeout",
 		);
 	});
 
-	it("should handle rate limiting errors", async () => {
+	it("should handle rate limiting errors with user-friendly message", async () => {
 		const { ChatOpenAI } = await import("@langchain/openai");
 
 		(ChatOpenAI as any).mockImplementationOnce(() => ({
 			withStructuredOutput: vi.fn().mockReturnValue({
-				invoke: vi.fn().mockRejectedValue(new Error("JSON mode rate limit")),
+				invoke: vi.fn().mockRejectedValue(new Error("Rate limit exceeded")),
 			}),
-			invoke: vi.fn().mockRejectedValue(new Error("Rate limit exceeded")),
 		}));
 
 		const provider = new LangChainOpenRouterProvider(mockConfig);
 
-		const promise = provider.extractGoldenNuggets("test", "test");
-		await expect(promise).rejects.toThrow(/429 Provider returned error|OpenRouter API call failed/);
-		
-		// Just make sure it contains rate limiting information
-		try {
-			await promise;
-		} catch (error) {
-			expect(error.message).toMatch(/rate limit|429/i);
-		}
+		await expect(provider.extractGoldenNuggets("test", "test")).rejects.toThrow(
+			"Rate limit exceeded. Please wait a moment and try again. The OpenRouter API is temporarily limiting requests."
+		);
 	});
 
 	it("should handle provider errors with proper error messages", async () => {
@@ -294,67 +273,6 @@ describe("LangChainOpenRouterProvider", () => {
 		spy.mockRestore();
 	});
 
-	it("should handle structural errors by recreating model instance", async () => {
-		const { ChatOpenAI } = await import("@langchain/openai");
-
-		// Mock both structured output methods to fail with structural error
-		const mockWithStructuredOutput = vi.fn()
-			.mockReturnValueOnce({
-				// First call (functionCalling) fails with structural error
-				invoke: vi.fn().mockRejectedValue(new Error("Cannot read properties of undefined (reading 'message')")),
-			})
-			.mockReturnValue({
-				// Subsequent calls succeed after model recreation
-				invoke: vi.fn().mockResolvedValue({
-					golden_nuggets: [
-						{
-							type: "tool",
-							content: "Test content",
-							synthesis: "Test synthesis",
-						},
-					],
-				}),
-			});
-
-		// Track model creation calls
-		let modelCreationCount = 0;
-		(ChatOpenAI as any).mockImplementation(() => {
-			modelCreationCount++;
-			return {
-				withStructuredOutput: mockWithStructuredOutput,
-				invoke: vi.fn().mockResolvedValue({
-					content: JSON.stringify({
-						golden_nuggets: [
-							{
-								type: "tool",
-								content: "Fallback content",
-								synthesis: "Fallback synthesis",
-							},
-						],
-					}),
-				}),
-			};
-		});
-
-		const provider = new LangChainOpenRouterProvider(mockConfig);
-		const initialModelCount = modelCreationCount;
-
-		const result = await provider.extractGoldenNuggets("test content", "test prompt");
-
-		// Should have recreated the model at least once due to structural error
-		expect(modelCreationCount).toBeGreaterThan(initialModelCount);
-
-		// Should still succeed with JSON mode
-		expect(result).toEqual({
-			golden_nuggets: [
-				{
-					type: "tool",
-					content: "Test content",
-					synthesis: "Test synthesis",
-				},
-			],
-		});
-	});
 
 	it("should normalize response format consistently", async () => {
 		const provider = new LangChainOpenRouterProvider(mockConfig);
@@ -371,12 +289,14 @@ describe("LangChainOpenRouterProvider", () => {
 		if (result.golden_nuggets.length > 0) {
 			const nugget = result.golden_nuggets[0];
 			expect(nugget).toHaveProperty("type");
-			expect(nugget).toHaveProperty("content");
+			expect(nugget).toHaveProperty("startContent");
+			expect(nugget).toHaveProperty("endContent");
 			expect(nugget).toHaveProperty("synthesis");
 			expect(["tool", "media", "explanation", "analogy", "model"]).toContain(
 				nugget.type,
 			);
-			expect(typeof nugget.content).toBe("string");
+			expect(typeof nugget.startContent).toBe("string");
+			expect(typeof nugget.endContent).toBe("string");
 			expect(typeof nugget.synthesis).toBe("string");
 		}
 	});
@@ -401,117 +321,4 @@ describe("LangChainOpenRouterProvider", () => {
 		});
 	});
 
-	it("should properly fallback from functionCalling to jsonMode", async () => {
-		const { ChatOpenAI } = await import("@langchain/openai");
-
-		// Mock function calling to fail, jsonMode to succeed
-		const mockWithStructuredOutput = vi.fn()
-			.mockReturnValueOnce({
-				// First call (functionCalling) fails
-				invoke: vi.fn().mockRejectedValue(new Error("Function calling not supported")),
-			})
-			.mockReturnValueOnce({
-				// Second call (jsonMode) succeeds
-				invoke: vi.fn().mockResolvedValue({
-					golden_nuggets: [
-						{
-							type: "tool",
-							content: "Test content",
-							synthesis: "Test synthesis",
-						},
-					],
-				}),
-			});
-
-		(ChatOpenAI as any).mockImplementationOnce(() => ({
-			withStructuredOutput: mockWithStructuredOutput,
-			invoke: vi.fn().mockResolvedValue({
-				content: JSON.stringify({
-					golden_nuggets: [
-						{
-							type: "tool",
-							content: "Test content",
-							synthesis: "Test synthesis",
-						},
-					],
-				}),
-			}),
-		}));
-
-		const provider = new LangChainOpenRouterProvider(mockConfig);
-		const result = await provider.extractGoldenNuggets("test content", "test prompt");
-
-		// Should call withStructuredOutput twice (functionCalling, then jsonMode)
-		expect(mockWithStructuredOutput).toHaveBeenCalledTimes(2);
-		expect(mockWithStructuredOutput).toHaveBeenNthCalledWith(1, expect.any(Object), {
-			name: "extract_golden_nuggets",
-			method: "functionCalling",
-			includeRaw: true,
-		});
-		expect(mockWithStructuredOutput).toHaveBeenNthCalledWith(2, expect.any(Object), {
-			name: "extract_golden_nuggets",
-			method: "jsonMode",
-			includeRaw: true,
-		});
-
-		expect(result).toEqual({
-			golden_nuggets: [
-				{
-					type: "tool",
-					content: "Test content",
-					synthesis: "Test synthesis",
-				},
-			],
-		});
-	});
-
-	it("should fallback all the way to prompt engineering when both functionCalling and jsonMode fail", async () => {
-		const { ChatOpenAI } = await import("@langchain/openai");
-
-		// Mock both structured output methods to fail
-		const mockWithStructuredOutput = vi.fn()
-			.mockReturnValueOnce({
-				// First call (functionCalling) fails
-				invoke: vi.fn().mockRejectedValue(new Error("Function calling not supported")),
-			})
-			.mockReturnValueOnce({
-				// Second call (jsonMode) fails
-				invoke: vi.fn().mockRejectedValue(new Error("JSON mode not supported")),
-			});
-
-		// Mock the regular invoke to succeed with JSON string
-		const mockInvoke = vi.fn().mockResolvedValue({
-			content: JSON.stringify({
-				golden_nuggets: [
-					{
-						type: "explanation",
-						content: "Fallback content",
-						synthesis: "Fallback synthesis",
-					},
-				],
-			}),
-		});
-
-		(ChatOpenAI as any).mockImplementationOnce(() => ({
-			withStructuredOutput: mockWithStructuredOutput,
-			invoke: mockInvoke,
-		}));
-
-		const provider = new LangChainOpenRouterProvider(mockConfig);
-		const result = await provider.extractGoldenNuggets("test content", "test prompt");
-
-		// Should call withStructuredOutput twice, then regular invoke once
-		expect(mockWithStructuredOutput).toHaveBeenCalledTimes(2);
-		expect(mockInvoke).toHaveBeenCalledTimes(1);
-
-		expect(result).toEqual({
-			golden_nuggets: [
-				{
-					type: "explanation",
-					content: "Fallback content",
-					synthesis: "Fallback synthesis",
-				},
-			],
-		});
-	});
 });
