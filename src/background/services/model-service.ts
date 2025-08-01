@@ -12,6 +12,53 @@ export interface ModelListResponse {
 	error?: string;
 }
 
+// API response types
+interface GeminiModel {
+	name: string;
+	displayName?: string;
+	description?: string;
+	inputTokenLimit?: number;
+	supportedGenerationMethods?: string[];
+}
+
+interface GeminiApiResponse {
+	models?: GeminiModel[];
+}
+
+interface OpenAIModel {
+	id: string;
+	owner?: string;
+	created?: number;
+}
+
+interface OpenAIApiResponse {
+	data?: OpenAIModel[];
+}
+
+interface AnthropicModel {
+	id: string;
+	display_name?: string;
+	created_at?: string;
+}
+
+interface AnthropicApiResponse {
+	data?: AnthropicModel[];
+}
+
+interface OpenRouterModel {
+	id: string;
+	name?: string;
+	description?: string;
+	context_length?: number;
+	architecture?: {
+		modality?: string;
+	};
+}
+
+interface OpenRouterApiResponse {
+	data?: OpenRouterModel[];
+}
+
 export class ModelService {
 	private static readonly FETCH_TIMEOUT = 10000; // 10 seconds
 	private static readonly MAX_DESCRIPTION_LENGTH = 100; // Maximum characters for description display
@@ -19,19 +66,23 @@ export class ModelService {
 	/**
 	 * Truncates a description to a reasonable length for UI display
 	 */
-	static truncateDescription(description: string | undefined, maxLength: number = this.MAX_DESCRIPTION_LENGTH): string | undefined {
+	static truncateDescription(
+		description: string | undefined,
+		maxLength: number = ModelService.MAX_DESCRIPTION_LENGTH,
+	): string | undefined {
 		if (!description) return description;
 		if (description.length <= maxLength) return description;
-		
+
 		// Find the last complete word before the limit
 		const truncated = description.substring(0, maxLength);
-		const lastSpaceIndex = truncated.lastIndexOf(' ');
-		
-		if (lastSpaceIndex > maxLength * 0.8) { // Only truncate at word boundary if it's not too early
-			return truncated.substring(0, lastSpaceIndex) + '...';
+		const lastSpaceIndex = truncated.lastIndexOf(" ");
+
+		if (lastSpaceIndex > maxLength * 0.8) {
+			// Only truncate at word boundary if it's not too early
+			return `${truncated.substring(0, lastSpaceIndex)}...`;
 		}
-		
-		return truncated + '...';
+
+		return `${truncated}...`;
 	}
 
 	/**
@@ -44,13 +95,13 @@ export class ModelService {
 		try {
 			switch (providerId) {
 				case "gemini":
-					return await this.fetchGeminiModels(apiKey);
+					return await ModelService.fetchGeminiModels(apiKey);
 				case "openai":
-					return await this.fetchOpenAIModels(apiKey);
+					return await ModelService.fetchOpenAIModels(apiKey);
 				case "anthropic":
-					return await this.fetchAnthropicModels(apiKey);
+					return await ModelService.fetchAnthropicModels(apiKey);
 				case "openrouter":
-					return await this.fetchOpenRouterModels(apiKey);
+					return await ModelService.fetchOpenRouterModels(apiKey);
 				default:
 					return {
 						models: [],
@@ -74,26 +125,39 @@ export class ModelService {
 	): Promise<ModelListResponse> {
 		const url = `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(apiKey)}`;
 
-		const response = await this.fetchWithTimeout(url);
+		const response = await ModelService.fetchWithTimeout(url);
 
 		if (!response.ok) {
 			throw new Error(`HTTP ${response.status}: ${response.statusText}`);
 		}
 
-		const data = await response.json();
+		const data: GeminiApiResponse = await response.json();
 
 		// Filter models that support generateContent
 		const textGenerationModels = data.models
-			?.filter(
-				(model: any) =>
-					model.supportedGenerationMethods?.includes("generateContent"),
+			?.filter((model: GeminiModel) =>
+				model.supportedGenerationMethods?.includes("generateContent"),
 			)
-			.map((model: any) => ({
+			.map((model: GeminiModel) => ({
 				id: model.name.replace("models/", ""), // Remove "models/" prefix
 				name: model.displayName || model.name.replace("models/", ""),
 				description: model.description,
 				contextLength: model.inputTokenLimit,
-			}));
+			}))
+			.sort((a: ModelInfo, b: ModelInfo) => {
+				// Prioritize popular models
+				const popularModels = [
+					"gemini-2.5-flash",
+					"gemini-2.5-flash-lite",
+				];
+				const aIndex = popularModels.indexOf(a.id);
+				const bIndex = popularModels.indexOf(b.id);
+
+				if (aIndex !== -1 && bIndex !== -1) return aIndex - bIndex;
+				if (aIndex !== -1) return -1;
+				if (bIndex !== -1) return 1;
+				return (a.name || a.id).localeCompare(b.name || b.id);
+			});
 
 		return {
 			models: textGenerationModels || [],
@@ -108,7 +172,7 @@ export class ModelService {
 	): Promise<ModelListResponse> {
 		const url = "https://api.openai.com/v1/models";
 
-		const response = await this.fetchWithTimeout(url, {
+		const response = await ModelService.fetchWithTimeout(url, {
 			headers: {
 				Authorization: `Bearer ${apiKey}`,
 			},
@@ -118,11 +182,11 @@ export class ModelService {
 			throw new Error(`HTTP ${response.status}: ${response.statusText}`);
 		}
 
-		const data = await response.json();
+		const data: OpenAIApiResponse = await response.json();
 
 		// Filter for chat/completion models (exclude embeddings, fine-tuning, etc.)
 		const chatModels = data.data
-			?.filter((model: any) => {
+			?.filter((model: OpenAIModel) => {
 				const modelId = model.id.toLowerCase();
 				return (
 					(modelId.includes("gpt") ||
@@ -135,11 +199,26 @@ export class ModelService {
 					!modelId.includes("babbage-002")
 				);
 			})
-			.map((model: any) => ({
+			.map((model: OpenAIModel) => ({
 				id: model.id,
 				name: model.id,
 				description: `OpenAI ${model.id}`,
-			}));
+			}))
+			.sort((a: ModelInfo, b: ModelInfo) => {
+				// Prioritize popular models
+				const popularModels = [
+					"gpt-4.1-mini",
+					"gpt-4.1-nano",
+					"o4-mini",
+				];
+				const aIndex = popularModels.indexOf(a.id);
+				const bIndex = popularModels.indexOf(b.id);
+
+				if (aIndex !== -1 && bIndex !== -1) return aIndex - bIndex;
+				if (aIndex !== -1) return -1;
+				if (bIndex !== -1) return 1;
+				return (a.name || a.id).localeCompare(b.name || b.id);
+			});
 
 		return {
 			models: chatModels || [],
@@ -154,7 +233,7 @@ export class ModelService {
 	): Promise<ModelListResponse> {
 		const url = "https://api.anthropic.com/v1/models";
 
-		const response = await this.fetchWithTimeout(url, {
+		const response = await ModelService.fetchWithTimeout(url, {
 			headers: {
 				"x-api-key": apiKey,
 				"anthropic-version": "2023-06-01",
@@ -165,13 +244,28 @@ export class ModelService {
 			throw new Error(`HTTP ${response.status}: ${response.statusText}`);
 		}
 
-		const data = await response.json();
+		const data: AnthropicApiResponse = await response.json();
 
-		const models = data.data?.map((model: any) => ({
-			id: model.id,
-			name: model.display_name || model.id,
-			description: `Anthropic ${model.display_name || model.id}`,
-		}));
+		const models = data.data
+			?.map((model: AnthropicModel) => ({
+				id: model.id,
+				name: model.display_name || model.id,
+				description: `Anthropic ${model.display_name || model.id}`,
+			}))
+			.sort((a: ModelInfo, b: ModelInfo) => {
+				// Prioritize popular models
+				const popularModels = [
+					"claude-3-5-haiku-latest",
+					"claude-sonnet-4-20250514",
+				];
+				const aIndex = popularModels.indexOf(a.id);
+				const bIndex = popularModels.indexOf(b.id);
+
+				if (aIndex !== -1 && bIndex !== -1) return aIndex - bIndex;
+				if (aIndex !== -1) return -1;
+				if (bIndex !== -1) return 1;
+				return (a.name || a.id).localeCompare(b.name || b.id);
+			});
 
 		return {
 			models: models || [],
@@ -192,34 +286,33 @@ export class ModelService {
 			headers.Authorization = `Bearer ${apiKey}`;
 		}
 
-		const response = await this.fetchWithTimeout(url, { headers });
+		const response = await ModelService.fetchWithTimeout(url, { headers });
 
 		if (!response.ok) {
 			throw new Error(`HTTP ${response.status}: ${response.statusText}`);
 		}
 
-		const data = await response.json();
+		const data: OpenRouterApiResponse = await response.json();
 
 		// Filter for text generation models and sort by popularity/cost
 		const textModels = data.data
-			?.filter((model: any) => {
+			?.filter((model: OpenRouterModel) => {
 				const modality = model.architecture?.modality;
 				return modality === "text->text" || modality === "text+image->text";
 			})
-			.map((model: any) => ({
+			.map((model: OpenRouterModel) => ({
 				id: model.id,
 				name: model.name || model.id,
 				description: model.description,
 				contextLength: model.context_length,
 			}))
-			.sort((a: any, b: any) => {
+			.sort((a: ModelInfo, b: ModelInfo) => {
 				// Prioritize popular models
 				const popularModels = [
-					"openai/gpt-4o",
 					"anthropic/claude-sonnet-4",
-					"anthropic/claude-3.5-sonnet",
-					"openai/gpt-4",
-					"google/gemini-pro",
+					"anthropic/claude-haiku-4",
+					"openai/gpt-4o-mini",
+					"google/gemini-2.5-flash",
 				];
 				const aIndex = popularModels.indexOf(a.id);
 				const bIndex = popularModels.indexOf(b.id);
@@ -227,7 +320,7 @@ export class ModelService {
 				if (aIndex !== -1 && bIndex !== -1) return aIndex - bIndex;
 				if (aIndex !== -1) return -1;
 				if (bIndex !== -1) return 1;
-				return a.name.localeCompare(b.name);
+				return (a.name || a.id).localeCompare(b.name || b.id);
 			});
 
 		return {
@@ -245,7 +338,7 @@ export class ModelService {
 		const controller = new AbortController();
 		const timeoutId = setTimeout(
 			() => controller.abort(),
-			this.FETCH_TIMEOUT,
+			ModelService.FETCH_TIMEOUT,
 		);
 
 		try {
