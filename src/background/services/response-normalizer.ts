@@ -7,7 +7,8 @@ import type {
 // Types for raw API responses that need normalization
 type RawGoldenNugget = {
 	type: string;
-	content: unknown;
+	startContent?: unknown;
+	endContent?: unknown;
 	synthesis: unknown;
 	[key: string]: unknown;
 };
@@ -21,7 +22,8 @@ const GoldenNuggetsSchema = z.object({
 	golden_nuggets: z.array(
 		z.object({
 			type: z.enum(["tool", "media", "explanation", "analogy", "model"]),
-			content: z.string(),
+			startContent: z.string(),
+			endContent: z.string(),
 			synthesis: z.string(),
 		}),
 	),
@@ -38,15 +40,16 @@ export function normalize(
 		// Validate response structure
 		const validated = GoldenNuggetsSchema.parse(preprocessed);
 
-		// Ensure content and synthesis are strings and non-empty
+		// Ensure startContent, endContent and synthesis are strings and non-empty
 		const normalized = {
 			golden_nuggets: validated.golden_nuggets
 				.map((nugget) => ({
 					type: normalizeType(nugget.type),
-					content: String(nugget.content).trim(),
+					startContent: String(nugget.startContent).trim(),
+					endContent: String(nugget.endContent).trim(),
 					synthesis: String(nugget.synthesis).trim(),
 				}))
-				.filter((nugget) => nugget.content && nugget.synthesis),
+				.filter((nugget) => nugget.startContent && nugget.endContent && nugget.synthesis),
 		};
 
 		return normalized;
@@ -74,9 +77,22 @@ function preprocessResponse(response: RawApiResponse): {
 		return {
 			golden_nuggets: responseObj.golden_nuggets.map((nugget: unknown) => {
 				const nuggetObj = nugget as RawGoldenNugget;
+				
+				// Handle both new format (startContent/endContent) and legacy format (content)
+				let startContent = String(nuggetObj?.startContent || "");
+				let endContent = String(nuggetObj?.endContent || "");
+				
+				// If startContent/endContent are empty but content exists, use content as fallback
+				if ((!startContent || !endContent) && nuggetObj?.content) {
+					const contentStr = String(nuggetObj.content);
+					startContent = startContent || contentStr;
+					endContent = endContent || contentStr;
+				}
+				
 				return {
 					type: String(nuggetObj?.type || ""),
-					content: String(nuggetObj?.content || ""),
+					startContent,
+					endContent,
 					synthesis: String(nuggetObj?.synthesis || ""),
 				};
 			}),
