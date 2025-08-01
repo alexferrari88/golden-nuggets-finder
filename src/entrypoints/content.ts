@@ -445,26 +445,40 @@ export default defineContentScript({
 					if (source !== "popup") {
 						uiManager.hideProgressBanner();
 					}
-					uiManager.showErrorBanner(
-						response.error || "Analysis failed. Please try again.",
-					);
+					
+					// Enhanced error message for provider failures
+					const errorMessage = response.error || "Analysis failed. Please try again.";
+					const isProviderError = errorMessage.toLowerCase().includes('provider') || 
+											errorMessage.toLowerCase().includes('openrouter') || 
+											errorMessage.toLowerCase().includes('gemini') || 
+											errorMessage.toLowerCase().includes('anthropic');
+					
+					const displayMessage = isProviderError 
+						? `🔥 LLM Provider Error: ${errorMessage}`
+						: errorMessage;
+						
+					console.error("Analysis failed with provider error:", errorMessage);
+					uiManager.showErrorBanner(displayMessage);
+					
 					// Notify popup of error
 					chrome.runtime.sendMessage({
 						type: MESSAGE_TYPES.ANALYSIS_ERROR,
-						error: response.error || "Analysis failed. Please try again.",
+						error: errorMessage,
 					});
 				}
 			} catch (error) {
-				console.error("Analysis failed:", error);
+				console.error("Analysis failed with exception:", error);
 				if (source !== "popup") {
 					uiManager.hideProgressBanner();
 				}
-				uiManager.showErrorBanner("Analysis failed. Please try again.");
+				
+				const errorMessage = error instanceof Error ? error.message : "Analysis failed with an unexpected error.";
+				uiManager.showErrorBanner(`🔥 Analysis Error: ${errorMessage} Please try again.`);
+				
 				// Notify popup of error
 				chrome.runtime.sendMessage({
 					type: MESSAGE_TYPES.ANALYSIS_ERROR,
-					error:
-						(error as Error).message || "Analysis failed. Please try again.",
+					error: errorMessage,
 				});
 			} finally {
 				performanceMonitor.logTimer(
@@ -547,7 +561,14 @@ export default defineContentScript({
 			results: any,
 			source?: string,
 		): Promise<void> {
-			const nuggets = results.golden_nuggets || [];
+			// Validate results structure to prevent runtime errors
+			if (!results || typeof results !== 'object') {
+				console.error("Invalid analysis results:", results);
+				uiManager.showErrorBanner("Analysis failed due to invalid response data. Please try again.");
+				return;
+			}
+			
+			const nuggets = Array.isArray(results.golden_nuggets) ? results.golden_nuggets : [];
 
 			// Hide the progress banner now that we have results (only if not triggered from popup)
 			if (source !== "popup") {

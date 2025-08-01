@@ -84,6 +84,22 @@ export class ErrorHandler {
 		);
 	}
 
+	private static isModelNotFoundError(error: Error): boolean {
+		const modelNotFoundErrors = [
+			"404",
+			"not found",
+			"model not found",
+			"no allowed providers",
+			"model_not_found",
+			"model not available",
+			"provider not available",
+			"model does not exist",
+		];
+		return modelNotFoundErrors.some((msg) =>
+			error.message.toLowerCase().includes(msg),
+		);
+	}
+
 	private static isTemporaryError(error: Error): boolean {
 		const temporaryErrors = [
 			"network error",
@@ -159,6 +175,10 @@ export class ErrorHandler {
 
 		if (ErrorHandler.isRateLimitError(error)) {
 			return `Rate limit reached for ${providerId}. Please wait a moment and try again.`;
+		}
+
+		if (ErrorHandler.isModelNotFoundError(error)) {
+			return `${providerId} provider error: ${error.message}. The selected model may not be available or you may need credits. Check the provider's website for model availability.`;
 		}
 
 		if (ErrorHandler.isTemporaryError(error)) {
