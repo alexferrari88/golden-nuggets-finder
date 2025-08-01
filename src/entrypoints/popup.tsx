@@ -1,5 +1,5 @@
 import { Check, Star } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import ReactDOM from "react-dom/client";
 import { getSelectedModel } from "../background/services/provider-factory";
 import {
@@ -210,29 +210,7 @@ const usePhaseProgression = (
 		}
 	};
 
-	// Set up fallback timing if real messages don't arrive
-	useEffect(() => {
-		if (!isTypingComplete || !analysisId) return;
-
-		// Wait for real progress messages, fall back to fake timing if none arrive
-		fallbackTimeoutRef.current = setTimeout(() => {
-			if (useRealTiming) {
-				console.warn(
-					"[Popup] Falling back to fake timing - no real progress messages received",
-				);
-				setUseRealTiming(false);
-				startFallbackAnimation();
-			}
-		}, 2000);
-
-		return () => {
-			if (fallbackTimeoutRef.current) {
-				clearTimeout(fallbackTimeoutRef.current);
-			}
-		};
-	}, [isTypingComplete, analysisId, useRealTiming, startFallbackAnimation]);
-
-	const startFallbackAnimation = async () => {
+	const startFallbackAnimation = useCallback(async () => {
 		// Clear any existing timers
 		timersRef.current.forEach((timer) => clearTimeout(timer));
 		timersRef.current = [];
@@ -258,7 +236,29 @@ const usePhaseProgression = (
 			// The user can see it's been a long time and decide what to do
 		}, 120000); // 2 minutes
 		timersRef.current.push(veryLongTimeoutTimer);
-	};
+	}, []);
+
+	// Set up fallback timing if real messages don't arrive
+	useEffect(() => {
+		if (!isTypingComplete || !analysisId) return;
+
+		// Wait for real progress messages, fall back to fake timing if none arrive
+		fallbackTimeoutRef.current = setTimeout(() => {
+			if (useRealTiming) {
+				console.warn(
+					"[Popup] Falling back to fake timing - no real progress messages received",
+				);
+				setUseRealTiming(false);
+				startFallbackAnimation();
+			}
+		}, 2000);
+
+		return () => {
+			if (fallbackTimeoutRef.current) {
+				clearTimeout(fallbackTimeoutRef.current);
+			}
+		};
+	}, [isTypingComplete, analysisId, useRealTiming, startFallbackAnimation]);
 
 	return {
 		currentPhase,
@@ -381,7 +381,7 @@ function IndexPopup() {
 	}, [currentPhase]);
 
 	// Check backend availability
-	const checkBackendStatus = async () => {
+	const checkBackendStatus = useCallback(async () => {
 		try {
 			const response = await chrome.runtime.sendMessage({
 				type: MESSAGE_TYPES.GET_FEEDBACK_STATS,
@@ -396,9 +396,9 @@ function IndexPopup() {
 			console.error("Failed to check backend status:", error);
 			setBackendStatus("unavailable");
 		}
-	};
+	}, []);
 
-	const loadPrompts = async () => {
+	const loadPrompts = useCallback(async () => {
 		try {
 			setLoading(true);
 			setError(null);
@@ -436,7 +436,7 @@ function IndexPopup() {
 		} finally {
 			setLoading(false);
 		}
-	};
+	}, []);
 
 	useEffect(() => {
 		loadPrompts();
@@ -491,12 +491,7 @@ function IndexPopup() {
 				cleanupTimeoutRef.current = null;
 			}
 		};
-	}, [
-		checkBackendStatus,
-		completeAllPhases,
-		loadPrompts,
-		processRealTimePhase,
-	]); // Remove dependencies to prevent infinite re-renders
+	}, []); // Remove dependencies to prevent infinite re-renders
 
 	const analyzeWithPrompt = async (promptId: string) => {
 		try {
