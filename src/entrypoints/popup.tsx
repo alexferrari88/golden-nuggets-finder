@@ -6,11 +6,11 @@ import {
 	getCurrentProvider,
 	isProviderConfigured,
 } from "../background/services/provider-switcher";
-import { ChromeExtensionUtils } from "../shared/chrome-extension-utils";
 import {
 	createCombinationTypeFilter,
 	TYPE_CONFIGURATIONS,
 } from "../background/type-filter-service";
+import { injectContentScript, generateAnalysisId } from "../shared/chrome-extension-utils";
 import {
 	borderRadius,
 	colors,
@@ -498,7 +498,7 @@ function IndexPopup() {
 			const promptName = prompt?.name || "Unknown";
 
 			// Generate unique analysis ID for progress tracking
-			const analysisId = ChromeExtensionUtils.generateAnalysisId();
+			const analysisId = generateAnalysisId();
 
 			// Show immediate feedback and set analysis ID
 			setAnalyzing(promptName);
@@ -517,7 +517,7 @@ function IndexPopup() {
 			}
 
 			// Inject content script dynamically
-			await ChromeExtensionUtils.injectContentScript(tab.id);
+			await injectContentScript(tab.id);
 
 			// Create type filter options
 			const typeFilter: TypeFilterOptions =
@@ -568,7 +568,7 @@ function IndexPopup() {
 			}
 
 			// Inject content script dynamically
-			await ChromeExtensionUtils.injectContentScript(tab.id);
+			await injectContentScript(tab.id);
 
 			// Create type filter options
 			const typeFilter: TypeFilterOptions =
@@ -589,7 +589,7 @@ function IndexPopup() {
 		}
 	};
 
-	// Content script injection moved to ChromeExtensionUtils.injectContentScript
+	// Content script injection moved to injectContentScript
 
 	const openOptionsPage = () => {
 		chrome.runtime.openOptionsPage();

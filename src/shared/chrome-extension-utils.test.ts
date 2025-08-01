@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { ChromeExtensionUtils, ContentScriptError } from "./chrome-extension-utils";
+import {
+	injectContentScript,
+	generateAnalysisId,
+	ContentScriptError,
+} from "./chrome-extension-utils";
 
 // Mock Chrome APIs
 const mockChrome = {
@@ -13,7 +17,7 @@ const mockChrome = {
 
 global.chrome = mockChrome as any;
 
-describe("ChromeExtensionUtils", () => {
+describe("chrome-extension-utils", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		vi.restoreAllMocks();
@@ -26,7 +30,7 @@ describe("ChromeExtensionUtils", () => {
 			// Mock content script already responding to PING
 			mockChrome.tabs.sendMessage.mockResolvedValue({ success: true });
 
-			await ChromeExtensionUtils.injectContentScript(tabId);
+			await injectContentScript(tabId);
 
 			expect(mockChrome.tabs.sendMessage).toHaveBeenCalledTimes(1);
 			expect(mockChrome.tabs.sendMessage).toHaveBeenCalledWith(tabId, {
@@ -44,7 +48,7 @@ describe("ChromeExtensionUtils", () => {
 
 			mockChrome.scripting.executeScript.mockResolvedValue(undefined);
 
-			await ChromeExtensionUtils.injectContentScript(tabId);
+			await injectContentScript(tabId);
 
 			expect(mockChrome.scripting.executeScript).toHaveBeenCalledWith({
 				target: { tabId },
@@ -62,10 +66,10 @@ describe("ChromeExtensionUtils", () => {
 
 			// Test the error behavior without timer complexity
 			await expect(
-				ChromeExtensionUtils.injectContentScript(tabId),
+				injectContentScript(tabId),
 			).rejects.toThrow(ContentScriptError);
 			await expect(
-				ChromeExtensionUtils.injectContentScript(tabId),
+				injectContentScript(tabId),
 			).rejects.toThrow("Content script failed to initialize after injection");
 		});
 
@@ -79,29 +83,29 @@ describe("ChromeExtensionUtils", () => {
 			);
 
 			await expect(
-				ChromeExtensionUtils.injectContentScript(tabId),
+				injectContentScript(tabId),
 			).rejects.toThrow(ContentScriptError);
 			await expect(
-				ChromeExtensionUtils.injectContentScript(tabId),
+				injectContentScript(tabId),
 			).rejects.toThrow("Failed to inject content script");
 		});
 	});
 
 	describe("generateAnalysisId", () => {
 		it("should generate ID with correct format", () => {
-			const id = ChromeExtensionUtils.generateAnalysisId();
+			const id = generateAnalysisId();
 			expect(id).toMatch(/^analysis_\d+_[a-z0-9]{9}$/);
 		});
 
 		it("should generate unique IDs", () => {
-			const id1 = ChromeExtensionUtils.generateAnalysisId();
-			const id2 = ChromeExtensionUtils.generateAnalysisId();
+			const id1 = generateAnalysisId();
+			const id2 = generateAnalysisId();
 			expect(id1).not.toBe(id2);
 		});
 
 		it("should include timestamp and random component", () => {
 			const beforeTime = Date.now();
-			const id = ChromeExtensionUtils.generateAnalysisId();
+			const id = generateAnalysisId();
 			const afterTime = Date.now();
 
 			const [, timestamp] = id.match(/^analysis_(\d+)_[a-z0-9]{9}$/) || [];

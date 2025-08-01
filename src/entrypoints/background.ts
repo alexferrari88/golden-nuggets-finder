@@ -9,7 +9,7 @@ import {
 	createSingleTypeFilter,
 	getContextMenuOption,
 } from "../background/type-filter-service";
-import { ChromeExtensionUtils } from "../shared/chrome-extension-utils";
+import { injectContentScript } from "../shared/chrome-extension-utils";
 import { StorageMigration, storage } from "../shared/storage";
 import { MESSAGE_TYPES } from "../shared/types";
 
@@ -234,7 +234,7 @@ export default defineBackground(() => {
 
 		try {
 			// Inject content script dynamically first
-			await ChromeExtensionUtils.injectContentScript(tab.id);
+			await injectContentScript(tab.id);
 
 			// Check if current provider is configured before proceeding
 			const currentProvider = await getCurrentProvider();
@@ -294,7 +294,7 @@ export default defineBackground(() => {
 
 		try {
 			// Inject content script dynamically first
-			await ChromeExtensionUtils.injectContentScript(tab.id);
+			await injectContentScript(tab.id);
 
 			// Check if current provider is configured before proceeding
 			const currentProvider = await getCurrentProvider();
@@ -362,7 +362,7 @@ export default defineBackground(() => {
 			}
 
 			// Inject content script dynamically first
-			await ChromeExtensionUtils.injectContentScript(tab.id);
+			await injectContentScript(tab.id);
 
 			console.log(
 				`[Background] Reporting missed nugget for selected text: "${selectedText.substring(0, 50)}..."`,
@@ -382,5 +382,5 @@ export default defineBackground(() => {
 		}
 	}
 
-	// Content script injection moved to ChromeExtensionUtils.injectContentScript
+	// Content script injection moved to injectContentScript
 });

@@ -1,12 +1,12 @@
 /**
  * Messaging Utilities
- * 
+ *
  * Shared utilities for Chrome extension messaging operations.
  * Combines content script injection with message sending to eliminate
  * duplication between popup.tsx and background.ts.
  */
 
-import { ChromeExtensionUtils } from "./chrome-extension-utils";
+import { injectContentScript } from "./chrome-extension-utils";
 
 /**
  * Custom error for messaging failures
@@ -30,7 +30,7 @@ export class MessagingUtils {
 	/**
 	 * Sends a message to a content script, ensuring the script is injected first
 	 * Combines the common pattern of injection + messaging used in both popup and background
-	 * 
+	 *
 	 * @param tabId - The ID of the tab to send the message to
 	 * @param message - The message to send to the content script
 	 * @returns Promise<T> The response from the content script
@@ -42,7 +42,7 @@ export class MessagingUtils {
 	): Promise<T> {
 		try {
 			// Ensure content script is injected first
-			await ChromeExtensionUtils.injectContentScript(tabId);
+			await injectContentScript(tabId);
 
 			// Send the message
 			const response = await chrome.tabs.sendMessage(tabId, message);
@@ -52,7 +52,7 @@ export class MessagingUtils {
 				`[MessagingUtils] Failed to send message to tab ${tabId}:`,
 				error,
 			);
-			
+
 			if (error instanceof Error) {
 				throw new MessagingError(
 					`Failed to send message: ${error.message}`,
@@ -61,7 +61,7 @@ export class MessagingUtils {
 					error,
 				);
 			}
-			
+
 			throw new MessagingError(
 				"Failed to send message: Unknown error",
 				tabId,
@@ -73,7 +73,7 @@ export class MessagingUtils {
 	/**
 	 * Gets the currently active tab
 	 * Common pattern used in both popup and background scripts
-	 * 
+	 *
 	 * @returns Promise<chrome.tabs.Tab> The active tab
 	 * @throws {MessagingError} When no active tab is found
 	 */
@@ -91,11 +91,11 @@ export class MessagingUtils {
 			return tab;
 		} catch (error) {
 			console.error("[MessagingUtils] Failed to get active tab:", error);
-			
+
 			if (error instanceof MessagingError) {
 				throw error;
 			}
-			
+
 			throw new MessagingError(
 				`Failed to get active tab: ${error instanceof Error ? error.message : "Unknown error"}`,
 				undefined,
@@ -108,13 +108,13 @@ export class MessagingUtils {
 	/**
 	 * Sends a message to the active tab's content script
 	 * Combines getActiveTab + sendWithInjection for convenience
-	 * 
+	 *
 	 * @param message - The message to send to the content script
 	 * @returns Promise<T> The response from the content script
 	 * @throws {MessagingError} When tab retrieval, injection, or messaging fails
 	 */
 	static async sendToActiveTab<T = any>(message: any): Promise<T> {
-		const tab = await this.getActiveTab();
-		return this.sendWithInjection<T>(tab.id!, message);
+		const tab = await MessagingUtils.getActiveTab();
+		return MessagingUtils.sendWithInjection<T>(tab.id!, message);
 	}
 }
