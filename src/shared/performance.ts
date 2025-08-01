@@ -50,8 +50,8 @@ export class PerformanceMonitor {
 		this.metrics.get(name)?.push(duration);
 
 		// Keep only last 100 measurements
-		const measurements = this.metrics.get(name)!;
-		if (measurements.length > 100) {
+		const measurements = this.metrics.get(name);
+		if (measurements && measurements.length > 100) {
 			measurements.shift();
 		}
 
