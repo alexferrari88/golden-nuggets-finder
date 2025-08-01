@@ -44,18 +44,85 @@ export class LangChainOpenRouterProvider implements LLMProvider {
 		prompt: string,
 	): Promise<GoldenNuggetsResponse> {
 		try {
-			const structuredModel = this.model.withStructuredOutput(
-				FlexibleGoldenNuggetsSchema,
-				{
-					name: "extract_golden_nuggets",
-					method: "functionCalling",
-				},
-			);
+			// Try jsonMode first (works with more OpenRouter models than functionCalling)
+			let response: any;
+			
+			try {
+				const structuredModel = this.model.withStructuredOutput(
+					FlexibleGoldenNuggetsSchema,
+					{
+						name: "extract_golden_nuggets",
+						method: "jsonMode", // Use jsonMode instead of functionCalling
+					},
+				);
 
-			const response = await structuredModel.invoke([
-				new SystemMessage(prompt),
-				new HumanMessage(content),
-			]);
+				// Enhanced prompt for JSON mode with explicit JSON instructions
+				const enhancedPrompt = `${prompt}
+
+CRITICAL: You MUST respond with valid JSON only. Use this exact format:
+{
+  "golden_nuggets": [
+    {
+      "type": "tool|media|explanation|analogy|model",
+      "content": "Original text verbatim",
+      "synthesis": "Why this is relevant"
+    }
+  ]
+}
+
+Ensure your response is valid JSON with no additional text.`;
+
+				response = await structuredModel.invoke([
+					new SystemMessage(enhancedPrompt),
+					new HumanMessage(content),
+				]);
+			} catch (jsonModeError) {
+				console.warn("JSON mode failed, falling back to prompt engineering:", jsonModeError.message);
+				
+				// Fallback: Use regular model with strict JSON prompt instructions
+				const jsonPrompt = `${prompt}
+
+CRITICAL INSTRUCTION: You MUST respond with valid JSON only. No explanations, no additional text.
+
+Required JSON format:
+{
+  "golden_nuggets": [
+    {
+      "type": "tool|media|explanation|analogy|model", 
+      "content": "Original text verbatim",
+      "synthesis": "Why this is relevant"
+    }
+  ]
+}
+
+Content to analyze: ${content}
+
+JSON Response:`;
+
+				const rawResponse = await this.model.invoke([
+					new SystemMessage("You are a JSON-only response assistant. Return valid JSON without any additional formatting or text."),
+					new HumanMessage(jsonPrompt),
+				]);
+
+				// Parse the raw response as JSON
+				const responseText = rawResponse.content.toString().trim();
+				
+				// Clean up common JSON formatting issues
+				let cleanedJson = responseText;
+				if (cleanedJson.startsWith("```json")) {
+					cleanedJson = cleanedJson.replace(/```json/g, "").replace(/```/g, "").trim();
+				}
+				if (cleanedJson.startsWith("```")) {
+					cleanedJson = cleanedJson.replace(/```/g, "").trim();
+				}
+
+				try {
+					response = JSON.parse(cleanedJson);
+				} catch (parseError) {
+					console.error("Failed to parse JSON response:", cleanedJson);
+					throw new Error(`Failed to parse structured response: ${parseError.message}`);
+				}
+			}
 
 			// Normalize type values that OpenRouter models might return
 			if (response?.golden_nuggets) {
