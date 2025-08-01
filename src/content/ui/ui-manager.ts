@@ -112,6 +112,12 @@ export class UIManager {
 		nuggets: GoldenNugget[],
 		pageContent?: string,
 	): Promise<void> {
+		console.log("[UIManager] displayResults called with:", {
+			nuggetsLength: nuggets.length,
+			firstNugget: nuggets[0] || 'none',
+			pageContentLength: pageContent?.length || 0
+		});
+
 		performanceMonitor.startTimer("display_results");
 
 		// Clear any existing highlights and sidebar
@@ -133,29 +139,51 @@ export class UIManager {
 			return nugget;
 		});
 
+		console.log("[UIManager] Enhanced nuggets:", {
+			enhancedNuggetsLength: enhancedNuggets.length,
+			firstEnhancedNugget: enhancedNuggets[0] || 'none'
+		});
+
 		// Highlight nuggets on the page (pass page content for reconstruction)
 		const sidebarItems: SidebarNuggetItem[] = [];
 
 		performanceMonitor.startTimer("highlight_nuggets");
-		for (let i = 0; i < enhancedNuggets.length; i++) {
-			const nugget = enhancedNuggets[i];
-			const originalNugget = nuggets[i];
+		try {
+			for (let i = 0; i < enhancedNuggets.length; i++) {
+				const nugget = enhancedNuggets[i];
+				const originalNugget = nuggets[i];
 
-			const highlighted = await measureHighlighting("nugget_highlight", () =>
-				this.highlighter.highlightNugget(originalNugget, pageContent),
-			);
-			sidebarItems.push({
-				nugget: nugget, // Enhanced nugget already matches GoldenNugget type
-				status: highlighted ? "highlighted" : "not-found",
-				selected: false,
-			});
+				console.log(`[UIManager] Processing nugget ${i + 1}/${enhancedNuggets.length}:`, {
+					type: nugget.type,
+					startContent: nugget.startContent?.substring(0, 50) + '...',
+					endContent: nugget.endContent?.substring(0, 50) + '...'
+				});
+
+				const highlighted = await measureHighlighting("nugget_highlight", () =>
+					this.highlighter.highlightNugget(originalNugget, pageContent),
+				);
+				sidebarItems.push({
+					nugget: nugget, // Enhanced nugget already matches GoldenNugget type
+					status: highlighted ? "highlighted" : "not-found",
+					selected: false,
+				});
+			}
+		} catch (error) {
+			console.error("[UIManager] Error during nugget highlighting:", error);
 		}
+		
+		console.log("[UIManager] Created sidebar items:", {
+			sidebarItemsLength: sidebarItems.length,
+			firstSidebarItem: sidebarItems[0] || 'none'
+		});
+
 		performanceMonitor.logTimer(
 			"highlight_nuggets",
 			`Highlighted ${nuggets.length} nuggets`,
 		);
 
 		// Show sidebar with all nuggets (pass page content for reconstruction)
+		console.log("[UIManager] Calling sidebar.show with", sidebarItems.length, "items");
 		measureDOMOperation("show_sidebar", () =>
 			this.sidebar.show(sidebarItems, this.highlighter, pageContent),
 		);
