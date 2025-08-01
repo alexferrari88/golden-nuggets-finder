@@ -32,7 +32,11 @@ export class StorageManager {
 
 		// Validate access
 		if (!securityManager.validateAccess(context)) {
-			throw new Error("Access denied: Invalid access context");
+			// Get the latest audit log entry for more specific error details
+			const auditLogs = securityManager.getAuditLogs();
+			const latestEntry = auditLogs[auditLogs.length - 1];
+			const specificError = latestEntry?.error || "Invalid access context";
+			throw new Error(`Access denied: ${specificError}`);
 		}
 
 		const cached = this.getFromCache(STORAGE_KEYS.API_KEY);
@@ -204,7 +208,11 @@ export class StorageManager {
 	): Promise<void> {
 		// Validate access
 		if (!securityManager.validateAccess(context)) {
-			throw new Error("Access denied: Invalid access context");
+			// Get the latest audit log entry for more specific error details
+			const auditLogs = securityManager.getAuditLogs();
+			const latestEntry = auditLogs[auditLogs.length - 1];
+			const specificError = latestEntry?.error || "Invalid access context";
+			throw new Error(`Access denied: ${specificError}`);
 		}
 
 		// Encrypt the API key
