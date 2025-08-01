@@ -1,12 +1,11 @@
-import { GeminiClient } from "../background/gemini-client";
 import { MessageHandler } from "../background/message-handler";
+import { ProviderSwitcher } from "../background/services/provider-switcher";
 import { TypeFilterService } from "../background/type-filter-service";
 import { StorageMigration, storage } from "../shared/storage";
 import { MESSAGE_TYPES } from "../shared/types";
 
 export default defineBackground(() => {
-	const geminiClient = new GeminiClient();
-	const messageHandler = new MessageHandler(geminiClient);
+	const messageHandler = new MessageHandler();
 
 	// Track analysis completion state per tab
 	const analysisCompletedTabs = new Set<number>();
@@ -228,26 +227,12 @@ export default defineBackground(() => {
 			// Inject content script dynamically first
 			await injectContentScript(tab.id);
 
-			// Check if API key is configured before proceeding
-			let apiKey: string;
-			try {
-				apiKey = await storage.getApiKey({
-					source: "background",
-					action: "read",
-					timestamp: Date.now(),
-				});
-			} catch (apiKeyError) {
-				console.error("[Background] API key retrieval failed:", apiKeyError);
-				// Show error message and return - don't proceed with analysis
-				await new Promise((resolve) => setTimeout(resolve, 100));
-				await chrome.tabs.sendMessage(tab.id, {
-					type: MESSAGE_TYPES.SHOW_API_KEY_ERROR,
-				});
-				return;
-			}
-
-			if (!apiKey) {
-				console.log("[Background] No API key found - showing error message");
+			// Check if current provider is configured before proceeding
+			const currentProvider = await ProviderSwitcher.getCurrentProvider();
+			const isConfigured = await ProviderSwitcher.isProviderConfigured(currentProvider);
+			
+			if (!isConfigured) {
+				console.log(`[Background] Provider ${currentProvider} not configured - showing error message`);
 				// Show API key error message with link to options page
 				// Add a small delay to ensure content script is ready
 				await new Promise((resolve) => setTimeout(resolve, 100));
@@ -257,7 +242,7 @@ export default defineBackground(() => {
 				return;
 			}
 
-			console.log("[Background] API key found - starting typed analysis");
+			console.log(`[Background] Provider ${currentProvider} configured - starting typed analysis`);
 
 			// Get the type filter configuration
 			const contextMenuOption = TypeFilterService.getContextMenuOption(typeId);
@@ -300,16 +285,12 @@ export default defineBackground(() => {
 			// Inject content script dynamically first
 			await injectContentScript(tab.id);
 
-			// Check if API key is configured before proceeding
-			let apiKey: string;
-			try {
-				apiKey = await storage.getApiKey({
-					source: "background",
-					action: "read",
-					timestamp: Date.now(),
-				});
-			} catch (apiKeyError) {
-				console.error("[Background] API key retrieval failed:", apiKeyError);
+			// Check if current provider is configured before proceeding
+			const currentProvider = await ProviderSwitcher.getCurrentProvider();
+			const isConfigured = await ProviderSwitcher.isProviderConfigured(currentProvider);
+			
+			if (!isConfigured) {
+				console.log(`[Background] Provider ${currentProvider} not configured - showing error message`);
 				await new Promise((resolve) => setTimeout(resolve, 100));
 				await chrome.tabs.sendMessage(tab.id, {
 					type: MESSAGE_TYPES.SHOW_API_KEY_ERROR,
@@ -317,16 +298,7 @@ export default defineBackground(() => {
 				return;
 			}
 
-			if (!apiKey) {
-				console.log("[Background] No API key found - showing error message");
-				await new Promise((resolve) => setTimeout(resolve, 100));
-				await chrome.tabs.sendMessage(tab.id, {
-					type: MESSAGE_TYPES.SHOW_API_KEY_ERROR,
-				});
-				return;
-			}
-
-			console.log("[Background] API key found - entering selection mode");
+			console.log(`[Background] Provider ${currentProvider} configured - entering selection mode`);
 			// Send message to content script to enter selection mode
 			await chrome.tabs.sendMessage(tab.id, {
 				type: MESSAGE_TYPES.ENTER_SELECTION_MODE,
