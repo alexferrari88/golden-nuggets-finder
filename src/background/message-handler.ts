@@ -5,10 +5,16 @@ import {
 	type AnalysisProgressMessage,
 	type AnalysisRequest,
 	type AnalysisResponse,
+	type ExtensionConfig,
+	type FeedbackStats,
 	type FeedbackSubmission,
 	MESSAGE_TYPES,
 	type MissingContentFeedback,
 	type NuggetFeedback,
+	type OptimizationRequest,
+	type OptimizedPrompt,
+	type SavedPrompt,
+	type TypeFilterOptions,
 } from "../shared/types";
 import type {
 	GoldenNuggetsResponse,
@@ -35,6 +41,248 @@ import {
 	validateSelectedTypes,
 } from "./type-filter-service";
 
+// Message type definitions for type safety
+interface BaseMessage {
+	type: string;
+}
+
+interface BaseRequest extends BaseMessage {
+	[key: string]: unknown;
+}
+
+interface BaseResponse {
+	success: boolean;
+	error?: string;
+	message?: string;
+	data?: unknown;
+}
+
+// Specific request/response types
+interface AbortAnalysisRequest extends BaseRequest {
+	type: typeof MESSAGE_TYPES.ABORT_ANALYSIS;
+	analysisId: string;
+}
+
+interface AbortAnalysisResponse extends BaseResponse {
+	message?: string;
+}
+
+interface AnalyzeSelectedContentRequest extends BaseRequest {
+	type: typeof MESSAGE_TYPES.ANALYZE_SELECTED_CONTENT;
+	content: string;
+	promptId: string;
+	url: string;
+	analysisId?: string;
+	typeFilter?: TypeFilterOptions;
+}
+
+interface GetPromptsRequest extends BaseRequest {
+	type: typeof MESSAGE_TYPES.GET_PROMPTS;
+}
+
+interface GetPromptsResponse extends BaseResponse {
+	data?: SavedPrompt[];
+}
+
+interface SavePromptRequest extends BaseRequest {
+	type: typeof MESSAGE_TYPES.SAVE_PROMPT;
+	prompt: SavedPrompt;
+}
+
+interface DeletePromptRequest extends BaseRequest {
+	type: typeof MESSAGE_TYPES.DELETE_PROMPT;
+	promptId: string;
+}
+
+interface SetDefaultPromptRequest extends BaseRequest {
+	type: typeof MESSAGE_TYPES.SET_DEFAULT_PROMPT;
+	promptId: string;
+}
+
+interface GetConfigRequest extends BaseRequest {
+	type: typeof MESSAGE_TYPES.GET_CONFIG;
+}
+
+interface GetConfigResponse extends BaseResponse {
+	data?: ExtensionConfig;
+}
+
+interface SaveConfigRequest extends BaseRequest {
+	type: typeof MESSAGE_TYPES.SAVE_CONFIG;
+	config: ExtensionConfig;
+}
+
+interface OpenOptionsPageRequest extends BaseRequest {
+	type: typeof MESSAGE_TYPES.OPEN_OPTIONS_PAGE;
+}
+
+interface SubmitNuggetFeedbackRequest extends BaseRequest {
+	type: typeof MESSAGE_TYPES.SUBMIT_NUGGET_FEEDBACK;
+	feedback: NuggetFeedback;
+}
+
+interface SubmitNuggetFeedbackResponse extends BaseResponse {
+	deduplication?: {
+		user_message?: string;
+	};
+	warning?: string;
+}
+
+interface DeleteNuggetFeedbackRequest extends BaseRequest {
+	type: typeof MESSAGE_TYPES.DELETE_NUGGET_FEEDBACK;
+	feedbackId: string;
+}
+
+interface DeleteNuggetFeedbackResponse extends BaseResponse {
+	warning?: string;
+}
+
+interface SubmitMissingContentFeedbackRequest extends BaseRequest {
+	type: typeof MESSAGE_TYPES.SUBMIT_MISSING_CONTENT_FEEDBACK;
+	missingContentFeedback: MissingContentFeedback[];
+}
+
+interface SubmitMissingContentFeedbackResponse extends BaseResponse {
+	deduplication?: {
+		user_message?: string;
+	};
+	warning?: string;
+}
+
+interface GetFeedbackStatsRequest extends BaseRequest {
+	type: typeof MESSAGE_TYPES.GET_FEEDBACK_STATS;
+}
+
+interface GetFeedbackStatsResponse extends BaseResponse {
+	data?: FeedbackStats;
+	warning?: string;
+}
+
+interface TriggerOptimizationRequest extends BaseRequest {
+	type: typeof MESSAGE_TYPES.TRIGGER_OPTIMIZATION;
+	mode?: "expensive" | "cheap";
+}
+
+interface TriggerOptimizationResponse extends BaseResponse {
+	retryable?: boolean;
+}
+
+interface GetCurrentOptimizedPromptRequest extends BaseRequest {
+	type: typeof MESSAGE_TYPES.GET_CURRENT_OPTIMIZED_PROMPT;
+}
+
+interface GetCurrentOptimizedPromptResponse extends BaseResponse {
+	data?: OptimizedPrompt;
+	fallback?: string;
+}
+
+interface SwitchProviderRequest extends BaseRequest {
+	type: typeof MESSAGE_TYPES.SWITCH_PROVIDER;
+	providerId: ProviderId;
+}
+
+interface SwitchProviderResponse extends BaseResponse {
+	providerId?: ProviderId;
+}
+
+interface GetAvailableProvidersRequest extends BaseRequest {
+	type: typeof MESSAGE_TYPES.GET_AVAILABLE_PROVIDERS;
+}
+
+interface GetAvailableProvidersResponse extends BaseResponse {
+	data?: ProviderId[];
+}
+
+interface GetCurrentProviderRequest extends BaseRequest {
+	type: typeof MESSAGE_TYPES.GET_CURRENT_PROVIDER;
+}
+
+interface GetCurrentProviderResponse extends BaseResponse {
+	data?: {
+		providerId: ProviderId;
+		modelName: string;
+	};
+}
+
+interface ValidateProviderRequest extends BaseRequest {
+	type: typeof MESSAGE_TYPES.VALIDATE_PROVIDER;
+	providerId: ProviderId;
+	apiKey: string;
+}
+
+interface ValidateProviderResponse extends BaseResponse {
+	data?: {
+		isValid: boolean;
+		providerId: ProviderId;
+		modelName: string;
+		error?: string;
+		originalError?: string;
+	};
+}
+
+interface DebugTestRequest extends BaseRequest {
+	type: "DEBUG_TEST";
+}
+
+interface DebugTestResponse extends BaseResponse {
+	message?: string;
+}
+
+// Union types for all possible requests and responses
+type MessageRequest = 
+	| AbortAnalysisRequest
+	| AnalysisRequest
+	| AnalyzeSelectedContentRequest
+	| GetPromptsRequest
+	| SavePromptRequest
+	| DeletePromptRequest
+	| SetDefaultPromptRequest
+	| GetConfigRequest
+	| SaveConfigRequest
+	| OpenOptionsPageRequest
+	| SubmitNuggetFeedbackRequest
+	| DeleteNuggetFeedbackRequest
+	| SubmitMissingContentFeedbackRequest
+	| GetFeedbackStatsRequest
+	| TriggerOptimizationRequest
+	| GetCurrentOptimizedPromptRequest
+	| SwitchProviderRequest
+	| GetAvailableProvidersRequest
+	| GetCurrentProviderRequest
+	| ValidateProviderRequest
+	| DebugTestRequest;
+
+type MessageResponse = 
+	| AbortAnalysisResponse
+	| AnalysisResponse
+	| GetPromptsResponse
+	| BaseResponse
+	| GetConfigResponse
+	| SubmitNuggetFeedbackResponse
+	| DeleteNuggetFeedbackResponse
+	| SubmitMissingContentFeedbackResponse
+	| GetFeedbackStatsResponse
+	| TriggerOptimizationResponse
+	| GetCurrentOptimizedPromptResponse
+	| SwitchProviderResponse
+	| GetAvailableProvidersResponse
+	| GetCurrentProviderResponse
+	| ValidateProviderResponse
+	| DebugTestResponse;
+
+// Backend API response types
+interface BackendFeedbackResponse {
+	deduplication?: {
+		user_message?: string;
+	};
+}
+
+interface BackendErrorInfo {
+	message: string;
+	showToUser: boolean;
+	retryable: boolean;
+}
+
 // Utility function to generate unique analysis IDs
 function generateAnalysisId(): string {
 	return `analysis_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -45,11 +293,7 @@ export class MessageHandler {
 	private static ongoingAnalyses = new Map<string, AbortController>();
 
 	// Helper to classify and enhance backend error messages for users
-	private enhanceBackendError(error: any): {
-		message: string;
-		showToUser: boolean;
-		retryable: boolean;
-	} {
+	private enhanceBackendError(error: Error | unknown): BackendErrorInfo {
 		const errorMessage = (error as Error).message.toLowerCase();
 		const originalMessage = (error as Error).message;
 
@@ -157,7 +401,7 @@ export class MessageHandler {
 	// Helper to notify users of backend errors
 	private async notifyUserOfBackendError(
 		tabId: number | undefined,
-		errorInfo: { message: string; showToUser: boolean; retryable: boolean },
+		errorInfo: BackendErrorInfo,
 	) {
 		if (!errorInfo.showToUser || !tabId) return;
 
@@ -452,9 +696,9 @@ export class MessageHandler {
 	}
 
 	async handleMessage(
-		request: any,
+		request: MessageRequest,
 		sender: chrome.runtime.MessageSender,
-		sendResponse: (response: any) => void,
+		sendResponse: (response: MessageResponse) => void,
 	): Promise<void> {
 		try {
 			switch (request.type) {
@@ -574,8 +818,8 @@ export class MessageHandler {
 	}
 
 	private async handleAbortAnalysis(
-		request: any,
-		sendResponse: (response: any) => void,
+		request: AbortAnalysisRequest,
+		sendResponse: (response: AbortAnalysisResponse) => void,
 	): Promise<void> {
 		try {
 			const analysisId = request.analysisId;
@@ -711,7 +955,9 @@ export class MessageHandler {
 			);
 
 			// Get provider metadata to include in response
-			const providerMetadata = await chrome.storage.local.get(["lastUsedProvider"]);
+			const providerMetadata = await chrome.storage.local.get([
+				"lastUsedProvider",
+			]);
 			const resultWithProvider = {
 				...result,
 				providerMetadata: providerMetadata.lastUsedProvider || null,
@@ -748,9 +994,9 @@ export class MessageHandler {
 	}
 
 	private async handleAnalyzeSelectedContent(
-		request: any,
+		request: AnalyzeSelectedContentRequest,
 		sender: chrome.runtime.MessageSender,
-		sendResponse: (response: any) => void,
+		sendResponse: (response: AnalysisResponse) => void,
 	): Promise<void> {
 		try {
 			// Generate analysis ID if not provided
@@ -858,7 +1104,9 @@ export class MessageHandler {
 			);
 
 			// Get provider metadata to include in response
-			const providerMetadata = await chrome.storage.local.get(["lastUsedProvider"]);
+			const providerMetadata = await chrome.storage.local.get([
+				"lastUsedProvider",
+			]);
 			const resultWithProvider = {
 				...result,
 				providerMetadata: providerMetadata.lastUsedProvider || null,
@@ -889,7 +1137,7 @@ export class MessageHandler {
 	}
 
 	private async handleGetPrompts(
-		sendResponse: (response: any) => void,
+		sendResponse: (response: GetPromptsResponse) => void,
 	): Promise<void> {
 		try {
 			const prompts = await storage.getPrompts();
@@ -933,8 +1181,8 @@ export class MessageHandler {
 	}
 
 	private async handleSavePrompt(
-		request: any,
-		sendResponse: (response: any) => void,
+		request: SavePromptRequest,
+		sendResponse: (response: BaseResponse) => void,
 	): Promise<void> {
 		try {
 			await storage.savePrompt(request.prompt);
@@ -945,8 +1193,8 @@ export class MessageHandler {
 	}
 
 	private async handleDeletePrompt(
-		request: any,
-		sendResponse: (response: any) => void,
+		request: DeletePromptRequest,
+		sendResponse: (response: BaseResponse) => void,
 	): Promise<void> {
 		try {
 			await storage.deletePrompt(request.promptId);
@@ -957,8 +1205,8 @@ export class MessageHandler {
 	}
 
 	private async handleSetDefaultPrompt(
-		request: any,
-		sendResponse: (response: any) => void,
+		request: SetDefaultPromptRequest,
+		sendResponse: (response: BaseResponse) => void,
 	): Promise<void> {
 		try {
 			await storage.setDefaultPrompt(request.promptId);
@@ -969,7 +1217,7 @@ export class MessageHandler {
 	}
 
 	private async handleGetConfig(
-		sendResponse: (response: any) => void,
+		sendResponse: (response: GetConfigResponse) => void,
 	): Promise<void> {
 		try {
 			const config = await storage.getConfig({
@@ -984,8 +1232,8 @@ export class MessageHandler {
 	}
 
 	private async handleSaveConfig(
-		request: any,
-		sendResponse: (response: any) => void,
+		request: SaveConfigRequest,
+		sendResponse: (response: BaseResponse) => void,
 	): Promise<void> {
 		try {
 			await storage.saveConfig(request.config, {
@@ -1000,7 +1248,7 @@ export class MessageHandler {
 	}
 
 	private async handleOpenOptionsPage(
-		sendResponse: (response: any) => void,
+		sendResponse: (response: BaseResponse) => void,
 	): Promise<void> {
 		try {
 			await chrome.runtime.openOptionsPage();
@@ -1030,9 +1278,9 @@ export class MessageHandler {
 	// Feedback System Handlers
 
 	private async handleSubmitNuggetFeedback(
-		request: any,
+		request: SubmitNuggetFeedbackRequest,
 		sender: chrome.runtime.MessageSender,
-		sendResponse: (response: any) => void,
+		sendResponse: (response: SubmitNuggetFeedbackResponse) => void,
 	): Promise<void> {
 		try {
 			const feedback: NuggetFeedback = request.feedback;
@@ -1095,9 +1343,9 @@ export class MessageHandler {
 	}
 
 	private async handleDeleteNuggetFeedback(
-		request: any,
+		request: DeleteNuggetFeedbackRequest,
 		sender: chrome.runtime.MessageSender,
-		sendResponse: (response: any) => void,
+		sendResponse: (response: DeleteNuggetFeedbackResponse) => void,
 	): Promise<void> {
 		try {
 			const feedbackId: string = request.feedbackId;
@@ -1140,9 +1388,9 @@ export class MessageHandler {
 	}
 
 	private async handleSubmitMissingContentFeedback(
-		request: any,
+		request: SubmitMissingContentFeedbackRequest,
 		sender: chrome.runtime.MessageSender,
-		sendResponse: (response: any) => void,
+		sendResponse: (response: SubmitMissingContentFeedbackResponse) => void,
 	): Promise<void> {
 		try {
 			const missingContentFeedback: MissingContentFeedback[] =
@@ -1216,7 +1464,7 @@ export class MessageHandler {
 	}
 
 	private async handleGetFeedbackStats(
-		sendResponse: (response: any) => void,
+		sendResponse: (response: GetFeedbackStatsResponse) => void,
 	): Promise<void> {
 		try {
 			// Get stats from backend API
@@ -1257,8 +1505,8 @@ export class MessageHandler {
 	}
 
 	private async handleTriggerOptimization(
-		request: any,
-		sendResponse: (response: any) => void,
+		request: TriggerOptimizationRequest,
+		sendResponse: (response: TriggerOptimizationResponse) => void,
 	): Promise<void> {
 		try {
 			const optimizationRequest = {
@@ -1336,7 +1584,7 @@ export class MessageHandler {
 
 			// Filter out the feedback item with the matching ID
 			const filteredArray = feedbackArray.filter(
-				(feedback: any) => feedback.id !== feedbackId,
+				(feedback: NuggetFeedback | MissingContentFeedback) => feedback.id !== feedbackId,
 			);
 
 			await chrome.storage.local.set({ [key]: filteredArray });
@@ -1348,7 +1596,7 @@ export class MessageHandler {
 	}
 
 	// Send delete request to backend API
-	private async deleteFeedbackFromBackend(feedbackId: string): Promise<any> {
+	private async deleteFeedbackFromBackend(feedbackId: string): Promise<Record<string, unknown>> {
 		const controller = new AbortController();
 		const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
 
@@ -1381,7 +1629,7 @@ export class MessageHandler {
 	}
 
 	private async handleGetCurrentOptimizedPrompt(
-		sendResponse: (response: any) => void,
+		sendResponse: (response: GetCurrentOptimizedPromptResponse) => void,
 	): Promise<void> {
 		try {
 			// Get current optimized prompt from backend
@@ -1412,7 +1660,7 @@ export class MessageHandler {
 	// Send feedback to backend API with timeout and retry logic
 	private async sendFeedbackToBackend(
 		feedback: FeedbackSubmission,
-	): Promise<any> {
+	): Promise<BackendFeedbackResponse> {
 		const controller = new AbortController();
 		const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
 
@@ -1443,7 +1691,7 @@ export class MessageHandler {
 	}
 
 	// Helper method to get optimized prompt if available (used during analysis)
-	private async getOptimizedPromptIfAvailable(): Promise<any> {
+	private async getOptimizedPromptIfAvailable(): Promise<OptimizedPrompt | null> {
 		const controller = new AbortController();
 		const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout for prompt fetch
 
@@ -1479,8 +1727,8 @@ export class MessageHandler {
 	// Provider Management Handlers
 
 	private async handleSwitchProvider(
-		request: any,
-		sendResponse: (response: any) => void,
+		request: SwitchProviderRequest,
+		sendResponse: (response: SwitchProviderResponse) => void,
 	): Promise<void> {
 		try {
 			const providerId: ProviderId = request.providerId;
@@ -1523,7 +1771,7 @@ export class MessageHandler {
 	}
 
 	private async handleGetAvailableProviders(
-		sendResponse: (response: any) => void,
+		sendResponse: (response: GetAvailableProvidersResponse) => void,
 	): Promise<void> {
 		try {
 			const availableProviders = await getAvailableProviders();
@@ -1535,7 +1783,7 @@ export class MessageHandler {
 	}
 
 	private async handleGetCurrentProvider(
-		sendResponse: (response: any) => void,
+		sendResponse: (response: GetCurrentProviderResponse) => void,
 	): Promise<void> {
 		try {
 			const currentProvider = await getCurrentProvider();
@@ -1547,8 +1795,8 @@ export class MessageHandler {
 	}
 
 	private async handleValidateProvider(
-		request: any,
-		sendResponse: (response: any) => void,
+		request: ValidateProviderRequest,
+		sendResponse: (response: ValidateProviderResponse) => void,
 	): Promise<void> {
 		try {
 			const providerId: ProviderId = request.providerId;
