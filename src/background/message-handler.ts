@@ -1,3 +1,4 @@
+import { debugLogger } from "../shared/debug";
 import { storage } from "../shared/storage";
 import { ApiKeyStorage } from "../shared/storage/api-key-storage";
 import {
@@ -213,26 +214,41 @@ export class MessageHandler {
 	private static async getSelectedProvider(): Promise<ProviderConfig> {
 		// Get selected provider from storage
 		const result = await chrome.storage.local.get(["selectedProvider"]);
-		let providerId = result.selectedProvider || "gemini";
+		let providerId = result.selectedProvider;
 
-		// Check if selected provider is configured
-		const isConfigured =
-			await ProviderSwitcher.isProviderConfigured(providerId);
-		if (!isConfigured) {
-			console.warn(
-				`Selected provider ${providerId} is not configured, trying fallback...`,
-			);
-
-			// Try to switch to a fallback provider
-			const fallbackProviderId =
-				await ProviderSwitcher.switchToFallbackProvider();
-			if (fallbackProviderId) {
-				providerId = fallbackProviderId;
-				console.log(`Switched to fallback provider: ${providerId}`);
+		// If no provider is explicitly selected, find the first configured provider
+		if (!providerId) {
+			const availableProviders = await ProviderSwitcher.getAvailableProviders();
+			if (availableProviders.length > 0) {
+				providerId = availableProviders[0];
+				console.log(`No provider selected, using first available: ${providerId}`);
+				// Automatically set this as the selected provider
+				await chrome.storage.local.set({ selectedProvider: providerId });
 			} else {
 				throw new Error(
 					`No configured providers available. Please configure an API key in the options page.`,
 				);
+			}
+		} else {
+			// Check if selected provider is still configured
+			const isConfigured =
+				await ProviderSwitcher.isProviderConfigured(providerId);
+			if (!isConfigured) {
+				console.warn(
+					`Selected provider ${providerId} is not configured, trying fallback...`,
+				);
+
+				// Try to switch to a fallback provider
+				const fallbackProviderId =
+					await ProviderSwitcher.switchToFallbackProvider();
+				if (fallbackProviderId) {
+					providerId = fallbackProviderId;
+					console.log(`Switched to fallback provider: ${providerId}`);
+				} else {
+					throw new Error(
+						`No configured providers available. Please configure an API key in the options page.`,
+					);
+				}
 			}
 		}
 
@@ -457,6 +473,15 @@ export class MessageHandler {
 
 				case MESSAGE_TYPES.VALIDATE_PROVIDER:
 					await this.handleValidateProvider(request, sendResponse);
+					break;
+
+				case "DEBUG_TEST":
+					// Test logging in background script
+					console.log("🔍 [DEBUG TEST] Background script console logging test");
+					debugLogger.log("🔍 [DEBUG TEST] DebugLogger test from background script");
+					debugLogger.logLLMRequest("https://test-endpoint.com/background-test", { test: "This is a background test request" });
+					debugLogger.logLLMResponse({ test: "This is a background test response" });
+					sendResponse({ success: true, message: "Debug test completed in background script" });
 					break;
 
 				default:
