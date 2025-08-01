@@ -1,5 +1,4 @@
 import type { ProviderId } from "../types/providers";
-import { ProviderFactory } from "../../background/services/provider-factory";
 
 export class ModelStorage {
 	private static readonly KEY_PREFIX = "selected_model_";
@@ -14,16 +13,13 @@ export class ModelStorage {
 	}
 
 	/**
-	 * Get the selected model for a provider, fallback to default if not set
+	 * Get the selected model for a provider, returns null if not set
 	 */
-	static async get(providerId: ProviderId): Promise<string> {
+	static async get(providerId: ProviderId): Promise<string | null> {
 		const result = await chrome.storage.local.get(
 			`${ModelStorage.KEY_PREFIX}${providerId}`,
 		);
-		const selectedModel = result[`${ModelStorage.KEY_PREFIX}${providerId}`];
-
-		// Return selected model if set, otherwise fallback to default
-		return selectedModel || ProviderFactory.getDefaultModel(providerId);
+		return result[`${ModelStorage.KEY_PREFIX}${providerId}`] || null;
 	}
 
 	/**
@@ -36,11 +32,11 @@ export class ModelStorage {
 	}
 
 	/**
-	 * Get all selected models for all providers
+	 * Get all selected models for all providers (with fallbacks handled by caller)
 	 */
-	static async getAll(): Promise<Record<ProviderId, string>> {
+	static async getAll(): Promise<Record<ProviderId, string | null>> {
 		const providers: ProviderId[] = ["gemini", "openai", "anthropic", "openrouter"];
-		const models: Record<ProviderId, string> = {} as Record<ProviderId, string>;
+		const models: Record<ProviderId, string | null> = {} as Record<ProviderId, string | null>;
 
 		// Get all models in parallel
 		const modelPromises = providers.map(async (providerId) => {

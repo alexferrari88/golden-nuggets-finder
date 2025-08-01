@@ -47,7 +47,8 @@ export class ProviderFactory {
 	 * Get the user-selected model for a provider, with fallback to default
 	 */
 	static async getSelectedModel(providerId: ProviderId): Promise<string> {
-		return await ModelStorage.get(providerId);
+		const selectedModel = await ModelStorage.get(providerId);
+		return selectedModel || this.getDefaultModel(providerId);
 	}
 
 	/**

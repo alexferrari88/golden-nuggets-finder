@@ -75,12 +75,12 @@ describe("ModelStorage", () => {
 			expect(mockStorageLocal.get).toHaveBeenCalledWith("selected_model_gemini");
 		});
 
-		it("should return default model when no selection exists", async () => {
+		it("should return null when no selection exists", async () => {
 			mockStorageLocal.get.mockResolvedValueOnce({}); // Empty result
 
 			const result = await ModelStorage.get("gemini");
 
-			expect(result).toBe("gemini-2.5-flash"); // Default model
+			expect(result).toBe(null); // No default fallback in ModelStorage
 		});
 
 		it("should handle different providers correctly", async () => {
@@ -122,7 +122,7 @@ describe("ModelStorage", () => {
 			// Mock individual get calls
 			mockStorageLocal.get
 				.mockResolvedValueOnce({ "selected_model_gemini": "gemini-2.5-pro" }) // gemini
-				.mockResolvedValueOnce({}) // openai (fallback to default)
+				.mockResolvedValueOnce({}) // openai (no selection, returns null)
 				.mockResolvedValueOnce({ "selected_model_anthropic": "claude-3-5-sonnet-20241022" }) // anthropic
 				.mockResolvedValueOnce({ "selected_model_openrouter": "anthropic/claude-sonnet-4" }); // openrouter
 
@@ -130,7 +130,7 @@ describe("ModelStorage", () => {
 
 			expect(result).toEqual({
 				gemini: "gemini-2.5-pro",
-				openai: "gpt-4.1-mini", // Default model
+				openai: null, // No selection stored
 				anthropic: "claude-3-5-sonnet-20241022", 
 				openrouter: "anthropic/claude-sonnet-4",
 			});
@@ -282,7 +282,7 @@ describe("ModelStorage", () => {
 
 			const result = await ModelStorage.get("gemini");
 
-			expect(result).toBe("gemini-2.5-flash"); // Should fallback to default
+			expect(result).toBe(null); // No fallback in ModelStorage
 		});
 
 		it("should handle concurrent operations", async () => {
