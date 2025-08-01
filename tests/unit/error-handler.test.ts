@@ -1,27 +1,33 @@
 import { beforeEach, describe, expect, test, vi } from "vitest";
-import { ErrorHandler } from "../../src/background/services/error-handler";
-import { ProviderSwitcher } from "../../src/background/services/provider-switcher";
+import {
+	handleProviderError,
+	clearAllRetryCount,
+	resetRetryCount,
+} from "../../src/background/services/error-handler";
+import {
+	getCurrentProvider,
+	getAvailableProviders,
+	switchProvider,
+} from "../../src/background/services/provider-switcher";
 
-// Mock ProviderSwitcher
+// Mock ProviderSwitcher functions
 vi.mock("../../src/background/services/provider-switcher", () => ({
-	ProviderSwitcher: {
-		getCurrentProvider: vi.fn(),
-		getAvailableProviders: vi.fn(),
-		switchProvider: vi.fn(),
-	},
+	getCurrentProvider: vi.fn(),
+	getAvailableProviders: vi.fn(),
+	switchProvider: vi.fn(),
 }));
 
 describe("ErrorHandler", () => {
 	beforeEach(() => {
 		// Clear all retry counts before each test
-		ErrorHandler.clearAllRetryCount();
+		clearAllRetryCount();
 		vi.clearAllMocks();
 	});
 
 	describe("Error Classification", () => {
 		test("correctly identifies API key errors", async () => {
 			const apiKeyError = new Error("Invalid API key provided");
-			const result = await ErrorHandler.handleProviderError(
+			const result = await handleProviderError(
 				apiKeyError,
 				"openai",
 				"test",
@@ -33,7 +39,7 @@ describe("ErrorHandler", () => {
 
 		test("correctly identifies rate limit errors", async () => {
 			const rateLimitError = new Error("Rate limit exceeded");
-			const result = await ErrorHandler.handleProviderError(
+			const result = await handleProviderError(
 				rateLimitError,
 				"openai",
 				"test",
@@ -44,7 +50,7 @@ describe("ErrorHandler", () => {
 
 		test("correctly identifies temporary errors", async () => {
 			const tempError = new Error("Network error occurred");
-			const result = await ErrorHandler.handleProviderError(
+			const result = await handleProviderError(
 				tempError,
 				"openai",
 				"test",
@@ -57,15 +63,15 @@ describe("ErrorHandler", () => {
 			const seriousError = new Error("Unknown service error");
 
 			// Mock current provider and available providers
-			vi.mocked(ProviderSwitcher.getCurrentProvider).mockResolvedValue(
+			vi.mocked(getCurrentProvider).mockResolvedValue(
 				"openai",
 			);
-			vi.mocked(ProviderSwitcher.getAvailableProviders).mockResolvedValue([
+			vi.mocked(getAvailableProviders).mockResolvedValue([
 				"openai",
 				"gemini",
 			]);
 
-			const result = await ErrorHandler.handleProviderError(
+			const result = await handleProviderError(
 				seriousError,
 				"openai",
 				"test",
@@ -79,7 +85,7 @@ describe("ErrorHandler", () => {
 	describe("Retry Logic", () => {
 		test("identifies retry-able errors correctly", async () => {
 			const rateLimitError = new Error("Too many requests");
-			const result = await ErrorHandler.handleProviderError(
+			const result = await handleProviderError(
 				rateLimitError,
 				"openai",
 				"test-simple",
@@ -90,7 +96,7 @@ describe("ErrorHandler", () => {
 
 		test("resets retry count correctly", () => {
 			// Test the reset function directly without sleep delays
-			ErrorHandler.resetRetryCount("openai", "test-reset");
+			resetRetryCount("openai", "test-reset");
 
 			// If it doesn't throw, it works correctly
 			expect(true).toBe(true);
@@ -109,16 +115,16 @@ describe("ErrorHandler", () => {
 		test("selects fallback provider based on priority order", async () => {
 			const error = new Error("Serious error");
 
-			vi.mocked(ProviderSwitcher.getCurrentProvider).mockResolvedValue(
+			vi.mocked(getCurrentProvider).mockResolvedValue(
 				"openrouter",
 			);
-			vi.mocked(ProviderSwitcher.getAvailableProviders).mockResolvedValue([
+			vi.mocked(getAvailableProviders).mockResolvedValue([
 				"openrouter",
 				"anthropic",
 				"gemini",
 			]);
 
-			const result = await ErrorHandler.handleProviderError(
+			const result = await handleProviderError(
 				error,
 				"openrouter",
 				"test",
@@ -130,14 +136,14 @@ describe("ErrorHandler", () => {
 		test("handles no available fallback providers", async () => {
 			const error = new Error("Serious error");
 
-			vi.mocked(ProviderSwitcher.getCurrentProvider).mockResolvedValue(
+			vi.mocked(getCurrentProvider).mockResolvedValue(
 				"gemini",
 			);
-			vi.mocked(ProviderSwitcher.getAvailableProviders).mockResolvedValue([
+			vi.mocked(getAvailableProviders).mockResolvedValue([
 				"gemini",
 			]); // Only current provider
 
-			const result = await ErrorHandler.handleProviderError(
+			const result = await handleProviderError(
 				error,
 				"gemini",
 				"test",

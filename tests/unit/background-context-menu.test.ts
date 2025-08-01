@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { TypeFilterService } from "../../src/background/type-filter-service";
+import * as TypeFilterService from "../../src/background/type-filter-service";
 import { StorageMigration, storage } from "../../src/shared/storage";
 import { MESSAGE_TYPES } from "../../src/shared/types";
 

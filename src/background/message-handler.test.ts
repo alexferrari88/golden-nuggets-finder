@@ -12,10 +12,10 @@ vi.mock("./services/provider-switcher");
 vi.mock("./services/error-handler");
 vi.mock("./services/response-normalizer");
 
-import { ErrorHandler } from "./services/error-handler";
+import * as ErrorHandler from "./services/error-handler";
 // Import mocked modules for setup
-import { ProviderFactory } from "./services/provider-factory";
-import { ProviderSwitcher } from "./services/provider-switcher";
+import * as ProviderFactory from "./services/provider-factory";
+import * as ProviderSwitcher from "./services/provider-switcher";
 import * as ResponseNormalizer from "./services/response-normalizer";
 
 // Type definitions for mocks

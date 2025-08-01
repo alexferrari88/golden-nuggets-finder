@@ -1,9 +1,17 @@
 import { Check, Star } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import ReactDOM from "react-dom/client";
-import { ProviderFactory } from "../background/services/provider-factory";
-import { ProviderSwitcher } from "../background/services/provider-switcher";
-import { TypeFilterService } from "../background/type-filter-service";
+import { getSupportedProviders, getSelectedModel } from "../background/services/provider-factory";
+import {
+	switchProvider,
+	getAvailableProviders,
+	getCurrentProvider,
+	isProviderConfigured,
+} from "../background/services/provider-switcher";
+import {
+	TYPE_CONFIGURATIONS,
+	createCombinationTypeFilter,
+} from "../background/type-filter-service";
 import {
 	borderRadius,
 	colors,
@@ -399,15 +407,15 @@ function IndexPopup() {
 			setNoApiKey(false);
 
 			// Get current provider and check if it's configured
-			const provider = await ProviderSwitcher.getCurrentProvider();
+			const provider = await getCurrentProvider();
 			setCurrentProvider(provider);
 
 			// Get current model for the provider
-			const model = await ProviderFactory.getSelectedModel(provider);
+			const model = await getSelectedModel(provider);
 			setCurrentModel(model);
 
 			const isConfigured =
-				await ProviderSwitcher.isProviderConfigured(provider);
+				await isProviderConfigured(provider);
 			if (!isConfigured) {
 				setNoApiKey(true);
 				setLoading(false);
@@ -518,7 +526,7 @@ function IndexPopup() {
 
 			// Create type filter options
 			const typeFilter: TypeFilterOptions =
-				TypeFilterService.createCombinationTypeFilter(selectedTypes);
+				createCombinationTypeFilter(selectedTypes);
 
 			// Send message to content script with analysis ID and type filter
 			await chrome.tabs.sendMessage(tab.id, {
@@ -569,7 +577,7 @@ function IndexPopup() {
 
 			// Create type filter options
 			const typeFilter: TypeFilterOptions =
-				TypeFilterService.createCombinationTypeFilter(selectedTypes);
+				createCombinationTypeFilter(selectedTypes);
 
 			// Send message to content script to enter selection mode
 			await chrome.tabs.sendMessage(tab.id, {
@@ -1305,7 +1313,7 @@ function IndexPopup() {
 						gap: spacing.sm,
 					}}
 				>
-					{TypeFilterService.TYPE_CONFIGURATIONS.map((typeConfig) => (
+					{TYPE_CONFIGURATIONS.map((typeConfig) => (
 						<label
 							key={typeConfig.type}
 							style={{

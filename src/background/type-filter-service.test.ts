@@ -4,7 +4,41 @@ import {
 	ALL_NUGGET_TYPES,
 	generateGoldenNuggetSchema,
 } from "../shared/schemas";
-import { TypeFilterService } from "./type-filter-service";
+import {
+	generateFilteredPrompt,
+	generateDynamicSchema,
+	validateSelectedTypes,
+	getTypeConfiguration,
+	getContextMenuOption,
+	createDefaultTypeFilter,
+	createSingleTypeFilter,
+	createCombinationTypeFilter,
+	TYPE_CONFIGURATIONS,
+	CONTEXT_MENU_OPTIONS,
+} from "./type-filter-service";
+
+// For tests that need access to internal constants
+const TYPE_DEFINITIONS = {
+	tool: `1. **Actionable Tools:** A specific, tool/software/technique. Must include its specific, valuable application.
+    *   **Bad:** "You should use a calendar."
+    *   **Good:** "I use Trello's calendar power-up to visualize my content pipeline, which helps me manage deadlines when my ADHD makes time-planning difficult."`,
+
+	media: `2. **High-Signal Media:** A high-quality book, article, video, or podcast. Must include *why* it's valuable.
+    *   **Bad:** "Check out the NFL podcast."
+    *   **Good:** "The episode of the Tim Ferriss podcast with guest Derek Sivers has a brilliant segment on the idea of 'hell yeah or no' for decision-making."`,
+
+	explanation: `3. **Deep Explanations:** A concise, insightful explanation of a complex concept that goes beyond a surface-level definition. It should feel like a mini-lesson.
+    *   **Bad:** "The mitochondria is the powerhouse of the cell."
+    *   **Good:** "The reason async/await in Javascript is so powerful is that it's syntactic sugar over Promises, allowing you to write asynchronous code that reads like synchronous code, avoiding 'callback hell'."`,
+
+	analogy: `4. **Powerful Analogies:** An analogy that makes a complex topic surprisingly simple and clear.
+    *   **Bad:** "It's like learning to ride a bike."
+    *   **Good:** "Thinking about technical debt as being like a financial debt is useful. You can take it on purposefully to ship faster, but you have to pay interest (slower development) until you pay it down (refactor)."`,
+
+	model: `5. **Mental Models:** A named cognitive framework, productivity technique, or principle for thinking. The simple mention of a specific model is valuable as a hook for further research.
+    *   **Bad:** "You should think about the problem differently." (Too generic)
+    *   **Good:** "I apply the 'Inversion' mental model by asking 'What would guarantee failure?' before starting a new project. This helps me identify and mitigate risks proactively instead of just planning for success."`,
+};
 
 describe("TypeFilterService", () => {
 	describe("generateFilteredPrompt", () => {
@@ -21,12 +55,12 @@ describe("TypeFilterService", () => {
 Continue with analysis...`;
 
 		it("should return base prompt unchanged when no types selected", () => {
-			const result = TypeFilterService.generateFilteredPrompt(basePrompt, []);
+			const result = generateFilteredPrompt(basePrompt, []);
 			expect(result).toBe(basePrompt);
 		});
 
 		it("should filter prompt to only include selected single type", () => {
-			const result = TypeFilterService.generateFilteredPrompt(basePrompt, [
+			const result = generateFilteredPrompt(basePrompt, [
 				"tool",
 			]);
 
@@ -39,7 +73,7 @@ Continue with analysis...`;
 		});
 
 		it("should filter prompt to include multiple selected types with renumbering", () => {
-			const result = TypeFilterService.generateFilteredPrompt(basePrompt, [
+			const result = generateFilteredPrompt(basePrompt, [
 				"tool",
 				"media",
 			]);
@@ -53,7 +87,7 @@ Continue with analysis...`;
 		});
 
 		it("should preserve analysis instructions section", () => {
-			const result = TypeFilterService.generateFilteredPrompt(basePrompt, [
+			const result = generateFilteredPrompt(basePrompt, [
 				"tool",
 			]);
 
@@ -62,7 +96,7 @@ Continue with analysis...`;
 		});
 
 		it("should include complete type definitions with examples", () => {
-			const result = TypeFilterService.generateFilteredPrompt(basePrompt, [
+			const result = generateFilteredPrompt(basePrompt, [
 				"tool",
 			]);
 
@@ -79,7 +113,7 @@ Continue with analysis...`;
 				"analogy",
 				"model",
 			];
-			const result = TypeFilterService.generateFilteredPrompt(
+			const result = generateFilteredPrompt(
 				basePrompt,
 				allTypes,
 			);
@@ -94,7 +128,7 @@ Continue with analysis...`;
 		it("should handle missing EXTRACTION TARGETS section gracefully", () => {
 			const promptWithoutTargets =
 				"# Simple prompt without extraction targets section";
-			const result = TypeFilterService.generateFilteredPrompt(
+			const result = generateFilteredPrompt(
 				promptWithoutTargets,
 				["tool"],
 			);
@@ -107,7 +141,7 @@ Continue with analysis...`;
 	describe("generateDynamicSchema", () => {
 		it("should generate schema with selected types enum", () => {
 			const selectedTypes: GoldenNuggetType[] = ["tool", "media"];
-			const result = TypeFilterService.generateDynamicSchema(selectedTypes);
+			const result = generateDynamicSchema(selectedTypes);
 
 			expect(
 				result.properties.golden_nuggets.items.properties.type.enum,
@@ -115,7 +149,7 @@ Continue with analysis...`;
 		});
 
 		it("should generate schema with all types when empty array provided", () => {
-			const result = TypeFilterService.generateDynamicSchema([]);
+			const result = generateDynamicSchema([]);
 
 			expect(
 				result.properties.golden_nuggets.items.properties.type.enum,
@@ -123,7 +157,7 @@ Continue with analysis...`;
 		});
 
 		it("should generate schema with single type", () => {
-			const result = TypeFilterService.generateDynamicSchema(["analogy"]);
+			const result = generateDynamicSchema(["analogy"]);
 
 			expect(
 				result.properties.golden_nuggets.items.properties.type.enum,
@@ -131,7 +165,7 @@ Continue with analysis...`;
 		});
 
 		it("should maintain schema structure consistency with base schema", () => {
-			const result = TypeFilterService.generateDynamicSchema(["tool"]);
+			const result = generateDynamicSchema(["tool"]);
 			const _baseSchema = generateGoldenNuggetSchema(["tool"]);
 
 			expect(result.type).toBe("object");
@@ -148,21 +182,21 @@ Continue with analysis...`;
 
 	describe("validateSelectedTypes", () => {
 		it("should return true for valid single type", () => {
-			expect(TypeFilterService.validateSelectedTypes(["tool"])).toBe(true);
-			expect(TypeFilterService.validateSelectedTypes(["media"])).toBe(true);
-			expect(TypeFilterService.validateSelectedTypes(["explanation"])).toBe(
+			expect(validateSelectedTypes(["tool"])).toBe(true);
+			expect(validateSelectedTypes(["media"])).toBe(true);
+			expect(validateSelectedTypes(["explanation"])).toBe(
 				true,
 			);
-			expect(TypeFilterService.validateSelectedTypes(["analogy"])).toBe(true);
-			expect(TypeFilterService.validateSelectedTypes(["model"])).toBe(true);
+			expect(validateSelectedTypes(["analogy"])).toBe(true);
+			expect(validateSelectedTypes(["model"])).toBe(true);
 		});
 
 		it("should return true for valid multiple types", () => {
-			expect(TypeFilterService.validateSelectedTypes(["tool", "media"])).toBe(
+			expect(validateSelectedTypes(["tool", "media"])).toBe(
 				true,
 			);
 			expect(
-				TypeFilterService.validateSelectedTypes([
+				validateSelectedTypes([
 					"explanation",
 					"analogy",
 					"model",
@@ -178,18 +212,18 @@ Continue with analysis...`;
 				"analogy",
 				"model",
 			];
-			expect(TypeFilterService.validateSelectedTypes(allTypes)).toBe(true);
+			expect(validateSelectedTypes(allTypes)).toBe(true);
 		});
 
 		it("should return true for empty array", () => {
-			expect(TypeFilterService.validateSelectedTypes([])).toBe(true);
+			expect(validateSelectedTypes([])).toBe(true);
 		});
 
 		it("should return false for invalid types", () => {
 			// @ts-expect-error Testing invalid input
-			expect(TypeFilterService.validateSelectedTypes(["invalid"])).toBe(false);
+			expect(validateSelectedTypes(["invalid"])).toBe(false);
 			// @ts-expect-error Testing invalid input
-			expect(TypeFilterService.validateSelectedTypes(["tool", "invalid"])).toBe(
+			expect(validateSelectedTypes(["tool", "invalid"])).toBe(
 				false,
 			);
 		});
@@ -197,38 +231,38 @@ Continue with analysis...`;
 		it("should return false for mixed valid and invalid types", () => {
 			// @ts-expect-error Testing invalid input
 			expect(
-				TypeFilterService.validateSelectedTypes(["tool", "media", "fake"]),
+				validateSelectedTypes(["tool", "media", "fake"]),
 			).toBe(false);
 		});
 	});
 
 	describe("getTypeConfiguration", () => {
 		it("should return correct configuration for each type", () => {
-			expect(TypeFilterService.getTypeConfiguration("tool")).toEqual({
+			expect(getTypeConfiguration("tool")).toEqual({
 				type: "tool",
 				label: "Tools",
 				emoji: "🛠️",
 			});
 
-			expect(TypeFilterService.getTypeConfiguration("media")).toEqual({
+			expect(getTypeConfiguration("media")).toEqual({
 				type: "media",
 				label: "Media",
 				emoji: "📚",
 			});
 
-			expect(TypeFilterService.getTypeConfiguration("explanation")).toEqual({
+			expect(getTypeConfiguration("explanation")).toEqual({
 				type: "explanation",
 				label: "Explanations",
 				emoji: "💡",
 			});
 
-			expect(TypeFilterService.getTypeConfiguration("analogy")).toEqual({
+			expect(getTypeConfiguration("analogy")).toEqual({
 				type: "analogy",
 				label: "Analogies",
 				emoji: "🌉",
 			});
 
-			expect(TypeFilterService.getTypeConfiguration("model")).toEqual({
+			expect(getTypeConfiguration("model")).toEqual({
 				type: "model",
 				label: "Mental Models",
 				emoji: "🧠",
@@ -237,13 +271,13 @@ Continue with analysis...`;
 
 		it("should return undefined for invalid type", () => {
 			// @ts-expect-error Testing invalid input
-			expect(TypeFilterService.getTypeConfiguration("invalid")).toBeUndefined();
+			expect(getTypeConfiguration("invalid")).toBeUndefined();
 		});
 	});
 
 	describe("getContextMenuOption", () => {
 		it('should return correct option for "all" types', () => {
-			const option = TypeFilterService.getContextMenuOption("all");
+			const option = getContextMenuOption("all");
 
 			expect(option).toEqual({
 				id: "all",
@@ -253,13 +287,13 @@ Continue with analysis...`;
 		});
 
 		it("should return correct option for single types", () => {
-			expect(TypeFilterService.getContextMenuOption("tool")).toEqual({
+			expect(getContextMenuOption("tool")).toEqual({
 				id: "tool",
 				title: "🛠️ Tools Only",
 				types: ["tool"],
 			});
 
-			expect(TypeFilterService.getContextMenuOption("media")).toEqual({
+			expect(getContextMenuOption("media")).toEqual({
 				id: "media",
 				title: "📚 Media Only",
 				types: ["media"],
@@ -267,17 +301,17 @@ Continue with analysis...`;
 		});
 
 		it("should return undefined for invalid option ID", () => {
-			expect(TypeFilterService.getContextMenuOption("invalid")).toBeUndefined();
+			expect(getContextMenuOption("invalid")).toBeUndefined();
 		});
 
 		it("should return undefined for empty string", () => {
-			expect(TypeFilterService.getContextMenuOption("")).toBeUndefined();
+			expect(getContextMenuOption("")).toBeUndefined();
 		});
 	});
 
 	describe("createDefaultTypeFilter", () => {
 		it("should create filter with all types selected", () => {
-			const filter = TypeFilterService.createDefaultTypeFilter();
+			const filter = createDefaultTypeFilter();
 
 			expect(filter).toEqual({
 				selectedTypes: ["tool", "media", "explanation", "analogy", "model"],
@@ -286,8 +320,8 @@ Continue with analysis...`;
 		});
 
 		it("should create new instance each time", () => {
-			const filter1 = TypeFilterService.createDefaultTypeFilter();
-			const filter2 = TypeFilterService.createDefaultTypeFilter();
+			const filter1 = createDefaultTypeFilter();
+			const filter2 = createDefaultTypeFilter();
 
 			expect(filter1).not.toBe(filter2); // Different instances
 			expect(filter1).toEqual(filter2); // Same content
@@ -296,7 +330,7 @@ Continue with analysis...`;
 
 	describe("createSingleTypeFilter", () => {
 		it("should create filter with single type", () => {
-			const filter = TypeFilterService.createSingleTypeFilter("tool");
+			const filter = createSingleTypeFilter("tool");
 
 			expect(filter).toEqual({
 				selectedTypes: ["tool"],
@@ -314,7 +348,7 @@ Continue with analysis...`;
 			];
 
 			types.forEach((type) => {
-				const filter = TypeFilterService.createSingleTypeFilter(type);
+				const filter = createSingleTypeFilter(type);
 				expect(filter.selectedTypes).toEqual([type]);
 				expect(filter.analysisMode).toBe("single");
 			});
@@ -324,7 +358,7 @@ Continue with analysis...`;
 	describe("createCombinationTypeFilter", () => {
 		it("should create filter with multiple types", () => {
 			const types: GoldenNuggetType[] = ["tool", "media"];
-			const filter = TypeFilterService.createCombinationTypeFilter(types);
+			const filter = createCombinationTypeFilter(types);
 
 			expect(filter).toEqual({
 				selectedTypes: ["tool", "media"],
@@ -333,7 +367,7 @@ Continue with analysis...`;
 		});
 
 		it("should handle single type in combination mode", () => {
-			const filter = TypeFilterService.createCombinationTypeFilter([
+			const filter = createCombinationTypeFilter([
 				"explanation",
 			]);
 
@@ -344,7 +378,7 @@ Continue with analysis...`;
 		});
 
 		it("should handle empty array", () => {
-			const filter = TypeFilterService.createCombinationTypeFilter([]);
+			const filter = createCombinationTypeFilter([]);
 
 			expect(filter).toEqual({
 				selectedTypes: [],
@@ -354,7 +388,7 @@ Continue with analysis...`;
 
 		it("should preserve type order", () => {
 			const types: GoldenNuggetType[] = ["model", "tool", "analogy"];
-			const filter = TypeFilterService.createCombinationTypeFilter(types);
+			const filter = createCombinationTypeFilter(types);
 
 			expect(filter.selectedTypes).toEqual(["model", "tool", "analogy"]);
 		});
@@ -371,9 +405,9 @@ Continue with analysis...`;
 			];
 
 			types.forEach((type) => {
-				expect(TypeFilterService.TYPE_DEFINITIONS[type]).toBeDefined();
-				expect(TypeFilterService.TYPE_DEFINITIONS[type]).toContain("**Bad:**");
-				expect(TypeFilterService.TYPE_DEFINITIONS[type]).toContain("**Good:**");
+				expect(TYPE_DEFINITIONS[type]).toBeDefined();
+				expect(TYPE_DEFINITIONS[type]).toContain("**Bad:**");
+				expect(TYPE_DEFINITIONS[type]).toContain("**Good:**");
 			});
 		});
 	});
@@ -388,7 +422,7 @@ Continue with analysis...`;
 				"analogy",
 				"model",
 			];
-			const actualIds = TypeFilterService.CONTEXT_MENU_OPTIONS.map(
+			const actualIds = CONTEXT_MENU_OPTIONS.map(
 				(option) => option.id,
 			);
 
@@ -396,8 +430,8 @@ Continue with analysis...`;
 		});
 
 		it("should have consistent emoji usage with TYPE_CONFIGURATIONS", () => {
-			TypeFilterService.TYPE_CONFIGURATIONS.forEach((config) => {
-				const menuOption = TypeFilterService.getContextMenuOption(config.type);
+			TYPE_CONFIGURATIONS.forEach((config) => {
+				const menuOption = getContextMenuOption(config.type);
 				expect(menuOption?.title).toContain(config.emoji);
 			});
 		});
@@ -407,7 +441,7 @@ Continue with analysis...`;
 		it("should produce schemas compatible with generateGoldenNuggetSchema", () => {
 			const types: GoldenNuggetType[] = ["tool", "media"];
 			const filterServiceSchema =
-				TypeFilterService.generateDynamicSchema(types);
+				generateDynamicSchema(types);
 			const directSchema = generateGoldenNuggetSchema(types);
 
 			expect(filterServiceSchema).toEqual(directSchema);

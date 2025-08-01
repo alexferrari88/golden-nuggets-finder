@@ -1,6 +1,14 @@
 import { MessageHandler } from "../background/message-handler";
-import { ProviderSwitcher } from "../background/services/provider-switcher";
-import { TypeFilterService } from "../background/type-filter-service";
+import {
+	getCurrentProvider,
+	isProviderConfigured,
+} from "../background/services/provider-switcher";
+import {
+	CONTEXT_MENU_OPTIONS,
+	getContextMenuOption,
+	createDefaultTypeFilter,
+	createSingleTypeFilter,
+} from "../background/type-filter-service";
 import { StorageMigration, storage } from "../shared/storage";
 import { MESSAGE_TYPES } from "../shared/types";
 
@@ -169,7 +177,7 @@ export default defineBackground(() => {
 
 				// Create type-specific submenus for each prompt
 				// Use double underscore as delimiter to avoid conflicts with prompt IDs that may contain hyphens
-				TypeFilterService.CONTEXT_MENU_OPTIONS.forEach((option) => {
+				CONTEXT_MENU_OPTIONS.forEach((option) => {
 					chrome.contextMenus.create({
 						id: `${prompt.id}__${option.id}`,
 						parentId: `prompt-${prompt.id}`,
@@ -228,9 +236,9 @@ export default defineBackground(() => {
 			await injectContentScript(tab.id);
 
 			// Check if current provider is configured before proceeding
-			const currentProvider = await ProviderSwitcher.getCurrentProvider();
+			const currentProvider = await getCurrentProvider();
 			const isConfigured =
-				await ProviderSwitcher.isProviderConfigured(currentProvider);
+				await isProviderConfigured(currentProvider);
 
 			if (!isConfigured) {
 				console.log(
@@ -250,7 +258,7 @@ export default defineBackground(() => {
 			);
 
 			// Get the type filter configuration
-			const contextMenuOption = TypeFilterService.getContextMenuOption(typeId);
+			const contextMenuOption = getContextMenuOption(typeId);
 			if (!contextMenuOption) {
 				console.error("[Background] Invalid type ID:", typeId);
 				return;
@@ -259,9 +267,9 @@ export default defineBackground(() => {
 			// Create type filter based on the selected option
 			let typeFilter;
 			if (contextMenuOption.id === "all") {
-				typeFilter = TypeFilterService.createDefaultTypeFilter();
+				typeFilter = createDefaultTypeFilter();
 			} else {
-				typeFilter = TypeFilterService.createSingleTypeFilter(
+				typeFilter = createSingleTypeFilter(
 					contextMenuOption.types[0],
 				);
 			}
@@ -291,9 +299,9 @@ export default defineBackground(() => {
 			await injectContentScript(tab.id);
 
 			// Check if current provider is configured before proceeding
-			const currentProvider = await ProviderSwitcher.getCurrentProvider();
+			const currentProvider = await getCurrentProvider();
 			const isConfigured =
-				await ProviderSwitcher.isProviderConfigured(currentProvider);
+				await isProviderConfigured(currentProvider);
 
 			if (!isConfigured) {
 				console.log(
