@@ -1,6 +1,7 @@
 import { Check, Star } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import ReactDOM from "react-dom/client";
+import { ProviderSwitcher } from "../background/services/provider-switcher";
 import { TypeFilterService } from "../background/type-filter-service";
 import {
 	borderRadius,
@@ -18,6 +19,7 @@ import {
 	type SavedPrompt,
 	type TypeFilterOptions,
 } from "../shared/types";
+import type { ProviderId } from "../shared/types/providers";
 
 // Utility function to generate unique analysis IDs
 function generateAnalysisId(): string {
@@ -196,6 +198,7 @@ function IndexPopup() {
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 	const [noApiKey, setNoApiKey] = useState(false);
+	const [currentProvider, setCurrentProvider] = useState<ProviderId>("gemini");
 	const [analyzing, setAnalyzing] = useState<string | null>(null);
 	const [currentAnalysisId, setCurrentAnalysisId] = useState<string | null>(
 		null,
@@ -268,13 +271,12 @@ function IndexPopup() {
 			setError(null);
 			setNoApiKey(false);
 
-			// Check if API key is configured
-			const apiKey = await storage.getApiKey({
-				source: "popup",
-				action: "read",
-				timestamp: Date.now(),
-			});
-			if (!apiKey) {
+			// Get current provider and check if it's configured
+			const provider = await ProviderSwitcher.getCurrentProvider();
+			setCurrentProvider(provider);
+			
+			const isConfigured = await ProviderSwitcher.isProviderConfigured(provider);
+			if (!isConfigured) {
 				setNoApiKey(true);
 				setLoading(false);
 				return;
@@ -616,6 +618,7 @@ function IndexPopup() {
 	}
 
 	if (noApiKey) {
+		const providerName = currentProvider.charAt(0).toUpperCase() + currentProvider.slice(1);
 		return (
 			<div
 				style={{
@@ -638,7 +641,7 @@ function IndexPopup() {
 						lineHeight: typography.lineHeight.normal,
 					}}
 				>
-					Please set your Gemini API key in the{" "}
+					Please set your {providerName} API key in the{" "}
 					<button
 						onClick={openOptionsPage}
 						style={{
