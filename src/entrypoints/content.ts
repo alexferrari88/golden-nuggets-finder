@@ -111,7 +111,7 @@ export default defineContentScript({
 		}
 
 		function convertContentToText(content: Content | null): string {
-			if (!content || !content.items || content.items.length === 0) {
+			if (!content || !content.items || !Array.isArray(content.items) || content.items.length === 0) {
 				return "";
 			}
 
