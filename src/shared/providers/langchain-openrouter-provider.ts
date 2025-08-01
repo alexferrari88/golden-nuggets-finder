@@ -1,6 +1,7 @@
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { ChatOpenAI } from "@langchain/openai";
 import { z } from "zod";
+import { debugLogger } from "../debug";
 import type {
 	GoldenNuggetsResponse,
 	LLMProvider,
@@ -44,6 +45,16 @@ export class LangChainOpenRouterProvider implements LLMProvider {
 		prompt: string,
 	): Promise<GoldenNuggetsResponse> {
 		try {
+			// Log the request
+			debugLogger.logLLMRequest(`https://openrouter.ai/api/v1/chat/completions (${this.modelName})`, {
+				model: this.modelName,
+				messages: [
+					{ role: "system", content: prompt },
+					{ role: "user", content: content.substring(0, 500) + "..." }, // Truncate for logging
+				],
+				provider: "openrouter"
+			});
+
 			let response: any;
 			
 			// Try functionCalling first (most reliable when supported)
@@ -155,8 +166,28 @@ JSON Response:`;
 				}));
 			}
 
+			// Log the response
+			debugLogger.logLLMResponse(
+				{ 
+					provider: "openrouter",
+					model: this.modelName,
+					success: true 
+				}, 
+				response
+			);
+
 			return response as GoldenNuggetsResponse;
 		} catch (error) {
+			// Log the error
+			debugLogger.logLLMResponse(
+				{ 
+					provider: "openrouter",
+					model: this.modelName,
+					success: false,
+					error: error.message 
+				}
+			);
+
 			console.error(`OpenRouter provider error:`, error);
 			throw new Error(`OpenRouter API call failed: ${error.message}`);
 		}

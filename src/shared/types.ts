@@ -51,6 +51,9 @@ export interface ExtensionConfig {
 		responseTime: number;
 		timestamp: string;
 	};
+
+	// Debug settings
+	enableDebugLogging?: boolean;
 }
 
 export interface NuggetDisplayState {

@@ -28,6 +28,7 @@ import {
 	spacing,
 	typography,
 } from "../shared/design-system";
+import { debugLogger } from "../shared/debug";
 import { storage } from "../shared/storage";
 import { ApiKeyStorage } from "../shared/storage/api-key-storage";
 import { ModelStorage } from "../shared/storage/model-storage";
@@ -314,16 +315,22 @@ function OptionsPage() {
 	const [modelSaveStatus, setModelSaveStatus] = useState<
 		Record<ProviderId, { success: boolean; timestamp: number } | null>
 	>({});
+	
+	// Debug logging state
+	const [debugLoggingEnabled, setDebugLoggingEnabled] = useState(false);
 
 	const loadData = useCallback(async () => {
 		try {
 			setLoading(true);
 			const [savedPrompts, storageData] = await Promise.all([
 				storage.getPrompts(),
-				chrome.storage.local.get(["selectedProvider"]),
+				chrome.storage.local.get(["selectedProvider", "extensionConfig"]),
 			]);
 			setPrompts(savedPrompts);
 			setSelectedProvider(storageData.selectedProvider || "gemini");
+			
+			// Load debug logging setting
+			setDebugLoggingEnabled(storageData.extensionConfig?.enableDebugLogging || false);
 
 			// Load API keys for all providers
 			const providers: ProviderId[] = [
@@ -631,6 +638,55 @@ function OptionsPage() {
 			setTimeout(() => {
 				setModelSaveStatus((prev) => ({ ...prev, [providerId]: null }));
 			}, 5000);
+		}
+	};
+
+	// Debug logging handler
+	const handleDebugLoggingToggle = async (enabled: boolean) => {
+		try {
+			setDebugLoggingEnabled(enabled);
+			
+			// Update the extension config in storage
+			const existingConfig = await chrome.storage.local.get(['extensionConfig']);
+			const updatedConfig = {
+				...existingConfig.extensionConfig,
+				enableDebugLogging: enabled,
+			};
+			
+			await chrome.storage.local.set({ extensionConfig: updatedConfig });
+			
+			// Refresh the debug logger state
+			await debugLogger.refreshLoggingState();
+			
+			// Test logging immediately when enabled
+			if (enabled) {
+				console.log("🔍 [DEBUG TEST] Options page console logging test");
+				debugLogger.log("🔍 [DEBUG TEST] DebugLogger test from options page");
+				debugLogger.logLLMRequest("https://test-endpoint.com/test", { test: "This is a test request" });
+				debugLogger.logLLMResponse({ test: "This is a test response" });
+				
+				// Also test background logging by sending a message
+				try {
+					await chrome.runtime.sendMessage({ type: "DEBUG_TEST" });
+				} catch (e) {
+					console.log("🔍 [DEBUG TEST] Background script may not be ready:", e.message);
+				}
+			}
+			
+			setApiKeyStatus({
+				type: "success",
+				title: "Debug Logging Updated",
+				message: `Debug logging has been ${enabled ? 'enabled' : 'disabled'}. ${enabled ? 'Check the browser console for test logs above! Also check the service worker console in chrome://extensions/' : 'API logging is now disabled.'}`,
+			});
+			
+			setTimeout(() => setApiKeyStatus(null), 8000);
+		} catch (error) {
+			console.error('Failed to update debug logging setting:', error);
+			setApiKeyStatus({
+				type: "error",
+				title: "Update Failed",
+				message: "Failed to update debug logging setting. Please try again.",
+			});
 		}
 	};
 
@@ -1484,6 +1540,134 @@ function OptionsPage() {
 					)}
 				</div>
 
+				{/* Debug Settings Section */}
+				<div
+					style={{
+						marginBottom: spacing["3xl"],
+						backgroundColor: colors.background.primary,
+						padding: spacing["3xl"],
+						borderRadius: borderRadius.xl,
+						boxShadow: shadows.md,
+						border: `1px solid ${colors.border.light}`,
+					}}
+				>
+					<div
+						style={{
+							display: "flex",
+							alignItems: "center",
+							gap: spacing.md,
+							marginBottom: spacing["2xl"],
+						}}
+					>
+						<div style={{ color: colors.text.accent }}>
+							<CircleAlert size={20} />
+						</div>
+						<h2
+							style={{
+								margin: 0,
+								fontSize: typography.fontSize.xl,
+								fontWeight: typography.fontWeight.semibold,
+								color: colors.text.primary,
+							}}
+						>
+							Debug Settings
+						</h2>
+					</div>
+
+					<div
+						style={{
+							padding: spacing.lg,
+							backgroundColor: colors.background.secondary,
+							borderRadius: borderRadius.lg,
+							border: `1px solid ${colors.border.light}`,
+						}}
+					>
+						<div
+							style={{
+								display: "flex",
+								alignItems: "flex-start",
+								justifyContent: "space-between",
+								gap: spacing.lg,
+							}}
+						>
+							<div style={{ flex: 1 }}>
+								<div
+									style={{
+										display: "flex",
+										alignItems: "center",
+										gap: spacing.sm,
+										marginBottom: spacing.sm,
+									}}
+								>
+									<h3
+										style={{
+											margin: 0,
+											fontSize: typography.fontSize.lg,
+											fontWeight: typography.fontWeight.semibold,
+											color: colors.text.primary,
+										}}
+									>
+										API Request/Response Logging
+									</h3>
+									{debugLoggingEnabled && (
+										<div style={{ color: colors.success }}>
+											<CircleCheck size={16} />
+										</div>
+									)}
+								</div>
+								<p
+									style={{
+										margin: 0,
+										fontSize: typography.fontSize.sm,
+										color: colors.text.secondary,
+										lineHeight: typography.lineHeight.normal,
+									}}
+								>
+									Enable detailed logging of API requests and responses in the browser console. 
+									Useful for debugging API issues and understanding how the extension communicates with AI providers.
+									{debugLoggingEnabled && (
+										<>
+											<br />
+											<strong style={{ color: colors.text.accent }}>
+												Logging is enabled - check the browser console for API logs.
+											</strong>
+										</>
+									)}
+								</p>
+							</div>
+							<div
+								style={{
+									display: "flex",
+									alignItems: "center",
+									gap: spacing.sm,
+								}}
+							>
+								<label
+									style={{
+										display: "flex",
+										alignItems: "center",
+										cursor: "pointer",
+										fontSize: typography.fontSize.sm,
+										fontWeight: typography.fontWeight.medium,
+										color: colors.text.primary,
+									}}
+								>
+									<input
+										type="checkbox"
+										checked={debugLoggingEnabled}
+										onChange={(e) => handleDebugLoggingToggle(e.target.checked)}
+										style={{
+											marginRight: spacing.sm,
+											cursor: "pointer",
+											transform: "scale(1.2)",
+										}}
+									/>
+									Enable Debug Logging
+								</label>
+							</div>
+						</div>
+					</div>
+				</div>
 
 				{/* Prompts Section */}
 				<div
