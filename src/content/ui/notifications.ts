@@ -8,12 +8,19 @@ import {
 
 /**
  * Truncates long error messages for better UX while preserving important information
+ * Also normalizes whitespace and line breaks for consistent notification display
  */
-function truncateErrorMessage(message: string, maxLength: number = 300): string {
-	if (message.length <= maxLength) return message;
+function truncateErrorMessage(message: string, maxLength: number = 250): string {
+	// First, normalize the message by collapsing whitespace and removing line breaks
+	// This prevents awkward multi-line layouts in notification banners
+	const normalizedMessage = message
+		.replace(/\s+/g, ' ') // Replace all whitespace (including line breaks) with single spaces
+		.trim(); // Remove leading/trailing whitespace
+	
+	if (normalizedMessage.length <= maxLength) return normalizedMessage;
 	
 	// Try to truncate at a sentence boundary first
-	const truncated = message.substring(0, maxLength);
+	const truncated = normalizedMessage.substring(0, maxLength);
 	const lastSentence = truncated.lastIndexOf('. ');
 	const lastPeriod = truncated.lastIndexOf('.');
 	
@@ -133,16 +140,16 @@ export class NotificationManager {
       font-size: 14px;
       font-weight: 500;
       max-width: min(400px, calc(100vw - 40px));
-      text-align: center;
+      text-align: left;
       display: flex;
       align-items: center;
-      justify-content: center;
+      justify-content: flex-start;
       gap: 8px;
       word-wrap: break-word;
       overflow-wrap: break-word;
       hyphens: auto;
       line-height: 1.4;
-      white-space: pre-wrap;
+      white-space: normal;
     `;
 
 		let typeStyles = "";
@@ -295,10 +302,15 @@ export class NotificationManager {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       font-size: 14px;
       font-weight: 500;
-      max-width: 400px;
-      text-align: center;
+      max-width: min(400px, calc(100vw - 40px));
+      text-align: left;
       background: ${colors.error};
       color: white;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+      hyphens: auto;
+      line-height: 1.4;
+      white-space: normal;
     `;
 
 		banner.style.cssText = baseStyles;
