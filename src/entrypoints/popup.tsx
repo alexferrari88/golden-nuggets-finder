@@ -98,17 +98,18 @@ const useTypingEffect = (text: string, speed: number = 80) => {
 	return { displayText, isComplete, showCursor };
 };
 
-// Custom hook for step progression with real-time progress support
-const useStepProgression = (isTypingComplete: boolean, analysisId?: string) => {
-	const [currentStep, setCurrentStep] = useState(-1);
-	const [completedSteps, setCompletedSteps] = useState<number[]>([]);
-	const [visibleSteps, setVisibleSteps] = useState<number[]>([]);
+// Custom hook for phase progression with real-time progress support
+const usePhaseProgression = (isTypingComplete: boolean, analysisId?: string) => {
+	const [currentPhase, setCurrentPhase] = useState(-1);
+	const [completedPhases, setCompletedPhases] = useState<number[]>([]);
+	const [visiblePhases, setVisiblePhases] = useState<number[]>([]);
+	const [aiStartTime, setAiStartTime] = useState<number | null>(null);
 	const [useRealTiming, setUseRealTiming] = useState(true);
 	const timersRef = useRef<NodeJS.Timeout[]>([]);
 	const fallbackTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-	// Function to complete all remaining steps immediately
-	const completeAllSteps = () => {
+	// Function to complete all remaining phases immediately
+	const completeAllPhases = () => {
 		// Clear all running timers
 		timersRef.current.forEach((timer) => clearTimeout(timer));
 		timersRef.current = [];
@@ -118,48 +119,73 @@ const useStepProgression = (isTypingComplete: boolean, analysisId?: string) => {
 			fallbackTimeoutRef.current = null;
 		}
 
-		// Complete all steps immediately
-		setCompletedSteps([0, 1, 2, 3]);
-		setCurrentStep(-1);
+		// Complete all phases immediately
+		setCompletedPhases([0, 1, 2]);
+		setCurrentPhase(-1);
 	};
 
 	// Process real-time progress messages
-	const processRealTimeStep = (progressMessage: AnalysisProgressMessage) => {
-		const stepIndex = progressMessage.step - 1; // Convert to 0-based index
-
+	const processRealTimePhase = (progressMessage: AnalysisProgressMessage) => {
 		// Cancel fallback timing since we're getting real messages
 		if (fallbackTimeoutRef.current) {
 			clearTimeout(fallbackTimeoutRef.current);
 			fallbackTimeoutRef.current = null;
 		}
 
-		// Make sure step is visible first
-		setVisibleSteps((prev) => {
-			const newVisible = [...prev];
-			for (let i = 0; i <= stepIndex; i++) {
-				if (!newVisible.includes(i)) {
-					newVisible.push(i);
-				}
-			}
-			return newVisible;
-		});
+		// Map real progress messages to phases
+		let phaseIndex = -1;
+		let shouldComplete = false;
 
-		// Set current step
-		setCurrentStep(stepIndex);
+		if (progressMessage.type === MESSAGE_TYPES.ANALYSIS_CONTENT_EXTRACTED || 
+			progressMessage.type === MESSAGE_TYPES.ANALYSIS_CONTENT_OPTIMIZED) {
+			// Steps 1-2: Setup phase (instant)
+			phaseIndex = 0;
+			shouldComplete = true; // These are instant, complete immediately
+		} else if (progressMessage.type === MESSAGE_TYPES.ANALYSIS_API_REQUEST_START) {
+			// Step 3 start: AI thinking phase begins
+			phaseIndex = 1;
+			setAiStartTime(Date.now()); // Track AI start time
+			shouldComplete = false; // Don't complete yet, AI is thinking
+		} else if (progressMessage.type === MESSAGE_TYPES.ANALYSIS_API_RESPONSE_RECEIVED) {
+			// Step 3 complete: AI thinking phase completes
+			phaseIndex = 1;
+			shouldComplete = true;
+		} else if (progressMessage.type === MESSAGE_TYPES.ANALYSIS_PROCESSING_RESULTS) {
+			// Step 4: Finalize phase (instant)
+			phaseIndex = 2;
+			shouldComplete = true;
+		}
 
-		// For step completion messages, mark as completed
-		if (
-			progressMessage.type === MESSAGE_TYPES.ANALYSIS_CONTENT_EXTRACTED ||
-			progressMessage.type === MESSAGE_TYPES.ANALYSIS_API_RESPONSE_RECEIVED
-		) {
-			setCompletedSteps((prev) => {
-				if (!prev.includes(stepIndex)) {
-					return [...prev, stepIndex];
+		if (phaseIndex >= 0) {
+			// Make sure phase is visible
+			setVisiblePhases((prev) => {
+				const newVisible = [...prev];
+				for (let i = 0; i <= phaseIndex; i++) {
+					if (!newVisible.includes(i)) {
+						newVisible.push(i);
+					}
 				}
-				return prev;
+				return newVisible;
 			});
-			if (stepIndex < 3) {
-				setCurrentStep(-1);
+
+			// Set current phase if not completing
+			if (!shouldComplete) {
+				setCurrentPhase(phaseIndex);
+			}
+
+			// Mark as completed if this is a completion message
+			if (shouldComplete) {
+				setCompletedPhases((prev) => {
+					if (!prev.includes(phaseIndex)) {
+						return [...prev, phaseIndex];
+					}
+					return prev;
+				});
+				
+				// Clear current phase if completing
+				if (phaseIndex < 2) {
+					setCurrentPhase(-1);
+				}
 			}
 		}
 	};
@@ -191,45 +217,36 @@ const useStepProgression = (isTypingComplete: boolean, analysisId?: string) => {
 		timersRef.current.forEach((timer) => clearTimeout(timer));
 		timersRef.current = [];
 
-		// First, make steps visible with staggered animation
-		for (let i = 0; i < 4; i++) {
-			await new Promise((resolve) => setTimeout(resolve, 300));
-			setVisibleSteps((prev) => [...prev, i]);
-		}
-
-		// Start step animations with staggered delays
-		const startStep = (stepIndex: number, delay: number, duration: number) => {
-			const timer = setTimeout(() => {
-				setCurrentStep(stepIndex);
-				const completeTimer = setTimeout(() => {
-					setCompletedSteps((prev) => {
-						if (!prev.includes(stepIndex)) {
-							return [...prev, stepIndex];
-						}
-						return prev;
-					});
-					if (stepIndex < 3) {
-						setCurrentStep(-1);
-					}
-				}, duration);
-				timersRef.current.push(completeTimer);
-			}, delay);
-			timersRef.current.push(timer);
-		};
-
-		// Start steps with realistic timing
-		startStep(0, 0, 4000); // Extract: start immediately, run 4s
-		startStep(1, 2000, 4000); // Patterns: start after 2s, run 4s
-		startStep(2, 4000, 4000); // Generate: start after 4s, run 4s
-		startStep(3, 6000, 8000); // Finalize: start after 6s, run 8s (will be interrupted)
+		// Show phases in realistic timing sequence
+		// Phase 0: Setup (instant - show and complete immediately)
+		setVisiblePhases([0]);
+		await new Promise((resolve) => setTimeout(resolve, 200));
+		setCompletedPhases([0]);
+		
+		// Phase 1: AI Thinking (show immediately, but don't complete - this is the long wait)
+		setVisiblePhases([0, 1]);
+		setCurrentPhase(1);
+		setAiStartTime(Date.now());
+		
+		// Phase 2: Will be shown when AI completes (or timeout)
+		// We don't fake complete the AI phase - that would be dishonest
+		// Just let it run until real completion or user gives up
+		
+		// Optional: After a very long time (2+ minutes), suggest the user might want to try again
+		const veryLongTimeoutTimer = setTimeout(() => {
+			// Don't automatically complete, just keep showing "AI thinking"
+			// The user can see it's been a long time and decide what to do
+		}, 120000); // 2 minutes
+		timersRef.current.push(veryLongTimeoutTimer);
 	};
 
 	return {
-		currentStep,
-		completedSteps,
-		visibleSteps,
-		processRealTimeStep,
-		completeAllSteps,
+		currentPhase,
+		completedPhases,
+		visiblePhases,
+		aiStartTime,
+		processRealTimePhase,
+		completeAllPhases,
 	};
 };
 
@@ -258,12 +275,33 @@ function IndexPopup() {
 		"model",
 	]);
 
-	// Analysis steps data
-	const analysisSteps = [
-		{ id: "extract", text: "Extracting key insights" },
-		{ id: "patterns", text: "Identifying patterns" },
-		{ id: "generate", text: "Generating golden nuggets" },
-		{ id: "finalize", text: "Finalizing analysis" },
+	// Analysis phases data - reflects real workflow timing
+	const analysisPhases = [
+		{ 
+			id: "setup", 
+			text: "Extracted page content", 
+			description: "Reading and preparing your content",
+			isQuick: true // Steps 1-2 are instant
+		},
+		{ 
+			id: "ai_thinking", 
+			text: "AI is analyzing...", 
+			description: "The AI is reading through your content and identifying golden nuggets",
+			isQuick: false, // Step 3 is the long wait
+			timeEstimate: "Usually takes 15-30 seconds",
+			tips: [
+				"💎 Looking for 5 types: Tools, Media, Explanations, Analogies, Mental Models",
+				"🔍 Analyzing context and relevance to your interests",
+				"⚡ Processing hundreds of words per second",
+				"🎯 Filtering for the most valuable insights"
+			]
+		},
+		{ 
+			id: "finalize", 
+			text: "Results ready", 
+			description: "Processing and displaying your golden nuggets",
+			isQuick: true // Step 4 is instant
+		},
 	];
 
 	// Use custom hooks for loading animation
@@ -272,21 +310,54 @@ function IndexPopup() {
 		80,
 	);
 	const {
-		currentStep,
-		completedSteps,
-		visibleSteps,
-		processRealTimeStep,
-		completeAllSteps,
-	} = useStepProgression(isComplete, currentAnalysisId || undefined);
+		currentPhase,
+		completedPhases,
+		visiblePhases,
+		aiStartTime,
+		processRealTimePhase,
+		completeAllPhases,
+	} = usePhaseProgression(isComplete, currentAnalysisId || undefined);
 
 	// Use ref to track current analysis ID for message listener
 	const currentAnalysisIdRef = useRef<string | null>(null);
 	const cleanupTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+	
+	// Force re-render for elapsed time counter
+	const [, setForceUpdate] = useState(0);
+	const forceUpdate = () => setForceUpdate(prev => prev + 1);
+	
+	// Cycling tips during AI thinking
+	const [currentTipIndex, setCurrentTipIndex] = useState(0);
 
 	// Update ref when analysis ID changes
 	useEffect(() => {
 		currentAnalysisIdRef.current = currentAnalysisId;
 	}, [currentAnalysisId]);
+
+	// Update elapsed time counter when AI is thinking
+	useEffect(() => {
+		if (currentPhase === 1 && aiStartTime) {
+			const interval = setInterval(() => {
+				forceUpdate(); // Force re-render to update elapsed time display
+			}, 1000);
+			
+			return () => clearInterval(interval);
+		}
+	}, [currentPhase, aiStartTime]);
+
+	// Cycle through tips during AI thinking
+	useEffect(() => {
+		if (currentPhase === 1) {
+			const aiPhase = analysisPhases[1];
+			if (aiPhase.tips && aiPhase.tips.length > 1) {
+				const interval = setInterval(() => {
+					setCurrentTipIndex(prev => (prev + 1) % aiPhase.tips!.length);
+				}, 3000); // Change tip every 3 seconds
+				
+				return () => clearInterval(interval);
+			}
+		}
+	}, [currentPhase]);
 
 	// Check backend availability
 	const checkBackendStatus = async () => {
@@ -354,7 +425,7 @@ function IndexPopup() {
 		const messageListener = (message: any) => {
 			// Handle completion messages
 			if (message.type === MESSAGE_TYPES.ANALYSIS_COMPLETE) {
-				completeAllSteps();
+				completeAllPhases();
 				// Brief delay to show completion, then clear analyzing state
 				cleanupTimeoutRef.current = setTimeout(() => {
 					setAnalyzing(null);
@@ -363,7 +434,7 @@ function IndexPopup() {
 					cleanupTimeoutRef.current = null;
 				}, 600);
 			} else if (message.type === MESSAGE_TYPES.ANALYSIS_ERROR) {
-				completeAllSteps();
+				completeAllPhases();
 				// Clear any pending cleanup timeout
 				if (cleanupTimeoutRef.current) {
 					clearTimeout(cleanupTimeoutRef.current);
@@ -386,7 +457,7 @@ function IndexPopup() {
 					message.type === MESSAGE_TYPES.ANALYSIS_API_RESPONSE_RECEIVED ||
 					message.type === MESSAGE_TYPES.ANALYSIS_PROCESSING_RESULTS)
 			) {
-				processRealTimeStep(message as AnalysisProgressMessage);
+				processRealTimePhase(message as AnalysisProgressMessage);
 			}
 		};
 
@@ -718,11 +789,22 @@ function IndexPopup() {
 	}
 
 	if (analyzing) {
+		// Helper to get elapsed time since AI started
+		const getElapsedTime = () => {
+			if (!aiStartTime) return 0;
+			return Math.floor((Date.now() - aiStartTime) / 1000);
+		};
+
+		// Find the current active phase
+		const activePhaseIndex = currentPhase >= 0 ? currentPhase : 
+			(completedPhases.length > 0 ? Math.max(...completedPhases) : -1);
+		const activePhase = activePhaseIndex >= 0 ? analysisPhases[activePhaseIndex] : null;
+		
 		return (
 			<div
 				style={{
 					width: "320px",
-					minHeight: "240px",
+					minHeight: "260px",
 					padding: spacing["2xl"],
 					display: "flex",
 					flexDirection: "column",
@@ -749,6 +831,7 @@ function IndexPopup() {
 							background: colors.text.accent,
 							boxShadow: `0 0 8px ${colors.text.accent}40`,
 							flexShrink: 0,
+							animation: currentPhase === 1 ? "glow 2s ease-in-out infinite" : "none",
 						}}
 					/>
 
@@ -768,19 +851,21 @@ function IndexPopup() {
 					</div>
 				</div>
 
-				{/* Analysis steps */}
+				{/* Quick status indicators for completed phases */}
 				<div
 					style={{
 						display: "flex",
 						flexDirection: "column",
-						gap: spacing.xs,
+						gap: spacing.sm,
 						marginBottom: spacing.md,
 					}}
 				>
-					{analysisSteps.map((step, index) => {
-						const isVisible = visibleSteps.includes(index);
-						const isInProgress = currentStep === index;
-						const isCompleted = completedSteps.includes(index);
+					{analysisPhases.map((phase, index) => {
+						const isVisible = visiblePhases.includes(index);
+						const isInProgress = currentPhase === index;
+						const isCompleted = completedPhases.includes(index);
+
+						if (!isVisible) return null;
 
 						let indicator = "○";
 						let indicatorColor = colors.text.tertiary;
@@ -792,22 +877,34 @@ function IndexPopup() {
 							indicatorColor = colors.text.accent;
 							textColor = colors.text.primary;
 						} else if (isInProgress) {
-							indicator = "●";
-							indicatorColor = colors.text.accent;
-							textColor = colors.text.secondary;
-							indicatorAnimation = "pulse 1s ease-in-out infinite";
+							if (phase.isQuick) {
+								// Quick phases just show a brief spinner
+								indicator = "●";
+								indicatorColor = colors.text.accent;
+								textColor = colors.text.secondary;
+								indicatorAnimation = "spin 1s linear infinite";
+							} else {
+								// AI thinking phase - special treatment
+								indicator = "🧠";
+								indicatorColor = colors.text.accent;
+								textColor = colors.text.primary;
+							}
 						}
 
 						return (
 							<div
-								key={step.id}
+								key={phase.id}
 								style={{
 									display: "flex",
-									alignItems: "center",
+									alignItems: "flex-start",
 									gap: spacing.sm,
 									opacity: isVisible ? 1 : 0,
 									transform: isVisible ? "translateY(0)" : "translateY(10px)",
 									transition: "all 0.3s ease",
+									padding: isInProgress && !phase.isQuick ? spacing.md : spacing.xs,
+									backgroundColor: isInProgress && !phase.isQuick ? colors.background.secondary : "transparent",
+									borderRadius: isInProgress && !phase.isQuick ? borderRadius.md : "0",
+									border: isInProgress && !phase.isQuick ? `1px solid ${colors.border.light}` : "none",
 								}}
 							>
 								<div
@@ -815,7 +912,7 @@ function IndexPopup() {
 										fontSize: typography.fontSize.sm,
 										fontWeight: typography.fontWeight.medium,
 										color: indicatorColor,
-										width: "16px",
+										width: "20px",
 										textAlign: "center",
 										flexShrink: 0,
 										animation: indicatorAnimation,
@@ -825,12 +922,86 @@ function IndexPopup() {
 								</div>
 								<div
 									style={{
-										fontSize: typography.fontSize.sm,
-										color: textColor,
-										fontWeight: typography.fontWeight.normal,
+										flex: 1,
+										display: "flex",
+										flexDirection: "column",
+										gap: spacing.xs,
 									}}
 								>
-									{step.text}
+									<div
+										style={{
+											fontSize: typography.fontSize.sm,
+											color: textColor,
+											fontWeight: typography.fontWeight.medium,
+										}}
+									>
+										{phase.text}
+									</div>
+									
+									{/* Show additional info for active AI phase */}
+									{isInProgress && !phase.isQuick && (
+										<>
+											{/* Show cycling tips if available, otherwise description */}
+											<div
+												style={{
+													fontSize: typography.fontSize.xs,
+													color: colors.text.secondary,
+													fontWeight: typography.fontWeight.normal,
+													lineHeight: typography.lineHeight.normal,
+													minHeight: "40px", // Prevent layout shift
+													display: "flex",
+													alignItems: "center",
+													transition: "opacity 0.3s ease",
+												}}
+											>
+												{phase.tips && phase.tips.length > 0 ? 
+													phase.tips[currentTipIndex] : 
+													phase.description
+												}
+											</div>
+											
+											{/* Time estimate and elapsed time */}
+											<div
+												style={{
+													display: "flex",
+													justifyContent: "space-between",
+													alignItems: "center",
+													marginTop: spacing.xs,
+													fontSize: typography.fontSize.xs,
+													color: colors.text.tertiary,
+												}}
+											>
+												<span>{phase.timeEstimate}</span>
+												{aiStartTime && (
+													<span>
+														{getElapsedTime()}s elapsed
+													</span>
+												)}
+											</div>
+											
+											{/* Indeterminate progress bar for AI thinking */}
+											<div
+												style={{
+													width: "100%",
+													height: "4px",
+													backgroundColor: colors.background.primary,
+													borderRadius: "2px",
+													overflow: "hidden",
+													marginTop: spacing.xs,
+												}}
+											>
+												<div
+													style={{
+														width: "30%",
+														height: "100%",
+														backgroundColor: colors.text.accent,
+														borderRadius: "2px",
+														animation: "slide 2s ease-in-out infinite",
+													}}
+												/>
+											</div>
+										</>
+									)}
 								</div>
 							</div>
 						);
@@ -870,6 +1041,26 @@ function IndexPopup() {
           @keyframes pulse {
             0%, 100% { opacity: 0.3; transform: scale(0.8); }
             50% { opacity: 1; transform: scale(1.2); }
+          }
+          
+          @keyframes glow {
+            0%, 100% { 
+              box-shadow: 0 0 8px ${colors.text.accent}40;
+            }
+            50% { 
+              box-shadow: 0 0 16px ${colors.text.accent}80;
+            }
+          }
+          
+          @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+          }
+          
+          @keyframes slide {
+            0% { transform: translateX(-100%); }
+            50% { transform: translateX(250%); }
+            100% { transform: translateX(-100%); }
           }
         `}</style>
 			</div>
