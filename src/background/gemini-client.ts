@@ -418,9 +418,15 @@ export class GeminiClient {
 	 * Generate headers for API requests
 	 */
 	private getSecureHeaders(apiKey?: string): HeadersInit {
+		const effectiveApiKey = apiKey || this.apiKey;
+		
+		if (!effectiveApiKey) {
+			throw new Error("API key is required but not available. Please ensure the client is initialized or provide an API key.");
+		}
+
 		return {
 			"Content-Type": "application/json",
-			"x-goog-api-key": apiKey || this.apiKey!,
+			"x-goog-api-key": effectiveApiKey,
 		};
 	}
 
