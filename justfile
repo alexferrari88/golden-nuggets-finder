@@ -9,24 +9,24 @@ default:
 # EXTENSION DEVELOPMENT
 # ============================================================================
 
-# Clean and start extension development server
-dev:
-    pnpm clean && pnpm dev
-
-# Clean and build extension for production
-build:
-    pnpm clean && pnpm build
-
 # Clean build artifacts
 clean:
     pnpm clean
 
+# Clean and start extension development server
+dev: clean
+    pnpm dev
+
+# Clean and build extension for production
+build: clean
+    pnpm build
+
 # Build extension for Firefox
-build-firefox:
-    pnpm clean && pnpm build:firefox
+build-firefox: clean
+    pnpm build:firefox
 
 # Package extension as zip
-package:
+zip: clean
     pnpm package
 
 # ============================================================================
