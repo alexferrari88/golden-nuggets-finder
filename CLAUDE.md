@@ -180,7 +180,9 @@ The backend (`backend/`) provides feedback collection and DSPy-based prompt opti
 
 See `backend/MONITORING_GUIDE.md` for comprehensive monitoring documentation.
 
-### Golden Nugget Response Schema
+### AI Provider Response Schema
+All AI providers (Gemini, Claude, OpenAI, OpenRouter) are normalized to this standard format:
+
 ```json
 {
   "golden_nuggets": [
@@ -194,5 +196,63 @@ See `backend/MONITORING_GUIDE.md` for comprehensive monitoring documentation.
 ```
 
 ### Storage Structure
-- `geminiApiKey`: User's Google Gemini API key
-- `userPrompts`: Array of saved prompt objects with names, content, and default status
+
+#### Chrome Extension Storage (Encrypted)
+- **API Keys**: Encrypted storage for all AI provider API keys
+  - `geminiApiKey`: Google Gemini API key
+  - `anthropicApiKey`: Anthropic Claude API key
+  - `openaiApiKey`: OpenAI GPT API key
+  - `openrouterApiKey`: OpenRouter API key
+- **Provider Configuration**:
+  - `selectedProvider`: Currently selected AI provider
+  - `providerModels`: Model configurations for each provider
+- **User Preferences**:
+  - `userPrompts`: Array of saved prompt objects with names, content, and default status
+  - `defaultPrompt`: User's default prompt selection
+  - `typeFilters`: Selected nugget types for analysis
+
+#### Backend Storage (SQLite)
+- **Feedback Tables**: User ratings, corrections, and missing content feedback
+- **Optimization History**: DSPy optimization runs and results
+- **Training Data**: Converted feedback for DSPy training
+- **Cost Tracking**: API usage and cost analytics across providers
+- **System Metrics**: Performance monitoring and health data
+
+#### Security Features
+- **Device-Specific Encryption**: API keys encrypted using AES-GCM with device fingerprinting
+- **Access Control**: Rate limiting and context validation for all security operations
+- **Audit Logging**: Complete audit trail of all security events
+- **Key Rotation**: Automatic detection and recommendations for key updates
+
+## Multi-Component Development Guidelines
+
+### Core Development Principles
+- **Type Safety First**: Maintain strict TypeScript across extension, backend (Pydantic), and frontend
+- **Provider Agnostic**: All new features must work across all AI providers
+- **Security by Design**: Use SecurityManager for all sensitive operations
+- **Test Coverage**: Unit, integration, and E2E tests for all components
+- **Documentation**: Update relevant CLAUDE.md files when adding features
+
+### Integration Testing
+- **Cross-Component Testing**: Test extension → backend → dashboard workflows
+- **Provider Testing**: Validate all features work with each AI provider
+- **Error Handling**: Test graceful degradation when components are unavailable
+- **Performance Testing**: Monitor API costs and response times across providers
+
+### Deployment Considerations
+- **Chrome Extension**: Standard Chrome Web Store deployment
+- **Backend**: Docker deployment with health monitoring
+- **Frontend Dashboard**: Static hosting with API endpoint configuration
+- **Environment Management**: Separate development, staging, and production environments
+
+### Provider-Specific Considerations
+- **Google Gemini**: Direct API integration with thinking budget configuration
+- **Anthropic Claude**: LangChain integration with advanced reasoning capabilities
+- **OpenAI GPT**: LangChain integration with creative analysis strengths
+- **OpenRouter**: LangChain integration providing access to multiple models via single API
+
+### Provider Selection Logic
+- Users can switch providers in real-time via Options page
+- Provider validation occurs before API calls
+- Fallback mechanisms for provider failures
+- Cost tracking and comparison across providers
