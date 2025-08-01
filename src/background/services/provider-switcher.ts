@@ -22,7 +22,7 @@ export class ProviderSwitcher {
 			const config: ProviderConfig = {
 				providerId,
 				apiKey,
-				modelName: ProviderFactory.getDefaultModel(providerId),
+				modelName: await ProviderFactory.getSelectedModel(providerId),
 			};
 
 			const provider = await ProviderFactory.createProvider(config);

@@ -2,6 +2,7 @@ import { GeminiDirectProvider } from "../../shared/providers/gemini-direct-provi
 import { LangChainAnthropicProvider } from "../../shared/providers/langchain-anthropic-provider";
 import { LangChainOpenAIProvider } from "../../shared/providers/langchain-openai-provider";
 import { LangChainOpenRouterProvider } from "../../shared/providers/langchain-openrouter-provider";
+import { ModelStorage } from "../../shared/storage/model-storage";
 import type {
 	LLMProvider,
 	ProviderConfig,
@@ -40,5 +41,27 @@ export class ProviderFactory {
 
 	static getSupportedProviders(): ProviderId[] {
 		return ["gemini", "openai", "anthropic", "openrouter"];
+	}
+
+	/**
+	 * Get the user-selected model for a provider, with fallback to default
+	 */
+	static async getSelectedModel(providerId: ProviderId): Promise<string> {
+		return await ModelStorage.get(providerId);
+	}
+
+	/**
+	 * Create a provider using the user-selected model (convenience method)
+	 */
+	static async createProviderWithSelectedModel(
+		providerId: ProviderId,
+		apiKey: string,
+	): Promise<LLMProvider> {
+		const modelName = await this.getSelectedModel(providerId);
+		return this.createProvider({
+			providerId,
+			apiKey,
+			modelName,
+		});
 	}
 }

@@ -253,7 +253,7 @@ export class MessageHandler {
 		return {
 			providerId,
 			apiKey,
-			modelName: ProviderFactory.getDefaultModel(providerId),
+			modelName: await ProviderFactory.getSelectedModel(providerId),
 		};
 	}
 
@@ -1401,7 +1401,7 @@ export class MessageHandler {
 			const config: ProviderConfig = {
 				providerId,
 				apiKey,
-				modelName: ProviderFactory.getDefaultModel(providerId),
+				modelName: await ProviderFactory.getSelectedModel(providerId),
 			};
 
 			// Create provider instance and validate
