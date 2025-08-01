@@ -2,6 +2,7 @@ import { Check, Star } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import ReactDOM from "react-dom/client";
 import { ProviderSwitcher } from "../background/services/provider-switcher";
+import { ProviderFactory } from "../background/services/provider-factory";
 import { TypeFilterService } from "../background/type-filter-service";
 import {
 	borderRadius,
@@ -224,6 +225,7 @@ function IndexPopup() {
 	const [error, setError] = useState<string | null>(null);
 	const [noApiKey, setNoApiKey] = useState(false);
 	const [currentProvider, setCurrentProvider] = useState<ProviderId>("gemini");
+	const [currentModel, setCurrentModel] = useState<string>("");
 	const [analyzing, setAnalyzing] = useState<string | null>(null);
 	const [currentAnalysisId, setCurrentAnalysisId] = useState<string | null>(
 		null,
@@ -299,6 +301,10 @@ function IndexPopup() {
 			// Get current provider and check if it's configured
 			const provider = await ProviderSwitcher.getCurrentProvider();
 			setCurrentProvider(provider);
+			
+			// Get current model for the provider
+			const model = await ProviderFactory.getSelectedModel(provider);
+			setCurrentModel(model);
 			
 			const isConfigured = await ProviderSwitcher.isProviderConfigured(provider);
 			if (!isConfigured) {
@@ -942,6 +948,45 @@ function IndexPopup() {
 						)}
 					</div>
 				)}
+
+				{/* Provider & Model Display */}
+				<div
+					style={{
+						display: "flex",
+						alignItems: "center",
+						justifyContent: "center",
+						gap: spacing.xs,
+						marginBottom: spacing.md,
+						fontSize: typography.fontSize.xs,
+						color: colors.text.secondary,
+					}}
+				>
+					<span>
+						{currentProvider.charAt(0).toUpperCase() + currentProvider.slice(1)}
+					</span>
+					{currentModel && (
+						<>
+							<span>•</span>
+							<span>{currentModel}</span>
+						</>
+					)}
+					<button
+						onClick={openOptionsPage}
+						style={{
+							marginLeft: spacing.xs,
+							fontSize: typography.fontSize.xs,
+							padding: "2px 6px",
+							backgroundColor: "transparent",
+							color: colors.text.accent,
+							border: `1px solid ${colors.text.accent}`,
+							borderRadius: "3px",
+							cursor: "pointer",
+						}}
+						title="Change provider and model"
+					>
+						Change
+					</button>
+				</div>
 
 				{/* Mode Toggle */}
 				<div
