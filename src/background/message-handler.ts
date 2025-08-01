@@ -229,7 +229,7 @@ interface DebugTestResponse extends BaseResponse {
 }
 
 // Union types for all possible requests and responses
-type MessageRequest = 
+type MessageRequest =
 	| AbortAnalysisRequest
 	| AnalysisRequest
 	| AnalyzeSelectedContentRequest
@@ -252,7 +252,7 @@ type MessageRequest =
 	| ValidateProviderRequest
 	| DebugTestRequest;
 
-type MessageResponse = 
+type MessageResponse =
 	| AbortAnalysisResponse
 	| AnalysisResponse
 	| GetPromptsResponse
@@ -1584,7 +1584,8 @@ export class MessageHandler {
 
 			// Filter out the feedback item with the matching ID
 			const filteredArray = feedbackArray.filter(
-				(feedback: NuggetFeedback | MissingContentFeedback) => feedback.id !== feedbackId,
+				(feedback: NuggetFeedback | MissingContentFeedback) =>
+					feedback.id !== feedbackId,
 			);
 
 			await chrome.storage.local.set({ [key]: filteredArray });
@@ -1596,7 +1597,9 @@ export class MessageHandler {
 	}
 
 	// Send delete request to backend API
-	private async deleteFeedbackFromBackend(feedbackId: string): Promise<Record<string, unknown>> {
+	private async deleteFeedbackFromBackend(
+		feedbackId: string,
+	): Promise<Record<string, unknown>> {
 		const controller = new AbortController();
 		const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
 

@@ -248,7 +248,10 @@ export class DebugLogger {
 		});
 	}
 
-	logLLMResponse(responseData: LLMResponseData, parsedResponse?: GoldenNuggetsResponse): void {
+	logLLMResponse(
+		responseData: LLMResponseData,
+		parsedResponse?: GoldenNuggetsResponse,
+	): void {
 		if (!this.enabled) return;
 
 		// Log to service worker console
@@ -297,7 +300,13 @@ export class DebugLogger {
 		this.forwardToPageConsole({
 			type: "llm-validation",
 			message: `API Key Validation - Status: ${status} ${statusText} - Valid: ${valid}`,
-			data: { endpoint, requestBody, status, statusText, valid } as ValidationLogData,
+			data: {
+				endpoint,
+				requestBody,
+				status,
+				statusText,
+				valid,
+			} as ValidationLogData,
 		});
 	}
 
@@ -334,7 +343,9 @@ export class DebugLogger {
 
 		console.log(`[DebugLogger] Testing with forced enabled state...`);
 		this.log("🧪 Test log message");
-		this.logLLMRequest("https://test.com/manual-test", { manual: "test" } as LLMRequestBody);
+		this.logLLMRequest("https://test.com/manual-test", {
+			manual: "test",
+		} as LLMRequestBody);
 		this.logLLMResponse({ manual: "test response" } as LLMResponseData);
 
 		// Restore original state

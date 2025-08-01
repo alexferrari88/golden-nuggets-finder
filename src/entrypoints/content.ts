@@ -3,13 +3,13 @@ import {
 	type AnalysisRequest,
 	type AnalysisResponse,
 	type DebugLogMessage,
-	type GoldenNugget,
 	type GeminiResponse,
+	type GoldenNugget,
 	MESSAGE_TYPES,
+	type ProviderId,
 	type RateLimitedMessage,
 	type RetryingMessage,
 	type TypeFilterOptions,
-	type ProviderId,
 } from "../shared/types";
 
 // Utility function to generate unique analysis IDs
@@ -24,9 +24,11 @@ import {
 } from "threads-harvester";
 
 // Type definitions for content script functionality
-interface MessageHandler {
-	(request: ContentScriptMessage, sender: chrome.runtime.MessageSender, sendResponse: (response: ContentScriptResponse) => void): Promise<void>;
-}
+type MessageHandler = (
+	request: ContentScriptMessage,
+	sender: chrome.runtime.MessageSender,
+	sendResponse: (response: ContentScriptResponse) => void,
+) => Promise<void>;
 
 interface ContentScriptMessage {
 	type: string;
@@ -77,6 +79,7 @@ interface BackgroundMessageResponse {
 	data?: unknown;
 	error?: string;
 }
+
 import { UIManager } from "../content/ui/ui-manager";
 import { isDevMode } from "../shared/debug";
 import {
@@ -466,7 +469,8 @@ export default defineContentScript({
 				}
 			} catch (error) {
 				console.error("Error handling message:", error);
-				const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
+				const errorMessage =
+					error instanceof Error ? error.message : "Unknown error occurred";
 				sendResponse({ success: false, error: errorMessage });
 			}
 		}
@@ -750,9 +754,14 @@ export default defineContentScript({
 		): Promise<BackgroundMessageResponse> {
 			return new Promise((resolve) => {
 				const message: BackgroundMessageRequest = { type, ...data };
-				chrome.runtime.sendMessage(message, (response: BackgroundMessageResponse) => {
-					resolve(response || { success: false, error: "No response received" });
-				});
+				chrome.runtime.sendMessage(
+					message,
+					(response: BackgroundMessageResponse) => {
+						resolve(
+							response || { success: false, error: "No response received" },
+						);
+					},
+				);
 			});
 		}
 

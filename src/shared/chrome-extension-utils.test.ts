@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
-	injectContentScript,
-	generateAnalysisId,
 	ContentScriptError,
+	generateAnalysisId,
+	injectContentScript,
 } from "./chrome-extension-utils";
 
 // Mock Chrome APIs
@@ -65,12 +65,12 @@ describe("chrome-extension-utils", () => {
 			mockChrome.scripting.executeScript.mockResolvedValue(undefined);
 
 			// Test the error behavior without timer complexity
-			await expect(
-				injectContentScript(tabId),
-			).rejects.toThrow(ContentScriptError);
-			await expect(
-				injectContentScript(tabId),
-			).rejects.toThrow("Content script failed to initialize after injection");
+			await expect(injectContentScript(tabId)).rejects.toThrow(
+				ContentScriptError,
+			);
+			await expect(injectContentScript(tabId)).rejects.toThrow(
+				"Content script failed to initialize after injection",
+			);
 		});
 
 		it("should throw ContentScriptError on injection failure", async () => {
@@ -82,12 +82,12 @@ describe("chrome-extension-utils", () => {
 				new Error("Injection failed"),
 			);
 
-			await expect(
-				injectContentScript(tabId),
-			).rejects.toThrow(ContentScriptError);
-			await expect(
-				injectContentScript(tabId),
-			).rejects.toThrow("Failed to inject content script");
+			await expect(injectContentScript(tabId)).rejects.toThrow(
+				ContentScriptError,
+			);
+			await expect(injectContentScript(tabId)).rejects.toThrow(
+				"Failed to inject content script",
+			);
 		});
 	});
 

@@ -236,7 +236,9 @@ export const createHoverStyles = (
 ) => ({
 	...baseStyles,
 	":hover": {
-		...(typeof baseStyles[":hover"] === "object" ? baseStyles[":hover"] as CSSProperties : {}),
+		...(typeof baseStyles[":hover"] === "object"
+			? (baseStyles[":hover"] as CSSProperties)
+			: {}),
 		...hoverStyles,
 	},
 });
@@ -264,7 +266,9 @@ export const createFocusStyles = (
 ) => ({
 	...baseStyles,
 	":focus": {
-		...(typeof baseStyles[":focus"] === "object" ? baseStyles[":focus"] as CSSProperties : {}),
+		...(typeof baseStyles[":focus"] === "object"
+			? (baseStyles[":focus"] as CSSProperties)
+			: {}),
 		...focusStyles,
 		outline: "none",
 	},

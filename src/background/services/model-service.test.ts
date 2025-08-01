@@ -2,6 +2,15 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ProviderId } from "../../shared/types/providers";
 import { ModelService } from "./model-service";
 
+// Type to access private methods for testing
+interface ModelServiceWithPrivates {
+	fetchWithTimeout: (
+		url: string,
+		options?: RequestInit,
+		timeout?: number,
+	) => Promise<Response>;
+}
+
 // Mock fetch globally
 const mockFetch = vi.fn();
 global.fetch = mockFetch;
@@ -391,7 +400,9 @@ describe("ModelService", () => {
 			mockFetch.mockRejectedValueOnce(abortError);
 
 			try {
-				await (ModelService as any).fetchWithTimeout("http://test.com");
+				await (
+					ModelService as unknown as ModelServiceWithPrivates
+				).fetchWithTimeout("http://test.com");
 				expect.fail("Should have thrown an error");
 			} catch (error) {
 				expect(error.message).toBe("Request timeout");
@@ -406,7 +417,9 @@ describe("ModelService", () => {
 				json: () => Promise.resolve({}),
 			});
 
-			await (ModelService as any).fetchWithTimeout("http://test.com");
+			await (
+				ModelService as unknown as ModelServiceWithPrivates
+			).fetchWithTimeout("http://test.com");
 
 			expect(clearTimeoutSpy).toHaveBeenCalled();
 		});

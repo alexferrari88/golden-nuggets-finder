@@ -10,7 +10,10 @@ import {
 	createCombinationTypeFilter,
 	TYPE_CONFIGURATIONS,
 } from "../background/type-filter-service";
-import { injectContentScript, generateAnalysisId } from "../shared/chrome-extension-utils";
+import {
+	generateAnalysisId,
+	injectContentScript,
+} from "../shared/chrome-extension-utils";
 import {
 	borderRadius,
 	colors,
@@ -24,6 +27,8 @@ import { storage } from "../shared/storage";
 import {
 	type AnalysisProgressMessage,
 	MESSAGE_TYPES,
+	type RateLimitedMessage,
+	type RetryingMessage,
 	type SavedPrompt,
 	type TypeFilterOptions,
 } from "../shared/types";
@@ -441,7 +446,13 @@ function IndexPopup() {
 		checkBackendStatus();
 
 		// Add message listener for analysis completion and progress
-		const messageListener = (message: any) => {
+		const messageListener = (
+			message:
+				| AnalysisProgressMessage
+				| RateLimitedMessage
+				| RetryingMessage
+				| { type: string; error?: string },
+		) => {
 			// Handle completion messages
 			if (message.type === MESSAGE_TYPES.ANALYSIS_COMPLETE) {
 				completeAllPhases();
@@ -533,7 +544,7 @@ function IndexPopup() {
 			});
 
 			// Listen for analysis completion - don't close popup immediately
-			const listener = (message: any) => {
+			const listener = (message: { type: string; error?: string }) => {
 				if (
 					message.type === MESSAGE_TYPES.ANALYSIS_COMPLETE ||
 					message.type === MESSAGE_TYPES.ANALYSIS_ERROR
