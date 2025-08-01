@@ -13,7 +13,8 @@ const GoldenNuggetsSchema = z.object({
 	golden_nuggets: z.array(
 		z.object({
 			type: z.enum(["tool", "media", "explanation", "analogy", "model"]),
-			content: z.string(),
+			startContent: z.string(),
+			endContent: z.string(),
 			synthesis: z.string(),
 		}),
 	),

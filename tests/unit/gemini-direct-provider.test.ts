@@ -78,12 +78,14 @@ describe("GeminiDirectProvider", () => {
 				golden_nuggets: [
 					{
 						type: "tool",
-						content: "This is a test", // startContent becomes content
+						startContent: "This is a test",
+						endContent: "for the system",
 						synthesis: "This is a useful tool for testing",
 					},
 					{
 						type: "explanation",
-						content: "Complex concepts", // startContent becomes content
+						startContent: "Complex concepts",
+						endContent: "are simplified here",
 						synthesis: "Great explanation of complexity",
 					},
 				],

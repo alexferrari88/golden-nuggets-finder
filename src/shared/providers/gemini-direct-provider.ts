@@ -26,13 +26,13 @@ export class GeminiDirectProvider implements LLMProvider {
 			prompt,
 		);
 
-		// Transform GeminiResponse to GoldenNuggetsResponse format
-		// The GeminiResponse uses startContent/endContent, but GoldenNuggetsResponse uses content
-		// We'll use startContent as the primary content for consistency with other providers
+		// Pass through the correct GeminiResponse format
+		// The GeminiResponse uses startContent/endContent format which is the expected format
 		return {
 			golden_nuggets: geminiResponse.golden_nuggets.map((nugget) => ({
 				type: nugget.type,
-				content: nugget.startContent, // Use startContent as primary content
+				startContent: nugget.startContent,
+				endContent: nugget.endContent,
 				synthesis: nugget.synthesis,
 			})),
 		};
