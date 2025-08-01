@@ -1106,7 +1106,7 @@ function OptionsPage() {
 									Test Connection
 								</button>
 							</div>
-							{validationStatus[selectedProvider] !== undefined && (
+							{typeof validationStatus[selectedProvider] === 'boolean' && (
 								<div
 									style={{
 										marginTop: spacing.sm,
