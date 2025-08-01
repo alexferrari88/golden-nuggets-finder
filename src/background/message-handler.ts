@@ -258,9 +258,16 @@ export class MessageHandler {
 		// Get API key for provider
 		let apiKey: string;
 		if (providerId === "gemini") {
-			// Use existing Gemini key storage
-			const geminiResult = await chrome.storage.local.get(["geminiApiKey"]);
-			apiKey = geminiResult.geminiApiKey;
+			try {
+				apiKey = await storage.getApiKey({
+					source: "background",
+					action: "read",
+					timestamp: Date.now(),
+				});
+			} catch (error) {
+				// If there's an error accessing the API key, treat as not configured
+				apiKey = "";
+			}
 		} else {
 			apiKey = await ApiKeyStorage.get(providerId);
 		}
