@@ -14,6 +14,25 @@ export interface ModelListResponse {
 
 export class ModelService {
 	private static readonly FETCH_TIMEOUT = 10000; // 10 seconds
+	private static readonly MAX_DESCRIPTION_LENGTH = 100; // Maximum characters for description display
+
+	/**
+	 * Truncates a description to a reasonable length for UI display
+	 */
+	static truncateDescription(description: string | undefined, maxLength: number = this.MAX_DESCRIPTION_LENGTH): string | undefined {
+		if (!description) return description;
+		if (description.length <= maxLength) return description;
+		
+		// Find the last complete word before the limit
+		const truncated = description.substring(0, maxLength);
+		const lastSpaceIndex = truncated.lastIndexOf(' ');
+		
+		if (lastSpaceIndex > maxLength * 0.8) { // Only truncate at word boundary if it's not too early
+			return truncated.substring(0, lastSpaceIndex) + '...';
+		}
+		
+		return truncated + '...';
+	}
 
 	/**
 	 * Fetches available models for the specified provider
