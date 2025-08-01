@@ -352,7 +352,7 @@ function IndexPopup() {
 				cleanupTimeoutRef.current = null;
 			}
 		};
-	}, [completeAllSteps, processRealTimeStep]);
+	}, []); // Remove dependencies to prevent infinite re-renders
 
 	const analyzeWithPrompt = async (promptId: string) => {
 		try {

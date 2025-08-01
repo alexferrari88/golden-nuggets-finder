@@ -332,31 +332,46 @@ export class SecurityManager {
 		try {
 			// Check rate limiting
 			if (!this.checkRateLimit(context.source)) {
-				this.logAccess(context, false, "Rate limit exceeded");
+				const errorMsg = `Rate limit exceeded for source '${context.source}' (max ${SECURITY_CONFIG.RATE_LIMIT_MAX_REQUESTS} requests per ${SECURITY_CONFIG.RATE_LIMIT_WINDOW / 1000}s)`;
+				this.logAccess(context, false, errorMsg);
+				if (isDevMode()) {
+					console.warn(`[Security] ${errorMsg}`);
+				}
 				return false;
 			}
 
 			// Validate context source
 			const validSources = ["background", "popup", "options", "content"];
 			if (!validSources.includes(context.source)) {
-				this.logAccess(context, false, "Invalid access source");
+				const errorMsg = `Invalid access source '${context.source}'. Valid sources: ${validSources.join(", ")}`;
+				this.logAccess(context, false, errorMsg);
+				if (isDevMode()) {
+					console.error(`[Security] ${errorMsg}`);
+				}
 				return false;
 			}
 
 			// Additional validation for sensitive operations
 			if (context.action === "write" && context.source === "content") {
-				this.logAccess(context, false, "Content script cannot write API keys");
+				const errorMsg = "Content script cannot write API keys - security policy violation";
+				this.logAccess(context, false, errorMsg);
+				if (isDevMode()) {
+					console.error(`[Security] ${errorMsg}`);
+				}
 				return false;
 			}
 
 			this.logAccess(context, true);
+			if (isDevMode()) {
+				console.log(`[Security] Access granted for ${context.source}:${context.action}`);
+			}
 			return true;
 		} catch (error) {
-			this.logAccess(
-				context,
-				false,
-				error instanceof Error ? error.message : "Unknown error",
-			);
+			const errorMsg = error instanceof Error ? error.message : "Unknown validation error";
+			this.logAccess(context, false, errorMsg);
+			if (isDevMode()) {
+				console.error(`[Security] Validation error: ${errorMsg}`);
+			}
 			return false;
 		}
 	}
