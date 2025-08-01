@@ -2,7 +2,10 @@ import type { ProviderId } from "../types/providers";
 
 const KEY_PREFIX = "encrypted_api_key_";
 
-export async function storeApiKey(providerId: ProviderId, apiKey: string): Promise<void> {
+export async function storeApiKey(
+	providerId: ProviderId,
+	apiKey: string,
+): Promise<void> {
 	// Simple encryption using base64 for now (can be enhanced later)
 	const encrypted = btoa(apiKey);
 	await chrome.storage.local.set({
@@ -10,10 +13,10 @@ export async function storeApiKey(providerId: ProviderId, apiKey: string): Promi
 	});
 }
 
-export async function getApiKey(providerId: ProviderId): Promise<string | null> {
-	const result = await chrome.storage.local.get(
-		`${KEY_PREFIX}${providerId}`,
-	);
+export async function getApiKey(
+	providerId: ProviderId,
+): Promise<string | null> {
+	const result = await chrome.storage.local.get(`${KEY_PREFIX}${providerId}`);
 	const encrypted = result[`${KEY_PREFIX}${providerId}`];
 
 	if (!encrypted) return null;
@@ -27,9 +30,7 @@ export async function getApiKey(providerId: ProviderId): Promise<string | null> 
 }
 
 export async function removeApiKey(providerId: ProviderId): Promise<void> {
-	await chrome.storage.local.remove(
-		`${KEY_PREFIX}${providerId}`,
-	);
+	await chrome.storage.local.remove(`${KEY_PREFIX}${providerId}`);
 }
 
 export async function listConfiguredProviders(): Promise<ProviderId[]> {

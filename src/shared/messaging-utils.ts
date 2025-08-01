@@ -12,11 +12,11 @@ import { injectContentScript } from "./chrome-extension-utils";
 import type {
 	AnalysisResponse,
 	ExtensionConfig,
-	SavedPrompt,
 	FeedbackStats,
-	OptimizedPrompt,
-	TypeFilterOptions,
 	MESSAGE_TYPES,
+	OptimizedPrompt,
+	SavedPrompt,
+	TypeFilterOptions,
 } from "./types";
 import type { ProviderId } from "./types/providers";
 
@@ -94,7 +94,11 @@ export type MessagingResponse =
 	| { success: boolean; data?: FeedbackStats; error?: string }
 	| { success: boolean; data?: OptimizedPrompt; error?: string }
 	| { success: boolean; data?: ProviderId[]; error?: string }
-	| { success: boolean; data?: { providerId: ProviderId; modelName: string }; error?: string };
+	| {
+			success: boolean;
+			data?: { providerId: ProviderId; modelName: string };
+			error?: string;
+	  };
 
 /**
  * Custom error for messaging failures
@@ -120,16 +124,15 @@ export class MessagingError extends Error {
  * @returns Promise<T> The response from the content script
  * @throws {MessagingError} When injection or messaging fails
  */
-export async function sendWithInjection<T extends MessagingResponse = MessagingResponse>(
-	tabId: number,
-	message: MessagingRequest,
-): Promise<T> {
+export async function sendWithInjection<
+	T extends MessagingResponse = MessagingResponse,
+>(tabId: number, message: MessagingRequest): Promise<T> {
 	try {
 		// Ensure content script is injected first
 		await injectContentScript(tabId);
 
 		// Send the message
-		const response = await chrome.tabs.sendMessage(tabId, message) as T;
+		const response = (await chrome.tabs.sendMessage(tabId, message)) as T;
 		return response;
 	} catch (error) {
 		console.error(
@@ -173,7 +176,7 @@ export async function getActiveTab(): Promise<chrome.tabs.Tab> {
 			throw new MessagingError("No active tab found");
 		}
 
-		if (typeof tab.id !== 'number') {
+		if (typeof tab.id !== "number") {
 			throw new MessagingError("Active tab has no valid ID");
 		}
 
@@ -202,15 +205,15 @@ export async function getActiveTab(): Promise<chrome.tabs.Tab> {
  * @returns Promise<T> The response from the content script
  * @throws {MessagingError} When tab retrieval, injection, or messaging fails
  */
-export async function sendToActiveTab<T extends MessagingResponse = MessagingResponse>(
-	message: MessagingRequest,
-): Promise<T> {
+export async function sendToActiveTab<
+	T extends MessagingResponse = MessagingResponse,
+>(message: MessagingRequest): Promise<T> {
 	const tab = await getActiveTab();
-	
+
 	// Safe access to tab.id since we've already validated it's a number
-	if (typeof tab.id !== 'number') {
+	if (typeof tab.id !== "number") {
 		throw new MessagingError("Tab ID is not valid for messaging");
 	}
-	
+
 	return sendWithInjection<T>(tab.id, message);
 }

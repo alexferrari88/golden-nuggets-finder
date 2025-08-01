@@ -38,7 +38,10 @@ export class LangChainOpenRouterProvider implements LLMProvider {
 				typeof (error as Record<string, unknown>).error === "object" &&
 				(error as Record<string, unknown>).error !== null
 			) {
-				const apiError = (error as Record<string, unknown>).error as Record<string, unknown>;
+				const apiError = (error as Record<string, unknown>).error as Record<
+					string,
+					unknown
+				>;
 				if ("message" in apiError) {
 					return String(apiError.message);
 				}

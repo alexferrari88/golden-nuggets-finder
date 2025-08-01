@@ -41,20 +41,31 @@ describe("Content Reconstruction - Error Handling", () => {
 
 	describe("reconstructFullContent", () => {
 		it("should handle undefined nugget gracefully", () => {
-			expect(reconstructFullContent(undefined as unknown as GoldenNugget, "some content")).toBe("");
+			expect(
+				reconstructFullContent(
+					undefined as unknown as GoldenNugget,
+					"some content",
+				),
+			).toBe("");
 		});
 
 		it("should handle null nugget gracefully", () => {
-			expect(reconstructFullContent(null as unknown as GoldenNugget, "some content")).toBe("");
+			expect(
+				reconstructFullContent(null as unknown as GoldenNugget, "some content"),
+			).toBe("");
 		});
 
 		it("should handle nugget with missing startContent", () => {
-			const nugget = { endContent: "end" } as Partial<GoldenNugget> as GoldenNugget;
+			const nugget = {
+				endContent: "end",
+			} as Partial<GoldenNugget> as GoldenNugget;
 			expect(reconstructFullContent(nugget, "some content")).toBe("");
 		});
 
 		it("should handle nugget with missing endContent", () => {
-			const nugget = { startContent: "start" } as Partial<GoldenNugget> as GoldenNugget;
+			const nugget = {
+				startContent: "start",
+			} as Partial<GoldenNugget> as GoldenNugget;
 			expect(reconstructFullContent(nugget, "some content")).toBe("");
 		});
 
@@ -66,9 +77,9 @@ describe("Content Reconstruction - Error Handling", () => {
 				startContent: "start",
 				endContent: "end",
 			};
-			expect(reconstructFullContent(nugget, undefined as unknown as string)).toBe(
-				"start...end",
-			);
+			expect(
+				reconstructFullContent(nugget, undefined as unknown as string),
+			).toBe("start...end");
 		});
 
 		it("should handle null pageContent gracefully", () => {
@@ -79,7 +90,9 @@ describe("Content Reconstruction - Error Handling", () => {
 				startContent: "start",
 				endContent: "end",
 			};
-			expect(reconstructFullContent(nugget, null as unknown as string)).toBe("start...end");
+			expect(reconstructFullContent(nugget, null as unknown as string)).toBe(
+				"start...end",
+			);
 		});
 
 		it("should handle empty pageContent gracefully", () => {
@@ -154,8 +167,12 @@ describe("Content Reconstruction - Error Handling", () => {
 				startContent: "start",
 				endContent: "end",
 			};
-			expect(getDisplayContent(nugget, 123 as unknown as string)).toBe("start...end");
-			expect(getDisplayContent(nugget, {} as unknown as string)).toBe("start...end");
+			expect(getDisplayContent(nugget, 123 as unknown as string)).toBe(
+				"start...end",
+			);
+			expect(getDisplayContent(nugget, {} as unknown as string)).toBe(
+				"start...end",
+			);
 		});
 
 		it("should work with valid inputs", () => {
@@ -186,7 +203,11 @@ describe("Content Reconstruction - Error Handling", () => {
 		});
 
 		it("should handle null inputs gracefully", () => {
-			const result = improvedStartEndMatching("start", null as unknown as string, "content");
+			const result = improvedStartEndMatching(
+				"start",
+				null as unknown as string,
+				"content",
+			);
 			expect(result.success).toBe(false);
 			// 'start' is found but null becomes empty string which is found immediately after
 			expect(result.reason).toBe("Start content not found");
@@ -198,7 +219,11 @@ describe("Content Reconstruction - Error Handling", () => {
 		});
 
 		it("should handle undefined pageContent gracefully", () => {
-			const result = improvedStartEndMatching("start", "end", undefined as unknown as string);
+			const result = improvedStartEndMatching(
+				"start",
+				"end",
+				undefined as unknown as string,
+			);
 			expect(result.success).toBe(false);
 			expect(result.reason).toBe("Start content not found");
 		});
@@ -218,18 +243,26 @@ describe("Content Reconstruction - Error Handling", () => {
 	describe("improvedStartEndTextMatching", () => {
 		it("should handle undefined nugget gracefully", () => {
 			expect(
-				improvedStartEndTextMatching(undefined as unknown as GoldenNugget, "search text"),
+				improvedStartEndTextMatching(
+					undefined as unknown as GoldenNugget,
+					"search text",
+				),
 			).toBe(false);
 		});
 
 		it("should handle null nugget gracefully", () => {
-			expect(improvedStartEndTextMatching(null as unknown as GoldenNugget, "search text")).toBe(
-				false,
-			);
+			expect(
+				improvedStartEndTextMatching(
+					null as unknown as GoldenNugget,
+					"search text",
+				),
+			).toBe(false);
 		});
 
 		it("should handle nugget with missing content", () => {
-			const nugget = { type: "explanation" } as Partial<GoldenNugget> as GoldenNugget;
+			const nugget = {
+				type: "explanation",
+			} as Partial<GoldenNugget> as GoldenNugget;
 			expect(improvedStartEndTextMatching(nugget, "search text")).toBe(false);
 		});
 
@@ -241,9 +274,9 @@ describe("Content Reconstruction - Error Handling", () => {
 				startContent: "start",
 				endContent: "end",
 			};
-			expect(improvedStartEndTextMatching(nugget, undefined as unknown as string)).toBe(
-				false,
-			);
+			expect(
+				improvedStartEndTextMatching(nugget, undefined as unknown as string),
+			).toBe(false);
 		});
 
 		it("should handle null searchText gracefully", () => {
@@ -254,7 +287,9 @@ describe("Content Reconstruction - Error Handling", () => {
 				startContent: "start",
 				endContent: "end",
 			};
-			expect(improvedStartEndTextMatching(nugget, null as unknown as string)).toBe(false);
+			expect(
+				improvedStartEndTextMatching(nugget, null as unknown as string),
+			).toBe(false);
 		});
 
 		it("should work with valid inputs", () => {
@@ -334,7 +369,10 @@ describe("Content Reconstruction - OpenRouter Error Integration", () => {
 			).not.toThrow();
 
 			// Should always return safe fallback
-			const result = getDisplayContent(nugget, invalidContent as unknown as string);
+			const result = getDisplayContent(
+				nugget,
+				invalidContent as unknown as string,
+			);
 			expect(result).toBe("start...end");
 		});
 	});

@@ -50,28 +50,34 @@ describe("Storage-Security Integration Tests", () => {
 		mockChrome = {
 			storage: {
 				sync: {
-					get: vi.fn().mockImplementation((keys: string | string[] | null | undefined) => {
-						const result: Record<string, StorageValue> = {};
-						if (typeof keys === "string") {
-							result[keys] = mockStorageData.get(keys);
-						} else if (Array.isArray(keys)) {
-							keys.forEach((key) => {
-								result[key] = mockStorageData.get(key);
+					get: vi
+						.fn()
+						.mockImplementation(
+							(keys: string | string[] | null | undefined) => {
+								const result: Record<string, StorageValue> = {};
+								if (typeof keys === "string") {
+									result[keys] = mockStorageData.get(keys);
+								} else if (Array.isArray(keys)) {
+									keys.forEach((key) => {
+										result[key] = mockStorageData.get(key);
+									});
+								} else if (keys === null || keys === undefined) {
+									// Get all data
+									mockStorageData.forEach((value, key) => {
+										result[key] = value;
+									});
+								}
+								return Promise.resolve(result);
+							},
+						),
+					set: vi
+						.fn()
+						.mockImplementation((data: Record<string, StorageValue>) => {
+							Object.entries(data).forEach(([key, value]) => {
+								mockStorageData.set(key, value);
 							});
-						} else if (keys === null || keys === undefined) {
-							// Get all data
-							mockStorageData.forEach((value, key) => {
-								result[key] = value;
-							});
-						}
-						return Promise.resolve(result);
-					}),
-					set: vi.fn().mockImplementation((data: Record<string, StorageValue>) => {
-						Object.entries(data).forEach(([key, value]) => {
-							mockStorageData.set(key, value);
-						});
-						return Promise.resolve();
-					}),
+							return Promise.resolve();
+						}),
 					remove: vi.fn().mockImplementation((keys: string | string[]) => {
 						const keysArray = Array.isArray(keys) ? keys : [keys];
 						keysArray.forEach((key) => mockStorageData.delete(key));

@@ -103,7 +103,9 @@ describe("ModelStorage", () => {
 		it("should handle storage errors", async () => {
 			mockStorageLocal.get.mockRejectedValueOnce(new Error("Storage error"));
 
-			await expect(ModelStorage.getModel("gemini")).rejects.toThrow("Storage error");
+			await expect(ModelStorage.getModel("gemini")).rejects.toThrow(
+				"Storage error",
+			);
 		});
 	});
 
@@ -161,7 +163,9 @@ describe("ModelStorage", () => {
 				})
 				.mockResolvedValueOnce({});
 
-			await expect(ModelStorage.getAllModels()).rejects.toThrow("Storage error");
+			await expect(ModelStorage.getAllModels()).rejects.toThrow(
+				"Storage error",
+			);
 		});
 	});
 
@@ -193,7 +197,9 @@ describe("ModelStorage", () => {
 				anthropic: undefined, // Undefined
 			};
 
-			await ModelStorage.setAllModels(models as Partial<Record<ProviderId, string>>);
+			await ModelStorage.setAllModels(
+				models as Partial<Record<ProviderId, string>>,
+			);
 
 			expect(mockStorageLocal.set).toHaveBeenCalledWith({
 				selected_model_gemini: "gemini-2.5-pro",
@@ -206,7 +212,9 @@ describe("ModelStorage", () => {
 				anthropic: undefined,
 			};
 
-			await ModelStorage.setAllModels(models as Partial<Record<ProviderId, string>>);
+			await ModelStorage.setAllModels(
+				models as Partial<Record<ProviderId, string>>,
+			);
 
 			expect(mockStorageLocal.set).not.toHaveBeenCalled();
 		});

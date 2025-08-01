@@ -1,5 +1,8 @@
 import { storage } from "../../shared/storage";
-import { getApiKey, listConfiguredProviders } from "../../shared/storage/api-key-storage";
+import {
+	getApiKey,
+	listConfiguredProviders,
+} from "../../shared/storage/api-key-storage";
 import type { ProviderConfig, ProviderId } from "../../shared/types/providers";
 import { createProvider, getSelectedModel } from "./provider-factory";
 

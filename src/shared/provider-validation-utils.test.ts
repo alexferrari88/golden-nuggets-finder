@@ -37,8 +37,7 @@ describe("provider validation utilities", () => {
 			mockGetSelectedModel.mockResolvedValue("gpt-4");
 			mockIsProviderConfigured.mockResolvedValue(true);
 
-			const result: ProviderValidationResult =
-				await validateCurrentProvider();
+			const result: ProviderValidationResult = await validateCurrentProvider();
 
 			expect(result).toEqual({
 				isConfigured: true,
@@ -52,8 +51,7 @@ describe("provider validation utilities", () => {
 			mockGetSelectedModel.mockResolvedValue("claude-3-sonnet");
 			mockIsProviderConfigured.mockResolvedValue(false);
 
-			const result: ProviderValidationResult =
-				await validateCurrentProvider();
+			const result: ProviderValidationResult = await validateCurrentProvider();
 
 			expect(result).toEqual({
 				isConfigured: false,
@@ -69,8 +67,7 @@ describe("provider validation utilities", () => {
 			mockGetSelectedModel.mockResolvedValue("");
 			mockIsProviderConfigured.mockResolvedValue(false);
 
-			const result: ProviderValidationResult =
-				await validateCurrentProvider();
+			const result: ProviderValidationResult = await validateCurrentProvider();
 
 			expect(result).toEqual({
 				isConfigured: false,
@@ -85,8 +82,7 @@ describe("provider validation utilities", () => {
 			mockGetSelectedModel.mockRejectedValue(new Error("Service 2 failed"));
 			mockIsProviderConfigured.mockRejectedValue(new Error("Service 3 failed"));
 
-			const result: ProviderValidationResult =
-				await validateCurrentProvider();
+			const result: ProviderValidationResult = await validateCurrentProvider();
 
 			expect(result.isConfigured).toBe(false);
 			expect(result.provider).toBe("gemini");
@@ -131,13 +127,11 @@ describe("provider validation utilities", () => {
 			mockGetSelectedModel.mockResolvedValue("claude-3-sonnet");
 			mockIsProviderConfigured.mockResolvedValue(false);
 
-			await expect(
-				requireConfiguredProvider(),
-			).rejects.toThrow(ProviderConfigurationError);
+			await expect(requireConfiguredProvider()).rejects.toThrow(
+				ProviderConfigurationError,
+			);
 
-			await expect(
-				requireConfiguredProvider(),
-			).rejects.toThrow(
+			await expect(requireConfiguredProvider()).rejects.toThrow(
 				"Provider anthropic is not configured. Please set up your API key.",
 			);
 		});
@@ -163,9 +157,9 @@ describe("provider validation utilities", () => {
 				new Error("Validation service failed"),
 			);
 
-			await expect(
-				requireConfiguredProvider(),
-			).rejects.toThrow(ProviderConfigurationError);
+			await expect(requireConfiguredProvider()).rejects.toThrow(
+				ProviderConfigurationError,
+			);
 		});
 	});
 });
