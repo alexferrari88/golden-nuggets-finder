@@ -207,6 +207,23 @@ export interface AnalysisProgressMessage {
 	source?: "popup" | "context-menu"; // Who triggered this analysis
 }
 
+export interface RateLimitedMessage {
+	type: "ANALYSIS_RATE_LIMITED";
+	provider: string;
+	waitTime: number; // seconds
+	attempt: number;
+	maxAttempts: number;
+	analysisId: string;
+}
+
+export interface RetryingMessage {
+	type: "ANALYSIS_RETRYING";
+	provider: string;
+	attempt: number;
+	maxAttempts: number;
+	analysisId: string;
+}
+
 export interface MessageTypes {
 	ANALYZE_CONTENT: "ANALYZE_CONTENT";
 	ANALYSIS_COMPLETE: "ANALYSIS_COMPLETE";
@@ -242,6 +259,10 @@ export interface MessageTypes {
 	GET_AVAILABLE_PROVIDERS: "GET_AVAILABLE_PROVIDERS";
 	GET_CURRENT_PROVIDER: "GET_CURRENT_PROVIDER";
 	VALIDATE_PROVIDER: "VALIDATE_PROVIDER";
+	// Rate Limiting and Retry Messages
+	ANALYSIS_RATE_LIMITED: "ANALYSIS_RATE_LIMITED";
+	ANALYSIS_RETRYING: "ANALYSIS_RETRYING";
+	ABORT_ANALYSIS: "ABORT_ANALYSIS";
 }
 
 export const MESSAGE_TYPES: MessageTypes = {
@@ -279,4 +300,8 @@ export const MESSAGE_TYPES: MessageTypes = {
 	GET_AVAILABLE_PROVIDERS: "GET_AVAILABLE_PROVIDERS",
 	GET_CURRENT_PROVIDER: "GET_CURRENT_PROVIDER",
 	VALIDATE_PROVIDER: "VALIDATE_PROVIDER",
+	// Rate Limiting and Retry Messages
+	ANALYSIS_RATE_LIMITED: "ANALYSIS_RATE_LIMITED",
+	ANALYSIS_RETRYING: "ANALYSIS_RETRYING",
+	ABORT_ANALYSIS: "ABORT_ANALYSIS",
 };

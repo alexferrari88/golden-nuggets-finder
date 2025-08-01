@@ -27,6 +27,9 @@ function generateAnalysisId(): string {
 }
 
 export class MessageHandler {
+	// Track ongoing analyses and their abort controllers
+	private static ongoingAnalyses = new Map<string, AbortController>();
+
 	// Helper to classify and enhance backend error messages for users
 	private enhanceBackendError(error: any): {
 		message: string;
@@ -277,124 +280,146 @@ export class MessageHandler {
 	static async handleExtractGoldenNuggets(
 		content: string,
 		prompt: string,
+		analysisId?: string,
+		tabId?: number,
 	): Promise<GoldenNuggetsResponse> {
 		let currentProviderId: ProviderId | null = null;
 		let attempts = 0;
 		const maxAttempts = 2; // Limit to 2 attempts to prevent infinite loops
 
-		while (attempts < maxAttempts) {
-			try {
-				attempts++;
-
-				// Get provider configuration (may change if we fall back)
-				const providerConfig = await MessageHandler.getSelectedProvider();
-				currentProviderId = providerConfig.providerId;
-
-				console.log(`Attempt ${attempts}: Using provider ${currentProviderId}`);
-
-				// Create provider instance
-				const provider = await ProviderFactory.createProvider(providerConfig);
-
-				// Extract golden nuggets
-				const startTime = performance.now();
-				const rawResponse = await provider.extractGoldenNuggets(
-					content,
-					prompt,
-				);
-				const responseTime = performance.now() - startTime;
-
-				// Normalize response
-				const normalizedResponse = normalizeResponse(
-					rawResponse,
-					providerConfig.providerId,
-				);
-
-				// Store provider metadata for feedback
-				await chrome.storage.local.set({
-					lastUsedProvider: {
-						providerId: providerConfig.providerId,
-						modelName: providerConfig.modelName,
-						responseTime,
-					},
-				});
-
-				// Clear retry count on success
-				if (currentProviderId) {
-					ErrorHandler.resetRetryCount(currentProviderId, "extraction");
-				}
-
-				return normalizedResponse;
-			} catch (error) {
-				const errorMessage = error instanceof Error ? error.message : String(error);
-				console.error(
-					`Golden nuggets extraction failed (attempt ${attempts}):`,
-					errorMessage,
-				);
-
-				// Check for structural errors that indicate a programming bug (don't retry these)
-				const isStructuralError = errorMessage.includes("Cannot read properties of undefined") ||
-					errorMessage.includes("is not a function") ||
-					errorMessage.includes("Cannot read property") ||
-					errorMessage.includes("undefined is not an object");
-
-				if (isStructuralError) {
-					console.error("Structural error detected, stopping retries:", errorMessage);
-					throw new Error(`Provider configuration error: ${errorMessage}. Please check extension configuration.`);
-				}
-
-				if (currentProviderId) {
-					// Handle the error using our comprehensive error handler
-					const errorResult = await ErrorHandler.handleProviderError(
-						error as Error,
-						currentProviderId,
-						"extraction",
-					);
-
-					if (errorResult.shouldRetry && attempts < maxAttempts) {
-						console.log(
-							`Retrying with ${currentProviderId} after error handling... (attempt ${attempts}/${maxAttempts})`,
-						);
-						continue; // Retry with same provider
-					}
-
-					if (errorResult.fallbackProvider && attempts < maxAttempts) {
-						console.log(
-							`Switching to fallback provider: ${errorResult.fallbackProvider}`,
-						);
-
-						// Switch to fallback provider
-						const switchSuccess = await ProviderSwitcher.switchProvider(
-							errorResult.fallbackProvider,
-						);
-						if (switchSuccess) {
-							console.log(
-								`Successfully switched to fallback provider: ${errorResult.fallbackProvider}`,
-							);
-							continue; // Try again with fallback provider
-						} else {
-							console.error(
-								`Failed to switch to fallback provider: ${errorResult.fallbackProvider}`,
-							);
-						}
-					}
-				}
-
-				// If we're on the last attempt or no more fallbacks, throw the error
-				if (attempts >= maxAttempts) {
-					const userFriendlyMessage = currentProviderId
-						? ErrorHandler.getUserFriendlyMessage(
-								error as Error,
-								currentProviderId,
-							)
-						: errorMessage;
-					console.error(`All attempts exhausted. Final error: ${userFriendlyMessage}`);
-					throw new Error(userFriendlyMessage);
-				}
-			}
+		// Create abort controller for this analysis
+		const abortController = new AbortController();
+		if (analysisId) {
+			MessageHandler.ongoingAnalyses.set(analysisId, abortController);
 		}
 
-		// This should never be reached, but just in case
-		throw new Error("All providers failed after maximum attempts");
+		try {
+			while (attempts < maxAttempts) {
+				// Check if analysis was aborted
+				if (abortController.signal.aborted) {
+					throw new Error("Analysis was aborted by user");
+				}
+
+				try {
+					attempts++;
+
+					// Get provider configuration (may change if we fall back)
+					const providerConfig = await MessageHandler.getSelectedProvider();
+					currentProviderId = providerConfig.providerId;
+
+					console.log(`Attempt ${attempts}: Using provider ${currentProviderId}`);
+
+					// Create provider instance
+					const provider = await ProviderFactory.createProvider(providerConfig);
+
+					// Extract golden nuggets
+					const startTime = performance.now();
+					const rawResponse = await provider.extractGoldenNuggets(
+						content,
+						prompt,
+					);
+					const responseTime = performance.now() - startTime;
+
+					// Normalize response
+					const normalizedResponse = normalizeResponse(
+						rawResponse,
+						providerConfig.providerId,
+					);
+
+					// Store provider metadata for feedback
+					await chrome.storage.local.set({
+						lastUsedProvider: {
+							providerId: providerConfig.providerId,
+							modelName: providerConfig.modelName,
+							responseTime,
+						},
+					});
+
+					// Clear retry count on success
+					if (currentProviderId) {
+						ErrorHandler.resetRetryCount(currentProviderId, "extraction");
+					}
+
+					return normalizedResponse;
+				} catch (error) {
+					const errorMessage = error instanceof Error ? error.message : String(error);
+					console.error(
+						`Golden nuggets extraction failed (attempt ${attempts}):`,
+						errorMessage,
+					);
+
+					// Check for structural errors that indicate a programming bug (don't retry these)
+					const isStructuralError = errorMessage.includes("Cannot read properties of undefined") ||
+						errorMessage.includes("is not a function") ||
+						errorMessage.includes("Cannot read property") ||
+						errorMessage.includes("undefined is not an object");
+
+					if (isStructuralError) {
+						console.error("Structural error detected, stopping retries:", errorMessage);
+						throw new Error(`Provider configuration error: ${errorMessage}. Please check extension configuration.`);
+					}
+
+					if (currentProviderId) {
+						// Handle the error using our comprehensive error handler
+						const errorResult = await ErrorHandler.handleProviderError(
+							error as Error,
+							currentProviderId,
+							"extraction",
+							analysisId,
+							tabId,
+						);
+
+						if (errorResult.shouldRetry && attempts < maxAttempts) {
+							console.log(
+								`Retrying with ${currentProviderId} after error handling... (attempt ${attempts}/${maxAttempts})`,
+							);
+							continue; // Retry with same provider
+						}
+
+						if (errorResult.fallbackProvider && attempts < maxAttempts) {
+							console.log(
+								`Switching to fallback provider: ${errorResult.fallbackProvider}`,
+							);
+
+							// Switch to fallback provider
+							const switchSuccess = await ProviderSwitcher.switchProvider(
+								errorResult.fallbackProvider,
+							);
+							if (switchSuccess) {
+								console.log(
+									`Successfully switched to fallback provider: ${errorResult.fallbackProvider}`,
+								);
+								continue; // Try again with fallback provider
+							} else {
+								console.error(
+									`Failed to switch to fallback provider: ${errorResult.fallbackProvider}`,
+								);
+							}
+						}
+					}
+
+					// If we're on the last attempt or no more fallbacks, throw the error
+					if (attempts >= maxAttempts) {
+						const userFriendlyMessage = currentProviderId
+							? ErrorHandler.getUserFriendlyMessage(
+									error as Error,
+									currentProviderId,
+								)
+							: errorMessage;
+						console.error(`All attempts exhausted. Final error: ${userFriendlyMessage}`);
+						throw new Error(userFriendlyMessage);
+					}
+				}
+			}
+
+			// This should never be reached, but just in case
+			throw new Error("All providers failed after maximum attempts");
+		} finally {
+			// Clean up the abort controller
+			if (analysisId) {
+				MessageHandler.ongoingAnalyses.delete(analysisId);
+			}
+		}
 	}
 
 	async handleMessage(
@@ -404,6 +429,9 @@ export class MessageHandler {
 	): Promise<void> {
 		try {
 			switch (request.type) {
+				case MESSAGE_TYPES.ABORT_ANALYSIS:
+					await this.handleAbortAnalysis(request, sendResponse);
+					break;
 				case MESSAGE_TYPES.ANALYZE_CONTENT:
 					await this.handleAnalyzeContent(request, sender, sendResponse);
 					break;
@@ -506,6 +534,32 @@ export class MessageHandler {
 		}
 	}
 
+	private async handleAbortAnalysis(
+		request: any,
+		sendResponse: (response: any) => void,
+	): Promise<void> {
+		try {
+			const analysisId = request.analysisId;
+			if (!analysisId) {
+				sendResponse({ success: false, error: "Analysis ID is required" });
+				return;
+			}
+
+			const abortController = MessageHandler.ongoingAnalyses.get(analysisId);
+			if (abortController) {
+				abortController.abort();
+				MessageHandler.ongoingAnalyses.delete(analysisId);
+				console.log(`Analysis ${analysisId} was aborted by user`);
+				sendResponse({ success: true, message: "Analysis aborted" });
+			} else {
+				sendResponse({ success: false, error: "Analysis not found or already completed" });
+			}
+		} catch (error) {
+			console.error("Failed to abort analysis:", error);
+			sendResponse({ success: false, error: (error as Error).message });
+		}
+	}
+
 	private async handleAnalyzeContent(
 		request: AnalysisRequest,
 		sender: chrome.runtime.MessageSender,
@@ -604,6 +658,8 @@ export class MessageHandler {
 			const result = await MessageHandler.handleExtractGoldenNuggets(
 				request.content,
 				processedPrompt,
+				analysisId,
+				sender.tab?.id,
 			);
 
 			// Send step 4 progress: processing results
@@ -736,6 +792,8 @@ export class MessageHandler {
 			const result = await MessageHandler.handleExtractGoldenNuggets(
 				request.content,
 				processedPrompt,
+				analysisId,
+				sender.tab?.id,
 			);
 
 			// Send step 4 progress: processing results

@@ -111,6 +111,33 @@ export class NotificationManager {
 		}
 	}
 
+	showRateLimited(
+		provider: string,
+		waitTime: number,
+		attempt: number,
+		maxAttempts: number,
+		analysisId: string,
+	): void {
+		this.hideBanner();
+		this.currentBanner = this.createRateLimitedBanner(
+			provider,
+			waitTime,
+			attempt,
+			maxAttempts,
+			analysisId,
+		);
+		document.body.appendChild(this.currentBanner);
+	}
+
+	showRetrying(provider: string, attempt: number, maxAttempts: number): void {
+		this.hideBanner();
+		this.currentBanner = this.createBanner(
+			`🔄 Retrying with ${provider} (attempt ${attempt}/${maxAttempts})...`,
+			"progress",
+		);
+		document.body.appendChild(this.currentBanner);
+	}
+
 	hide(): void {
 		this.hideBanner();
 	}
@@ -288,6 +315,93 @@ export class NotificationManager {
 			button.addEventListener("click", options.onButtonClick);
 			banner.appendChild(button);
 		}
+	}
+
+	private createRateLimitedBanner(
+		provider: string,
+		waitTime: number,
+		attempt: number,
+		maxAttempts: number,
+		analysisId: string,
+	): HTMLElement {
+		const banner = document.createElement("div");
+		banner.className = "nugget-notification-banner nugget-banner-rate-limited";
+
+		const baseStyles = `
+			position: fixed;
+			top: 20px;
+			left: 20px;
+			right: 20px;
+			max-width: 450px;
+			margin: 0 auto;
+			padding: 16px 24px;
+			border-radius: 6px;
+			z-index: ${zIndex.notification};
+			box-shadow: ${generateInlineStyles.notification()};
+			font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+			font-size: 14px;
+			text-align: left;
+			line-height: 1.5;
+			background: ${colors.background.secondary};
+			border: 1px solid ${colors.border.medium};
+			color: ${colors.text.primary};
+		`;
+
+		banner.style.cssText = baseStyles;
+
+		const countdown = document.createElement("span");
+		countdown.id = `countdown-${analysisId}`;
+		countdown.style.cssText = `
+			font-weight: 600;
+			color: ${colors.text.accent};
+		`;
+
+		const cancelButton = document.createElement("button");
+		cancelButton.textContent = "Cancel";
+		cancelButton.style.cssText = `
+			${components.button.secondary};
+			margin-left: 12px;
+			padding: 6px 12px;
+			font-size: 13px;
+			cursor: pointer;
+		`;
+
+		// Handle cancel button click
+		cancelButton.addEventListener("click", () => {
+			chrome.runtime.sendMessage({
+				type: "ABORT_ANALYSIS",
+				analysisId: analysisId,
+			});
+			this.hideBanner();
+		});
+
+		banner.innerHTML = `
+			<div style="display: flex; align-items: center; justify-content: space-between;">
+				<div>
+					⏳ <strong>${provider}</strong> rate limited (attempt ${attempt}/${maxAttempts})<br>
+					<span style="font-size: 13px; color: ${colors.text.secondary};">
+						Waiting <span id="countdown-${analysisId}">${waitTime}</span>s before retry...
+					</span>
+				</div>
+			</div>
+		`;
+
+		banner.appendChild(cancelButton);
+
+		// Start countdown timer
+		let remainingTime = waitTime;
+		const timer = setInterval(() => {
+			remainingTime--;
+			const countdownElement = document.getElementById(`countdown-${analysisId}`);
+			if (countdownElement) {
+				countdownElement.textContent = remainingTime.toString();
+			}
+			if (remainingTime <= 0) {
+				clearInterval(timer);
+			}
+		}, 1000);
+
+		return banner;
 	}
 
 	private createApiKeyErrorBanner(): HTMLElement {
