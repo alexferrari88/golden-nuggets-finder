@@ -1,4 +1,5 @@
 import { ApiKeyStorage } from "../../shared/storage/api-key-storage";
+import { storage } from "../../shared/storage";
 import type { ProviderConfig, ProviderId } from "../../shared/types/providers";
 import { ProviderFactory } from "./provider-factory";
 
@@ -8,8 +9,11 @@ export class ProviderSwitcher {
 			// Validate provider has API key
 			let apiKey: string;
 			if (providerId === "gemini") {
-				const result = await chrome.storage.local.get(["geminiApiKey"]);
-				apiKey = result.geminiApiKey;
+				apiKey = await storage.getApiKey({
+					source: "background",
+					action: "read",
+					timestamp: Date.now(),
+				});
 			} else {
 				apiKey = await ApiKeyStorage.get(providerId);
 			}
@@ -59,9 +63,17 @@ export class ProviderSwitcher {
 		const available: ProviderId[] = [];
 
 		// Check Gemini
-		const geminiResult = await chrome.storage.local.get(["geminiApiKey"]);
-		if (geminiResult.geminiApiKey) {
-			available.push("gemini");
+		try {
+			const geminiApiKey = await storage.getApiKey({
+				source: "background",
+				action: "read",
+				timestamp: Date.now(),
+			});
+			if (geminiApiKey) {
+				available.push("gemini");
+			}
+		} catch (error) {
+			// If there's an error accessing the API key, treat as not available
 		}
 
 		// Check other providers
@@ -83,8 +95,17 @@ export class ProviderSwitcher {
 
 	static async isProviderConfigured(providerId: ProviderId): Promise<boolean> {
 		if (providerId === "gemini") {
-			const result = await chrome.storage.local.get(["geminiApiKey"]);
-			return !!result.geminiApiKey;
+			try {
+				const apiKey = await storage.getApiKey({
+					source: "background",
+					action: "read",
+					timestamp: Date.now(),
+				});
+				return !!apiKey;
+			} catch (error) {
+				// If there's an error accessing the API key, treat as not configured
+				return false;
+			}
 		} else {
 			const apiKey = await ApiKeyStorage.get(providerId);
 			return !!apiKey;
