@@ -355,7 +355,15 @@ function OptionsPage() {
 
 			// Load selected models for all providers
 			const selectedModelsMap = await ModelStorage.getAll();
-			setSelectedModels(selectedModelsMap);
+			
+			// Apply fallbacks to defaults where no model is selected
+			const modelsWithFallbacks: Record<ProviderId, string> = {} as Record<ProviderId, string>;
+			for (const [providerId, model] of Object.entries(selectedModelsMap)) {
+				modelsWithFallbacks[providerId as ProviderId] = 
+					model || ProviderFactory.getDefaultModel(providerId as ProviderId);
+			}
+			
+			setSelectedModels(modelsWithFallbacks);
 		} catch (_err) {
 			setError("Failed to load data");
 		} finally {
@@ -393,14 +401,24 @@ function OptionsPage() {
 				action: "write",
 				timestamp: Date.now(),
 			});
+			
+			// Set validation status for Gemini
+			setValidationStatus((prev) => ({ ...prev, gemini: true }));
+			
 			setApiKeyStatus({
 				type: "success",
 				title: "API Key Saved",
 				message: "Your API key has been validated and saved successfully",
 			});
 
+			// Fetch available models after successful validation
+			await fetchModelsForProvider("gemini", apiKey);
+
 			setTimeout(() => setApiKeyStatus(null), 5000);
 		} catch (_err) {
+			// Set validation status for Gemini to false
+			setValidationStatus((prev) => ({ ...prev, gemini: false }));
+			
 			setApiKeyStatus({
 				type: "error",
 				title: "Invalid API Key",
@@ -569,13 +587,23 @@ function OptionsPage() {
 				message: `Testing your ${getProviderDisplayName(providerId)} API key`,
 			});
 
+			console.log(`[DEBUG] Testing API key for ${providerId}`);
+			console.log(`[DEBUG] API key length: ${apiKey.length}`);
+			
+			const selectedModel = await ProviderFactory.getSelectedModel(providerId);
+			console.log(`[DEBUG] Selected model for ${providerId}: ${selectedModel}`);
+			
 			const provider = await ProviderFactory.createProvider({
 				providerId,
 				apiKey,
-				modelName: await ProviderFactory.getSelectedModel(providerId),
+				modelName: selectedModel,
 			});
+			
+			console.log(`[DEBUG] Provider created successfully for ${providerId}`);
 
 			const isValid = await provider.validateApiKey();
+			console.log(`[DEBUG] Validation result for ${providerId}: ${isValid}`);
+			
 			setValidationStatus((prev) => ({ ...prev, [providerId]: isValid }));
 
 			if (isValid) {
@@ -597,6 +625,7 @@ function OptionsPage() {
 
 			setTimeout(() => setApiKeyStatus(null), 5000);
 		} catch (error) {
+			console.error(`[DEBUG] Error validating API key for ${providerId}:`, error);
 			setValidationStatus((prev) => ({ ...prev, [providerId]: false }));
 			setApiKeyStatus({
 				type: "error",
