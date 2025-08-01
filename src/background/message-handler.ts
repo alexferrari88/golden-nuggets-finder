@@ -16,24 +16,24 @@ import type {
 	ProviderId,
 } from "../shared/types/providers";
 import {
-	handleProviderError,
-	resetRetryCount,
 	getUserFriendlyMessage,
+	handleProviderError,
 	handleSwitchError,
+	resetRetryCount,
 } from "./services/error-handler";
+import { createProvider, getSelectedModel } from "./services/provider-factory";
 import {
-	createProvider,
-	getSelectedModel,
-} from "./services/provider-factory";
-import {
-	switchProvider,
 	getAvailableProviders,
-	isProviderConfigured,
-	switchToFallbackProvider,
 	getCurrentProvider,
+	isProviderConfigured,
+	switchProvider,
+	switchToFallbackProvider,
 } from "./services/provider-switcher";
 import { normalize as normalizeResponse } from "./services/response-normalizer";
-import { validateSelectedTypes, generateFilteredPrompt } from "./type-filter-service";
+import {
+	generateFilteredPrompt,
+	validateSelectedTypes,
+} from "./type-filter-service";
 
 // Utility function to generate unique analysis IDs
 function generateAnalysisId(): string {
@@ -250,16 +250,14 @@ export class MessageHandler {
 			}
 		} else {
 			// Check if selected provider is still configured
-			const isConfigured =
-				await isProviderConfigured(providerId);
+			const isConfigured = await isProviderConfigured(providerId);
 			if (!isConfigured) {
 				console.warn(
 					`Selected provider ${providerId} is not configured, trying fallback...`,
 				);
 
 				// Try to switch to a fallback provider
-				const fallbackProviderId =
-					await switchToFallbackProvider();
+				const fallbackProviderId = await switchToFallbackProvider();
 				if (fallbackProviderId) {
 					providerId = fallbackProviderId;
 					console.log(`Switched to fallback provider: ${providerId}`);
@@ -280,7 +278,7 @@ export class MessageHandler {
 					action: "read",
 					timestamp: Date.now(),
 				});
-			} catch (error) {
+			} catch (_error) {
 				// If there's an error accessing the API key, treat as not configured
 				apiKey = "";
 			}
@@ -433,10 +431,7 @@ export class MessageHandler {
 					// If we're on the last attempt or no more fallbacks, throw the error
 					if (attempts >= maxAttempts) {
 						const userFriendlyMessage = currentProviderId
-							? getUserFriendlyMessage(
-									error as Error,
-									currentProviderId,
-								)
+							? getUserFriendlyMessage(error as Error, currentProviderId)
 							: errorMessage;
 						console.error(
 							`All attempts exhausted. Final error: ${userFriendlyMessage}`,
@@ -663,11 +658,7 @@ export class MessageHandler {
 			// Apply type filtering if specified
 			if (request.typeFilter && request.typeFilter.selectedTypes.length > 0) {
 				// Validate selected types
-				if (
-					!validateSelectedTypes(
-						request.typeFilter.selectedTypes,
-					)
-				) {
+				if (!validateSelectedTypes(request.typeFilter.selectedTypes)) {
 					sendResponse({
 						success: false,
 						error: "Invalid nugget types selected",
@@ -807,11 +798,7 @@ export class MessageHandler {
 			// Apply type filtering if specified
 			if (request.typeFilter && request.typeFilter.selectedTypes.length > 0) {
 				// Validate selected types
-				if (
-					!validateSelectedTypes(
-						request.typeFilter.selectedTypes,
-					)
-				) {
+				if (!validateSelectedTypes(request.typeFilter.selectedTypes)) {
 					sendResponse({
 						success: false,
 						error: "Invalid nugget types selected",

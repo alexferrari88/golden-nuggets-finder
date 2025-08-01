@@ -45,7 +45,7 @@ export class LangChainAnthropicProvider implements LLMProvider {
 					model: this.modelName,
 					messages: [
 						{ role: "system", content: prompt },
-						{ role: "user", content: content.substring(0, 500) + "..." }, // Truncate for logging
+						{ role: "user", content: `${content.substring(0, 500)}...` }, // Truncate for logging
 					],
 					provider: "anthropic",
 				},

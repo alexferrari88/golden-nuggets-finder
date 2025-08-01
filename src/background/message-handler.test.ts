@@ -1,6 +1,9 @@
 import { storage } from "../shared/storage";
 import { MESSAGE_TYPES } from "../shared/types";
-import type { LLMProvider, GoldenNuggetsResponse } from "../shared/types/providers";
+import type {
+	GoldenNuggetsResponse,
+	LLMProvider,
+} from "../shared/types/providers";
 import { MessageHandler } from "./message-handler";
 
 // Mock dependencies
@@ -85,32 +88,34 @@ describe("MessageHandler", () => {
 		messageHandler = new MessageHandler(mockGeminiClient);
 
 		// Mock fetch to reject (simulating no optimized prompt available)
-		mockFetch.mockRejectedValue(
-			new Error("No optimized prompt available"),
-		);
+		mockFetch.mockRejectedValue(new Error("No optimized prompt available"));
 
 		// Mock Chrome storage for provider selection
-		mockChrome.storage.local.get.mockImplementation((keys: string | string[] | Record<string, unknown> | null) => {
-			if (Array.isArray(keys) && keys.includes("selectedProvider")) {
-				return Promise.resolve({ selectedProvider: "gemini" });
-			}
-			if (Array.isArray(keys) && keys.includes("geminiApiKey")) {
-				return Promise.resolve({ geminiApiKey: "test-api-key" });
-			}
-			if (typeof keys === "string" && keys === "selectedProvider") {
-				return Promise.resolve({ selectedProvider: "gemini" });
-			}
-			if (typeof keys === "string" && keys === "geminiApiKey") {
-				return Promise.resolve({ geminiApiKey: "test-api-key" });
-			}
-			return Promise.resolve({});
-		});
+		mockChrome.storage.local.get.mockImplementation(
+			(keys: string | string[] | Record<string, unknown> | null) => {
+				if (Array.isArray(keys) && keys.includes("selectedProvider")) {
+					return Promise.resolve({ selectedProvider: "gemini" });
+				}
+				if (Array.isArray(keys) && keys.includes("geminiApiKey")) {
+					return Promise.resolve({ geminiApiKey: "test-api-key" });
+				}
+				if (typeof keys === "string" && keys === "selectedProvider") {
+					return Promise.resolve({ selectedProvider: "gemini" });
+				}
+				if (typeof keys === "string" && keys === "geminiApiKey") {
+					return Promise.resolve({ geminiApiKey: "test-api-key" });
+				}
+				return Promise.resolve({});
+			},
+		);
 
 		// Mock provider system
-		(ProviderSwitcher.isProviderConfigured as ReturnType<typeof vi.fn>).mockResolvedValue(true);
-		(ProviderFactory.getDefaultModel as ReturnType<typeof vi.fn>).mockReturnValue(
-			"gemini-2.5-flash",
-		);
+		(
+			ProviderSwitcher.isProviderConfigured as ReturnType<typeof vi.fn>
+		).mockResolvedValue(true);
+		(
+			ProviderFactory.getDefaultModel as ReturnType<typeof vi.fn>
+		).mockReturnValue("gemini-2.5-flash");
 
 		// Mock provider instance
 		const mockResponse: GoldenNuggetsResponse = { golden_nuggets: [] };
@@ -120,7 +125,9 @@ describe("MessageHandler", () => {
 			extractGoldenNuggets: vi.fn().mockResolvedValue(mockResponse),
 			validateApiKey: vi.fn().mockResolvedValue(true),
 		};
-		(ProviderFactory.createProvider as ReturnType<typeof vi.fn>).mockResolvedValue(mockProvider);
+		(
+			ProviderFactory.createProvider as ReturnType<typeof vi.fn>
+		).mockResolvedValue(mockProvider);
 
 		// Mock response normalizer
 		vi.spyOn(ResponseNormalizer, "normalize").mockImplementation(
@@ -128,13 +135,17 @@ describe("MessageHandler", () => {
 		);
 
 		// Mock error handler
-		(ErrorHandler.resetRetryCount as ReturnType<typeof vi.fn>).mockImplementation(() => {});
+		(
+			ErrorHandler.resetRetryCount as ReturnType<typeof vi.fn>
+		).mockImplementation(() => {});
 
 		// Clear all mocks
 		vi.clearAllMocks();
 
 		// Re-initialize mockProvider after clearAllMocks
-		const mockResponseAfterClear: GoldenNuggetsResponse = { golden_nuggets: [] };
+		const mockResponseAfterClear: GoldenNuggetsResponse = {
+			golden_nuggets: [],
+		};
 		mockProvider = {
 			providerId: "gemini",
 			modelName: "gemini-2.5-flash",
@@ -143,14 +154,16 @@ describe("MessageHandler", () => {
 		};
 
 		// Ensure mocks are reset but keep the implementation
-		mockFetch.mockRejectedValue(
-			new Error("No optimized prompt available"),
-		);
-		(ProviderSwitcher.isProviderConfigured as ReturnType<typeof vi.fn>).mockResolvedValue(true);
-		(ProviderFactory.getDefaultModel as ReturnType<typeof vi.fn>).mockReturnValue(
-			"gemini-2.5-flash",
-		);
-		(ProviderFactory.createProvider as ReturnType<typeof vi.fn>).mockResolvedValue(mockProvider);
+		mockFetch.mockRejectedValue(new Error("No optimized prompt available"));
+		(
+			ProviderSwitcher.isProviderConfigured as ReturnType<typeof vi.fn>
+		).mockResolvedValue(true);
+		(
+			ProviderFactory.getDefaultModel as ReturnType<typeof vi.fn>
+		).mockReturnValue("gemini-2.5-flash");
+		(
+			ProviderFactory.createProvider as ReturnType<typeof vi.fn>
+		).mockResolvedValue(mockProvider);
 		vi.spyOn(ResponseNormalizer, "normalize").mockImplementation(
 			(response: GoldenNuggetsResponse) => response,
 		);

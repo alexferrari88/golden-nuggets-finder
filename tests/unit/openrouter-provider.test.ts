@@ -8,7 +8,7 @@ vi.stubGlobal("fetch", mockFetch);
 
 // Mock the LangChain modules
 vi.mock("@langchain/openai", () => ({
-	ChatOpenAI: vi.fn().mockImplementation((config) => {
+	ChatOpenAI: vi.fn().mockImplementation((_config) => {
 		return {
 			withStructuredOutput: vi.fn().mockReturnValue({
 				invoke: vi.fn().mockResolvedValue({

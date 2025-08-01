@@ -34,7 +34,8 @@ describe("GeminiDirectProvider", () => {
 		});
 
 		// Get the mocked GeminiClient instance
-		mockGeminiClient = (provider as GeminiDirectProviderWithClient).geminiClient;
+		mockGeminiClient = (provider as GeminiDirectProviderWithClient)
+			.geminiClient;
 	});
 
 	describe("Provider Interface", () => {

@@ -5,9 +5,9 @@ import {
 } from "../background/services/provider-switcher";
 import {
 	CONTEXT_MENU_OPTIONS,
-	getContextMenuOption,
 	createDefaultTypeFilter,
 	createSingleTypeFilter,
+	getContextMenuOption,
 } from "../background/type-filter-service";
 import { StorageMigration, storage } from "../shared/storage";
 import { MESSAGE_TYPES } from "../shared/types";
@@ -237,8 +237,7 @@ export default defineBackground(() => {
 
 			// Check if current provider is configured before proceeding
 			const currentProvider = await getCurrentProvider();
-			const isConfigured =
-				await isProviderConfigured(currentProvider);
+			const isConfigured = await isProviderConfigured(currentProvider);
 
 			if (!isConfigured) {
 				console.log(
@@ -265,13 +264,11 @@ export default defineBackground(() => {
 			}
 
 			// Create type filter based on the selected option
-			let typeFilter;
+			let typeFilter: ReturnType<typeof createDefaultTypeFilter>;
 			if (contextMenuOption.id === "all") {
 				typeFilter = createDefaultTypeFilter();
 			} else {
-				typeFilter = createSingleTypeFilter(
-					contextMenuOption.types[0],
-				);
+				typeFilter = createSingleTypeFilter(contextMenuOption.types[0]);
 			}
 
 			// Send message to content script to start analysis with type filter
@@ -300,8 +297,7 @@ export default defineBackground(() => {
 
 			// Check if current provider is configured before proceeding
 			const currentProvider = await getCurrentProvider();
-			const isConfigured =
-				await isProviderConfigured(currentProvider);
+			const isConfigured = await isProviderConfigured(currentProvider);
 
 			if (!isConfigured) {
 				console.log(
