@@ -47,6 +47,60 @@ export class LangChainOpenRouterProvider implements LLMProvider {
 		return String(error);
 	}
 
+	/**
+	 * Checks if an error is a rate limiting error (429)
+	 */
+	private isRateLimitError(errorMessage: string): boolean {
+		return errorMessage.toLowerCase().includes('429') || 
+			   errorMessage.toLowerCase().includes('rate limit') ||
+			   errorMessage.toLowerCase().includes('too many requests');
+	}
+
+	/**
+	 * Sleep utility for retry delays
+	 */
+	private sleep(ms: number): Promise<void> {
+		return new Promise(resolve => setTimeout(resolve, ms));
+	}
+
+	/**
+	 * Execute API call with retry logic and exponential backoff for rate limiting errors
+	 */
+	private async executeWithRetry<T>(
+		operation: () => Promise<T>,
+		maxRetries: number = 3
+	): Promise<T> {
+		let lastError: unknown;
+		
+		for (let attempt = 0; attempt <= maxRetries; attempt++) {
+			try {
+				return await operation();
+			} catch (error) {
+				lastError = error;
+				const errorMessage = this.getErrorMessage(error);
+				
+				// Only retry on rate limiting errors
+				if (!this.isRateLimitError(errorMessage)) {
+					throw error;
+				}
+				
+				// Don't retry on the last attempt
+				if (attempt === maxRetries) {
+					break;
+				}
+				
+				// Exponential backoff: 1s, 2s, 4s
+				const delayMs = Math.pow(2, attempt) * 1000;
+				console.log(`Rate limit hit, retrying in ${delayMs}ms (attempt ${attempt + 1}/${maxRetries + 1})`);
+				await this.sleep(delayMs);
+			}
+		}
+		
+		// All retries exhausted, throw with specific error for UI to handle
+		const errorMessage = this.getErrorMessage(lastError);
+		throw new Error(`RATE_LIMIT_RETRY_EXHAUSTED: Rate limit exceeded after ${maxRetries + 1} attempts. The OpenRouter API is temporarily limiting requests. You can try again.`);
+	}
+
 	constructor(private config: ProviderConfig) {
 		this.modelName = config.modelName || "z-ai/glm-4.5-air:free";
 		this.model = new ChatOpenAI({
@@ -67,30 +121,32 @@ export class LangChainOpenRouterProvider implements LLMProvider {
 		content: string,
 		prompt: string,
 	): Promise<GoldenNuggetsResponse> {
+		// Log the request
+		debugLogger.logLLMRequest(`https://openrouter.ai/api/v1/chat/completions (${this.modelName})`, {
+			model: this.modelName,
+			messages: [
+				{ role: "system", content: prompt },
+				{ role: "user", content: content.substring(0, 500) + "..." }, // Truncate for logging
+			],
+			provider: "openrouter"
+		});
+
 		try {
-			// Log the request
-			debugLogger.logLLMRequest(`https://openrouter.ai/api/v1/chat/completions (${this.modelName})`, {
-				model: this.modelName,
-				messages: [
-					{ role: "system", content: prompt },
-					{ role: "user", content: content.substring(0, 500) + "..." }, // Truncate for logging
-				],
-				provider: "openrouter"
+			const response = await this.executeWithRetry(async () => {
+				const structuredModel = this.model.withStructuredOutput(
+					FlexibleGoldenNuggetsSchema,
+					{
+						name: "extract_golden_nuggets",
+						method: "functionCalling",
+						includeRaw: isDevMode() || debugLogger.isEnabled(),
+					},
+				);
+
+				return await structuredModel.invoke([
+					new SystemMessage(prompt),
+					new HumanMessage(content),
+				]);
 			});
-
-			const structuredModel = this.model.withStructuredOutput(
-				FlexibleGoldenNuggetsSchema,
-				{
-					name: "extract_golden_nuggets",
-					method: "functionCalling",
-					includeRaw: isDevMode() || debugLogger.isEnabled(),
-				},
-			);
-
-			const response = await structuredModel.invoke([
-				new SystemMessage(prompt),
-				new HumanMessage(content),
-			]);
 
 			// Normalize type values that OpenRouter models might return
 			if (response?.golden_nuggets) {
@@ -114,24 +170,6 @@ export class LangChainOpenRouterProvider implements LLMProvider {
 		} catch (error) {
 			const errorMessage = this.getErrorMessage(error);
 			
-			// Handle rate limiting errors with user-friendly message
-			if (errorMessage.toLowerCase().includes('429') || 
-				errorMessage.toLowerCase().includes('rate limit') ||
-				errorMessage.toLowerCase().includes('too many requests')) {
-				
-				// Log the error
-				debugLogger.logLLMResponse(
-					{ 
-						provider: "openrouter",
-						model: this.modelName,
-						success: false,
-						error: errorMessage 
-					}
-				);
-
-				throw new Error(`Rate limit exceeded. Please wait a moment and try again. The OpenRouter API is temporarily limiting requests.`);
-			}
-			
 			// Log the error
 			debugLogger.logLLMResponse(
 				{ 
@@ -143,6 +181,13 @@ export class LangChainOpenRouterProvider implements LLMProvider {
 			);
 
 			console.error(`OpenRouter provider error:`, error);
+			
+			// Re-throw rate limit retry exhausted errors as-is for UI to handle
+			if (errorMessage.startsWith('RATE_LIMIT_RETRY_EXHAUSTED:')) {
+				throw error;
+			}
+			
+			// For other errors, wrap with provider context
 			throw new Error(`OpenRouter API call failed: ${errorMessage}`);
 		}
 	}
