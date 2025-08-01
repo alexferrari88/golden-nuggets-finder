@@ -165,7 +165,6 @@ export class LangChainOpenRouterProvider implements LLMProvider {
 					{
 						name: "extract_golden_nuggets",
 						method: "functionCalling",
-						includeRaw: isDevMode() || debugLogger.isEnabled(),
 					},
 				);
 
