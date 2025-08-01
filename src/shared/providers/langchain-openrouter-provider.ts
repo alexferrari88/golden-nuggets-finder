@@ -72,33 +72,43 @@ export class LangChainOpenRouterProvider implements LLMProvider {
 	): Promise<T> {
 		let lastError: unknown;
 		
+		debugLogger.log(`🔄 Starting OpenRouter request with retry logic (max ${maxRetries} retries)`);
+		
 		for (let attempt = 0; attempt <= maxRetries; attempt++) {
 			try {
-				return await operation();
+				debugLogger.log(`📤 OpenRouter attempt ${attempt + 1}/${maxRetries + 1} starting...`);
+				const result = await operation();
+				debugLogger.log(`✅ OpenRouter attempt ${attempt + 1}/${maxRetries + 1} succeeded`);
+				return result;
 			} catch (error) {
 				lastError = error;
 				const errorMessage = this.getErrorMessage(error);
 				
+				debugLogger.log(`❌ OpenRouter attempt ${attempt + 1}/${maxRetries + 1} failed: ${errorMessage}`);
+				
 				// Only retry on rate limiting errors
 				if (!this.isRateLimitError(errorMessage)) {
+					debugLogger.log(`🚫 Not a rate limit error, stopping retries`);
 					throw error;
 				}
 				
 				// Don't retry on the last attempt
 				if (attempt === maxRetries) {
+					debugLogger.log(`🔚 Last attempt failed, no more retries`);
 					break;
 				}
 				
 				// Exponential backoff: 1s, 2s, 4s
 				const delayMs = Math.pow(2, attempt) * 1000;
-				console.log(`Rate limit hit, retrying in ${delayMs}ms (attempt ${attempt + 1}/${maxRetries + 1})`);
+				debugLogger.log(`⏱️ Rate limit hit, retrying in ${delayMs}ms (attempt ${attempt + 1}/${maxRetries + 1})`);
 				await this.sleep(delayMs);
 			}
 		}
 		
 		// All retries exhausted, throw with specific error for UI to handle
-		const errorMessage = this.getErrorMessage(lastError);
-		throw new Error(`RATE_LIMIT_RETRY_EXHAUSTED: Rate limit exceeded after ${maxRetries + 1} attempts. The OpenRouter API is temporarily limiting requests. You can try again.`);
+		const finalErrorMessage = `RATE_LIMIT_RETRY_EXHAUSTED: Rate limit exceeded after ${maxRetries + 1} attempts. The OpenRouter API is temporarily limiting requests. You can try again.`;
+		debugLogger.log(`🔴 All retries exhausted, throwing: ${finalErrorMessage}`);
+		throw new Error(finalErrorMessage);
 	}
 
 	constructor(private config: ProviderConfig) {
@@ -107,6 +117,7 @@ export class LangChainOpenRouterProvider implements LLMProvider {
 			apiKey: config.apiKey,
 			model: this.modelName,
 			temperature: 0,
+			maxRetries: 0, // Disable ChatOpenAI's built-in retry logic - we handle retries ourselves
 			configuration: {
 				baseURL: "https://openrouter.ai/api/v1",
 				defaultHeaders: {
@@ -180,14 +191,16 @@ export class LangChainOpenRouterProvider implements LLMProvider {
 				}
 			);
 
-			console.error(`OpenRouter provider error:`, error);
+			debugLogger.log(`🔴 OpenRouter provider final error: ${errorMessage}`);
 			
 			// Re-throw rate limit retry exhausted errors as-is for UI to handle
 			if (errorMessage.startsWith('RATE_LIMIT_RETRY_EXHAUSTED:')) {
+				debugLogger.log(`🔄 Re-throwing rate limit retry exhausted error for UI handling`);
 				throw error;
 			}
 			
 			// For other errors, wrap with provider context
+			debugLogger.log(`❌ Wrapping non-retry error with provider context`);
 			throw new Error(`OpenRouter API call failed: ${errorMessage}`);
 		}
 	}
