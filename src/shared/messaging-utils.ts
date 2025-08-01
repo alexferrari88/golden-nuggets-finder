@@ -8,6 +8,94 @@
 
 import { injectContentScript } from "./chrome-extension-utils";
 
+// Import message types for type safety
+import type {
+	AnalysisResponse,
+	ExtensionConfig,
+	SavedPrompt,
+	FeedbackStats,
+	OptimizedPrompt,
+	TypeFilterOptions,
+	MESSAGE_TYPES,
+} from "./types";
+import type { ProviderId } from "./types/providers";
+
+// Base message interface
+interface BaseMessage {
+	type: string;
+}
+
+interface BaseRequest extends BaseMessage {
+	[key: string]: unknown;
+}
+
+interface BaseResponse {
+	success: boolean;
+	error?: string;
+	message?: string;
+	data?: unknown;
+}
+
+// Message request types with the 'type' property for Chrome extension messaging
+interface AnalyzeContentMessage extends BaseMessage {
+	type: typeof MESSAGE_TYPES.ANALYZE_CONTENT;
+	content: string;
+	promptId: string;
+	url: string;
+	analysisId?: string;
+	source?: "popup" | "context-menu";
+	typeFilter?: TypeFilterOptions;
+}
+
+interface EnterSelectionModeMessage extends BaseMessage {
+	type: typeof MESSAGE_TYPES.ENTER_SELECTION_MODE;
+	promptId: string;
+	typeFilter?: TypeFilterOptions;
+}
+
+interface AnalyzeSelectedContentMessage extends BaseMessage {
+	type: typeof MESSAGE_TYPES.ANALYZE_SELECTED_CONTENT;
+	content: string;
+	promptId: string;
+	url: string;
+	selectedComments: string[];
+	typeFilter?: TypeFilterOptions;
+}
+
+interface GetPromptsMessage extends BaseMessage {
+	type: typeof MESSAGE_TYPES.GET_PROMPTS;
+}
+
+interface SavePromptMessage extends BaseMessage {
+	type: typeof MESSAGE_TYPES.SAVE_PROMPT;
+	prompt: SavedPrompt;
+}
+
+interface GetConfigMessage extends BaseMessage {
+	type: typeof MESSAGE_TYPES.GET_CONFIG;
+}
+
+// Union type for all possible messaging requests
+type MessagingRequest =
+	| AnalyzeContentMessage
+	| EnterSelectionModeMessage
+	| AnalyzeSelectedContentMessage
+	| GetPromptsMessage
+	| SavePromptMessage
+	| GetConfigMessage
+	| BaseRequest;
+
+// Response types for messaging
+type MessagingResponse =
+	| AnalysisResponse
+	| BaseResponse
+	| { success: boolean; data?: ExtensionConfig; error?: string }
+	| { success: boolean; data?: SavedPrompt[]; error?: string }
+	| { success: boolean; data?: FeedbackStats; error?: string }
+	| { success: boolean; data?: OptimizedPrompt; error?: string }
+	| { success: boolean; data?: ProviderId[]; error?: string }
+	| { success: boolean; data?: { providerId: ProviderId; modelName: string }; error?: string };
+
 /**
  * Custom error for messaging failures
  */
@@ -36,16 +124,16 @@ export class MessagingUtils {
 	 * @returns Promise<T> The response from the content script
 	 * @throws {MessagingError} When injection or messaging fails
 	 */
-	static async sendWithInjection<T = any>(
+	static async sendWithInjection<T extends MessagingResponse = MessagingResponse>(
 		tabId: number,
-		message: any,
+		message: MessagingRequest,
 	): Promise<T> {
 		try {
 			// Ensure content script is injected first
 			await injectContentScript(tabId);
 
 			// Send the message
-			const response = await chrome.tabs.sendMessage(tabId, message);
+			const response = await chrome.tabs.sendMessage(tabId, message) as T;
 			return response;
 		} catch (error) {
 			console.error(
@@ -57,7 +145,7 @@ export class MessagingUtils {
 				throw new MessagingError(
 					`Failed to send message: ${error.message}`,
 					tabId,
-					message?.type,
+					message.type,
 					error,
 				);
 			}
@@ -65,7 +153,7 @@ export class MessagingUtils {
 			throw new MessagingError(
 				"Failed to send message: Unknown error",
 				tabId,
-				message?.type,
+				message.type,
 			);
 		}
 	}
@@ -84,8 +172,13 @@ export class MessagingUtils {
 				currentWindow: true,
 			});
 
-			if (!tab || !tab.id) {
-				throw new MessagingError("No active tab found or tab has no ID");
+			// Proper null checking instead of non-null assertion
+			if (!tab) {
+				throw new MessagingError("No active tab found");
+			}
+
+			if (typeof tab.id !== 'number') {
+				throw new MessagingError("Active tab has no valid ID");
 			}
 
 			return tab;
@@ -113,8 +206,16 @@ export class MessagingUtils {
 	 * @returns Promise<T> The response from the content script
 	 * @throws {MessagingError} When tab retrieval, injection, or messaging fails
 	 */
-	static async sendToActiveTab<T = any>(message: any): Promise<T> {
+	static async sendToActiveTab<T extends MessagingResponse = MessagingResponse>(
+		message: MessagingRequest,
+	): Promise<T> {
 		const tab = await MessagingUtils.getActiveTab();
-		return MessagingUtils.sendWithInjection<T>(tab.id!, message);
+		
+		// Safe access to tab.id since we've already validated it's a number
+		if (typeof tab.id !== 'number') {
+			throw new MessagingError("Tab ID is not valid for messaging");
+		}
+		
+		return MessagingUtils.sendWithInjection<T>(tab.id, message);
 	}
 }
