@@ -113,14 +113,14 @@ describe("ModelService", () => {
 
 			expect(result.models).toHaveLength(2); // Only GPT models, not embeddings or whisper
 			expect(result.models[0]).toEqual({
-				id: "gpt-4o",
-				name: "gpt-4o",
-				description: "OpenAI gpt-4o",
-			});
-			expect(result.models[1]).toEqual({
 				id: "gpt-3.5-turbo",
 				name: "gpt-3.5-turbo",
 				description: "OpenAI gpt-3.5-turbo",
+			});
+			expect(result.models[1]).toEqual({
+				id: "gpt-4o",
+				name: "gpt-4o",
+				description: "OpenAI gpt-4o",
 			});
 			expect(result.error).toBeUndefined();
 
@@ -218,16 +218,16 @@ describe("ModelService", () => {
 
 			expect(result.models).toHaveLength(2); // Only text generation models
 			expect(result.models[0]).toEqual({
-				id: "openai/gpt-4o",
-				name: "GPT-4o",
-				description: "OpenAI's latest multimodal model",
-				contextLength: 128000,
-			});
-			expect(result.models[1]).toEqual({
 				id: "anthropic/claude-sonnet-4",
 				name: "Claude Sonnet 4",
 				description: "Anthropic's latest model",
 				contextLength: 200000,
+			});
+			expect(result.models[1]).toEqual({
+				id: "openai/gpt-4o",
+				name: "GPT-4o",
+				description: "OpenAI's latest multimodal model",
+				contextLength: 128000,
 			});
 			expect(result.error).toBeUndefined();
 
