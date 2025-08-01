@@ -44,20 +44,39 @@ export class LangChainOpenRouterProvider implements LLMProvider {
 		prompt: string,
 	): Promise<GoldenNuggetsResponse> {
 		try {
-			// Try jsonMode first (works with more OpenRouter models than functionCalling)
 			let response: any;
 			
+			// Try functionCalling first (most reliable when supported)
 			try {
 				const structuredModel = this.model.withStructuredOutput(
 					FlexibleGoldenNuggetsSchema,
 					{
 						name: "extract_golden_nuggets",
-						method: "jsonMode", // Use jsonMode instead of functionCalling
+						method: "functionCalling",
 					},
 				);
 
-				// Enhanced prompt for JSON mode with explicit JSON instructions
-				const enhancedPrompt = `${prompt}
+				response = await structuredModel.invoke([
+					new SystemMessage(prompt),
+					new HumanMessage(content),
+				]);
+				
+				console.log("Function calling succeeded for OpenRouter");
+			} catch (functionCallingError) {
+				console.warn("Function calling failed, falling back to JSON mode:", functionCallingError.message);
+				
+				// First fallback: Try jsonMode
+				try {
+					const jsonModeModel = this.model.withStructuredOutput(
+						FlexibleGoldenNuggetsSchema,
+						{
+							name: "extract_golden_nuggets",
+							method: "jsonMode",
+						},
+					);
+
+					// Enhanced prompt for JSON mode with explicit JSON instructions
+					const enhancedPrompt = `${prompt}
 
 CRITICAL: You MUST respond with valid JSON only. Use this exact format:
 {
@@ -72,15 +91,17 @@ CRITICAL: You MUST respond with valid JSON only. Use this exact format:
 
 Ensure your response is valid JSON with no additional text.`;
 
-				response = await structuredModel.invoke([
-					new SystemMessage(enhancedPrompt),
-					new HumanMessage(content),
-				]);
-			} catch (jsonModeError) {
-				console.warn("JSON mode failed, falling back to prompt engineering:", jsonModeError.message);
-				
-				// Fallback: Use regular model with strict JSON prompt instructions
-				const jsonPrompt = `${prompt}
+					response = await jsonModeModel.invoke([
+						new SystemMessage(enhancedPrompt),
+						new HumanMessage(content),
+					]);
+					
+					console.log("JSON mode succeeded for OpenRouter");
+				} catch (jsonModeError) {
+					console.warn("JSON mode failed, falling back to prompt engineering:", jsonModeError.message);
+					
+					// Last resort: Use regular model with strict JSON prompt instructions
+					const jsonPrompt = `${prompt}
 
 CRITICAL INSTRUCTION: You MUST respond with valid JSON only. No explanations, no additional text.
 
@@ -99,28 +120,30 @@ Content to analyze: ${content}
 
 JSON Response:`;
 
-				const rawResponse = await this.model.invoke([
-					new SystemMessage("You are a JSON-only response assistant. Return valid JSON without any additional formatting or text."),
-					new HumanMessage(jsonPrompt),
-				]);
+					const rawResponse = await this.model.invoke([
+						new SystemMessage("You are a JSON-only response assistant. Return valid JSON without any additional formatting or text."),
+						new HumanMessage(jsonPrompt),
+					]);
 
-				// Parse the raw response as JSON
-				const responseText = rawResponse.content.toString().trim();
-				
-				// Clean up common JSON formatting issues
-				let cleanedJson = responseText;
-				if (cleanedJson.startsWith("```json")) {
-					cleanedJson = cleanedJson.replace(/```json/g, "").replace(/```/g, "").trim();
-				}
-				if (cleanedJson.startsWith("```")) {
-					cleanedJson = cleanedJson.replace(/```/g, "").trim();
-				}
+					// Parse the raw response as JSON
+					const responseText = rawResponse.content.toString().trim();
+					
+					// Clean up common JSON formatting issues
+					let cleanedJson = responseText;
+					if (cleanedJson.startsWith("```json")) {
+						cleanedJson = cleanedJson.replace(/```json/g, "").replace(/```/g, "").trim();
+					}
+					if (cleanedJson.startsWith("```")) {
+						cleanedJson = cleanedJson.replace(/```/g, "").trim();
+					}
 
-				try {
-					response = JSON.parse(cleanedJson);
-				} catch (parseError) {
-					console.error("Failed to parse JSON response:", cleanedJson);
-					throw new Error(`Failed to parse structured response: ${parseError.message}`);
+					try {
+						response = JSON.parse(cleanedJson);
+						console.log("Prompt engineering fallback succeeded for OpenRouter");
+					} catch (parseError) {
+						console.error("Failed to parse JSON response:", cleanedJson);
+						throw new Error(`Failed to parse structured response: ${parseError.message}`);
+					}
 				}
 			}
 
