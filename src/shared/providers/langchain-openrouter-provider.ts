@@ -74,7 +74,36 @@ export class LangChainOpenRouterProvider implements LLMProvider {
 				
 				console.log("Function calling succeeded for OpenRouter");
 			} catch (functionCallingError) {
-				const errorMessage = functionCallingError instanceof Error ? functionCallingError.message : String(functionCallingError);
+				// Defensive error handling for potentially malformed error objects
+				let errorMessage = "Unknown error occurred";
+				try {
+					if (functionCallingError && typeof functionCallingError === 'object') {
+						if (functionCallingError instanceof Error) {
+							errorMessage = functionCallingError.message || errorMessage;
+						} else if (functionCallingError.message) {
+							errorMessage = String(functionCallingError.message);
+						} else if (functionCallingError.error) {
+							errorMessage = String(functionCallingError.error);
+						} else {
+							errorMessage = JSON.stringify(functionCallingError);
+						}
+					} else if (functionCallingError) {
+						errorMessage = String(functionCallingError);
+					}
+					
+					// Check if this looks like a rate limiting error
+					if (errorMessage.toLowerCase().includes('429') || 
+						errorMessage.toLowerCase().includes('rate limit') ||
+						errorMessage.toLowerCase().includes('too many requests')) {
+						// Re-throw with clear rate limiting indicator
+						throw new Error(`429 Provider returned error: ${errorMessage}`);
+					}
+				} catch (errorParsingError) {
+					errorMessage = "Error parsing failed - potential rate limiting or provider issue";
+					// Re-throw as potential rate limiting error
+					throw new Error(`429 Provider returned error: ${errorMessage}`);
+				}
+				
 				console.warn("Function calling failed, falling back to JSON mode:", errorMessage);
 				
 				// First fallback: Try jsonMode
@@ -110,7 +139,36 @@ Ensure your response is valid JSON with no additional text.`;
 					
 					console.log("JSON mode succeeded for OpenRouter");
 				} catch (jsonModeError) {
-					const errorMessage = jsonModeError instanceof Error ? jsonModeError.message : String(jsonModeError);
+					// Defensive error handling for potentially malformed error objects
+					let errorMessage = "Unknown error occurred";
+					try {
+						if (jsonModeError && typeof jsonModeError === 'object') {
+							if (jsonModeError instanceof Error) {
+								errorMessage = jsonModeError.message || errorMessage;
+							} else if (jsonModeError.message) {
+								errorMessage = String(jsonModeError.message);
+							} else if (jsonModeError.error) {
+								errorMessage = String(jsonModeError.error);
+							} else {
+								errorMessage = JSON.stringify(jsonModeError);
+							}
+						} else if (jsonModeError) {
+							errorMessage = String(jsonModeError);
+						}
+						
+						// Check if this looks like a rate limiting error
+						if (errorMessage.toLowerCase().includes('429') || 
+							errorMessage.toLowerCase().includes('rate limit') ||
+							errorMessage.toLowerCase().includes('too many requests')) {
+							// Re-throw with clear rate limiting indicator
+							throw new Error(`429 Provider returned error: ${errorMessage}`);
+						}
+					} catch (errorParsingError) {
+						errorMessage = "Error parsing failed - potential rate limiting or provider issue";
+						// Re-throw as potential rate limiting error
+						throw new Error(`429 Provider returned error: ${errorMessage}`);
+					}
+					
 					console.warn("JSON mode failed, falling back to prompt engineering:", errorMessage);
 					
 					// Last resort: Use regular model with strict JSON prompt instructions
@@ -180,8 +238,25 @@ JSON Response:`;
 
 			return response as GoldenNuggetsResponse;
 		} catch (error) {
-			// Handle malformed error objects
-			const errorMessage = error instanceof Error ? error.message : String(error);
+			// Defensive error handling for potentially malformed error objects
+			let errorMessage = "Unknown error occurred";
+			try {
+				if (error && typeof error === 'object') {
+					if (error instanceof Error) {
+						errorMessage = error.message || errorMessage;
+					} else if (error.message) {
+						errorMessage = String(error.message);
+					} else if (error.error) {
+						errorMessage = String(error.error);
+					} else {
+						errorMessage = JSON.stringify(error);
+					}
+				} else if (error) {
+					errorMessage = String(error);
+				}
+			} catch (errorParsingError) {
+				errorMessage = "Error parsing failed - potential provider issue";
+			}
 			
 			// Log the error
 			debugLogger.logLLMResponse(

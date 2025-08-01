@@ -211,7 +211,8 @@ describe("ErrorHandler", () => {
 			);
 
 			expect(result.success).toBe(false);
-			expect(result.message).toContain("Failed to switch to anthropic");
+			expect(result.message).toContain("anthropic");
+			expect(result.message).toContain("Unknown error occurred");
 		});
 	});
 
