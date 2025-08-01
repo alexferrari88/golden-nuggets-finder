@@ -74,7 +74,8 @@ export class LangChainOpenRouterProvider implements LLMProvider {
 				
 				console.log("Function calling succeeded for OpenRouter");
 			} catch (functionCallingError) {
-				console.warn("Function calling failed, falling back to JSON mode:", functionCallingError.message);
+				const errorMessage = functionCallingError instanceof Error ? functionCallingError.message : String(functionCallingError);
+				console.warn("Function calling failed, falling back to JSON mode:", errorMessage);
 				
 				// First fallback: Try jsonMode
 				try {
@@ -109,7 +110,8 @@ Ensure your response is valid JSON with no additional text.`;
 					
 					console.log("JSON mode succeeded for OpenRouter");
 				} catch (jsonModeError) {
-					console.warn("JSON mode failed, falling back to prompt engineering:", jsonModeError.message);
+					const errorMessage = jsonModeError instanceof Error ? jsonModeError.message : String(jsonModeError);
+					console.warn("JSON mode failed, falling back to prompt engineering:", errorMessage);
 					
 					// Last resort: Use regular model with strict JSON prompt instructions
 					const jsonPrompt = `${prompt}
@@ -178,18 +180,21 @@ JSON Response:`;
 
 			return response as GoldenNuggetsResponse;
 		} catch (error) {
+			// Handle malformed error objects
+			const errorMessage = error instanceof Error ? error.message : String(error);
+			
 			// Log the error
 			debugLogger.logLLMResponse(
 				{ 
 					provider: "openrouter",
 					model: this.modelName,
 					success: false,
-					error: error.message 
+					error: errorMessage 
 				}
 			);
 
 			console.error(`OpenRouter provider error:`, error);
-			throw new Error(`OpenRouter API call failed: ${error.message}`);
+			throw new Error(`OpenRouter API call failed: ${errorMessage}`);
 		}
 	}
 
@@ -234,7 +239,8 @@ JSON Response:`;
 			});
 			return response.ok; // 200 = valid, 401 = invalid key
 		} catch (error) {
-			console.warn(`OpenRouter API key validation failed:`, error.message);
+			const errorMessage = error instanceof Error ? error.message : String(error);
+			console.warn(`OpenRouter API key validation failed:`, errorMessage);
 			return false;
 		}
 	}
