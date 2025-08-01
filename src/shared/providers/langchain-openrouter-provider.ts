@@ -24,6 +24,28 @@ export class LangChainOpenRouterProvider implements LLMProvider {
 	readonly modelName: string;
 	private model: ChatOpenAI;
 
+	/**
+	 * Safely extracts error message from unknown error objects
+	 */
+	private getErrorMessage(error: unknown): string {
+		if (error instanceof Error) {
+			return error.message;
+		} else if (error && typeof error === 'object') {
+			// Handle OpenRouter API error format
+			if ('error' in error && typeof (error as any).error === 'object' && (error as any).error !== null) {
+				const apiError = (error as any).error;
+				if ('message' in apiError) {
+					return String(apiError.message);
+				}
+			}
+			// Handle other object-type errors
+			else if ('message' in error) {
+				return String((error as any).message);
+			}
+		}
+		return String(error);
+	}
+
 	constructor(private config: ProviderConfig) {
 		this.modelName = config.modelName || "z-ai/glm-4.5-air:free";
 		this.model = new ChatOpenAI({
@@ -56,6 +78,7 @@ export class LangChainOpenRouterProvider implements LLMProvider {
 			});
 
 			let response: any;
+			let lastError: string | null = null;
 			
 			// Try functionCalling first (most reliable when supported)
 			try {
@@ -64,6 +87,7 @@ export class LangChainOpenRouterProvider implements LLMProvider {
 					{
 						name: "extract_golden_nuggets",
 						method: "functionCalling",
+						includeRaw: true, // Enable raw response access for debugging
 					},
 				);
 
@@ -74,45 +98,50 @@ export class LangChainOpenRouterProvider implements LLMProvider {
 				
 				console.log("Function calling succeeded for OpenRouter");
 			} catch (functionCallingError) {
-				// Defensive error handling for potentially malformed error objects
-				let errorMessage = "Unknown error occurred";
-				try {
-					if (functionCallingError && typeof functionCallingError === 'object') {
-						if (functionCallingError instanceof Error) {
-							errorMessage = functionCallingError.message || errorMessage;
-						} else if (functionCallingError.message) {
-							errorMessage = String(functionCallingError.message);
-						} else if (functionCallingError.error) {
-							errorMessage = String(functionCallingError.error);
-						} else {
-							errorMessage = JSON.stringify(functionCallingError);
-						}
-					} else if (functionCallingError) {
-						errorMessage = String(functionCallingError);
-					}
-					
-					// Check if this looks like a rate limiting error
-					if (errorMessage.toLowerCase().includes('429') || 
-						errorMessage.toLowerCase().includes('rate limit') ||
-						errorMessage.toLowerCase().includes('too many requests')) {
-						// Re-throw with clear rate limiting indicator
-						throw new Error(`429 Provider returned error: ${errorMessage}`);
-					}
-				} catch (errorParsingError) {
-					errorMessage = "Error parsing failed - potential rate limiting or provider issue";
-					// Re-throw as potential rate limiting error
+				const errorMessage = this.getErrorMessage(functionCallingError);
+				lastError = errorMessage;
+				
+				// Check if this looks like a rate limiting error
+				if (errorMessage.toLowerCase().includes('429') || 
+					errorMessage.toLowerCase().includes('rate limit') ||
+					errorMessage.toLowerCase().includes('too many requests')) {
+					// Re-throw with clear rate limiting indicator
 					throw new Error(`429 Provider returned error: ${errorMessage}`);
+				}
+				
+				// Check for structural errors that indicate provider corruption
+				if (errorMessage.includes('Cannot read properties of undefined') ||
+					errorMessage.includes('is not a function') ||
+					errorMessage.includes('Cannot read property') ||
+					errorMessage.includes('undefined is not an object')) {
+					
+					console.warn("Structural error detected in LangChain, recreating model instance:", errorMessage);
+					
+					// Recreate the model instance to clear any corrupted state
+					this.model = new ChatOpenAI({
+						apiKey: this.config.apiKey,
+						model: this.modelName,
+						temperature: 0,
+						configuration: {
+							baseURL: "https://openrouter.ai/api/v1",
+							defaultHeaders: {
+								"HTTP-Referer": "https://golden-nuggets-finder.com",
+								"X-Title": "Golden Nuggets Finder",
+							},
+						},
+					});
 				}
 				
 				console.warn("Function calling failed, falling back to JSON mode:", errorMessage);
 				
-				// First fallback: Try jsonMode
+				// First fallback: Try jsonMode with fresh model
 				try {
 					const jsonModeModel = this.model.withStructuredOutput(
 						FlexibleGoldenNuggetsSchema,
 						{
 							name: "extract_golden_nuggets",
 							method: "jsonMode",
+							includeRaw: true, // Enable raw response access for debugging
 						},
 					);
 
@@ -139,34 +168,38 @@ Ensure your response is valid JSON with no additional text.`;
 					
 					console.log("JSON mode succeeded for OpenRouter");
 				} catch (jsonModeError) {
-					// Defensive error handling for potentially malformed error objects
-					let errorMessage = "Unknown error occurred";
-					try {
-						if (jsonModeError && typeof jsonModeError === 'object') {
-							if (jsonModeError instanceof Error) {
-								errorMessage = jsonModeError.message || errorMessage;
-							} else if (jsonModeError.message) {
-								errorMessage = String(jsonModeError.message);
-							} else if (jsonModeError.error) {
-								errorMessage = String(jsonModeError.error);
-							} else {
-								errorMessage = JSON.stringify(jsonModeError);
-							}
-						} else if (jsonModeError) {
-							errorMessage = String(jsonModeError);
-						}
-						
-						// Check if this looks like a rate limiting error
-						if (errorMessage.toLowerCase().includes('429') || 
-							errorMessage.toLowerCase().includes('rate limit') ||
-							errorMessage.toLowerCase().includes('too many requests')) {
-							// Re-throw with clear rate limiting indicator
-							throw new Error(`429 Provider returned error: ${errorMessage}`);
-						}
-					} catch (errorParsingError) {
-						errorMessage = "Error parsing failed - potential rate limiting or provider issue";
-						// Re-throw as potential rate limiting error
+					const errorMessage = this.getErrorMessage(jsonModeError);
+					lastError = errorMessage;
+					
+					// Check if this looks like a rate limiting error
+					if (errorMessage.toLowerCase().includes('429') || 
+						errorMessage.toLowerCase().includes('rate limit') ||
+						errorMessage.toLowerCase().includes('too many requests')) {
+						// Re-throw with clear rate limiting indicator
 						throw new Error(`429 Provider returned error: ${errorMessage}`);
+					}
+					
+					// Check for structural errors that indicate provider corruption
+					if (errorMessage.includes('Cannot read properties of undefined') ||
+						errorMessage.includes('is not a function') ||
+						errorMessage.includes('Cannot read property') ||
+						errorMessage.includes('undefined is not an object')) {
+						
+						console.warn("Structural error detected in JSON mode, recreating model instance:", errorMessage);
+						
+						// Recreate the model instance to clear any corrupted state
+						this.model = new ChatOpenAI({
+							apiKey: this.config.apiKey,
+							model: this.modelName,
+							temperature: 0,
+							configuration: {
+								baseURL: "https://openrouter.ai/api/v1",
+								defaultHeaders: {
+									"HTTP-Referer": "https://golden-nuggets-finder.com",
+									"X-Title": "Golden Nuggets Finder",
+								},
+							},
+						});
 					}
 					
 					console.warn("JSON mode failed, falling back to prompt engineering:", errorMessage);
@@ -191,28 +224,37 @@ Content to analyze: ${content}
 
 JSON Response:`;
 
-					const rawResponse = await this.model.invoke([
-						new SystemMessage("You are a JSON-only response assistant. Return valid JSON without any additional formatting or text."),
-						new HumanMessage(jsonPrompt),
-					]);
-
-					// Parse the raw response as JSON
-					const responseText = rawResponse.content.toString().trim();
-					
-					// Clean up common JSON formatting issues
-					let cleanedJson = responseText;
-					if (cleanedJson.startsWith("```json")) {
-						cleanedJson = cleanedJson.replace(/```json/g, "").replace(/```/g, "").trim();
-					}
-					if (cleanedJson.startsWith("```")) {
-						cleanedJson = cleanedJson.replace(/```/g, "").trim();
-					}
-
 					try {
+						const rawResponse = await this.model.invoke([
+							new SystemMessage("You are a JSON-only response assistant. Return valid JSON without any additional formatting or text."),
+							new HumanMessage(jsonPrompt),
+						]);
+
+						// Parse the raw response as JSON
+						const responseText = rawResponse.content.toString().trim();
+						
+						// Clean up common JSON formatting issues
+						let cleanedJson = responseText;
+						if (cleanedJson.startsWith("```json")) {
+							cleanedJson = cleanedJson.replace(/```json/g, "").replace(/```/g, "").trim();
+						}
+						if (cleanedJson.startsWith("```")) {
+							cleanedJson = cleanedJson.replace(/```/g, "").trim();
+						}
+
 						response = JSON.parse(cleanedJson);
 						console.log("Prompt engineering fallback succeeded for OpenRouter");
 					} catch (parseError) {
-						console.error("Failed to parse JSON response:", cleanedJson);
+						console.error("Failed to parse JSON response from raw model");
+						
+						// If all methods failed with structural errors, provide better error message
+						if (lastError && (lastError.includes('Cannot read properties of undefined') ||
+							lastError.includes('is not a function') ||
+							lastError.includes('Cannot read property') ||
+							lastError.includes('undefined is not an object'))) {
+							throw new Error(`OpenRouter provider encountered internal errors. This may be due to API instability or rate limiting. Please try again. Last error: ${lastError}`);
+						}
+						
 						throw new Error(`Failed to parse structured response: ${parseError.message}`);
 					}
 				}
@@ -238,25 +280,7 @@ JSON Response:`;
 
 			return response as GoldenNuggetsResponse;
 		} catch (error) {
-			// Defensive error handling for potentially malformed error objects
-			let errorMessage = "Unknown error occurred";
-			try {
-				if (error && typeof error === 'object') {
-					if (error instanceof Error) {
-						errorMessage = error.message || errorMessage;
-					} else if (error.message) {
-						errorMessage = String(error.message);
-					} else if (error.error) {
-						errorMessage = String(error.error);
-					} else {
-						errorMessage = JSON.stringify(error);
-					}
-				} else if (error) {
-					errorMessage = String(error);
-				}
-			} catch (errorParsingError) {
-				errorMessage = "Error parsing failed - potential provider issue";
-			}
+			const errorMessage = this.getErrorMessage(error);
 			
 			// Log the error
 			debugLogger.logLLMResponse(
