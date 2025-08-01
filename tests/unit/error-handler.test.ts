@@ -3,6 +3,9 @@ import {
 	clearAllRetryCount,
 	handleProviderError,
 	resetRetryCount,
+	getUserFriendlyMessage,
+	handleSwitchError,
+	getRetryDelay,
 } from "../../src/background/services/error-handler";
 import {
 	getAvailableProviders,
@@ -86,10 +89,10 @@ describe("ErrorHandler", () => {
 
 		test("calculates correct retry behavior based on attempt count", () => {
 			// Test the retry delay calculation without actual sleeping
-			expect(ErrorHandler.getRetryDelay(0)).toBe(1000);
-			expect(ErrorHandler.getRetryDelay(1)).toBe(2000);
-			expect(ErrorHandler.getRetryDelay(2)).toBe(4000);
-			expect(ErrorHandler.getRetryDelay(10)).toBe(30000); // Capped
+			expect(getRetryDelay(0)).toBe(1000);
+			expect(getRetryDelay(1)).toBe(2000);
+			expect(getRetryDelay(2)).toBe(4000);
+			expect(getRetryDelay(10)).toBe(30000); // Capped
 		});
 	});
 
@@ -124,7 +127,7 @@ describe("ErrorHandler", () => {
 	describe("User-Friendly Messages", () => {
 		test("provides helpful message for API key errors", () => {
 			const apiKeyError = new Error("Invalid API key");
-			const message = ErrorHandler.getUserFriendlyMessage(
+			const message = getUserFriendlyMessage(
 				apiKeyError,
 				"openai",
 			);
@@ -135,7 +138,7 @@ describe("ErrorHandler", () => {
 
 		test("provides helpful message for rate limit errors", () => {
 			const rateLimitError = new Error("Rate limit exceeded");
-			const message = ErrorHandler.getUserFriendlyMessage(
+			const message = getUserFriendlyMessage(
 				rateLimitError,
 				"openai",
 			);
@@ -146,7 +149,7 @@ describe("ErrorHandler", () => {
 
 		test("provides helpful message for temporary errors", () => {
 			const tempError = new Error("Service unavailable");
-			const message = ErrorHandler.getUserFriendlyMessage(tempError, "openai");
+			const message = getUserFriendlyMessage(tempError, "openai");
 
 			expect(message).toContain("temporarily unavailable");
 			expect(message).toContain("Trying again");
@@ -156,7 +159,7 @@ describe("ErrorHandler", () => {
 	describe("Provider Switching Errors", () => {
 		test("handles API key errors during switching", async () => {
 			const apiKeyError = new Error("Unauthorized access");
-			const result = await ErrorHandler.handleSwitchError(
+			const result = await handleSwitchError(
 				apiKeyError,
 				"anthropic",
 			);
@@ -168,7 +171,7 @@ describe("ErrorHandler", () => {
 
 		test("handles temporary errors during switching", async () => {
 			const tempError = new Error("Service temporarily unavailable");
-			const result = await ErrorHandler.handleSwitchError(
+			const result = await handleSwitchError(
 				tempError,
 				"anthropic",
 			);
@@ -179,7 +182,7 @@ describe("ErrorHandler", () => {
 
 		test("handles generic errors during switching", async () => {
 			const genericError = new Error("Unknown error occurred");
-			const result = await ErrorHandler.handleSwitchError(
+			const result = await handleSwitchError(
 				genericError,
 				"anthropic",
 			);
@@ -192,15 +195,15 @@ describe("ErrorHandler", () => {
 
 	describe("Retry Delay Calculation", () => {
 		test("calculates exponential backoff correctly", () => {
-			expect(ErrorHandler.getRetryDelay(0)).toBe(1000); // 1 second
-			expect(ErrorHandler.getRetryDelay(1)).toBe(2000); // 2 seconds
-			expect(ErrorHandler.getRetryDelay(2)).toBe(4000); // 4 seconds
-			expect(ErrorHandler.getRetryDelay(3)).toBe(8000); // 8 seconds
+			expect(getRetryDelay(0)).toBe(1000); // 1 second
+			expect(getRetryDelay(1)).toBe(2000); // 2 seconds
+			expect(getRetryDelay(2)).toBe(4000); // 4 seconds
+			expect(getRetryDelay(3)).toBe(8000); // 8 seconds
 		});
 
 		test("caps maximum retry delay", () => {
 			// Very high attempt should cap at 30 seconds
-			expect(ErrorHandler.getRetryDelay(10)).toBe(30000);
+			expect(getRetryDelay(10)).toBe(30000);
 		});
 	});
 
@@ -214,7 +217,7 @@ describe("ErrorHandler", () => {
 			];
 
 			for (const error of apiKeyErrors) {
-				const result = ErrorHandler.getUserFriendlyMessage(error, "openai");
+				const result = getUserFriendlyMessage(error, "openai");
 				expect(result).toContain("Invalid API key");
 			}
 		});
@@ -228,7 +231,7 @@ describe("ErrorHandler", () => {
 			];
 
 			for (const error of rateLimitErrors) {
-				const result = ErrorHandler.getUserFriendlyMessage(error, "openai");
+				const result = getUserFriendlyMessage(error, "openai");
 				expect(result).toContain("Rate limit reached");
 			}
 		});
@@ -243,7 +246,7 @@ describe("ErrorHandler", () => {
 			];
 
 			for (const error of tempErrors) {
-				const result = ErrorHandler.getUserFriendlyMessage(error, "openai");
+				const result = getUserFriendlyMessage(error, "openai");
 				expect(result).toContain("temporarily unavailable");
 			}
 		});
