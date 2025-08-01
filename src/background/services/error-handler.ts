@@ -1,3 +1,4 @@
+import { MESSAGE_TYPES, type RateLimitedMessage, type RetryingMessage } from "../../shared/types";
 import type { ProviderId } from "../../shared/types/providers";
 import { ProviderSwitcher } from "./provider-switcher";
 
@@ -9,6 +10,8 @@ export class ErrorHandler {
 		error: Error,
 		providerId: ProviderId,
 		context: string,
+		analysisId?: string,
+		tabId?: number,
 	): Promise<{ shouldRetry: boolean; fallbackProvider?: ProviderId }> {
 		const errorKey = `${providerId}-${context}`;
 		const attempts = ErrorHandler.retryAttempts.get(errorKey) || 0;
@@ -25,8 +28,32 @@ export class ErrorHandler {
 		if (ErrorHandler.isRateLimitError(error)) {
 			// Rate limited - wait and retry
 			console.warn(`Rate limit hit for ${providerId}, waiting...`);
-			await ErrorHandler.sleep(2000 * (attempts + 1)); // Exponential backoff
+			const waitTime = 2 * (attempts + 1); // In seconds
+			
+			// Notify user about rate limiting
+			ErrorHandler.sendProgressMessage(
+				"ANALYSIS_RATE_LIMITED", 
+				providerId, 
+				attempts + 1, 
+				analysisId, 
+				tabId, 
+				waitTime
+			);
+			
+			await ErrorHandler.sleep(waitTime * 1000); // Convert to milliseconds
 			ErrorHandler.retryAttempts.set(errorKey, attempts + 1);
+			
+			// Notify user about retry
+			if (attempts < ErrorHandler.MAX_RETRIES) {
+				ErrorHandler.sendProgressMessage(
+					"ANALYSIS_RETRYING", 
+					providerId, 
+					attempts + 1, 
+					analysisId, 
+					tabId
+				);
+			}
+			
 			return { shouldRetry: attempts < ErrorHandler.MAX_RETRIES };
 		}
 
@@ -154,6 +181,49 @@ export class ErrorHandler {
 
 	private static sleep(ms: number): Promise<void> {
 		return new Promise((resolve) => setTimeout(resolve, ms));
+	}
+
+	// Helper to send progress messages during rate limiting
+	private static sendProgressMessage(
+		type: "ANALYSIS_RATE_LIMITED" | "ANALYSIS_RETRYING",
+		providerId: ProviderId,
+		attempts: number,
+		analysisId?: string,
+		tabId?: number,
+		waitTime?: number,
+	): void {
+		if (!analysisId || !tabId) return;
+
+		let message: RateLimitedMessage | RetryingMessage;
+		
+		if (type === "ANALYSIS_RATE_LIMITED") {
+			message = {
+				type,
+				provider: providerId,
+				waitTime: waitTime || 0,
+				attempt: attempts,
+				maxAttempts: ErrorHandler.MAX_RETRIES,
+				analysisId,
+			} as RateLimitedMessage;
+		} else {
+			message = {
+				type,
+				provider: providerId,
+				attempt: attempts,
+				maxAttempts: ErrorHandler.MAX_RETRIES,
+				analysisId,
+			} as RetryingMessage;
+		}
+
+		// Send to tab specifically
+		chrome.tabs.sendMessage(tabId, message).catch(() => {
+			// Content script might not be ready, that's okay
+		});
+
+		// Also send to all extension contexts
+		chrome.runtime.sendMessage(message).catch(() => {
+			// Popup might not be open, that's okay
+		});
 	}
 
 	static resetRetryCount(providerId: ProviderId, context: string): void {

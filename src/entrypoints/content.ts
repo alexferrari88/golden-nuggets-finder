@@ -3,6 +3,8 @@ import {
 	type AnalysisRequest,
 	type DebugLogMessage,
 	MESSAGE_TYPES,
+	type RateLimitedMessage,
+	type RetryingMessage,
 	type TypeFilterOptions,
 } from "../shared/types";
 
@@ -240,6 +242,28 @@ export default defineContentScript({
 			}
 		}
 
+		function handleRateLimitMessage(
+			message: RateLimitedMessage | RetryingMessage,
+		): void {
+			if (message.type === MESSAGE_TYPES.ANALYSIS_RATE_LIMITED) {
+				const rateLimitMsg = message as RateLimitedMessage;
+				uiManager.showRateLimitedBanner(
+					rateLimitMsg.provider,
+					rateLimitMsg.waitTime,
+					rateLimitMsg.attempt,
+					rateLimitMsg.maxAttempts,
+					rateLimitMsg.analysisId,
+				);
+			} else if (message.type === MESSAGE_TYPES.ANALYSIS_RETRYING) {
+				const retryMsg = message as RetryingMessage;
+				uiManager.showRetryingBanner(
+					retryMsg.provider,
+					retryMsg.attempt,
+					retryMsg.maxAttempts,
+				);
+			}
+		}
+
 		// Always listen for messages from background script
 		chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 			// Handle progress messages for real-time animation updates
@@ -251,6 +275,16 @@ export default defineContentScript({
 				request.type === MESSAGE_TYPES.ANALYSIS_PROCESSING_RESULTS
 			) {
 				handleProgressMessage(request as AnalysisProgressMessage);
+				sendResponse({ success: true });
+				return;
+			}
+
+			// Handle rate limiting and retry messages
+			if (
+				request.type === MESSAGE_TYPES.ANALYSIS_RATE_LIMITED ||
+				request.type === MESSAGE_TYPES.ANALYSIS_RETRYING
+			) {
+				handleRateLimitMessage(request);
 				sendResponse({ success: true });
 				return;
 			}

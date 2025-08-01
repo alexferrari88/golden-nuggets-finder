@@ -94,6 +94,20 @@ export class UIManager {
 		);
 	}
 
+	showRateLimitedBanner(
+		provider: string,
+		waitTime: number,
+		attempt: number,
+		maxAttempts: number,
+		analysisId: string,
+	): void {
+		this.notifications.showRateLimited(provider, waitTime, attempt, maxAttempts, analysisId);
+	}
+
+	showRetryingBanner(provider: string, attempt: number, maxAttempts: number): void {
+		this.notifications.showRetrying(provider, attempt, maxAttempts);
+	}
+
 	async displayResults(
 		nuggets: GoldenNugget[],
 		pageContent?: string,
