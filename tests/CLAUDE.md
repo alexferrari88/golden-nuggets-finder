@@ -9,6 +9,7 @@ This document covers the testing strategy, setup, and best practices for the Gol
 - **Environment**: happy-dom (test environment)
 - **Focus**: Individual components and utilities
 - **Coverage**: Excludes UI entry points but covers core logic
+- **Locations**: Tests exist in both `src/` directories (component tests) and `tests/unit/` (integration unit tests)
 
 ### End-to-End Testing
 - **Framework**: Playwright
@@ -22,6 +23,13 @@ This document covers the testing strategy, setup, and best practices for the Gol
 - **Focus**: Content extraction logic, UI components, and algorithms
 - **Coverage**: Business logic without Chrome extension context
 - **Benefits**: Fast, reliable, and comprehensive coverage of core functionality
+- **Location**: Tests located in `src/` directories alongside source code
+
+### Integration Testing
+- **Framework**: Vitest with real HTTP calls
+- **Focus**: Multi-provider integration, API response validation, schema compliance
+- **Coverage**: Cross-component workflows and provider interoperability
+- **Location**: Tests located in `tests/integration/` directory
 
 ### Manual Testing
 - **Focus**: Full user workflows requiring content script injection
@@ -49,8 +57,11 @@ Cannot access contents of the page. Extension manifest must request permission t
 - `highlighter-substack-tdd.spec.ts` - Substack page structure and content analysis
 - `highlighter-tdd.spec.ts` - TDD tests for highlighter functionality
 - `hackernews-analysis.spec.ts` - HackerNews discussion page analysis and content extraction
-- `reddit-analysis.spec.ts` - Reddit discussion page analysis and content extraction
+- `reddit-analysis.spec.ts` - Reddit discussion page analysis and content extraction  
 - `golden-nuggets-api.spec.ts` - API integration tests (with one skipped test)
+- `context-menu.spec.ts` - Context menu functionality and service worker integration
+- `feedback-reset-flow.spec.ts` - Feedback reset workflow (contains skipped tests due to content script limitations)
+- `multi-provider.spec.ts` - Multi-provider switching functionality and validation
 
 ### Alternative Testing Strategy
 1. **Component Tests**: Extract and test core logic (extraction, UI components) without Chrome extension context
@@ -60,16 +71,25 @@ Cannot access contents of the page. Extension manifest must request permission t
 
 ## Test Organization
 
-### Running Tests Without Failures
+### Running Tests by Category
 
-To run only working tests (avoiding skipped content script tests):
+To run tests by category:
 
 ```bash
-# Run all unit tests (component and utilities) 
+# Run all unit tests (includes tests/unit/ and src/ component tests)
 pnpm test
 
-# Run only working E2E tests
-pnpm playwright test tests/e2e/extension-basics.spec.ts tests/e2e/popup.spec.ts tests/e2e/options.spec.ts
+# Run only component tests in src/ directories
+pnpm vitest run src/
+
+# Run only integration unit tests
+pnpm vitest run tests/unit/
+
+# Run only integration tests with real API calls
+pnpm vitest run tests/integration/
+
+# Run only working E2E tests (without skipped content script tests)
+pnpm playwright test tests/e2e/extension-basics.spec.ts tests/e2e/popup.spec.ts tests/e2e/options.spec.ts tests/e2e/context-menu.spec.ts tests/e2e/multi-provider.spec.ts
 
 # Run all E2E tests (includes skipped ones - they'll show as skipped)
 pnpm test:e2e
@@ -77,15 +97,68 @@ pnpm test:e2e
 
 ### Skipped Test Files
 
-This test file contains `test.skip()` for some tests:
+These test files contain `test.skip()` for some tests due to Playwright content script injection limitations:
 - `tests/e2e/golden-nuggets-api.spec.ts` - Contains one skipped test for full content analysis workflow
+- `tests/e2e/feedback-reset-flow.spec.ts` - Contains skipped tests for feedback reset workflow requiring content script injection
 
-### Component Test Coverage
+### Unit Test Directory (`tests/unit/`)
 
-Existing component tests provide coverage for core logic:
-- `src/content/extractors/*.test.ts` - Content extraction algorithms
-- `src/content/ui/highlighter.test.ts` - Highlighting logic
+The `tests/unit/` directory contains integration-focused unit tests that test cross-component workflows:
+
+**Provider Tests:**
+- `anthropic-provider.test.ts` - Anthropic Claude provider integration with LangChain
+- `gemini-direct-provider.test.ts` - Google Gemini direct API provider testing
+- `openai-provider.test.ts` - OpenAI GPT provider integration with LangChain  
+- `openrouter-provider.test.ts` - OpenRouter multi-model provider testing
+
+**Integration Workflows:**
+- `api-workflow-integration.test.ts` - End-to-end API workflow testing
+- `message-flow-integration.test.ts` - Message passing between extension components
+- `context-menu-integration.test.ts` - Context menu functionality integration
+- `progress-tracking-integration.test.ts` - Progress tracking across components
+- `storage-security-integration.test.ts` - Security integration with storage systems
+
+**Background Services:**
+- `background-context-menu.test.ts` - Background script context menu handling
+- `background-security.test.ts` - Background script security features
+- `backend-integration.test.ts` - Backend API integration testing
+
+**Content and UI:**
+- `content-extraction.test.ts` - Content extraction workflow testing
+- `popup-error-handling.test.ts` - Popup error handling and display
+- `sidebar-pagination.test.ts` - Sidebar pagination functionality
+
+**Error Handling:**
+- `error-handler.test.ts` - Comprehensive error handling service
+- `feedback-reset.test.ts` - Feedback reset workflow testing
+
+### Component Test Coverage (`src/` directories)
+
+Component tests provide coverage for individual modules:
+- `src/shared/schemas.test.ts` - Data validation schemas
+- `src/shared/security.test.ts` - Security utilities and encryption
+- `src/shared/storage.test.ts` - Storage utilities and management
+- `src/shared/chrome-extension-utils.test.ts` - Chrome extension utility functions
+- `src/shared/provider-validation-utils.test.ts` - Provider validation utilities
+- `src/shared/content-reconstruction.test.ts` - Content reconstruction algorithms
+- `src/background/gemini-client.test.ts` - Gemini API client functionality
+- `src/background/message-handler.test.ts` - Message handling logic
+- `src/background/error-handling.test.ts` - Error handling utilities
+- `src/background/type-filter-service.test.ts` - Type filtering service
+- `src/background/services/response-normalizer.test.ts` - Response normalization
+- `src/background/services/model-service.test.ts` - Model configuration service
 - `src/content/ui/notifications.test.ts` - Notification UI components
+- `src/shared/storage/model-storage.test.ts` - Model-specific storage utilities
+
+### Integration Test Directory (`tests/integration/`)
+
+Integration tests that make real API calls to validate cross-provider functionality:
+- `multi-provider-schema-validation.test.ts` - Validates that all AI providers return responses conforming to the golden nuggets schema
+
+### Manual Test Directory (`tests/manual/`)
+
+Documentation and guides for manual testing scenarios:
+- `error-handling-demo.md` - Comprehensive guide for testing error handling, fallback mechanisms, and provider switching
 
 ## Test Commands
 
