@@ -20,6 +20,17 @@ vi.mock("@langchain/openai", () => ({
 				],
 			}),
 		}),
+		invoke: vi.fn().mockResolvedValue({
+			content: JSON.stringify({
+				golden_nuggets: [
+					{
+						type: "tool",
+						content: "Test content",
+						synthesis: "Test synthesis",
+					},
+				],
+			}),
+		}),
 	})),
 }));
 
@@ -109,11 +120,12 @@ describe("LangChainOpenRouterProvider", () => {
 	it("should handle API errors gracefully", async () => {
 		const { ChatOpenAI } = await import("@langchain/openai");
 
-		// Mock a failure for this test
+		// Mock a failure for both jsonMode and fallback
 		(ChatOpenAI as any).mockImplementationOnce(() => ({
 			withStructuredOutput: vi.fn().mockReturnValue({
-				invoke: vi.fn().mockRejectedValue(new Error("API Error")),
+				invoke: vi.fn().mockRejectedValue(new Error("JSON mode error")),
 			}),
+			invoke: vi.fn().mockRejectedValue(new Error("API Error")),
 		}));
 
 		const provider = new LangChainOpenRouterProvider(mockConfig);
@@ -160,6 +172,9 @@ describe("LangChainOpenRouterProvider", () => {
 			() =>
 				({
 					withStructuredOutput: mockWithStructuredOutput,
+					invoke: vi.fn().mockResolvedValue({
+						content: JSON.stringify({ golden_nuggets: [] }),
+					}),
 				}) as any,
 		);
 
@@ -170,7 +185,7 @@ describe("LangChainOpenRouterProvider", () => {
 			expect.any(Object), // Schema object
 			{
 				name: "extract_golden_nuggets",
-				method: "functionCalling",
+				method: "jsonMode", // Updated to use jsonMode instead of functionCalling
 			},
 		);
 	});
@@ -229,8 +244,9 @@ describe("LangChainOpenRouterProvider", () => {
 
 		(ChatOpenAI as any).mockImplementationOnce(() => ({
 			withStructuredOutput: vi.fn().mockReturnValue({
-				invoke: vi.fn().mockRejectedValue(new Error("Network timeout")),
+				invoke: vi.fn().mockRejectedValue(new Error("JSON mode timeout")),
 			}),
+			invoke: vi.fn().mockRejectedValue(new Error("Network timeout")),
 		}));
 
 		const provider = new LangChainOpenRouterProvider(mockConfig);
@@ -245,8 +261,9 @@ describe("LangChainOpenRouterProvider", () => {
 
 		(ChatOpenAI as any).mockImplementationOnce(() => ({
 			withStructuredOutput: vi.fn().mockReturnValue({
-				invoke: vi.fn().mockRejectedValue(new Error("Rate limit exceeded")),
+				invoke: vi.fn().mockRejectedValue(new Error("JSON mode rate limit")),
 			}),
+			invoke: vi.fn().mockRejectedValue(new Error("Rate limit exceeded")),
 		}));
 
 		const provider = new LangChainOpenRouterProvider(mockConfig);
