@@ -1,23 +1,46 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MESSAGE_TYPES } from "../../src/shared/types";
 
+interface MockProgressMessage {
+	target: "runtime" | "tab";
+	tabId?: number;
+	message: unknown;
+}
+
+interface MockUIManager {
+	handleProgressUpdate: ReturnType<typeof vi.fn>;
+	showLoadingIndicator: ReturnType<typeof vi.fn>;
+	hideLoadingIndicator: ReturnType<typeof vi.fn>;
+	updateProgressStep: ReturnType<typeof vi.fn>;
+	showProgressMessage: ReturnType<typeof vi.fn>;
+}
+
+interface MockChrome {
+	runtime: {
+		sendMessage: ReturnType<typeof vi.fn>;
+	};
+	tabs: {
+		sendMessage: ReturnType<typeof vi.fn>;
+	};
+}
+
 describe("Progress Tracking Integration Tests", () => {
-	let mockChrome: any;
-	let progressMessageQueue: any[];
-	let mockUIManager: any;
+	let mockChrome: MockChrome;
+	let progressMessageQueue: MockProgressMessage[];
+	let mockUIManager: MockUIManager;
 
 	beforeEach(() => {
 		progressMessageQueue = [];
 
 		mockChrome = {
 			runtime: {
-				sendMessage: vi.fn().mockImplementation((message) => {
+				sendMessage: vi.fn().mockImplementation((message: unknown) => {
 					progressMessageQueue.push({ target: "runtime", message });
 					return Promise.resolve({ success: true });
 				}),
 			},
 			tabs: {
-				sendMessage: vi.fn().mockImplementation((tabId, message) => {
+				sendMessage: vi.fn().mockImplementation((tabId: number, message: unknown) => {
 					progressMessageQueue.push({ target: "tab", tabId, message });
 					return Promise.resolve({ success: true });
 				}),

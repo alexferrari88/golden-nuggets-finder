@@ -117,7 +117,7 @@ export const test = base.extend<{
 });
 
 // Additional stealth test variant using playwright-extra
-let stealthChromium: any = null;
+let stealthChromium: typeof import("playwright-extra").chromium | null = null;
 
 export const stealthTest = base.extend<{
 	stealthContext: BrowserContext;

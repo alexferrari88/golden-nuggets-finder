@@ -9,7 +9,7 @@ import type { ExtensionConfig, SavedPrompt } from "./types";
 
 export class StorageManager {
 	private static instance: StorageManager;
-	private cache = new Map<string, { data: any; timestamp: number }>();
+	private cache = new Map<string, { data: unknown; timestamp: number }>();
 	private readonly CACHE_DURATION = 30 * 1000; // 30 seconds
 
 	static getInstance(): StorageManager {
@@ -106,18 +106,26 @@ export class StorageManager {
 			}
 
 			return decryptedKey;
-		} catch (error: any) {
+		} catch (error: unknown) {
+			const typedError = error as {
+				code?: string;
+				canRecover?: boolean;
+				message?: string;
+				originalError?: { name?: string };
+				constructor?: { name?: string };
+			};
+
 			if (isDevMode()) {
 				console.log(
 					"[Storage] Caught decryption error:",
 					JSON.stringify(
 						{
-							hasCode: !!error.code,
-							code: error.code || "NO_CODE",
-							hasCanRecover: typeof error.canRecover !== "undefined",
-							canRecover: error.canRecover || false,
-							message: error.message || "NO_MESSAGE",
-							errorType: error.constructor?.name || "Unknown",
+							hasCode: !!typedError.code,
+							code: typedError.code || "NO_CODE",
+							hasCanRecover: typeof typedError.canRecover !== "undefined",
+							canRecover: typedError.canRecover || false,
+							message: typedError.message || "NO_MESSAGE",
+							errorType: typedError.constructor?.name || "Unknown",
 						},
 						null,
 						2,
@@ -126,15 +134,15 @@ export class StorageManager {
 			}
 
 			// Handle specific decryption errors
-			if (error.code === "DEVICE_CHANGED" && error.canRecover) {
+			if (typedError.code === "DEVICE_CHANGED" && typedError.canRecover) {
 				if (isDevMode()) {
 					console.warn(
 						"[Storage] Device characteristics changed - triggering recovery",
 						JSON.stringify(
 							{
-								errorCode: error.code,
-								canRecover: error.canRecover,
-								originalError: error.originalError?.name || "Unknown",
+								errorCode: typedError.code,
+								canRecover: typedError.canRecover,
+								originalError: typedError.originalError?.name || "Unknown",
 							},
 							null,
 							2,
@@ -180,9 +188,9 @@ export class StorageManager {
 					"[Storage] API key decryption failed:",
 					JSON.stringify(
 						{
-							errorCode: error.code || "UNKNOWN",
-							message: error.message,
-							canRecover: error.canRecover || false,
+							errorCode: typedError.code || "UNKNOWN",
+							message: typedError.message,
+							canRecover: typedError.canRecover || false,
 						},
 						null,
 						2,
@@ -194,7 +202,7 @@ export class StorageManager {
 				console.log("[Storage] Throwing non-recoverable error");
 			}
 
-			throw error;
+			throw typedError;
 		}
 	}
 
@@ -325,7 +333,7 @@ export class StorageManager {
 			timestamp: Date.now(),
 		},
 	): Promise<void> {
-		const updates: { [key: string]: any } = {};
+		const updates: Record<string, unknown> = {};
 
 		if (config.geminiApiKey !== undefined) {
 			await this.saveApiKey(config.geminiApiKey, context);
@@ -350,10 +358,10 @@ export class StorageManager {
 		await chrome.storage.sync.clear();
 	}
 
-	private getFromCache(key: string): any | null {
+	private getFromCache<T>(key: string): T | null {
 		const cached = this.cache.get(key);
 		if (cached && Date.now() - cached.timestamp < this.CACHE_DURATION) {
-			return cached.data;
+			return cached.data as T;
 		}
 
 		// Remove expired cache entry
@@ -364,7 +372,7 @@ export class StorageManager {
 		return null;
 	}
 
-	private setCache(key: string, data: any): void {
+	private setCache(key: string, data: unknown): void {
 		// Limit cache size to prevent memory issues
 		if (this.cache.size > 10) {
 			const oldestKey = this.cache.keys().next().value;
@@ -540,9 +548,9 @@ export class StorageMigration {
 	}
 
 	private static async migrateToMultiProvider(
-		currentStorage: any,
+		currentStorage: Record<string, unknown>,
 	): Promise<void> {
-		const updates: any = {};
+		const updates: Record<string, unknown> = {};
 
 		// Set default provider based on existing configuration
 		if (currentStorage.geminiApiKey) {

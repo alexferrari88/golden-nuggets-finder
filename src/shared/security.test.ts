@@ -379,7 +379,7 @@ describe("SecurityManager", () => {
 			const originalCheckRateLimit = (
 				securityManager as SecurityManagerTestAccess
 			).checkRateLimit;
-			vi.spyOn(securityManager as any, "checkRateLimit").mockImplementation(
+			vi.spyOn(securityManager as SecurityManagerTestAccess, "checkRateLimit").mockImplementation(
 				() => {
 					throw new Error("Test error");
 				},

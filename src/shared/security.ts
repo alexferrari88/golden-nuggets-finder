@@ -272,7 +272,11 @@ export class SecurityManager {
 			});
 
 			// Create enhanced error - don't throw inside try block to avoid catching our own enhanced error
-			let enhancedError;
+			let enhancedError: Error & {
+				code?: string;
+				originalError?: Error;
+				canRecover?: boolean;
+			};
 			try {
 				// Create a more descriptive error based on the type of failure
 				let errorMessage = "Failed to decrypt API key";
