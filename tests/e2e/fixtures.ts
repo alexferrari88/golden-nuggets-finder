@@ -1,10 +1,10 @@
+import path from "node:path";
 import {
 	type BrowserContext,
 	test as base,
 	chromium,
 	type Page,
 } from "@playwright/test";
-import path from "path";
 
 // Enhanced fixtures with both extension context and clean browser context
 export const test = base.extend<{
@@ -131,7 +131,7 @@ export const stealthTest = base.extend<{
 				const stealth = require("puppeteer-extra-plugin-stealth")();
 				chromium.use(stealth);
 				stealthChromium = chromium;
-			} catch (error) {
+			} catch (_error) {
 				console.warn(
 					"Stealth libraries not available, falling back to basic browser",
 				);

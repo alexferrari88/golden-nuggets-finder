@@ -470,7 +470,7 @@ test.describe("Highlighter TDD", () => {
 			for (const nugget of window.testGoldenNuggets) {
 				console.log(
 					"Testing nugget:",
-					nugget.startContent.substring(0, 30) + "...",
+					`${nugget.startContent.substring(0, 30)}...`,
 				);
 				const highlighted = highlighter.highlightNugget(nugget);
 				console.log("Highlight result:", highlighted);

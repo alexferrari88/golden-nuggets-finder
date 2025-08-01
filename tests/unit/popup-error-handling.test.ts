@@ -1,4 +1,3 @@
-import { fireEvent, render, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MESSAGE_TYPES } from "../../src/shared/types";
 
@@ -254,14 +253,14 @@ describe("Popup Error Handling", () => {
 				},
 			];
 
-			for (const testCase of testCases) {
+			for (const _testCase of testCases) {
 				// Each error type should display appropriate user-friendly message
 				// This would need integration with the actual error display logic
 			}
 		});
 
 		it("should preserve important error details for troubleshooting", async () => {
-			const technicalError = "Rate limit exceeded. Reset in 3600 seconds";
+			const _technicalError = "Rate limit exceeded. Reset in 3600 seconds";
 
 			// Should show user-friendly message but preserve timing info
 			// Expected: "Rate limit reached (Reset in 3600 seconds). Please wait before trying again."

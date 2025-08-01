@@ -1,10 +1,5 @@
-import { mockGeminiResponse, mockGoldenNuggets } from "../fixtures/mock-data";
 import { expect, test } from "./fixtures";
-import {
-	canRunRealAPITests,
-	getTestApiKey,
-	loadTestConfig,
-} from "./test-config";
+import { getTestApiKey, loadTestConfig } from "./test-config";
 
 test.describe("Golden Nuggets API Integration", () => {
 	test.beforeEach(async ({ context, extensionId }) => {

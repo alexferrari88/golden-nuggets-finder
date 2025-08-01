@@ -1,7 +1,7 @@
 import { GeminiClient } from "../background/gemini-client";
 import { MessageHandler } from "../background/message-handler";
 import { TypeFilterService } from "../background/type-filter-service";
-import { storage, StorageMigration } from "../shared/storage";
+import { StorageMigration, storage } from "../shared/storage";
 import { MESSAGE_TYPES } from "../shared/types";
 
 export default defineBackground(() => {
@@ -15,8 +15,8 @@ export default defineBackground(() => {
 	let isSettingUpContextMenu = false;
 
 	// Run storage migration on startup
-	StorageMigration.checkAndRunMigration().catch(error => {
-		console.error('[Background] Migration failed on startup:', error);
+	StorageMigration.checkAndRunMigration().catch((error) => {
+		console.error("[Background] Migration failed on startup:", error);
 	});
 
 	// Set up message listeners

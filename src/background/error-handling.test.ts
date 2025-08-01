@@ -1,5 +1,47 @@
 import { MESSAGE_TYPES } from "../shared/types";
 import { MessageHandler } from "./message-handler";
+import type { GoldenNuggetsResponse } from "../shared/types/providers";
+
+// Mock types for testing
+interface MockGeminiClient {
+	analyzeContent: ReturnType<typeof vi.fn>;
+}
+
+interface MockSendResponse {
+	(response?: unknown): void;
+}
+
+interface MockChromeApi {
+	runtime: {
+		sendMessage: ReturnType<typeof vi.fn>;
+	};
+	tabs: {
+		sendMessage: ReturnType<typeof vi.fn>;
+	};
+	storage: {
+		local: {
+			get: ReturnType<typeof vi.fn>;
+			set: ReturnType<typeof vi.fn>;
+		};
+	};
+}
+
+// Type for accessing private methods in tests
+interface MessageHandlerTestAccess {
+	enhanceBackendError(error: Error): {
+		message: string;
+		showToUser: boolean;
+		retryable: boolean;
+	};
+	notifyUserOfBackendError(
+		tabId: number,
+		errorInfo: {
+			message: string;
+			showToUser: boolean;
+			retryable: boolean;
+		},
+	): Promise<void>;
+}
 
 // Mock dependencies
 vi.mock("./gemini-client");
@@ -19,29 +61,29 @@ global.chrome = {
 			set: vi.fn().mockResolvedValue({}),
 		},
 	},
-} as any;
+} as MockChromeApi;
 
 // Mock global fetch
 global.fetch = vi.fn();
 
 describe("MessageHandler Error Handling", () => {
 	let messageHandler: MessageHandler;
-	let mockGeminiClient: any;
-	let mockSendResponse: any;
+	let mockGeminiClient: MockGeminiClient;
+	let mockSendResponse: MockSendResponse;
 
 	beforeEach(() => {
 		vi.clearAllMocks();
 		mockGeminiClient = {
-			analyzeContent: vi.fn().mockResolvedValue({ golden_nuggets: [] }),
+			analyzeContent: vi.fn().mockResolvedValue({ golden_nuggets: [] } as GoldenNuggetsResponse),
 		};
-		mockSendResponse = vi.fn();
+		mockSendResponse = vi.fn() as MockSendResponse;
 		messageHandler = new MessageHandler(mockGeminiClient);
 	});
 
 	describe("enhanceBackendError", () => {
 		it("should classify network/connection errors correctly", () => {
 			const networkError = new Error("Failed to fetch");
-			const result = (messageHandler as any).enhanceBackendError(networkError);
+			const result = (messageHandler as MessageHandler & MessageHandlerTestAccess).enhanceBackendError(networkError);
 
 			expect(result).toEqual({
 				message:
@@ -53,7 +95,7 @@ describe("MessageHandler Error Handling", () => {
 
 		it("should classify database errors correctly", () => {
 			const dbError = new Error("Failed to store feedback: database is locked");
-			const result = (messageHandler as any).enhanceBackendError(dbError);
+			const result = (messageHandler as MessageHandler & MessageHandlerTestAccess).enhanceBackendError(dbError);
 
 			expect(result).toEqual({
 				message:
@@ -67,7 +109,7 @@ describe("MessageHandler Error Handling", () => {
 			const dspyError = new Error(
 				"DSPy not available. Install with: pip install dspy-ai",
 			);
-			const result = (messageHandler as any).enhanceBackendError(dspyError);
+			const result = (messageHandler as MessageHandler & MessageHandlerTestAccess).enhanceBackendError(dspyError);
 
 			expect(result).toEqual({
 				message:
@@ -81,7 +123,7 @@ describe("MessageHandler Error Handling", () => {
 			const trainingError = new Error(
 				"Not enough training examples. Need at least 10 feedback items.",
 			);
-			const result = (messageHandler as any).enhanceBackendError(trainingError);
+			const result = (messageHandler as MessageHandler & MessageHandlerTestAccess).enhanceBackendError(trainingError);
 
 			expect(result).toEqual({
 				message:
@@ -95,7 +137,7 @@ describe("MessageHandler Error Handling", () => {
 			const trainingError = new Error(
 				"Not enough training examples. Need at least 25 feedback items.",
 			);
-			const result = (messageHandler as any).enhanceBackendError(trainingError);
+			const result = (messageHandler as MessageHandler & MessageHandlerTestAccess).enhanceBackendError(trainingError);
 
 			expect(result.message).toContain("need at least 25 items");
 		});

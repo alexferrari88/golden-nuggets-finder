@@ -35,7 +35,7 @@ test.describe("HackerNews Analysis", () => {
 
 			// Get some content to understand the structure
 			const storyText = await page.locator(storySelector).textContent();
-			console.log("Story preview:", storyText?.substring(0, 200) + "...");
+			console.log("Story preview:", `${storyText?.substring(0, 200)}...`);
 
 			// Check if there are any existing highlights (there shouldn't be any initially)
 			const existingHighlights = await page
@@ -87,10 +87,10 @@ test.describe("HackerNews Analysis", () => {
 					.slice(0, 5); // First 5 comments
 
 				return {
-					storyText: storyText.substring(0, 500) + "...",
+					storyText: `${storyText.substring(0, 500)}...`,
 					commentCount: commentElements.length,
 					commentPreviews: commentTexts.map(
-						(text) => text.substring(0, 100) + "...",
+						(text) => `${text.substring(0, 100)}...`,
 					),
 					hasStory: storyText.length > 0,
 					hasComments: commentElements.length > 0,
@@ -146,7 +146,7 @@ test.describe("HackerNews Analysis", () => {
 						return {
 							length: text.length,
 							hasSubstantialText: text.length > 50,
-							preview: text.substring(0, 100) + "...",
+							preview: `${text.substring(0, 100)}...`,
 						};
 					})
 					.slice(0, 3); // First 3 comments

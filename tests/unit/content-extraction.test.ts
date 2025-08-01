@@ -38,7 +38,7 @@ function convertContentToText(content: MockContent | null): string {
 		}
 	});
 
-	return contentParts.filter((part) => part && part.trim()).join("\n\n");
+	return contentParts.filter((part) => part?.trim()).join("\n\n");
 }
 
 // Generate analysis ID function from content.ts

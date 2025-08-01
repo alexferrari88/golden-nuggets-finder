@@ -139,11 +139,11 @@ test.describe("Reddit Analysis", () => {
 					.slice(0, 5); // First 5 substantial comments
 
 				return {
-					postText: postText.substring(0, 500) + "...",
+					postText: `${postText.substring(0, 500)}...`,
 					postLength: postText.length,
 					commentCount: commentTexts.length,
 					commentPreviews: commentTexts.map(
-						(text) => text.substring(0, 100) + "...",
+						(text) => `${text.substring(0, 100)}...`,
 					),
 					hasPost: postText.length > 0,
 					hasComments: commentTexts.length > 0,
@@ -218,7 +218,7 @@ test.describe("Reddit Analysis", () => {
 						return {
 							length: text.length,
 							hasSubstantialText: text.length > 100,
-							preview: text.substring(0, 150) + "...",
+							preview: `${text.substring(0, 150)}...`,
 							tagName: element.tagName,
 							className: element.className,
 						};

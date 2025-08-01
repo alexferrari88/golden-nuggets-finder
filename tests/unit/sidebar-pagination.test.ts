@@ -183,7 +183,7 @@ describe("Sidebar Pagination", () => {
 		);
 
 		expect(nextButton).toBeTruthy();
-		nextButton!.click();
+		nextButton?.click();
 
 		// Should now show items 21-24 (4 items)
 		const nuggetItems = document.querySelectorAll(".nugget-item");
@@ -234,7 +234,7 @@ describe("Sidebar Pagination", () => {
 			(el): el is HTMLButtonElement =>
 				el instanceof HTMLButtonElement && el.textContent?.includes("Next"),
 		);
-		nextButton!.click();
+		nextButton?.click();
 
 		// Check second page content
 		nuggetItems = document.querySelectorAll(".nugget-item");
@@ -260,7 +260,7 @@ describe("Sidebar Pagination", () => {
 			(el): el is HTMLButtonElement =>
 				el instanceof HTMLButtonElement && el.textContent?.includes("Next"),
 		);
-		nextButton!.click();
+		nextButton?.click();
 
 		// Verify we're on page 2
 		let nuggetItems = document.querySelectorAll(".nugget-item");
@@ -317,7 +317,7 @@ describe("Sidebar Pagination", () => {
 		expect(nextButton).toBeTruthy();
 
 		// Navigate to page 2
-		nextButton!.click();
+		nextButton?.click();
 
 		// Should show 1 item on page 2
 		nuggetItems = document.querySelectorAll(".nugget-item");

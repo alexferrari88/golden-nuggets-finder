@@ -31,19 +31,19 @@ export interface SavedPrompt {
 export interface ExtensionConfig {
 	geminiApiKey: string;
 	userPrompts: SavedPrompt[];
-	
+
 	// NEW: Multi-provider fields
 	selectedProvider?: ProviderId;
-	
+
 	// Provider-specific settings
 	providerSettings?: {
 		[K in ProviderId]?: {
 			modelName: string;
 			lastUsed: string;
 			isConfigured: boolean;
-		}
+		};
 	};
-	
+
 	// Metadata
 	lastUsedProvider?: {
 		providerId: ProviderId;
