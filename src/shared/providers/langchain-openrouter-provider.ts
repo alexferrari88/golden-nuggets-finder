@@ -1,7 +1,7 @@
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { ChatOpenAI } from "@langchain/openai";
 import { z } from "zod";
-import { debugLogger } from "../debug";
+import { debugLogger, isDevMode } from "../debug";
 import type {
 	GoldenNuggetsResponse,
 	LLMProvider,
@@ -87,7 +87,7 @@ export class LangChainOpenRouterProvider implements LLMProvider {
 					{
 						name: "extract_golden_nuggets",
 						method: "functionCalling",
-						includeRaw: true, // Enable raw response access for debugging
+						includeRaw: isDevMode() || debugLogger.isEnabled(), // Enable raw response access for debugging only in development or when debug logging is enabled
 					},
 				);
 
@@ -141,7 +141,7 @@ export class LangChainOpenRouterProvider implements LLMProvider {
 						{
 							name: "extract_golden_nuggets",
 							method: "jsonMode",
-							includeRaw: true, // Enable raw response access for debugging
+							includeRaw: isDevMode() || debugLogger.isEnabled(), // Enable raw response access for debugging only in development or when debug logging is enabled
 						},
 					);
 
