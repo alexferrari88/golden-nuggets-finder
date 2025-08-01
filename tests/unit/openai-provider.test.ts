@@ -14,7 +14,8 @@ vi.mock("@langchain/openai", () => ({
 				golden_nuggets: [
 					{
 						type: "tool",
-						content: "Test content",
+						startContent: "Test content",
+						endContent: "Test content",
 						synthesis: "Test synthesis",
 					},
 				],
@@ -67,7 +68,8 @@ describe("LangChainOpenAIProvider", () => {
 			golden_nuggets: [
 				{
 					type: "tool",
-					content: "Test content",
+					startContent: "Test content",
+					endContent: "Test content",
 					synthesis: "Test synthesis",
 				},
 			],

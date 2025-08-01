@@ -14,7 +14,8 @@ vi.mock("@langchain/anthropic", () => ({
 				golden_nuggets: [
 					{
 						type: "tool",
-						content: "Test content for Anthropic provider",
+						startContent: "Test content for",
+						endContent: "Anthropic provider",
 						synthesis: "Test synthesis for Anthropic provider",
 					},
 				],
@@ -78,7 +79,8 @@ describe("LangChainAnthropicProvider", () => {
 			golden_nuggets: [
 				{
 					type: "tool",
-					content: "Test content for Anthropic provider",
+					startContent: "Test content for",
+					endContent: "Anthropic provider",
 					synthesis: "Test synthesis for Anthropic provider",
 				},
 			],

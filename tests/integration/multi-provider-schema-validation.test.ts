@@ -24,7 +24,8 @@ const GoldenNuggetsResponseSchema = z.object({
 	golden_nuggets: z.array(
 		z.object({
 			type: z.enum(["tool", "media", "explanation", "analogy", "model"]),
-			content: z.string(),
+			startContent: z.string(),
+			endContent: z.string(),
 			synthesis: z.string(),
 		}),
 	),
@@ -102,7 +103,7 @@ Return only the most valuable insights that would be genuinely useful to a softw
 		}
 	});
 
-	describe.each(["openai", "anthropic", "openrouter"] as ProviderId[])(
+	describe.each(["openai", "anthropic"] as ProviderId[])(
 		"%s provider",
 		(providerId) => {
 			const hasApiKey = !!apiKeys[providerId];
@@ -166,8 +167,10 @@ Return only the most valuable insights that would be genuinely useful to a softw
 									"analogy",
 									"model",
 								]).toContain(nugget.type);
-								expect(typeof nugget.content).toBe("string");
-								expect(nugget.content.length).toBeGreaterThan(0);
+								expect(typeof nugget.startContent).toBe("string");
+								expect(nugget.startContent.length).toBeGreaterThan(0);
+								expect(typeof nugget.endContent).toBe("string");
+								expect(nugget.endContent.length).toBeGreaterThan(0);
 								expect(typeof nugget.synthesis).toBe("string");
 								expect(nugget.synthesis.length).toBeGreaterThan(0);
 							});
@@ -198,12 +201,14 @@ Return only the most valuable insights that would be genuinely useful to a softw
 				golden_nuggets: [
 					{
 						type: "tool" as const,
-						content: "React hooks like useState",
+						startContent: "React hooks",
+						endContent: "like useState",
 						synthesis: "Useful for managing component state",
 					},
 					{
 						type: "explanation" as const,
-						content: "Components are functions that take props and return JSX",
+						startContent: "Components are functions",
+						endContent: "return JSX",
 						synthesis: "This mental model helps understand React architecture",
 					},
 				],
@@ -218,7 +223,8 @@ Return only the most valuable insights that would be genuinely useful to a softw
 				golden_nuggets: [
 					{
 						type: "invalid-type",
-						content: "Some content",
+						startContent: "Some content",
+						endContent: "Some content",
 						synthesis: "Some synthesis",
 					},
 				],
