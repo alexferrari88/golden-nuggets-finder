@@ -908,7 +908,64 @@ function IndexPopup() {
 					Golden Nugget Finder
 				</h1>
 
-				{/* Integrated Status Line */}
+				{/* Backend Status */}
+				{backendStatus !== "unknown" && (
+					<div
+						style={{
+							display: "flex",
+							alignItems: "center",
+							justifyContent: "center",
+							gap: spacing.xs,
+							marginBottom: spacing.xs,
+							fontSize: typography.fontSize.xs,
+							color: colors.text.secondary,
+						}}
+					>
+						<div
+							style={{
+								width: "6px",
+								height: "6px",
+								borderRadius: "50%",
+								backgroundColor:
+									backendStatus === "available" ? colors.success : colors.error,
+							}}
+						/>
+						<span>
+							Backend: {backendStatus === "available" ? "Connected" : "Offline"}
+						</span>
+						{backendStatus === "unavailable" && (
+							<>
+								<span
+									style={{
+										fontSize: typography.fontSize.xs,
+										color: colors.text.secondary,
+									}}
+								>
+									{" "}
+									(Using local mode)
+								</span>
+								<button
+									onClick={checkBackendStatus}
+									style={{
+										marginLeft: spacing.xs,
+										fontSize: typography.fontSize.xs,
+										padding: "2px 6px",
+										backgroundColor: "transparent",
+										color: colors.text.accent,
+										border: `1px solid ${colors.text.accent}`,
+										borderRadius: "3px",
+										cursor: "pointer",
+									}}
+									title="Retry backend connection"
+								>
+									Retry
+								</button>
+							</>
+						)}
+					</div>
+				)}
+
+				{/* AI Provider Status */}
 				<div
 					style={{
 						display: "flex",
@@ -918,46 +975,8 @@ function IndexPopup() {
 						marginBottom: spacing.md,
 						fontSize: typography.fontSize.xs,
 						color: colors.text.secondary,
-						flexWrap: "wrap",
 					}}
 				>
-					{/* Backend Status */}
-					{backendStatus !== "unknown" && (
-						<>
-							<div
-								style={{
-									width: "6px",
-									height: "6px",
-									borderRadius: "50%",
-									backgroundColor:
-										backendStatus === "available" ? colors.success : colors.error,
-								}}
-							/>
-							<span>
-								Backend: {backendStatus === "available" ? "Connected" : "Offline"}
-							</span>
-							{backendStatus === "unavailable" && (
-								<button
-									onClick={checkBackendStatus}
-									style={{
-										fontSize: typography.fontSize.xs,
-										padding: "1px 4px",
-										backgroundColor: "transparent",
-										color: colors.text.accent,
-										border: `1px solid ${colors.text.accent}`,
-										borderRadius: "2px",
-										cursor: "pointer",
-									}}
-									title="Retry backend connection"
-								>
-									Retry
-								</button>
-							)}
-							<span style={{ color: colors.text.tertiary }}>|</span>
-						</>
-					)}
-					
-					{/* AI Provider Info */}
 					<span>🤖</span>
 					<span>
 						{currentProvider.charAt(0).toUpperCase() + currentProvider.slice(1)}
