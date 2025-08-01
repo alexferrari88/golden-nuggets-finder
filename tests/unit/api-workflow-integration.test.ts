@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { GeminiClient } from "../../src/background/gemini-client";
 import { MessageHandler } from "../../src/background/message-handler";
-import { TypeFilterService } from "../../src/background/type-filter-service";
 import { MESSAGE_TYPES } from "../../src/shared/types";
 
 /*
@@ -159,13 +158,13 @@ describe("API Workflow Integration Tests", () => {
 
 			// Mock progress callback to verify progress messages
 			const progressMessages: any[] = [];
-			const mockOnProgress = vi.fn((progressType, step, message) => {
+			const _mockOnProgress = vi.fn((progressType, step, message) => {
 				progressMessages.push({ progressType, step, message });
 			});
 
 			// Replace the original options parameter handling to capture progress callback
 			mockGeminiClient.analyzeContent.mockImplementationOnce(
-				async (content, prompt, options) => {
+				async (_content, _prompt, options) => {
 					// Simulate progress callbacks
 					options?.onProgress(
 						MESSAGE_TYPES.ANALYSIS_CONTENT_EXTRACTED,

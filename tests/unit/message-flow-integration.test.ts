@@ -3,7 +3,7 @@ import { MESSAGE_TYPES } from "../../src/shared/types";
 
 describe("Message Flow Integration Tests", () => {
 	let mockChrome: any;
-	let mockTabs: Map<number, any>;
+	let _mockTabs: Map<number, any>;
 	let backgroundMessageHandler: (
 		request: any,
 		sender: any,
@@ -16,7 +16,7 @@ describe("Message Flow Integration Tests", () => {
 
 	beforeEach(() => {
 		// Setup comprehensive Chrome API mocks for message passing
-		mockTabs = new Map();
+		_mockTabs = new Map();
 		contentMessageHandlers = new Map();
 
 		mockChrome = {
@@ -67,7 +67,7 @@ describe("Message Flow Integration Tests", () => {
 			};
 
 			// Mock content script handler
-			const contentHandler = vi.fn((request, sender, sendResponse) => {
+			const contentHandler = vi.fn((request, _sender, sendResponse) => {
 				expect(request.type).toBe(MESSAGE_TYPES.ANALYZE_CONTENT);
 				expect(request.promptId).toBe("test-prompt");
 				expect(request.source).toBe("context-menu");
@@ -96,7 +96,7 @@ describe("Message Flow Integration Tests", () => {
 			};
 
 			// Mock content script handler
-			const contentHandler = vi.fn((request, sender, sendResponse) => {
+			const contentHandler = vi.fn((request, _sender, sendResponse) => {
 				expect(request.type).toBe(MESSAGE_TYPES.ENTER_SELECTION_MODE);
 				expect(request.promptId).toBe("selection-prompt");
 				expect(request.typeFilter.selectedTypes).toEqual([
@@ -126,7 +126,7 @@ describe("Message Flow Integration Tests", () => {
 			};
 
 			// Mock content script handler
-			const contentHandler = vi.fn((request, sender, sendResponse) => {
+			const contentHandler = vi.fn((request, _sender, sendResponse) => {
 				expect(request.type).toBe(MESSAGE_TYPES.ENTER_MISSING_CONTENT_MODE);
 				expect(request.selectedText).toBe(
 					"This is important content that was missed",
@@ -175,7 +175,7 @@ describe("Message Flow Integration Tests", () => {
 			};
 
 			// Mock background message handler
-			backgroundMessageHandler = vi.fn((request, sender, sendResponse) => {
+			backgroundMessageHandler = vi.fn((request, _sender, sendResponse) => {
 				expect(request.type).toBe(MESSAGE_TYPES.ANALYSIS_CONTENT_EXTRACTED);
 				expect(request.step).toBe(1);
 				expect(request.message).toBe("Content extracted successfully");
@@ -212,7 +212,7 @@ describe("Message Flow Integration Tests", () => {
 				analysisId: "analysis_789",
 			};
 
-			backgroundMessageHandler = vi.fn((request, sender, sendResponse) => {
+			backgroundMessageHandler = vi.fn((request, _sender, sendResponse) => {
 				expect(request.type).toBe(MESSAGE_TYPES.ANALYSIS_COMPLETE);
 				expect(request.data.golden_nuggets).toHaveLength(1);
 				expect(request.data.golden_nuggets[0].type).toBe("tool");
@@ -243,7 +243,7 @@ describe("Message Flow Integration Tests", () => {
 				},
 			};
 
-			backgroundMessageHandler = vi.fn((request, sender, sendResponse) => {
+			backgroundMessageHandler = vi.fn((request, _sender, sendResponse) => {
 				expect(request.type).toBe(MESSAGE_TYPES.ANALYSIS_ERROR);
 				expect(request.error).toBe("API key validation failed");
 				expect(request.analysisId).toBe("analysis_error_123");
@@ -275,7 +275,7 @@ describe("Message Flow Integration Tests", () => {
 			const progressMessages: any[] = [];
 
 			// Mock content script that responds to analysis request with progress updates
-			const contentHandler = vi.fn((request, sender, sendResponse) => {
+			const contentHandler = vi.fn((request, _sender, sendResponse) => {
 				if (request.type === MESSAGE_TYPES.ANALYZE_CONTENT) {
 					// Simulate content script sending progress messages back to background
 					const progressSteps = [
@@ -320,7 +320,7 @@ describe("Message Flow Integration Tests", () => {
 			contentMessageHandlers.set(tabId, contentHandler);
 
 			// Mock background handler to collect progress messages
-			backgroundMessageHandler = vi.fn((request, sender, sendResponse) => {
+			backgroundMessageHandler = vi.fn((request, _sender, sendResponse) => {
 				if (request.type.startsWith("ANALYSIS_")) {
 					progressMessages.push(request);
 				}
@@ -344,7 +344,7 @@ describe("Message Flow Integration Tests", () => {
 			const analysisId = "error_workflow_456";
 
 			// Mock content script that encounters an error during analysis
-			const contentHandler = vi.fn((request, sender, sendResponse) => {
+			const contentHandler = vi.fn((request, _sender, sendResponse) => {
 				if (request.type === MESSAGE_TYPES.ANALYZE_CONTENT) {
 					// Send progress message first
 					mockChrome.runtime.sendMessage({
@@ -372,7 +372,7 @@ describe("Message Flow Integration Tests", () => {
 			contentMessageHandlers.set(tabId, contentHandler);
 
 			const receivedMessages: any[] = [];
-			backgroundMessageHandler = vi.fn((request, sender, sendResponse) => {
+			backgroundMessageHandler = vi.fn((request, _sender, sendResponse) => {
 				receivedMessages.push(request);
 				sendResponse({ success: true });
 			});
@@ -393,7 +393,7 @@ describe("Message Flow Integration Tests", () => {
 			const analysisId = "popup_initiated_789";
 
 			// Mock content script handler
-			const contentHandler = vi.fn((request, sender, sendResponse) => {
+			const contentHandler = vi.fn((request, _sender, sendResponse) => {
 				if (request.type === MESSAGE_TYPES.ANALYZE_CONTENT) {
 					expect(request.source).toBe("popup");
 
@@ -438,7 +438,7 @@ describe("Message Flow Integration Tests", () => {
 		it("should handle malformed messages gracefully", async () => {
 			const tabId = 400;
 
-			const contentHandler = vi.fn((request, sender, sendResponse) => {
+			const contentHandler = vi.fn((request, _sender, sendResponse) => {
 				// Simulate content script rejecting malformed message
 				if (!request.type || !request.promptId) {
 					sendResponse({ success: false, error: "Invalid message format" });
@@ -463,7 +463,7 @@ describe("Message Flow Integration Tests", () => {
 
 			// Mock content script that doesn't respond (timeout scenario)
 			mockChrome.tabs.sendMessage.mockImplementationOnce(() => {
-				return new Promise((resolve, reject) => {
+				return new Promise((_resolve, reject) => {
 					setTimeout(() => reject(new Error("Message timeout")), 100);
 				});
 			});
@@ -500,7 +500,7 @@ describe("Message Flow Integration Tests", () => {
 			// Test invalid message type
 			const invalidMessage = { type: "INVALID_MESSAGE_TYPE", data: "test" };
 
-			backgroundMessageHandler = vi.fn((request, sender, sendResponse) => {
+			backgroundMessageHandler = vi.fn((request, _sender, sendResponse) => {
 				if (!validMessageTypes.includes(request.type)) {
 					sendResponse({ success: false, error: "Unknown message type" });
 					return;

@@ -1,8 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { GeminiClient } from "../../src/background/gemini-client";
-import { MessageHandler } from "../../src/background/message-handler";
 import { TypeFilterService } from "../../src/background/type-filter-service";
-import { storage, StorageMigration } from "../../src/shared/storage";
+import { StorageMigration, storage } from "../../src/shared/storage";
 import { MESSAGE_TYPES } from "../../src/shared/types";
 
 // Mock WXT global functions

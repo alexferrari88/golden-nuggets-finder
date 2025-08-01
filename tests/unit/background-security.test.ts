@@ -24,32 +24,28 @@ describe("Background Script Security - Core Logic Tests", () => {
 
 	describe("Dynamic Content Script Injection Security", () => {
 		async function injectContentScript(tabId: number): Promise<void> {
-			try {
-				// Check if content script is already injected
-				const testResponse = await chrome.tabs
-					.sendMessage(tabId, { type: "PING" })
-					.catch(() => null);
+			// Check if content script is already injected
+			const testResponse = await chrome.tabs
+				.sendMessage(tabId, { type: "PING" })
+				.catch(() => null);
 
-				if (testResponse) {
-					return; // Already injected
-				}
+			if (testResponse) {
+				return; // Already injected
+			}
 
-				// Inject the content script
-				await chrome.scripting.executeScript({
-					target: { tabId },
-					files: ["content-scripts/content.js"],
-				});
+			// Inject the content script
+			await chrome.scripting.executeScript({
+				target: { tabId },
+				files: ["content-scripts/content.js"],
+			});
 
-				// Verify injection worked
-				const verifyResponse = await chrome.tabs
-					.sendMessage(tabId, { type: "PING" })
-					.catch(() => null);
+			// Verify injection worked
+			const verifyResponse = await chrome.tabs
+				.sendMessage(tabId, { type: "PING" })
+				.catch(() => null);
 
-				if (!verifyResponse) {
-					throw new Error("Content script failed to inject properly");
-				}
-			} catch (error) {
-				throw error;
+			if (!verifyResponse) {
+				throw new Error("Content script failed to inject properly");
 			}
 		}
 
@@ -124,7 +120,7 @@ describe("Background Script Security - Core Logic Tests", () => {
 				}
 
 				return true;
-			} catch (error) {
+			} catch (_error) {
 				// Show API key error on any retrieval failure
 				await chrome.tabs.sendMessage(tabId, {
 					type: "SHOW_API_KEY_ERROR",

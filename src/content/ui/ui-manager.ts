@@ -131,8 +131,9 @@ export class UIManager {
 				this.highlighter.highlightNugget(originalNugget, pageContent),
 			);
 			sidebarItems.push({
-				nugget: nugget as any, // Use enhanced nugget for sidebar display
+				nugget: nugget, // Enhanced nugget already matches GoldenNugget type
 				status: highlighted ? "highlighted" : "not-found",
+				selected: false,
 			});
 		}
 		performanceMonitor.logTimer(
@@ -506,7 +507,7 @@ export class UIManager {
 
 		// Submit functionality
 		submitButton.addEventListener("click", async () => {
-			const selectedType = typeSelect.value as any;
+			const selectedType = typeSelect.value as GoldenNuggetType;
 			if (!selectedType) return;
 
 			try {

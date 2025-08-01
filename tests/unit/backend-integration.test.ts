@@ -24,8 +24,8 @@ describe("Backend Integration Tests", () => {
 					get: vi.fn().mockResolvedValue({
 						lastUsedProvider: {
 							providerId: "gemini",
-							modelName: "gemini-2.5-flash"
-						}
+							modelName: "gemini-2.5-flash",
+						},
 					}),
 					set: vi.fn().mockResolvedValue(undefined),
 				},
@@ -83,14 +83,16 @@ describe("Backend Integration Tests", () => {
 			const expectedFeedbackWithProvider = {
 				...feedbackData,
 				modelProvider: "gemini",
-				modelName: "gemini-2.5-flash"
+				modelName: "gemini-2.5-flash",
 			};
 			expect(mockFetch).toHaveBeenCalledWith(
 				"http://localhost:7532/feedback",
 				expect.objectContaining({
 					method: "POST",
 					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({ nuggetFeedback: [expectedFeedbackWithProvider] }),
+					body: JSON.stringify({
+						nuggetFeedback: [expectedFeedbackWithProvider],
+					}),
 					signal: expect.any(AbortSignal),
 				}),
 			);
@@ -261,16 +263,20 @@ describe("Backend Integration Tests", () => {
 			await messageHandler.handleMessage(request, sender, sendResponse);
 
 			// Verify backend API was called with multiple feedback items including provider metadata
-			const expectedMissingContentWithProvider = missingContentFeedback.map(feedback => ({
-				...feedback,
-				modelProvider: "gemini",
-				modelName: "gemini-2.5-flash"
-			}));
+			const expectedMissingContentWithProvider = missingContentFeedback.map(
+				(feedback) => ({
+					...feedback,
+					modelProvider: "gemini",
+					modelName: "gemini-2.5-flash",
+				}),
+			);
 			expect(mockFetch).toHaveBeenCalledWith(
 				"http://localhost:7532/feedback",
 				expect.objectContaining({
 					method: "POST",
-					body: JSON.stringify({ missingContentFeedback: expectedMissingContentWithProvider }),
+					body: JSON.stringify({
+						missingContentFeedback: expectedMissingContentWithProvider,
+					}),
 					signal: expect.any(AbortSignal),
 				}),
 			);
@@ -794,7 +800,7 @@ describe("Backend Integration Tests", () => {
 				{ success: true, id: "concurrent_3" },
 			];
 
-			responses.forEach((response, index) => {
+			responses.forEach((response, _index) => {
 				mockFetch.mockResolvedValueOnce({
 					ok: true,
 					json: () => Promise.resolve(response),
@@ -821,7 +827,7 @@ describe("Backend Integration Tests", () => {
 			const sendResponseFunctions = await Promise.all(promises);
 
 			// Verify all requests completed successfully
-			sendResponseFunctions.forEach((sendResponse, index) => {
+			sendResponseFunctions.forEach((sendResponse, _index) => {
 				expect(sendResponse).toHaveBeenCalledWith({
 					success: true,
 					message: "Feedback submitted successfully",

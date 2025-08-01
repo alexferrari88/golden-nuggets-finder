@@ -230,7 +230,7 @@ test.describe("Context Menu E2E Tests", () => {
 					try {
 						// Don't actually call it, just verify the method exists and is callable
 						return typeof chrome.contextMenus.removeAll === "function";
-					} catch (e) {
+					} catch (_e) {
 						return false;
 					}
 				})(),

@@ -347,7 +347,7 @@ test.describe("Feedback Reset Flow", () => {
 		);
 
 		// Test reset button click
-		const clickHandled = false;
+		const _clickHandled = false;
 		await page.evaluate(() => {
 			const resetBtn = document.querySelector(".feedback-reset-btn");
 			resetBtn.addEventListener("click", () => {

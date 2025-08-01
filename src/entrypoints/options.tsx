@@ -14,10 +14,11 @@ import {
 	Trash,
 	X,
 } from "lucide-react";
-import React from "react";
+import type React from "react";
 import { useEffect, useState } from "react";
 import ReactDOM from "react-dom/client";
 import { GeminiClient } from "../background/gemini-client";
+import { ProviderFactory } from "../background/services/provider-factory";
 import {
 	borderRadius,
 	colors,
@@ -27,9 +28,8 @@ import {
 	typography,
 } from "../shared/design-system";
 import { storage } from "../shared/storage";
-import type { SavedPrompt } from "../shared/types";
 import { ApiKeyStorage } from "../shared/storage/api-key-storage";
-import { ProviderFactory } from "../background/services/provider-factory";
+import type { SavedPrompt } from "../shared/types";
 import type { ProviderId } from "../shared/types/providers";
 
 type AlertType = "success" | "error" | "warning" | "info";
@@ -294,13 +294,16 @@ function OptionsPage() {
 	}>({ isOpen: false, title: "", message: "", onConfirm: () => {} });
 
 	// Provider configuration state
-	const [selectedProvider, setSelectedProvider] = useState<ProviderId>('gemini');
+	const [selectedProvider, setSelectedProvider] =
+		useState<ProviderId>("gemini");
 	const [apiKeys, setApiKeys] = useState<Record<ProviderId, string>>({});
-	const [validationStatus, setValidationStatus] = useState<Record<ProviderId, boolean | null>>({});
+	const [validationStatus, setValidationStatus] = useState<
+		Record<ProviderId, boolean | null>
+	>({});
 
 	useEffect(() => {
 		loadData();
-	}, []);
+	}, [loadData]);
 
 	const loadData = async () => {
 		try {
@@ -312,23 +315,28 @@ function OptionsPage() {
 					timestamp: Date.now(),
 				}),
 				storage.getPrompts(),
-				chrome.storage.local.get(['selectedProvider'])
+				chrome.storage.local.get(["selectedProvider"]),
 			]);
 			setApiKey(savedApiKey);
 			setPrompts(savedPrompts);
-			setSelectedProvider(storageData.selectedProvider || 'gemini');
-			
+			setSelectedProvider(storageData.selectedProvider || "gemini");
+
 			// Load API keys for all providers
-			const providers: ProviderId[] = ['gemini', 'openai', 'anthropic', 'openrouter'];
+			const providers: ProviderId[] = [
+				"gemini",
+				"openai",
+				"anthropic",
+				"openrouter",
+			];
 			const keyPromises = providers.map(async (providerId) => {
-				if (providerId === 'gemini') {
+				if (providerId === "gemini") {
 					return { providerId, key: savedApiKey };
 				} else {
 					const key = await ApiKeyStorage.get(providerId);
-					return { providerId, key: key || '' };
+					return { providerId, key: key || "" };
 				}
 			});
-			
+
 			const keyResults = await Promise.all(keyPromises);
 			const keyMap: Record<ProviderId, string> = {};
 			keyResults.forEach(({ providerId, key }) => {
@@ -488,30 +496,30 @@ function OptionsPage() {
 	// Provider helper functions
 	const getCostEstimate = (providerId: ProviderId) => {
 		const costInfo = {
-			'gemini': { perRequest: 0.001, description: 'Cheapest option' },
-			'openai': { perRequest: 0.01, description: 'Higher quality' },
-			'anthropic': { perRequest: 0.008, description: 'Good balance' },
-			'openrouter': { perRequest: 0.005, description: 'Varies by model' }
+			gemini: { perRequest: 0.001, description: "Cheapest option" },
+			openai: { perRequest: 0.01, description: "Higher quality" },
+			anthropic: { perRequest: 0.008, description: "Good balance" },
+			openrouter: { perRequest: 0.005, description: "Varies by model" },
 		};
 		return costInfo[providerId];
 	};
 
 	const getProviderDisplayName = (providerId: ProviderId) => {
 		const names = {
-			'gemini': 'Google Gemini',
-			'openai': 'OpenAI GPT',
-			'anthropic': 'Anthropic Claude',
-			'openrouter': 'OpenRouter'
+			gemini: "Google Gemini",
+			openai: "OpenAI GPT",
+			anthropic: "Anthropic Claude",
+			openrouter: "OpenRouter",
 		};
 		return names[providerId];
 	};
 
 	const getProviderDescription = (providerId: ProviderId) => {
 		const descriptions = {
-			'gemini': 'Fast, reliable, low cost',
-			'openai': 'High quality, industry standard',
-			'anthropic': 'Safe, helpful responses',
-			'openrouter': 'Access to many models'
+			gemini: "Fast, reliable, low cost",
+			openai: "High quality, industry standard",
+			anthropic: "Safe, helpful responses",
+			openrouter: "Access to many models",
 		};
 		return descriptions[providerId];
 	};
@@ -522,11 +530,11 @@ function OptionsPage() {
 	};
 
 	const handleApiKeyUpdate = async (providerId: ProviderId, apiKey: string) => {
-		setApiKeys(prev => ({ ...prev, [providerId]: apiKey }));
-		
+		setApiKeys((prev) => ({ ...prev, [providerId]: apiKey }));
+
 		// Clear validation status when key changes
-		setValidationStatus(prev => ({ ...prev, [providerId]: null }));
-		
+		setValidationStatus((prev) => ({ ...prev, [providerId]: null }));
+
 		if (apiKey) {
 			await ApiKeyStorage.store(providerId, apiKey);
 		}
@@ -547,11 +555,11 @@ function OptionsPage() {
 			const provider = await ProviderFactory.createProvider({
 				providerId,
 				apiKey,
-				modelName: ProviderFactory.getDefaultModel(providerId)
+				modelName: ProviderFactory.getDefaultModel(providerId),
 			});
-			
+
 			const isValid = await provider.validateApiKey();
-			setValidationStatus(prev => ({ ...prev, [providerId]: isValid }));
+			setValidationStatus((prev) => ({ ...prev, [providerId]: isValid }));
 
 			if (isValid) {
 				setApiKeyStatus({
@@ -569,7 +577,7 @@ function OptionsPage() {
 
 			setTimeout(() => setApiKeyStatus(null), 5000);
 		} catch (error) {
-			setValidationStatus(prev => ({ ...prev, [providerId]: false }));
+			setValidationStatus((prev) => ({ ...prev, [providerId]: false }));
 			setApiKeyStatus({
 				type: "error",
 				title: "Validation Failed",
@@ -825,7 +833,9 @@ function OptionsPage() {
 								lineHeight: typography.lineHeight.normal,
 							}}
 						>
-							Choose your preferred AI provider for golden nugget extraction. Each provider offers different strengths in terms of quality, cost, and model variety.
+							Choose your preferred AI provider for golden nugget extraction.
+							Each provider offers different strengths in terms of quality,
+							cost, and model variety.
 						</p>
 					</div>
 
@@ -836,7 +846,9 @@ function OptionsPage() {
 							marginBottom: spacing["2xl"],
 						}}
 					>
-						{(['gemini', 'openai', 'anthropic', 'openrouter'] as ProviderId[]).map((providerId) => {
+						{(
+							["gemini", "openai", "anthropic", "openrouter"] as ProviderId[]
+						).map((providerId) => {
 							const isSelected = selectedProvider === providerId;
 							const cost = getCostEstimate(providerId);
 							const monthlyEstimate = cost.perRequest * 100; // Assume 100 requests/month
@@ -944,7 +956,7 @@ function OptionsPage() {
 					</div>
 
 					{/* API Key Configuration for selected provider */}
-					{selectedProvider !== 'gemini' && (
+					{selectedProvider !== "gemini" && (
 						<div
 							style={{
 								padding: spacing.lg,
@@ -973,8 +985,10 @@ function OptionsPage() {
 							>
 								<input
 									type="password"
-									value={apiKeys[selectedProvider] || ''}
-									onChange={(e) => handleApiKeyUpdate(selectedProvider, e.target.value)}
+									value={apiKeys[selectedProvider] || ""}
+									onChange={(e) =>
+										handleApiKeyUpdate(selectedProvider, e.target.value)
+									}
 									placeholder="Enter your API key"
 									style={{
 										...components.input.default,
@@ -992,7 +1006,9 @@ function OptionsPage() {
 										backgroundColor: !apiKeys[selectedProvider]
 											? colors.text.secondary
 											: colors.text.accent,
-										cursor: !apiKeys[selectedProvider] ? "not-allowed" : "pointer",
+										cursor: !apiKeys[selectedProvider]
+											? "not-allowed"
+											: "pointer",
 										fontSize: typography.fontSize.sm,
 										fontWeight: typography.fontWeight.medium,
 										minWidth: "120px",
@@ -1017,13 +1033,11 @@ function OptionsPage() {
 								>
 									{validationStatus[selectedProvider] ? (
 										<>
-											<CircleCheck size={16} />
-											✓ Valid
+											<CircleCheck size={16} />✓ Valid
 										</>
 									) : (
 										<>
-											<CircleAlert size={16} />
-											✗ Invalid
+											<CircleAlert size={16} />✗ Invalid
 										</>
 									)}
 								</div>
@@ -1033,171 +1047,174 @@ function OptionsPage() {
 				</div>
 
 				{/* API Key Section (Gemini only when selected) */}
-				{selectedProvider === 'gemini' && (
-				<div
-					style={{
-						marginBottom: spacing["3xl"],
-						backgroundColor: colors.background.primary,
-						padding: spacing["3xl"],
-						borderRadius: borderRadius.xl,
-						boxShadow: shadows.md,
-						border: `1px solid ${colors.border.light}`,
-					}}
-				>
+				{selectedProvider === "gemini" && (
 					<div
 						style={{
-							display: "flex",
-							alignItems: "center",
-							gap: spacing.md,
-							marginBottom: spacing["2xl"],
-						}}
-					>
-						<div style={{ color: colors.text.accent }}>
-							<Key size={20} />
-						</div>
-						<h2
-							style={{
-								margin: 0,
-								fontSize: typography.fontSize.xl,
-								fontWeight: typography.fontWeight.semibold,
-								color: colors.text.primary,
-							}}
-						>
-							Google Gemini API Key
-						</h2>
-					</div>
-
-					<div
-						style={{
-							marginBottom: spacing["2xl"],
-							padding: spacing.lg,
-							backgroundColor: colors.background.secondary,
-							borderRadius: borderRadius.lg,
+							marginBottom: spacing["3xl"],
+							backgroundColor: colors.background.primary,
+							padding: spacing["3xl"],
+							borderRadius: borderRadius.xl,
+							boxShadow: shadows.md,
 							border: `1px solid ${colors.border.light}`,
 						}}
 					>
-						<p
-							style={{
-								margin: `0 0 ${spacing.md} 0`,
-								fontSize: typography.fontSize.sm,
-								color: colors.text.secondary,
-								fontWeight: typography.fontWeight.medium,
-							}}
-						>
-							<Lock
-								size={16}
-								style={{ display: "inline", marginRight: "8px" }}
-							/>
-							Your API key is stored securely in your browser and never shared
-						</p>
-						<p
-							style={{
-								margin: `0 0 ${spacing.md} 0`,
-								fontSize: typography.fontSize.sm,
-								color: colors.text.tertiary,
-								lineHeight: typography.lineHeight.normal,
-							}}
-						>
-							You'll need a Google Gemini API key to use this extension. The key
-							is used to analyze webpage content and find valuable insights.
-						</p>
 						<div
 							style={{
 								display: "flex",
 								alignItems: "center",
-								gap: spacing.sm,
-								fontSize: typography.fontSize.sm,
-								color: colors.text.accent,
+								gap: spacing.md,
+								marginBottom: spacing["2xl"],
 							}}
 						>
-							<span>Get your free API key from Google AI Studio</span>
-							<a
-								href="https://aistudio.google.com/app/apikey"
-								target="_blank"
-								rel="noopener noreferrer"
+							<div style={{ color: colors.text.accent }}>
+								<Key size={20} />
+							</div>
+							<h2
 								style={{
-									color: colors.text.accent,
-									textDecoration: "none",
-									display: "flex",
-									alignItems: "center",
+									margin: 0,
+									fontSize: typography.fontSize.xl,
+									fontWeight: typography.fontWeight.semibold,
+									color: colors.text.primary,
 								}}
 							>
-								<ExternalLink size={16} />
-							</a>
+								Google Gemini API Key
+							</h2>
 						</div>
-					</div>
 
-					<div
-						style={{
-							display: "flex",
-							gap: spacing.md,
-							alignItems: "stretch",
-							marginBottom: spacing.lg,
-						}}
-					>
-						<input
-							type="password"
-							value={apiKey}
-							onChange={(e) => setApiKey(e.target.value)}
-							placeholder="Enter your Gemini API key (e.g., AIzaSyC...)"
+						<div
 							style={{
-								...components.input.default,
-								flex: 1,
-								fontSize: typography.fontSize.base,
-								color: colors.text.primary,
-								fontFamily: typography.fontFamily.sans,
-							}}
-							onFocus={(e) => (e.target.style.borderColor = colors.text.accent)}
-							onBlur={(e) =>
-								(e.target.style.borderColor = colors.border.default)
-							}
-						/>
-						<button
-							onClick={saveApiKey}
-							disabled={isValidating}
-							style={{
-								...components.button.primary,
-								backgroundColor: isValidating
-									? colors.text.secondary
-									: colors.text.accent,
-								cursor: isValidating ? "not-allowed" : "pointer",
-								fontSize: typography.fontSize.base,
-								fontWeight: typography.fontWeight.semibold,
-								minWidth: "120px",
-								display: "flex",
-								alignItems: "center",
-								justifyContent: "center",
-								gap: spacing.sm,
-							}}
-							onMouseEnter={(e) => {
-								if (!isValidating)
-									e.currentTarget.style.backgroundColor = colors.text.accent;
-							}}
-							onMouseLeave={(e) => {
-								if (!isValidating)
-									e.currentTarget.style.backgroundColor = colors.text.accent;
+								marginBottom: spacing["2xl"],
+								padding: spacing.lg,
+								backgroundColor: colors.background.secondary,
+								borderRadius: borderRadius.lg,
+								border: `1px solid ${colors.border.light}`,
 							}}
 						>
-							{isValidating ? (
-								<>
-									<div
-										style={{
-											width: "16px",
-											height: "16px",
-											border: `2px solid ${colors.background.primary}40`,
-											borderTop: `2px solid ${colors.background.primary}`,
-											borderRadius: "50%",
-											animation: "spin 1s linear infinite",
-										}}
-									/>
-									Validating...
-								</>
-							) : (
-								"Save API Key"
-							)}
-						</button>
+							<p
+								style={{
+									margin: `0 0 ${spacing.md} 0`,
+									fontSize: typography.fontSize.sm,
+									color: colors.text.secondary,
+									fontWeight: typography.fontWeight.medium,
+								}}
+							>
+								<Lock
+									size={16}
+									style={{ display: "inline", marginRight: "8px" }}
+								/>
+								Your API key is stored securely in your browser and never shared
+							</p>
+							<p
+								style={{
+									margin: `0 0 ${spacing.md} 0`,
+									fontSize: typography.fontSize.sm,
+									color: colors.text.tertiary,
+									lineHeight: typography.lineHeight.normal,
+								}}
+							>
+								You'll need a Google Gemini API key to use this extension. The
+								key is used to analyze webpage content and find valuable
+								insights.
+							</p>
+							<div
+								style={{
+									display: "flex",
+									alignItems: "center",
+									gap: spacing.sm,
+									fontSize: typography.fontSize.sm,
+									color: colors.text.accent,
+								}}
+							>
+								<span>Get your free API key from Google AI Studio</span>
+								<a
+									href="https://aistudio.google.com/app/apikey"
+									target="_blank"
+									rel="noopener noreferrer"
+									style={{
+										color: colors.text.accent,
+										textDecoration: "none",
+										display: "flex",
+										alignItems: "center",
+									}}
+								>
+									<ExternalLink size={16} />
+								</a>
+							</div>
+						</div>
+
+						<div
+							style={{
+								display: "flex",
+								gap: spacing.md,
+								alignItems: "stretch",
+								marginBottom: spacing.lg,
+							}}
+						>
+							<input
+								type="password"
+								value={apiKey}
+								onChange={(e) => setApiKey(e.target.value)}
+								placeholder="Enter your Gemini API key (e.g., AIzaSyC...)"
+								style={{
+									...components.input.default,
+									flex: 1,
+									fontSize: typography.fontSize.base,
+									color: colors.text.primary,
+									fontFamily: typography.fontFamily.sans,
+								}}
+								onFocus={(e) =>
+									(e.target.style.borderColor = colors.text.accent)
+								}
+								onBlur={(e) =>
+									(e.target.style.borderColor = colors.border.default)
+								}
+							/>
+							<button
+								onClick={saveApiKey}
+								disabled={isValidating}
+								style={{
+									...components.button.primary,
+									backgroundColor: isValidating
+										? colors.text.secondary
+										: colors.text.accent,
+									cursor: isValidating ? "not-allowed" : "pointer",
+									fontSize: typography.fontSize.base,
+									fontWeight: typography.fontWeight.semibold,
+									minWidth: "120px",
+									display: "flex",
+									alignItems: "center",
+									justifyContent: "center",
+									gap: spacing.sm,
+								}}
+								onMouseEnter={(e) => {
+									if (!isValidating)
+										e.currentTarget.style.backgroundColor = colors.text.accent;
+								}}
+								onMouseLeave={(e) => {
+									if (!isValidating)
+										e.currentTarget.style.backgroundColor = colors.text.accent;
+								}}
+							>
+								{isValidating ? (
+									<>
+										<div
+											style={{
+												width: "16px",
+												height: "16px",
+												border: `2px solid ${colors.background.primary}40`,
+												borderTop: `2px solid ${colors.background.primary}`,
+												borderRadius: "50%",
+												animation: "spin 1s linear infinite",
+											}}
+										/>
+										Validating...
+									</>
+								) : (
+									"Save API Key"
+								)}
+							</button>
+						</div>
 					</div>
-				</div>
 				)}
 
 				{/* Prompts Section */}
@@ -1438,7 +1455,7 @@ function OptionsPage() {
 														lineHeight: "1.5",
 														display: "-webkit-box",
 														WebkitLineClamp: 3,
-														WebkitBoxOrient: "vertical" as any,
+														WebkitBoxOrient: "vertical" as const,
 														overflow: "hidden",
 													} as React.CSSProperties
 												}

@@ -1,4 +1,5 @@
 import { storage } from "../shared/storage";
+import { ApiKeyStorage } from "../shared/storage/api-key-storage";
 import {
 	type AnalysisProgressMessage,
 	type AnalysisRequest,
@@ -8,14 +9,16 @@ import {
 	type MissingContentFeedback,
 	type NuggetFeedback,
 } from "../shared/types";
-import type { GeminiClient } from "./gemini-client";
-import { TypeFilterService } from "./type-filter-service";
-import { ProviderFactory } from "./services/provider-factory";
-import { ApiKeyStorage } from "../shared/storage/api-key-storage";
-import { ResponseNormalizer } from "./services/response-normalizer";
-import { ProviderSwitcher } from "./services/provider-switcher";
+import type {
+	GoldenNuggetsResponse,
+	ProviderConfig,
+	ProviderId,
+} from "../shared/types/providers";
 import { ErrorHandler } from "./services/error-handler";
-import { type ProviderConfig, type ProviderId, type GoldenNuggetsResponse } from "../shared/types/providers";
+import { ProviderFactory } from "./services/provider-factory";
+import { ProviderSwitcher } from "./services/provider-switcher";
+import { normalize as normalizeResponse } from "./services/response-normalizer";
+import { TypeFilterService } from "./type-filter-service";
 
 // Utility function to generate unique analysis IDs
 function generateAnalysisId(): string {
@@ -23,8 +26,6 @@ function generateAnalysisId(): string {
 }
 
 export class MessageHandler {
-	constructor(private geminiClient: GeminiClient) {}
-
 	// Helper to classify and enhance backend error messages for users
 	private enhanceBackendError(error: any): {
 		message: string;
@@ -211,130 +212,160 @@ export class MessageHandler {
 	// Helper to get the selected provider configuration from storage with fallback support
 	private static async getSelectedProvider(): Promise<ProviderConfig> {
 		// Get selected provider from storage
-		const result = await chrome.storage.local.get(['selectedProvider']);
-		let providerId = result.selectedProvider || 'gemini';
-		
+		const result = await chrome.storage.local.get(["selectedProvider"]);
+		let providerId = result.selectedProvider || "gemini";
+
 		// Check if selected provider is configured
-		const isConfigured = await ProviderSwitcher.isProviderConfigured(providerId);
+		const isConfigured =
+			await ProviderSwitcher.isProviderConfigured(providerId);
 		if (!isConfigured) {
-			console.warn(`Selected provider ${providerId} is not configured, trying fallback...`);
-			
+			console.warn(
+				`Selected provider ${providerId} is not configured, trying fallback...`,
+			);
+
 			// Try to switch to a fallback provider
-			const fallbackProviderId = await ProviderSwitcher.switchToFallbackProvider();
+			const fallbackProviderId =
+				await ProviderSwitcher.switchToFallbackProvider();
 			if (fallbackProviderId) {
 				providerId = fallbackProviderId;
 				console.log(`Switched to fallback provider: ${providerId}`);
 			} else {
-				throw new Error(`No configured providers available. Please configure an API key in the options page.`);
+				throw new Error(
+					`No configured providers available. Please configure an API key in the options page.`,
+				);
 			}
 		}
-		
+
 		// Get API key for provider
 		let apiKey: string;
-		if (providerId === 'gemini') {
+		if (providerId === "gemini") {
 			// Use existing Gemini key storage
-			const geminiResult = await chrome.storage.local.get(['geminiApiKey']);
+			const geminiResult = await chrome.storage.local.get(["geminiApiKey"]);
 			apiKey = geminiResult.geminiApiKey;
 		} else {
 			apiKey = await ApiKeyStorage.get(providerId);
 		}
-		
+
 		if (!apiKey) {
 			throw new Error(`No API key found for provider: ${providerId}`);
 		}
-		
+
 		return {
 			providerId,
 			apiKey,
-			modelName: ProviderFactory.getDefaultModel(providerId)
+			modelName: ProviderFactory.getDefaultModel(providerId),
 		};
 	}
 
 	// Helper to handle golden nuggets extraction using provider routing with error handling and fallback
-	static async handleExtractGoldenNuggets(content: string, prompt: string): Promise<GoldenNuggetsResponse> {
+	static async handleExtractGoldenNuggets(
+		content: string,
+		prompt: string,
+	): Promise<GoldenNuggetsResponse> {
 		let currentProviderId: ProviderId | null = null;
 		let attempts = 0;
 		const maxAttempts = 5; // Allow multiple attempts across different providers
-		
+
 		while (attempts < maxAttempts) {
 			try {
 				attempts++;
-				
+
 				// Get provider configuration (may change if we fall back)
-				const providerConfig = await this.getSelectedProvider();
+				const providerConfig = await MessageHandler.getSelectedProvider();
 				currentProviderId = providerConfig.providerId;
-				
+
 				console.log(`Attempt ${attempts}: Using provider ${currentProviderId}`);
-				
+
 				// Create provider instance
 				const provider = await ProviderFactory.createProvider(providerConfig);
-				
+
 				// Extract golden nuggets
 				const startTime = performance.now();
-				const rawResponse = await provider.extractGoldenNuggets(content, prompt);
+				const rawResponse = await provider.extractGoldenNuggets(
+					content,
+					prompt,
+				);
 				const responseTime = performance.now() - startTime;
-				
+
 				// Normalize response
-				const normalizedResponse = ResponseNormalizer.normalize(rawResponse, providerConfig.providerId);
-				
+				const normalizedResponse = normalizeResponse(
+					rawResponse,
+					providerConfig.providerId,
+				);
+
 				// Store provider metadata for feedback
 				await chrome.storage.local.set({
 					lastUsedProvider: {
 						providerId: providerConfig.providerId,
 						modelName: providerConfig.modelName,
-						responseTime
-					}
+						responseTime,
+					},
 				});
-				
+
 				// Clear retry count on success
 				if (currentProviderId) {
-					ErrorHandler.resetRetryCount(currentProviderId, 'extraction');
+					ErrorHandler.resetRetryCount(currentProviderId, "extraction");
 				}
-				
+
 				return normalizedResponse;
-				
 			} catch (error) {
-				console.error(`Golden nuggets extraction failed (attempt ${attempts}):`, error);
-				
+				console.error(
+					`Golden nuggets extraction failed (attempt ${attempts}):`,
+					error,
+				);
+
 				if (currentProviderId) {
 					// Handle the error using our comprehensive error handler
 					const errorResult = await ErrorHandler.handleProviderError(
 						error as Error,
 						currentProviderId,
-						'extraction'
+						"extraction",
 					);
-					
+
 					if (errorResult.shouldRetry) {
-						console.log(`Retrying with ${currentProviderId} after error handling...`);
+						console.log(
+							`Retrying with ${currentProviderId} after error handling...`,
+						);
 						continue; // Retry with same provider
 					}
-					
+
 					if (errorResult.fallbackProvider) {
-						console.log(`Switching to fallback provider: ${errorResult.fallbackProvider}`);
-						
+						console.log(
+							`Switching to fallback provider: ${errorResult.fallbackProvider}`,
+						);
+
 						// Switch to fallback provider
-						const switchSuccess = await ProviderSwitcher.switchProvider(errorResult.fallbackProvider);
+						const switchSuccess = await ProviderSwitcher.switchProvider(
+							errorResult.fallbackProvider,
+						);
 						if (switchSuccess) {
-							console.log(`Successfully switched to fallback provider: ${errorResult.fallbackProvider}`);
+							console.log(
+								`Successfully switched to fallback provider: ${errorResult.fallbackProvider}`,
+							);
 							continue; // Try again with fallback provider
 						} else {
-							console.error(`Failed to switch to fallback provider: ${errorResult.fallbackProvider}`);
+							console.error(
+								`Failed to switch to fallback provider: ${errorResult.fallbackProvider}`,
+							);
 						}
 					}
 				}
-				
+
 				// If we're on the last attempt or no more fallbacks, throw the error
 				if (attempts >= maxAttempts) {
-					const userFriendlyMessage = currentProviderId 
-						? ErrorHandler.getUserFriendlyMessage(error as Error, currentProviderId)
+					const userFriendlyMessage = currentProviderId
+						? ErrorHandler.getUserFriendlyMessage(
+								error as Error,
+								currentProviderId,
+							)
 						: (error as Error).message;
 					throw new Error(userFriendlyMessage);
 				}
 			}
 		}
-		
+
 		// This should never be reached, but just in case
-		throw new Error('All providers failed after maximum attempts');
+		throw new Error("All providers failed after maximum attempts");
 	}
 
 	async handleMessage(
@@ -845,11 +876,12 @@ export class MessageHandler {
 			}
 
 			// Add provider metadata from last used provider
-			const providerInfo = await chrome.storage.local.get(['lastUsedProvider']);
+			const providerInfo = await chrome.storage.local.get(["lastUsedProvider"]);
 			const feedbackWithProvider = {
 				...feedback,
 				modelProvider: providerInfo.lastUsedProvider?.providerId || "gemini",
-				modelName: providerInfo.lastUsedProvider?.modelName || "gemini-2.5-flash"
+				modelName:
+					providerInfo.lastUsedProvider?.modelName || "gemini-2.5-flash",
 			};
 
 			// Store feedback locally as backup
@@ -958,12 +990,15 @@ export class MessageHandler {
 			}
 
 			// Add provider metadata to all missing content feedback from last used provider
-			const providerInfo = await chrome.storage.local.get(['lastUsedProvider']);
-			const missingContentWithProvider = missingContentFeedback.map(feedback => ({
-				...feedback,
-				modelProvider: providerInfo.lastUsedProvider?.providerId || "gemini",
-				modelName: providerInfo.lastUsedProvider?.modelName || "gemini-2.5-flash"
-			}));
+			const providerInfo = await chrome.storage.local.get(["lastUsedProvider"]);
+			const missingContentWithProvider = missingContentFeedback.map(
+				(feedback) => ({
+					...feedback,
+					modelProvider: providerInfo.lastUsedProvider?.providerId || "gemini",
+					modelName:
+						providerInfo.lastUsedProvider?.modelName || "gemini-2.5-flash",
+				}),
+			);
 
 			// Store feedback locally as backup
 			for (const feedback of missingContentWithProvider) {
@@ -1282,37 +1317,40 @@ export class MessageHandler {
 	): Promise<void> {
 		try {
 			const providerId: ProviderId = request.providerId;
-			
+
 			if (!providerId) {
 				sendResponse({ success: false, error: "Provider ID is required" });
 				return;
 			}
-			
+
 			const success = await ProviderSwitcher.switchProvider(providerId);
-			
+
 			if (success) {
 				// Clear any existing retry counts for the new provider
-				ErrorHandler.resetRetryCount(providerId, 'extraction');
-				
-				sendResponse({ 
-					success: true, 
+				ErrorHandler.resetRetryCount(providerId, "extraction");
+
+				sendResponse({
+					success: true,
 					message: `Successfully switched to ${providerId}`,
-					providerId 
+					providerId,
 				});
 			} else {
-				sendResponse({ 
-					success: false, 
-					error: `Failed to switch to ${providerId}. Check API key configuration.` 
+				sendResponse({
+					success: false,
+					error: `Failed to switch to ${providerId}. Check API key configuration.`,
 				});
 			}
 		} catch (error) {
 			console.error("Failed to switch provider:", error);
-			
+
 			// Use error handler for switch-specific error messages
-			const errorResult = ErrorHandler.handleSwitchError(error as Error, request.providerId);
-			sendResponse({ 
-				success: errorResult.success, 
-				error: errorResult.message 
+			const errorResult = ErrorHandler.handleSwitchError(
+				error as Error,
+				request.providerId,
+			);
+			sendResponse({
+				success: errorResult.success,
+				error: errorResult.message,
 			});
 		}
 	}
@@ -1348,49 +1386,52 @@ export class MessageHandler {
 		try {
 			const providerId: ProviderId = request.providerId;
 			const apiKey: string = request.apiKey;
-			
+
 			if (!providerId) {
 				sendResponse({ success: false, error: "Provider ID is required" });
 				return;
 			}
-			
+
 			if (!apiKey) {
 				sendResponse({ success: false, error: "API key is required" });
 				return;
 			}
-			
+
 			// Create provider configuration
 			const config: ProviderConfig = {
 				providerId,
 				apiKey,
-				modelName: ProviderFactory.getDefaultModel(providerId)
+				modelName: ProviderFactory.getDefaultModel(providerId),
 			};
-			
+
 			// Create provider instance and validate
 			const provider = await ProviderFactory.createProvider(config);
 			const isValid = await provider.validateApiKey();
-			
-			sendResponse({ 
-				success: true, 
-				data: { 
-					isValid, 
-					providerId, 
-					modelName: config.modelName 
-				} 
+
+			sendResponse({
+				success: true,
+				data: {
+					isValid,
+					providerId,
+					modelName: config.modelName,
+				},
 			});
 		} catch (error) {
 			console.error("Failed to validate provider:", error);
-			
+
 			// Use error handler for user-friendly validation error messages
-			const userFriendlyMessage = ErrorHandler.getUserFriendlyMessage(error as Error, request.providerId);
-			
-			sendResponse({ 
-				success: true, 
-				data: { 
-					isValid: false, 
+			const userFriendlyMessage = ErrorHandler.getUserFriendlyMessage(
+				error as Error,
+				request.providerId,
+			);
+
+			sendResponse({
+				success: true,
+				data: {
+					isValid: false,
 					error: userFriendlyMessage,
-					originalError: (error as Error).message
-				} 
+					originalError: (error as Error).message,
+				},
 			});
 		}
 	}

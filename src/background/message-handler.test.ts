@@ -11,12 +11,11 @@ vi.mock("./services/provider-switcher");
 vi.mock("./services/error-handler");
 vi.mock("./services/response-normalizer");
 
+import { ErrorHandler } from "./services/error-handler";
 // Import mocked modules for setup
 import { ProviderFactory } from "./services/provider-factory";
 import { ProviderSwitcher } from "./services/provider-switcher";
-import { ErrorHandler } from "./services/error-handler";
-import { ResponseNormalizer } from "./services/response-normalizer";
-import { ApiKeyStorage } from "../shared/storage/api-key-storage";
+import * as ResponseNormalizer from "./services/response-normalizer";
 
 // Mock Chrome APIs
 global.chrome = {
@@ -50,53 +49,65 @@ describe("MessageHandler", () => {
 		};
 		mockSendResponse = vi.fn();
 		messageHandler = new MessageHandler(mockGeminiClient);
-		
+
 		// Mock fetch to reject (simulating no optimized prompt available)
-		(global.fetch as any).mockRejectedValue(new Error("No optimized prompt available"));
-		
+		(global.fetch as any).mockRejectedValue(
+			new Error("No optimized prompt available"),
+		);
+
 		// Mock Chrome storage for provider selection
 		(global.chrome.storage.local.get as any).mockImplementation((keys) => {
-			if (Array.isArray(keys) && keys.includes('selectedProvider')) {
-				return Promise.resolve({ selectedProvider: 'gemini' });
+			if (Array.isArray(keys) && keys.includes("selectedProvider")) {
+				return Promise.resolve({ selectedProvider: "gemini" });
 			}
-			if (Array.isArray(keys) && keys.includes('geminiApiKey')) {
-				return Promise.resolve({ geminiApiKey: 'test-api-key' });
+			if (Array.isArray(keys) && keys.includes("geminiApiKey")) {
+				return Promise.resolve({ geminiApiKey: "test-api-key" });
 			}
-			if (typeof keys === 'string' && keys === 'selectedProvider') {
-				return Promise.resolve({ selectedProvider: 'gemini' });
+			if (typeof keys === "string" && keys === "selectedProvider") {
+				return Promise.resolve({ selectedProvider: "gemini" });
 			}
-			if (typeof keys === 'string' && keys === 'geminiApiKey') {
-				return Promise.resolve({ geminiApiKey: 'test-api-key' });
+			if (typeof keys === "string" && keys === "geminiApiKey") {
+				return Promise.resolve({ geminiApiKey: "test-api-key" });
 			}
 			return Promise.resolve({});
 		});
-		
+
 		// Mock provider system
 		(ProviderSwitcher.isProviderConfigured as any).mockResolvedValue(true);
-		(ProviderFactory.getDefaultModel as any).mockReturnValue('gemini-2.5-flash');
-		
+		(ProviderFactory.getDefaultModel as any).mockReturnValue(
+			"gemini-2.5-flash",
+		);
+
 		// Mock provider instance
 		const mockProvider = {
 			extractGoldenNuggets: vi.fn().mockResolvedValue({ golden_nuggets: [] }),
 			validateApiKey: vi.fn().mockResolvedValue(true),
 		};
 		(ProviderFactory.createProvider as any).mockResolvedValue(mockProvider);
-		
+
 		// Mock response normalizer
-		(ResponseNormalizer.normalize as any).mockImplementation((response) => response);
-		
+		vi.spyOn(ResponseNormalizer, 'normalize').mockImplementation(
+			(response) => response as any,
+		);
+
 		// Mock error handler
 		(ErrorHandler.resetRetryCount as any).mockImplementation(() => {});
-		
+
 		// Clear all mocks
 		vi.clearAllMocks();
-		
+
 		// Ensure mocks are reset but keep the implementation
-		(global.fetch as any).mockRejectedValue(new Error("No optimized prompt available"));
+		(global.fetch as any).mockRejectedValue(
+			new Error("No optimized prompt available"),
+		);
 		(ProviderSwitcher.isProviderConfigured as any).mockResolvedValue(true);
-		(ProviderFactory.getDefaultModel as any).mockReturnValue('gemini-2.5-flash');
+		(ProviderFactory.getDefaultModel as any).mockReturnValue(
+			"gemini-2.5-flash",
+		);
 		(ProviderFactory.createProvider as any).mockResolvedValue(mockProvider);
-		(ResponseNormalizer.normalize as any).mockImplementation((response) => response);
+		vi.spyOn(ResponseNormalizer, 'normalize').mockImplementation(
+			(response) => response as any,
+		);
 	});
 
 	describe("Source placeholder replacement", () => {
@@ -134,10 +145,11 @@ describe("MessageHandler", () => {
 			}
 
 			// Verify that the provider system was called correctly
-			const mockProvider = await (ProviderFactory.createProvider as any).mock.results[0].value;
+			const mockProvider = await (ProviderFactory.createProvider as any).mock
+				.results[0].value;
 			expect(mockProvider.extractGoldenNuggets).toHaveBeenCalledWith(
 				"Test content",
-				"Analyze this HackerNews thread for insights."
+				"Analyze this HackerNews thread for insights.",
 			);
 		});
 
@@ -156,10 +168,11 @@ describe("MessageHandler", () => {
 			);
 
 			// Verify that the provider system was called correctly
-			const mockProvider = await (ProviderFactory.createProvider as any).mock.results[0].value;
+			const mockProvider = await (ProviderFactory.createProvider as any).mock
+				.results[0].value;
 			expect(mockProvider.extractGoldenNuggets).toHaveBeenCalledWith(
 				"Test content",
-				"Analyze this Reddit thread for insights."
+				"Analyze this Reddit thread for insights.",
 			);
 		});
 
@@ -178,10 +191,11 @@ describe("MessageHandler", () => {
 			);
 
 			// Verify that the provider system was called correctly
-			const mockProvider = await (ProviderFactory.createProvider as any).mock.results[0].value;
+			const mockProvider = await (ProviderFactory.createProvider as any).mock
+				.results[0].value;
 			expect(mockProvider.extractGoldenNuggets).toHaveBeenCalledWith(
 				"Test content",
-				"Analyze this Twitter thread for insights."
+				"Analyze this Twitter thread for insights.",
 			);
 		});
 
@@ -200,10 +214,11 @@ describe("MessageHandler", () => {
 			);
 
 			// Verify that the provider system was called correctly
-			const mockProvider = await (ProviderFactory.createProvider as any).mock.results[0].value;
+			const mockProvider = await (ProviderFactory.createProvider as any).mock
+				.results[0].value;
 			expect(mockProvider.extractGoldenNuggets).toHaveBeenCalledWith(
 				"Test content",
-				"Analyze this Twitter thread for insights."
+				"Analyze this Twitter thread for insights.",
 			);
 		});
 
@@ -222,10 +237,11 @@ describe("MessageHandler", () => {
 			);
 
 			// Verify that the provider system was called correctly
-			const mockProvider = await (ProviderFactory.createProvider as any).mock.results[0].value;
+			const mockProvider = await (ProviderFactory.createProvider as any).mock
+				.results[0].value;
 			expect(mockProvider.extractGoldenNuggets).toHaveBeenCalledWith(
 				"Test content",
-				"Analyze this text for insights."
+				"Analyze this text for insights.",
 			);
 		});
 
@@ -254,10 +270,11 @@ describe("MessageHandler", () => {
 			);
 
 			// Verify that the provider system was called correctly
-			const mockProvider = await (ProviderFactory.createProvider as any).mock.results[0].value;
+			const mockProvider = await (ProviderFactory.createProvider as any).mock
+				.results[0].value;
 			expect(mockProvider.extractGoldenNuggets).toHaveBeenCalledWith(
 				"Test content",
-				"First analyze this HackerNews thread and then review the HackerNews thread again."
+				"First analyze this HackerNews thread and then review the HackerNews thread again.",
 			);
 		});
 
@@ -285,10 +302,11 @@ describe("MessageHandler", () => {
 			);
 
 			// Verify that the provider system was called correctly
-			const mockProvider = await (ProviderFactory.createProvider as any).mock.results[0].value;
+			const mockProvider = await (ProviderFactory.createProvider as any).mock
+				.results[0].value;
 			expect(mockProvider.extractGoldenNuggets).toHaveBeenCalledWith(
 				"Test content",
-				"Analyze this content for insights."
+				"Analyze this content for insights.",
 			);
 		});
 
@@ -317,10 +335,11 @@ describe("MessageHandler", () => {
 			);
 
 			// Verify that the provider system was called correctly
-			const mockProvider = await (ProviderFactory.createProvider as any).mock.results[0].value;
+			const mockProvider = await (ProviderFactory.createProvider as any).mock
+				.results[0].value;
 			expect(mockProvider.extractGoldenNuggets).toHaveBeenCalledWith(
 				"Test content",
-				"Analyze this Reddit thread and this Reddit thread for insights."
+				"Analyze this Reddit thread and this Reddit thread for insights.",
 			);
 		});
 	});
