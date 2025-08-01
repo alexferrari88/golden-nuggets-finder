@@ -348,7 +348,7 @@ function IndexPopup() {
 
 	// Force re-render for elapsed time counter
 	const [, setForceUpdate] = useState(0);
-	const forceUpdate = () => setForceUpdate((prev) => prev + 1);
+	const forceUpdate = useCallback(() => setForceUpdate((prev) => prev + 1), []);
 
 	// Cycling tips during AI thinking
 	const [currentTipIndex, setCurrentTipIndex] = useState(0);
@@ -718,6 +718,7 @@ function IndexPopup() {
 						{truncateErrorMessage(error)}
 					</div>
 					<button
+						type="button"
 						onClick={() => {
 							setError(null);
 							loadPrompts();
@@ -763,6 +764,7 @@ function IndexPopup() {
 				>
 					Please set your {providerName} API key in the{" "}
 					<button
+						type="button"
 						onClick={openOptionsPage}
 						style={{
 							...components.button.ghost,
@@ -1140,6 +1142,7 @@ function IndexPopup() {
 									(Using local mode)
 								</span>
 								<button
+									type="button"
 									onClick={checkBackendStatus}
 									style={{
 										marginLeft: spacing.xs,
@@ -1180,6 +1183,7 @@ function IndexPopup() {
 						<span>{formatModelName(currentProvider, currentModel)}</span>
 					)}
 					<button
+						type="button"
 						onClick={openOptionsPage}
 						style={{
 							fontSize: typography.fontSize.xs,
@@ -1206,6 +1210,7 @@ function IndexPopup() {
 					}}
 				>
 					<button
+						type="button"
 						onClick={() => setSelectionMode("quick")}
 						style={{
 							flex: 1,
@@ -1230,6 +1235,7 @@ function IndexPopup() {
 						Quick Analysis
 					</button>
 					<button
+						type="button"
 						onClick={() => setSelectionMode("custom")}
 						style={{
 							flex: 1,
@@ -1365,7 +1371,8 @@ function IndexPopup() {
 					}}
 				>
 					{prompts.map((prompt) => (
-						<div
+						<button
+							type="button"
 							key={prompt.id}
 							data-testid="prompt-item"
 							onClick={() =>
@@ -1448,7 +1455,7 @@ function IndexPopup() {
 									<Star size={16} />
 								</span>
 							)}
-						</div>
+						</button>
 					))}
 				</div>
 			</div>
@@ -1462,6 +1469,7 @@ function IndexPopup() {
 				}}
 			>
 				<button
+					type="button"
 					onClick={openOptionsPage}
 					style={{
 						...components.button.ghost,
