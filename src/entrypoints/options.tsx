@@ -270,7 +270,6 @@ const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
 };
 
 function OptionsPage() {
-	const [apiKey, setApiKey] = useState("");
 	const [apiKeyStatus, setApiKeyStatus] = useState<{
 		type: AlertType;
 		title: string;
@@ -287,7 +286,6 @@ function OptionsPage() {
 		name?: string;
 		prompt?: string;
 	}>({});
-	const [isValidating, setIsValidating] = useState(false);
 	const [confirmDialog, setConfirmDialog] = useState<{
 		isOpen: boolean;
 		title: string;
@@ -317,16 +315,10 @@ function OptionsPage() {
 	const loadData = useCallback(async () => {
 		try {
 			setLoading(true);
-			const [savedApiKey, savedPrompts, storageData] = await Promise.all([
-				storage.getApiKey({
-					source: "options",
-					action: "read",
-					timestamp: Date.now(),
-				}),
+			const [savedPrompts, storageData] = await Promise.all([
 				storage.getPrompts(),
 				chrome.storage.local.get(["selectedProvider"]),
 			]);
-			setApiKey(savedApiKey);
 			setPrompts(savedPrompts);
 			setSelectedProvider(storageData.selectedProvider || "gemini");
 
@@ -339,7 +331,12 @@ function OptionsPage() {
 			];
 			const keyPromises = providers.map(async (providerId) => {
 				if (providerId === "gemini") {
-					return { providerId, key: savedApiKey };
+					const key = await storage.getApiKey({
+						source: "options",
+						action: "read",
+						timestamp: Date.now(),
+					});
+					return { providerId, key };
 				} else {
 					const key = await ApiKeyStorage.get(providerId);
 					return { providerId, key: key || "" };
@@ -375,60 +372,6 @@ function OptionsPage() {
 		loadData();
 	}, [loadData]);
 
-	const saveApiKey = async () => {
-		if (!apiKey.trim()) {
-			setApiKeyStatus({
-				type: "error",
-				title: "API Key Required",
-				message: "Please enter your Gemini API key",
-			});
-			return;
-		}
-
-		try {
-			setIsValidating(true);
-			setApiKeyStatus({
-				type: "info",
-				title: "Validating...",
-				message: "Checking your API key with Google Gemini",
-			});
-
-			const client = new GeminiClient();
-			await client.validateApiKey(apiKey);
-
-			await storage.saveApiKey(apiKey, {
-				source: "options",
-				action: "write",
-				timestamp: Date.now(),
-			});
-			
-			// Set validation status for Gemini
-			setValidationStatus((prev) => ({ ...prev, gemini: true }));
-			
-			setApiKeyStatus({
-				type: "success",
-				title: "API Key Saved",
-				message: "Your API key has been validated and saved successfully",
-			});
-
-			// Fetch available models after successful validation
-			await fetchModelsForProvider("gemini", apiKey);
-
-			setTimeout(() => setApiKeyStatus(null), 5000);
-		} catch (_err) {
-			// Set validation status for Gemini to false
-			setValidationStatus((prev) => ({ ...prev, gemini: false }));
-			
-			setApiKeyStatus({
-				type: "error",
-				title: "Invalid API Key",
-				message:
-					"The API key is invalid or doesn't have the required permissions. Please check your key and try again.",
-			});
-		} finally {
-			setIsValidating(false);
-		}
-	};
 
 	const validatePromptForm = () => {
 		const errors: { name?: string; prompt?: string } = {};
@@ -529,35 +472,17 @@ function OptionsPage() {
 	};
 
 	// Provider helper functions
-	const getCostEstimate = (providerId: ProviderId) => {
-		const costInfo = {
-			gemini: { perRequest: 0.001, description: "Cheapest option" },
-			openai: { perRequest: 0.01, description: "Higher quality" },
-			anthropic: { perRequest: 0.008, description: "Good balance" },
-			openrouter: { perRequest: 0.005, description: "Varies by model" },
-		};
-		return costInfo[providerId];
-	};
 
 	const getProviderDisplayName = (providerId: ProviderId) => {
 		const names = {
 			gemini: "Google Gemini",
-			openai: "OpenAI GPT",
-			anthropic: "Anthropic Claude",
+			openai: "OpenAI",
+			anthropic: "Anthropic",
 			openrouter: "OpenRouter",
 		};
 		return names[providerId];
 	};
 
-	const getProviderDescription = (providerId: ProviderId) => {
-		const descriptions = {
-			gemini: "Fast, reliable, low cost",
-			openai: "High quality, industry standard",
-			anthropic: "Safe, helpful responses",
-			openrouter: "Access to many models",
-		};
-		return descriptions[providerId];
-	};
 
 	const handleProviderChange = async (providerId: ProviderId) => {
 		setSelectedProvider(providerId);
@@ -571,7 +496,15 @@ function OptionsPage() {
 		setValidationStatus((prev) => ({ ...prev, [providerId]: null }));
 
 		if (apiKey) {
-			await ApiKeyStorage.store(providerId, apiKey);
+			if (providerId === "gemini") {
+				await storage.saveApiKey(apiKey, {
+					source: "options",
+					action: "write",
+					timestamp: Date.now(),
+				});
+			} else {
+				await ApiKeyStorage.store(providerId, apiKey);
+			}
 		}
 	};
 
@@ -939,8 +872,6 @@ function OptionsPage() {
 							["gemini", "openai", "anthropic", "openrouter"] as ProviderId[]
 						).map((providerId) => {
 							const isSelected = selectedProvider === providerId;
-							const cost = getCostEstimate(providerId);
-							const monthlyEstimate = cost.perRequest * 100; // Assume 100 requests/month
 							const hasApiKey = Boolean(apiKeys[providerId]);
 							const validationResult = validationStatus[providerId];
 
@@ -985,7 +916,6 @@ function OptionsPage() {
 													display: "flex",
 													alignItems: "center",
 													gap: spacing.sm,
-													marginBottom: spacing.sm,
 												}}
 											>
 												<h3
@@ -1009,34 +939,6 @@ function OptionsPage() {
 													</div>
 												)}
 											</div>
-
-											<p
-												style={{
-													margin: `0 0 ${spacing.sm} 0`,
-													color: colors.text.secondary,
-													fontSize: typography.fontSize.sm,
-												}}
-											>
-												{getProviderDescription(providerId)}
-											</p>
-
-											<div
-												style={{
-													padding: spacing.sm,
-													backgroundColor: colors.background.secondary,
-													borderRadius: borderRadius.md,
-													fontSize: typography.fontSize.xs,
-													color: colors.text.tertiary,
-												}}
-											>
-												<div>~${cost.perRequest.toFixed(3)} per request</div>
-												<div>
-													~${monthlyEstimate.toFixed(2)}/month for 100 requests
-												</div>
-												<div style={{ marginTop: "4px", fontStyle: "italic" }}>
-													{cost.description}
-												</div>
-											</div>
 										</div>
 									</div>
 								</div>
@@ -1045,7 +947,7 @@ function OptionsPage() {
 					</div>
 
 					{/* API Key Configuration for selected provider */}
-					{selectedProvider !== "gemini" && (
+					{(
 						<div
 							style={{
 								padding: spacing.lg,
@@ -1230,176 +1132,6 @@ function OptionsPage() {
 					)}
 				</div>
 
-				{/* API Key Section (Gemini only when selected) */}
-				{selectedProvider === "gemini" && (
-					<div
-						style={{
-							marginBottom: spacing["3xl"],
-							backgroundColor: colors.background.primary,
-							padding: spacing["3xl"],
-							borderRadius: borderRadius.xl,
-							boxShadow: shadows.md,
-							border: `1px solid ${colors.border.light}`,
-						}}
-					>
-						<div
-							style={{
-								display: "flex",
-								alignItems: "center",
-								gap: spacing.md,
-								marginBottom: spacing["2xl"],
-							}}
-						>
-							<div style={{ color: colors.text.accent }}>
-								<Key size={20} />
-							</div>
-							<h2
-								style={{
-									margin: 0,
-									fontSize: typography.fontSize.xl,
-									fontWeight: typography.fontWeight.semibold,
-									color: colors.text.primary,
-								}}
-							>
-								Google Gemini API Key
-							</h2>
-						</div>
-
-						<div
-							style={{
-								marginBottom: spacing["2xl"],
-								padding: spacing.lg,
-								backgroundColor: colors.background.secondary,
-								borderRadius: borderRadius.lg,
-								border: `1px solid ${colors.border.light}`,
-							}}
-						>
-							<p
-								style={{
-									margin: `0 0 ${spacing.md} 0`,
-									fontSize: typography.fontSize.sm,
-									color: colors.text.secondary,
-									fontWeight: typography.fontWeight.medium,
-								}}
-							>
-								<Lock
-									size={16}
-									style={{ display: "inline", marginRight: "8px" }}
-								/>
-								Your API key is stored securely in your browser and never shared
-							</p>
-							<p
-								style={{
-									margin: `0 0 ${spacing.md} 0`,
-									fontSize: typography.fontSize.sm,
-									color: colors.text.tertiary,
-									lineHeight: typography.lineHeight.normal,
-								}}
-							>
-								You'll need a Google Gemini API key to use this extension. The
-								key is used to analyze webpage content and find valuable
-								insights.
-							</p>
-							<div
-								style={{
-									display: "flex",
-									alignItems: "center",
-									gap: spacing.sm,
-									fontSize: typography.fontSize.sm,
-									color: colors.text.accent,
-								}}
-							>
-								<span>Get your free API key from Google AI Studio</span>
-								<a
-									href="https://aistudio.google.com/app/apikey"
-									target="_blank"
-									rel="noopener noreferrer"
-									style={{
-										color: colors.text.accent,
-										textDecoration: "none",
-										display: "flex",
-										alignItems: "center",
-									}}
-								>
-									<ExternalLink size={16} />
-								</a>
-							</div>
-						</div>
-
-						<div
-							style={{
-								display: "flex",
-								gap: spacing.md,
-								alignItems: "stretch",
-								marginBottom: spacing.lg,
-							}}
-						>
-							<input
-								type="password"
-								value={apiKey}
-								onChange={(e) => setApiKey(e.target.value)}
-								placeholder="Enter your Gemini API key (e.g., AIzaSyC...)"
-								style={{
-									...components.input.default,
-									flex: 1,
-									fontSize: typography.fontSize.base,
-									color: colors.text.primary,
-									fontFamily: typography.fontFamily.sans,
-								}}
-								onFocus={(e) =>
-									(e.target.style.borderColor = colors.text.accent)
-								}
-								onBlur={(e) =>
-									(e.target.style.borderColor = colors.border.default)
-								}
-							/>
-							<button
-								onClick={saveApiKey}
-								disabled={isValidating}
-								style={{
-									...components.button.primary,
-									backgroundColor: isValidating
-										? colors.text.secondary
-										: colors.text.accent,
-									cursor: isValidating ? "not-allowed" : "pointer",
-									fontSize: typography.fontSize.base,
-									fontWeight: typography.fontWeight.semibold,
-									minWidth: "120px",
-									display: "flex",
-									alignItems: "center",
-									justifyContent: "center",
-									gap: spacing.sm,
-								}}
-								onMouseEnter={(e) => {
-									if (!isValidating)
-										e.currentTarget.style.backgroundColor = colors.text.accent;
-								}}
-								onMouseLeave={(e) => {
-									if (!isValidating)
-										e.currentTarget.style.backgroundColor = colors.text.accent;
-								}}
-							>
-								{isValidating ? (
-									<>
-										<div
-											style={{
-												width: "16px",
-												height: "16px",
-												border: `2px solid ${colors.background.primary}40`,
-												borderTop: `2px solid ${colors.background.primary}`,
-												borderRadius: "50%",
-												animation: "spin 1s linear infinite",
-											}}
-										/>
-										Validating...
-									</>
-								) : (
-									"Save API Key"
-								)}
-							</button>
-						</div>
-					</div>
-				)}
 
 				{/* Prompts Section */}
 				<div
