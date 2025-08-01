@@ -52,6 +52,20 @@ function truncateErrorMessage(message: string, maxLength: number = 200): string 
 	return truncated + '... [truncated]';
 }
 
+// Utility function to format model names for display
+function formatModelName(provider: string, model: string): string {
+	// Remove provider prefix if it's redundant
+	const providerLower = provider.toLowerCase();
+	const modelLower = model.toLowerCase();
+	
+	if (modelLower.startsWith(providerLower)) {
+		const withoutPrefix = model.substring(provider.length).replace(/^[-_]/, '');
+		return withoutPrefix || model; // Fallback to original if result is empty
+	}
+	
+	return model;
+}
+
 // Custom hook for typing effect
 const useTypingEffect = (text: string, speed: number = 80) => {
 	const [displayText, setDisplayText] = useState("");
@@ -894,62 +908,7 @@ function IndexPopup() {
 					Golden Nugget Finder
 				</h1>
 
-				{/* Backend Status Indicator */}
-				{backendStatus !== "unknown" && (
-					<div
-						style={{
-							display: "flex",
-							alignItems: "center",
-							justifyContent: "center",
-							gap: spacing.xs,
-							marginBottom: spacing.md,
-							fontSize: typography.fontSize.xs,
-							color: colors.text.secondary,
-						}}
-					>
-						<div
-							style={{
-								width: "6px",
-								height: "6px",
-								borderRadius: "50%",
-								backgroundColor:
-									backendStatus === "available" ? colors.success : colors.error,
-							}}
-						/>
-						Backend: {backendStatus === "available" ? "Connected" : "Offline"}
-						{backendStatus === "unavailable" && (
-							<>
-								<span
-									style={{
-										fontSize: typography.fontSize.xs,
-										color: colors.text.secondary,
-									}}
-								>
-									{" "}
-									(Using local mode)
-								</span>
-								<button
-									onClick={checkBackendStatus}
-									style={{
-										marginLeft: spacing.xs,
-										fontSize: typography.fontSize.xs,
-										padding: "2px 6px",
-										backgroundColor: "transparent",
-										color: colors.text.accent,
-										border: `1px solid ${colors.text.accent}`,
-										borderRadius: "3px",
-										cursor: "pointer",
-									}}
-									title="Retry backend connection"
-								>
-									Retry
-								</button>
-							</>
-						)}
-					</div>
-				)}
-
-				{/* Provider & Model Display */}
+				{/* Integrated Status Line */}
 				<div
 					style={{
 						display: "flex",
@@ -959,32 +918,66 @@ function IndexPopup() {
 						marginBottom: spacing.md,
 						fontSize: typography.fontSize.xs,
 						color: colors.text.secondary,
+						flexWrap: "wrap",
 					}}
 				>
+					{/* Backend Status */}
+					{backendStatus !== "unknown" && (
+						<>
+							<div
+								style={{
+									width: "6px",
+									height: "6px",
+									borderRadius: "50%",
+									backgroundColor:
+										backendStatus === "available" ? colors.success : colors.error,
+								}}
+							/>
+							<span>
+								Backend: {backendStatus === "available" ? "Connected" : "Offline"}
+							</span>
+							{backendStatus === "unavailable" && (
+								<button
+									onClick={checkBackendStatus}
+									style={{
+										fontSize: typography.fontSize.xs,
+										padding: "1px 4px",
+										backgroundColor: "transparent",
+										color: colors.text.accent,
+										border: `1px solid ${colors.text.accent}`,
+										borderRadius: "2px",
+										cursor: "pointer",
+									}}
+									title="Retry backend connection"
+								>
+									Retry
+								</button>
+							)}
+							<span style={{ color: colors.text.tertiary }}>|</span>
+						</>
+					)}
+					
+					{/* AI Provider Info */}
+					<span>🤖</span>
 					<span>
 						{currentProvider.charAt(0).toUpperCase() + currentProvider.slice(1)}
 					</span>
 					{currentModel && (
-						<>
-							<span>•</span>
-							<span>{currentModel}</span>
-						</>
+						<span>{formatModelName(currentProvider, currentModel)}</span>
 					)}
 					<button
 						onClick={openOptionsPage}
 						style={{
-							marginLeft: spacing.xs,
 							fontSize: typography.fontSize.xs,
-							padding: "2px 6px",
+							padding: "1px 4px",
 							backgroundColor: "transparent",
 							color: colors.text.accent,
-							border: `1px solid ${colors.text.accent}`,
-							borderRadius: "3px",
+							border: "none",
 							cursor: "pointer",
 						}}
 						title="Change provider and model"
 					>
-						Change
+						⚙️
 					</button>
 				</div>
 
