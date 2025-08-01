@@ -10,17 +10,27 @@ test.describe("Golden Nuggets API Integration", () => {
 		const optionsPage = await context.newPage();
 		await optionsPage.goto(`chrome-extension://${extensionId}/options.html`);
 
-		// Wait for page to load - look for the API key input field
+		// Wait for page to load completely
+		await optionsPage.waitForLoadState("networkidle");
+		
+		// Wait for the API key input field to be visible
 		await optionsPage.waitForSelector('input[type="password"]', {
 			timeout: 10000,
 		});
 
-		// Configure API key
+		// Configure API key (auto-saves when entered)
 		await optionsPage.fill('input[type="password"]', testApiKey);
-		await optionsPage.click('button:has-text("Save API Key")');
+		
+		// Trigger blur to ensure auto-save happens
+		await optionsPage.locator('input[type="password"]').blur();
 
-		// Wait for save result (either success or error message)
-		await optionsPage.waitForTimeout(2000); // Give it time to process
+		// Optionally validate the API key if needed for tests
+		const validateButton = optionsPage.locator('button:has-text("Validate API Key")');
+		if (await validateButton.count() > 0) {
+			await validateButton.click();
+			// Wait for validation to complete
+			await optionsPage.waitForTimeout(3000);
+		}
 
 		await optionsPage.close();
 	});
