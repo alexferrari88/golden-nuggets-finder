@@ -1,11 +1,15 @@
 import {
 	type AnalysisProgressMessage,
 	type AnalysisRequest,
+	type AnalysisResponse,
 	type DebugLogMessage,
+	type GoldenNugget,
+	type GeminiResponse,
 	MESSAGE_TYPES,
 	type RateLimitedMessage,
 	type RetryingMessage,
 	type TypeFilterOptions,
+	type ProviderId,
 } from "../shared/types";
 
 // Utility function to generate unique analysis IDs
@@ -18,6 +22,61 @@ import {
 	type Content,
 	ContentScraper,
 } from "threads-harvester";
+
+// Type definitions for content script functionality
+interface MessageHandler {
+	(request: ContentScriptMessage, sender: chrome.runtime.MessageSender, sendResponse: (response: ContentScriptResponse) => void): Promise<void>;
+}
+
+interface ContentScriptMessage {
+	type: string;
+	promptId?: string;
+	source?: string;
+	analysisId?: string;
+	typeFilter?: TypeFilterOptions;
+	selectedText?: string;
+	url?: string;
+	data?: unknown;
+	error?: string;
+	message?: string;
+	fromContentScript?: boolean;
+}
+
+interface ContentScriptResponse {
+	success: boolean;
+	data?: unknown;
+	error?: string;
+}
+
+interface AnalysisResults {
+	golden_nuggets?: GoldenNugget[];
+	data?: {
+		golden_nuggets?: GoldenNugget[];
+	};
+	nuggets?: GoldenNugget[];
+	providerMetadata?: {
+		providerId: ProviderId;
+		modelName: string;
+		responseTime: number;
+	};
+}
+
+interface CustomAnalyzeEvent extends CustomEvent {
+	detail: {
+		promptId: string;
+	};
+}
+
+interface BackgroundMessageRequest {
+	type: string;
+	[key: string]: unknown;
+}
+
+interface BackgroundMessageResponse {
+	success: boolean;
+	data?: unknown;
+	error?: string;
+}
 import { UIManager } from "../content/ui/ui-manager";
 import { isDevMode } from "../shared/debug";
 import {
@@ -300,14 +359,14 @@ export default defineContentScript({
 
 		// Listen for analysis requests from popup
 		document.addEventListener("nugget-analyze", (event: Event) => {
-			const customEvent = event as CustomEvent;
+			const customEvent = event as CustomAnalyzeEvent;
 			analyzeContent(customEvent.detail.promptId);
 		});
 
 		async function handleMessage(
-			request: any,
+			request: ContentScriptMessage,
 			_sender: chrome.runtime.MessageSender,
-			sendResponse: (response: any) => void,
+			sendResponse: (response: ContentScriptResponse) => void,
 		): Promise<void> {
 			try {
 				switch (request.type) {
@@ -338,7 +397,7 @@ export default defineContentScript({
 						initialize(); // Initialize when needed
 						if (request.data) {
 							await measureDOMOperation("display_results", () =>
-								handleAnalysisResults(request.data),
+								handleAnalysisResults(request.data as AnalysisResults),
 							);
 						}
 						// Exit selection mode if it was active (for selected content analysis)
@@ -373,13 +432,13 @@ export default defineContentScript({
 
 					case MESSAGE_TYPES.SHOW_ERROR:
 						// No need to initialize for error display
-						uiManager.showErrorBanner(request.message);
+						uiManager.showErrorBanner(request.message || "An error occurred");
 						sendResponse({ success: true });
 						break;
 
 					case MESSAGE_TYPES.SHOW_INFO:
 						// No need to initialize for info display
-						uiManager.showInfoBanner(request.message);
+						uiManager.showInfoBanner(request.message || "Information");
 						sendResponse({ success: true });
 						break;
 
@@ -391,8 +450,8 @@ export default defineContentScript({
 
 					case MESSAGE_TYPES.DEBUG_LOG:
 						// Handle debug log forwarding to page console (development mode only)
-						if (isDevMode()) {
-							handleDebugLog(request.data);
+						if (isDevMode() && request.data) {
+							handleDebugLog(request.data as DebugLogMessage);
 						}
 						sendResponse({ success: true });
 						break;
@@ -407,7 +466,8 @@ export default defineContentScript({
 				}
 			} catch (error) {
 				console.error("Error handling message:", error);
-				sendResponse({ success: false, error: (error as Error).message });
+				const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
+				sendResponse({ success: false, error: errorMessage });
 			}
 		}
 
@@ -473,7 +533,7 @@ export default defineContentScript({
 
 				if (response.success && response.data) {
 					await measureDOMOperation("display_results", () =>
-						handleAnalysisResults(response.data, source),
+						handleAnalysisResults(response.data as AnalysisResults, source),
 					);
 					// Notify popup and background script of successful completion
 					chrome.runtime.sendMessage({
@@ -604,7 +664,7 @@ export default defineContentScript({
 		}
 
 		async function handleAnalysisResults(
-			results: any,
+			results: AnalysisResults,
 			source?: string,
 		): Promise<void> {
 			// Debug logging to identify the issue
@@ -630,14 +690,12 @@ export default defineContentScript({
 			}
 
 			// Try multiple possible data structures
-			let nuggets: any[] = [];
+			let nuggets: GoldenNugget[] = [];
 			if (Array.isArray(results.golden_nuggets)) {
 				nuggets = results.golden_nuggets;
-			} else if (Array.isArray(results)) {
-				nuggets = results;
-			} else if (results && Array.isArray(results.data?.golden_nuggets)) {
+			} else if (Array.isArray(results.data?.golden_nuggets)) {
 				nuggets = results.data.golden_nuggets;
-			} else if (results && Array.isArray(results.nuggets)) {
+			} else if (Array.isArray(results.nuggets)) {
 				nuggets = results.nuggets;
 			}
 
@@ -665,7 +723,11 @@ export default defineContentScript({
 				console.warn("[Content Script] No nuggets found, showing empty state");
 				uiManager.showNoResultsBanner();
 				// Still show sidebar with empty state for better UX
-				await uiManager.displayResults([], extractedPageContent || undefined, providerMetadata);
+				await uiManager.displayResults(
+					[],
+					extractedPageContent || undefined,
+					providerMetadata,
+				);
 				return;
 			}
 
@@ -682,10 +744,14 @@ export default defineContentScript({
 			);
 		}
 
-		function sendMessageToBackground(type: string, data?: any): Promise<any> {
+		function sendMessageToBackground(
+			type: string,
+			data?: BackgroundMessageRequest,
+		): Promise<BackgroundMessageResponse> {
 			return new Promise((resolve) => {
-				chrome.runtime.sendMessage({ type, ...data }, (response) => {
-					resolve(response);
+				const message: BackgroundMessageRequest = { type, ...data };
+				chrome.runtime.sendMessage(message, (response: BackgroundMessageResponse) => {
+					resolve(response || { success: false, error: "No response received" });
 				});
 			});
 		}
