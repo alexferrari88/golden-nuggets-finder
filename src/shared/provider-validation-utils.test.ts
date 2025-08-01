@@ -2,7 +2,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
 	ProviderConfigurationError,
 	type ProviderValidationResult,
-	ProviderValidationUtils,
+	requireConfiguredProvider,
+	validateCurrentProvider,
 } from "./provider-validation-utils";
 
 // Mock the provider services
@@ -25,7 +26,7 @@ const mockGetSelectedModel = vi.mocked(getSelectedModel);
 const mockGetCurrentProvider = vi.mocked(getCurrentProvider);
 const mockIsProviderConfigured = vi.mocked(isProviderConfigured);
 
-describe("ProviderValidationUtils", () => {
+describe("provider validation utilities", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 	});
@@ -37,7 +38,7 @@ describe("ProviderValidationUtils", () => {
 			mockIsProviderConfigured.mockResolvedValue(true);
 
 			const result: ProviderValidationResult =
-				await ProviderValidationUtils.validateCurrentProvider();
+				await validateCurrentProvider();
 
 			expect(result).toEqual({
 				isConfigured: true,
@@ -52,7 +53,7 @@ describe("ProviderValidationUtils", () => {
 			mockIsProviderConfigured.mockResolvedValue(false);
 
 			const result: ProviderValidationResult =
-				await ProviderValidationUtils.validateCurrentProvider();
+				await validateCurrentProvider();
 
 			expect(result).toEqual({
 				isConfigured: false,
@@ -69,7 +70,7 @@ describe("ProviderValidationUtils", () => {
 			mockIsProviderConfigured.mockResolvedValue(false);
 
 			const result: ProviderValidationResult =
-				await ProviderValidationUtils.validateCurrentProvider();
+				await validateCurrentProvider();
 
 			expect(result).toEqual({
 				isConfigured: false,
@@ -85,7 +86,7 @@ describe("ProviderValidationUtils", () => {
 			mockIsProviderConfigured.mockRejectedValue(new Error("Service 3 failed"));
 
 			const result: ProviderValidationResult =
-				await ProviderValidationUtils.validateCurrentProvider();
+				await validateCurrentProvider();
 
 			expect(result.isConfigured).toBe(false);
 			expect(result.provider).toBe("gemini");
@@ -98,7 +99,7 @@ describe("ProviderValidationUtils", () => {
 			mockIsProviderConfigured.mockResolvedValue(true);
 
 			const startTime = Date.now();
-			await ProviderValidationUtils.validateCurrentProvider();
+			await validateCurrentProvider();
 			const endTime = Date.now();
 
 			// Should complete quickly since services run in parallel
@@ -116,7 +117,7 @@ describe("ProviderValidationUtils", () => {
 			mockIsProviderConfigured.mockResolvedValue(true);
 
 			const result: ProviderValidationResult =
-				await ProviderValidationUtils.requireConfiguredProvider();
+				await requireConfiguredProvider();
 
 			expect(result).toEqual({
 				isConfigured: true,
@@ -131,11 +132,11 @@ describe("ProviderValidationUtils", () => {
 			mockIsProviderConfigured.mockResolvedValue(false);
 
 			await expect(
-				ProviderValidationUtils.requireConfiguredProvider(),
+				requireConfiguredProvider(),
 			).rejects.toThrow(ProviderConfigurationError);
 
 			await expect(
-				ProviderValidationUtils.requireConfiguredProvider(),
+				requireConfiguredProvider(),
 			).rejects.toThrow(
 				"Provider anthropic is not configured. Please set up your API key.",
 			);
@@ -147,7 +148,7 @@ describe("ProviderValidationUtils", () => {
 			mockIsProviderConfigured.mockResolvedValue(false);
 
 			try {
-				await ProviderValidationUtils.requireConfiguredProvider();
+				await requireConfiguredProvider();
 				fail("Should have thrown ProviderConfigurationError");
 			} catch (error) {
 				expect(error).toBeInstanceOf(ProviderConfigurationError);
@@ -163,7 +164,7 @@ describe("ProviderValidationUtils", () => {
 			);
 
 			await expect(
-				ProviderValidationUtils.requireConfiguredProvider(),
+				requireConfiguredProvider(),
 			).rejects.toThrow(ProviderConfigurationError);
 		});
 	});

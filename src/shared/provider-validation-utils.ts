@@ -41,62 +41,57 @@ export class ProviderConfigurationError extends Error {
 }
 
 /**
- * Provider validation utility functions
+ * Validates the current provider configuration
+ * Consolidates provider checking logic from popup.tsx and background.ts
+ *
+ * @returns Promise<ProviderValidationResult> Complete provider validation info
  */
-export class ProviderValidationUtils {
-	/**
-	 * Validates the current provider configuration
-	 * Consolidates provider checking logic from popup.tsx and background.ts
-	 *
-	 * @returns Promise<ProviderValidationResult> Complete provider validation info
-	 */
-	static async validateCurrentProvider(): Promise<ProviderValidationResult> {
-		try {
-			// Get all provider information in parallel for efficiency
-			const provider = await getCurrentProvider();
-			const [model, isConfigured] = await Promise.all([
-				getSelectedModel(provider),
-				isProviderConfigured(provider),
-			]);
+export async function validateCurrentProvider(): Promise<ProviderValidationResult> {
+	try {
+		// Get all provider information in parallel for efficiency
+		const provider = await getCurrentProvider();
+		const [model, isConfigured] = await Promise.all([
+			getSelectedModel(provider),
+			isProviderConfigured(provider),
+		]);
 
-			return {
-				isConfigured,
-				provider,
-				model,
-			};
-		} catch (error) {
-			const errorMessage =
-				error instanceof Error
-					? error.message
-					: "Unknown provider validation error";
-			console.error("[ProviderValidation] Failed to validate provider:", error);
+		return {
+			isConfigured,
+			provider,
+			model,
+		};
+	} catch (error) {
+		const errorMessage =
+			error instanceof Error
+				? error.message
+				: "Unknown provider validation error";
+		console.error("[ProviderValidation] Failed to validate provider:", error);
 
-			return {
-				isConfigured: false,
-				provider: "gemini", // fallback to default
-				model: "",
-				error: errorMessage,
-			};
-		}
+		return {
+			isConfigured: false,
+			provider: "gemini", // fallback to default
+			model: "",
+			error: errorMessage,
+		};
+	}
+}
+
+/**
+ * Validates provider configuration and throws error if not configured
+ * Useful for operations that require a configured provider
+ *
+ * @throws {ProviderConfigurationError} When provider is not configured
+ * @returns Promise<ProviderValidationResult> Validated provider info
+ */
+export async function requireConfiguredProvider(): Promise<ProviderValidationResult> {
+	const result = await validateCurrentProvider();
+
+	if (!result.isConfigured) {
+		throw new ProviderConfigurationError(
+			`Provider ${result.provider} is not configured. Please set up your API key.`,
+			result.provider,
+		);
 	}
 
-	/**
-	 * Validates provider configuration and throws error if not configured
-	 * Useful for operations that require a configured provider
-	 *
-	 * @throws {ProviderConfigurationError} When provider is not configured
-	 * @returns Promise<ProviderValidationResult> Validated provider info
-	 */
-	static async requireConfiguredProvider(): Promise<ProviderValidationResult> {
-		const result = await ProviderValidationUtils.validateCurrentProvider();
-
-		if (!result.isConfigured) {
-			throw new ProviderConfigurationError(
-				`Provider ${result.provider} is not configured. Please set up your API key.`,
-				result.provider,
-			);
-		}
-
-		return result;
-	}
+	return result;
 }
