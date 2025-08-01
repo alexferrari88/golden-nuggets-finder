@@ -42,6 +42,7 @@ describe("MessageHandler", () => {
 		analyzeContent: ReturnType<typeof vi.fn>;
 	};
 	let mockSendResponse: ReturnType<typeof vi.fn>;
+	let mockProvider: any;
 
 	beforeEach(() => {
 		mockGeminiClient = {
@@ -79,7 +80,7 @@ describe("MessageHandler", () => {
 		);
 
 		// Mock provider instance
-		const mockProvider = {
+		mockProvider = {
 			extractGoldenNuggets: vi.fn().mockResolvedValue({ golden_nuggets: [] }),
 			validateApiKey: vi.fn().mockResolvedValue(true),
 		};
@@ -96,6 +97,12 @@ describe("MessageHandler", () => {
 		// Clear all mocks
 		vi.clearAllMocks();
 
+		// Re-initialize mockProvider after clearAllMocks
+		mockProvider = {
+			extractGoldenNuggets: vi.fn().mockResolvedValue({ golden_nuggets: [] }),
+			validateApiKey: vi.fn().mockResolvedValue(true),
+		};
+
 		// Ensure mocks are reset but keep the implementation
 		(global.fetch as any).mockRejectedValue(
 			new Error("No optimized prompt available"),
@@ -108,6 +115,19 @@ describe("MessageHandler", () => {
 		vi.spyOn(ResponseNormalizer, 'normalize').mockImplementation(
 			(response) => response as any,
 		);
+
+		// Mock storage.getPrompts with default prompts
+		(storage.getPrompts as ReturnType<typeof vi.fn>).mockResolvedValue([
+			{
+				id: "test-prompt",
+				name: "Test Prompt",
+				prompt: "Analyze this {{ source }} for insights.",
+				isDefault: true,
+			},
+		]);
+
+		// Mock storage.getApiKey
+		(storage.getApiKey as ReturnType<typeof vi.fn>).mockResolvedValue("test-api-key");
 	});
 
 	describe("Source placeholder replacement", () => {
@@ -145,8 +165,6 @@ describe("MessageHandler", () => {
 			}
 
 			// Verify that the provider system was called correctly
-			const mockProvider = await (ProviderFactory.createProvider as any).mock
-				.results[0].value;
 			expect(mockProvider.extractGoldenNuggets).toHaveBeenCalledWith(
 				"Test content",
 				"Analyze this HackerNews thread for insights.",
@@ -168,8 +186,6 @@ describe("MessageHandler", () => {
 			);
 
 			// Verify that the provider system was called correctly
-			const mockProvider = await (ProviderFactory.createProvider as any).mock
-				.results[0].value;
 			expect(mockProvider.extractGoldenNuggets).toHaveBeenCalledWith(
 				"Test content",
 				"Analyze this Reddit thread for insights.",
@@ -191,8 +207,6 @@ describe("MessageHandler", () => {
 			);
 
 			// Verify that the provider system was called correctly
-			const mockProvider = await (ProviderFactory.createProvider as any).mock
-				.results[0].value;
 			expect(mockProvider.extractGoldenNuggets).toHaveBeenCalledWith(
 				"Test content",
 				"Analyze this Twitter thread for insights.",
@@ -214,8 +228,6 @@ describe("MessageHandler", () => {
 			);
 
 			// Verify that the provider system was called correctly
-			const mockProvider = await (ProviderFactory.createProvider as any).mock
-				.results[0].value;
 			expect(mockProvider.extractGoldenNuggets).toHaveBeenCalledWith(
 				"Test content",
 				"Analyze this Twitter thread for insights.",
@@ -237,8 +249,6 @@ describe("MessageHandler", () => {
 			);
 
 			// Verify that the provider system was called correctly
-			const mockProvider = await (ProviderFactory.createProvider as any).mock
-				.results[0].value;
 			expect(mockProvider.extractGoldenNuggets).toHaveBeenCalledWith(
 				"Test content",
 				"Analyze this text for insights.",
@@ -270,8 +280,6 @@ describe("MessageHandler", () => {
 			);
 
 			// Verify that the provider system was called correctly
-			const mockProvider = await (ProviderFactory.createProvider as any).mock
-				.results[0].value;
 			expect(mockProvider.extractGoldenNuggets).toHaveBeenCalledWith(
 				"Test content",
 				"First analyze this HackerNews thread and then review the HackerNews thread again.",
@@ -302,8 +310,6 @@ describe("MessageHandler", () => {
 			);
 
 			// Verify that the provider system was called correctly
-			const mockProvider = await (ProviderFactory.createProvider as any).mock
-				.results[0].value;
 			expect(mockProvider.extractGoldenNuggets).toHaveBeenCalledWith(
 				"Test content",
 				"Analyze this content for insights.",
@@ -335,8 +341,6 @@ describe("MessageHandler", () => {
 			);
 
 			// Verify that the provider system was called correctly
-			const mockProvider = await (ProviderFactory.createProvider as any).mock
-				.results[0].value;
 			expect(mockProvider.extractGoldenNuggets).toHaveBeenCalledWith(
 				"Test content",
 				"Analyze this Reddit thread and this Reddit thread for insights.",
