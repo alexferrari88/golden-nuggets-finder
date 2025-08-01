@@ -6,6 +6,7 @@ import {
 	getCurrentProvider,
 	isProviderConfigured,
 } from "../background/services/provider-switcher";
+import { ChromeExtensionUtils } from "../shared/chrome-extension-utils";
 import {
 	createCombinationTypeFilter,
 	TYPE_CONFIGURATIONS,
@@ -28,10 +29,7 @@ import {
 } from "../shared/types";
 import type { ProviderId } from "../shared/types/providers";
 
-// Utility function to generate unique analysis IDs
-function generateAnalysisId(): string {
-	return `analysis_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-}
+// Analysis ID generation moved to ChromeExtensionUtils
 
 // Utility function to truncate long error messages for better UX
 function truncateErrorMessage(
@@ -500,7 +498,7 @@ function IndexPopup() {
 			const promptName = prompt?.name || "Unknown";
 
 			// Generate unique analysis ID for progress tracking
-			const analysisId = generateAnalysisId();
+			const analysisId = ChromeExtensionUtils.generateAnalysisId();
 
 			// Show immediate feedback and set analysis ID
 			setAnalyzing(promptName);
@@ -519,7 +517,7 @@ function IndexPopup() {
 			}
 
 			// Inject content script dynamically
-			await injectContentScript(tab.id);
+			await ChromeExtensionUtils.injectContentScript(tab.id);
 
 			// Create type filter options
 			const typeFilter: TypeFilterOptions =
@@ -570,7 +568,7 @@ function IndexPopup() {
 			}
 
 			// Inject content script dynamically
-			await injectContentScript(tab.id);
+			await ChromeExtensionUtils.injectContentScript(tab.id);
 
 			// Create type filter options
 			const typeFilter: TypeFilterOptions =
@@ -591,50 +589,7 @@ function IndexPopup() {
 		}
 	};
 
-	const injectContentScript = async (tabId: number): Promise<void> => {
-		try {
-			// Check if content script is already injected by trying to send a test message
-			const testResponse = await chrome.tabs
-				.sendMessage(tabId, { type: "PING" })
-				.catch(() => null);
-
-			if (testResponse) {
-				// Content script already exists
-				return;
-			}
-
-			// Inject the content script
-			await chrome.scripting.executeScript({
-				target: { tabId },
-				files: ["content-scripts/content.js"],
-			});
-
-			// Wait for content script to be ready with retries
-			let attempts = 0;
-			const maxAttempts = 10;
-			while (attempts < maxAttempts) {
-				await new Promise((resolve) => setTimeout(resolve, 100));
-				try {
-					const response = await chrome.tabs.sendMessage(tabId, {
-						type: "PING",
-					});
-					if (response?.success) {
-						break;
-					}
-				} catch (_error) {
-					// Still not ready, continue trying
-				}
-				attempts++;
-			}
-
-			if (attempts >= maxAttempts) {
-				throw new Error("Content script failed to initialize after injection");
-			}
-		} catch (error) {
-			console.error("Failed to inject content script:", error);
-			throw error;
-		}
-	};
+	// Content script injection moved to ChromeExtensionUtils.injectContentScript
 
 	const openOptionsPage = () => {
 		chrome.runtime.openOptionsPage();
