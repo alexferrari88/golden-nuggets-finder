@@ -7,6 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Whenever you have unsolvable doubts or questions, stop everything and ask me.
 - Commit using conventional commit at the end of important work.
 - Do not produce reduntant documentation. Only create documentation if strictly necessary.
+- This is a hobby project with currently no users. No need for any enterprise thinking/features.
 
 ## ⚠️ CRITICAL WARNINGS - DO NOT IGNORE
 
