@@ -142,6 +142,9 @@ export interface NuggetFeedback {
 	timestamp: number;
 	url: string;
 	context: string; // Surrounding content (first 200 chars)
+	// Provider/model tracking for optimization
+	modelProvider: ProviderId;
+	modelName: string;
 }
 
 export interface MissingContentFeedback {
@@ -152,6 +155,9 @@ export interface MissingContentFeedback {
 	timestamp: number;
 	url: string;
 	context: string; // Page context
+	// Provider/model tracking for optimization
+	modelProvider: ProviderId;
+	modelName: string;
 }
 
 export interface FeedbackSubmission {

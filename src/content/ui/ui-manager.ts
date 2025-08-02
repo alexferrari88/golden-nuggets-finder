@@ -1644,8 +1644,8 @@ export class UIManager {
 		`;
 		submitBtn.textContent = "Submit Missing Content";
 
-		submitBtn.addEventListener("click", () => {
-			this.submitMissingContentFeedback();
+		submitBtn.addEventListener("click", async () => {
+			await this.submitMissingContentFeedback();
 		});
 
 		submitBtn.addEventListener("mouseenter", () => {
@@ -1697,7 +1697,7 @@ export class UIManager {
 		}
 	}
 
-	private submitMissingContentFeedback(): void {
+	private async submitMissingContentFeedback(): Promise<void> {
 		const selectedContent = this.getSelectedContent();
 		if (
 			!selectedContent ||
@@ -1723,6 +1723,10 @@ export class UIManager {
 
 		const selectedType = typeSelect.value as GoldenNuggetType;
 
+		// Get the provider info that was used for the analysis
+		const result = await chrome.storage.local.get(['lastUsedProvider']);
+		const lastUsedProvider = result.lastUsedProvider;
+
 		// Create feedback for each selected item
 		const missingContentFeedback: MissingContentFeedback[] = [];
 		const context = `${document.title} - ${window.location.href}`;
@@ -1739,6 +1743,9 @@ export class UIManager {
 					timestamp: Date.now(),
 					url: window.location.href,
 					context: context.substring(0, 200),
+					// Add provider/model data from the analysis that generated the original results
+					modelProvider: lastUsedProvider?.providerId || 'gemini',
+					modelName: lastUsedProvider?.modelName || 'gemini-2.5-flash',
 				});
 			}
 		});
