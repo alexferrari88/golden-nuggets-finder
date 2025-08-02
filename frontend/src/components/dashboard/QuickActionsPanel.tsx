@@ -12,7 +12,7 @@ import {
 } from "lucide-react"
 import { useState } from "react"
 import api from "../../lib/api"
-import type { ApiError } from "../../types"
+import type { ApiError, DashboardStats } from "../../types"
 import { DataExporter } from "../export/DataExporter"
 import { Alert, AlertDescription } from "../ui/alert"
 import { Badge } from "../ui/badge"
@@ -30,13 +30,27 @@ import {
 
 interface QuickActionsPanelProps {
   onActionComplete?: (action: string, success: boolean) => void
+  stats?: DashboardStats | null
 }
 
 export function QuickActionsPanel({
   onActionComplete,
+  stats,
 }: QuickActionsPanelProps) {
   const [confirmDialog, setConfirmDialog] = useState<string | null>(null)
   const queryClient = useQueryClient()
+
+  // Compute derived fields to match Dashboard logic
+  const totalFeedbackItems = stats
+    ? (stats.pending_nugget_feedback || 0) +
+      (stats.pending_missing_feedback || 0) +
+      (stats.processed_nugget_feedback || 0) +
+      (stats.processed_missing_feedback || 0)
+    : 0
+
+  const isDatabaseEmpty = stats
+    ? totalFeedbackItems === 0 && stats.active_optimizations === 0
+    : true
 
   // Optimization trigger mutation
   const optimizationMutation = useMutation({
@@ -110,7 +124,7 @@ export function QuickActionsPanel({
                 <DialogTrigger asChild>
                   <Button
                     size="sm"
-                    disabled={optimizationMutation.isPending}
+                    disabled={optimizationMutation.isPending || isDatabaseEmpty}
                     onClick={() => setConfirmDialog("optimize")}
                   >
                     <Play className="mr-2 h-4 w-4" />
@@ -141,6 +155,17 @@ export function QuickActionsPanel({
               </Dialog>
             </div>
           </div>
+
+          {/* No Data Warning */}
+          {isDatabaseEmpty && (
+            <Alert>
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription className="text-xs">
+                No feedback data available. Use the Golden Nuggets extension to
+                generate feedback before running optimization.
+              </AlertDescription>
+            </Alert>
+          )}
 
           {/* Refresh Status */}
           <div className="flex items-center justify-between">

@@ -241,7 +241,10 @@ export function Dashboard() {
 
             {/* Quick Actions - Takes 1/3 width */}
             <div className="lg:col-span-1">
-              <QuickActionsPanel onActionComplete={handleActionComplete} />
+              <QuickActionsPanel
+                onActionComplete={handleActionComplete}
+                stats={stats}
+              />
             </div>
           </div>
 
@@ -260,7 +263,10 @@ export function Dashboard() {
             </div>
             <div className="space-y-6 lg:col-span-1">
               <SystemHealthWidget refreshInterval={3000} />
-              <QuickActionsPanel onActionComplete={handleActionComplete} />
+              <QuickActionsPanel
+                onActionComplete={handleActionComplete}
+                stats={stats}
+              />
             </div>
           </div>
         </TabsContent>
