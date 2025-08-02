@@ -54,6 +54,8 @@ def test_feedback_submission_valid(clean_database):
                 "timestamp": 1642780800000,
                 "url": "https://example.com/test",
                 "context": "Test context for the nugget feedback validation system.",
+                "modelProvider": "gemini",
+                "modelName": "gemini-2.5-flash",
             }
         ],
         "missingContentFeedback": [
@@ -64,6 +66,8 @@ def test_feedback_submission_valid(clean_database):
                 "timestamp": 1642780800000,
                 "url": "https://example.com/test",
                 "context": "Test page context for missing content identification",
+                "modelProvider": "gemini",
+                "modelName": "gemini-2.5-flash",
             }
         ],
     }
@@ -126,6 +130,8 @@ def test_update_feedback_item(clean_database):
                 "timestamp": 1642780800000,
                 "url": "https://example.com/update-test",
                 "context": "Original context for update testing",
+                "modelProvider": "gemini",
+                "modelName": "gemini-2.5-flash",
             }
         ]
     }
@@ -184,6 +190,8 @@ def test_delete_feedback_item(clean_database):
                 "timestamp": 1642780800000,
                 "url": "https://example.com/delete-test",
                 "context": "Context for deletion testing",
+                "modelProvider": "gemini",
+                "modelName": "gemini-2.5-flash",
             }
         ]
     }
@@ -228,6 +236,8 @@ def test_feedback_update_scenario(clean_database):
                 "timestamp": 1642780800000,
                 "url": "https://example.com/testing-guide",
                 "context": "Testing is essential for reliable software development.",
+                "modelProvider": "gemini",
+                "modelName": "gemini-2.5-flash",
             }
         ]
     }
@@ -257,6 +267,8 @@ def test_feedback_update_scenario(clean_database):
                 "timestamp": 1642780800000,
                 "url": "https://example.com/testing-guide",  # Same URL
                 "context": "Testing is essential for reliable software development.",  # Same context
+                "modelProvider": "gemini",
+                "modelName": "gemini-2.5-flash",
             }
         ]
     }
@@ -292,6 +304,8 @@ def test_feedback_rating_change_scenario(clean_database):
                 "timestamp": 1642780800000,
                 "url": "https://example.com/bad-advice",
                 "context": "Some programming advice that might not be great.",
+                "modelProvider": "gemini",
+                "modelName": "gemini-2.5-flash",
             }
         ]
     }
@@ -311,6 +325,8 @@ def test_feedback_rating_change_scenario(clean_database):
                 "timestamp": 1642780800000,
                 "url": "https://example.com/bad-advice",
                 "context": "Some programming advice that might not be great.",
+                "modelProvider": "gemini",
+                "modelName": "gemini-2.5-flash",
             }
         ]
     }
@@ -337,6 +353,8 @@ def test_mixed_update_duplicate_scenario(clean_database):
         "timestamp": 1642780800000,
         "url": "https://example.com/git-guide",
         "context": "Version control is essential for development.",
+        "modelProvider": "gemini",
+        "modelName": "gemini-2.5-flash",
     }
 
     initial_feedback = {"nuggetFeedback": [{"id": "original-id", **original_data}]}
@@ -390,6 +408,8 @@ def test_api_response_messages(clean_database):
                 "timestamp": 1642780800000,
                 "url": "https://example.com/test",
                 "context": "Test context for duplicate detection.",
+                "modelProvider": "gemini",
+                "modelName": "gemini-2.5-flash",
             }
         ]
     }
@@ -417,6 +437,8 @@ def test_api_response_messages(clean_database):
                 "timestamp": 1642780800000,
                 "url": "https://example.com/test",
                 "context": "Test context for duplicate detection.",
+                "modelProvider": "gemini",
+                "modelName": "gemini-2.5-flash",
             }
         ]
     }

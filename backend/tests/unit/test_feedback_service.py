@@ -42,6 +42,8 @@ class TestFeedbackService:
             timestamp=1642780800000,
             url="https://example.com/test",
             context="Testing is important for reliable software development",
+            modelProvider="gemini",
+            modelName="gemini-2.5-flash",
         )
 
     @pytest.fixture
@@ -54,6 +56,8 @@ class TestFeedbackService:
             timestamp=1642780800000,
             url="https://example.com/test",
             context="Code formatting helps maintain consistency",
+            modelProvider="gemini",
+            modelName="gemini-2.5-flash",
         )
 
     # =====================================

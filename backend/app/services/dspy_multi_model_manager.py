@@ -79,43 +79,69 @@ Return your response as valid JSON only, with no additional text or explanation.
 The JSON structure must be: {{"golden_nuggets": [...]}}
 """
 
-    def _initialize_model_configs(self):
-        """Initialize DSPy model configurations for each provider"""
-        if not DSPY_AVAILABLE:
-            return
+    def _get_default_model(self, provider_id: str) -> str:
+        """Get default model for provider as fallback when no user data exists"""
+        defaults = {
+            "gemini": "gemini-2.5-flash",
+            "openai": "gpt-4o-mini", 
+            "anthropic": "claude-3-5-sonnet-20241022",
+            "openrouter": "openai/gpt-3.5-turbo",
+        }
+        return defaults.get(provider_id, "unknown")
 
+    async def _get_user_models_for_provider(self, db: aiosqlite.Connection, provider_id: str) -> list[str]:
+        """Get list of models actually used by users for this provider based on feedback data"""
+        cursor = await db.execute(
+            """
+            SELECT DISTINCT model_name 
+            FROM nugget_feedback 
+            WHERE model_provider = ? AND model_name IS NOT NULL
+            """,
+            (provider_id,)
+        )
+        nugget_results = await cursor.fetchall()
+        
+        cursor = await db.execute(
+            """
+            SELECT DISTINCT model_name 
+            FROM missing_content_feedback 
+            WHERE model_provider = ? AND model_name IS NOT NULL
+            """,
+            (provider_id,)
+        )
+        missing_results = await cursor.fetchall()
+        
+        # Combine and deduplicate model names
+        user_models = set()
+        for row in nugget_results:
+            if row[0]:
+                user_models.add(row[0])
+        for row in missing_results:
+            if row[0]:
+                user_models.add(row[0])
+        
+        # Return actual user models or fallback to default
+        if user_models:
+            return list(user_models)
+        else:
+            return [self._get_default_model(provider_id)]
+
+    def _create_dspy_lm_for_model(self, provider_id: str, model_name: str):
+        """Create DSPy LM instance for specific provider+model combination"""
+        if not DSPY_AVAILABLE:
+            return None
+            
         try:
             import dspy
-
-            # Initialize model configurations
-            self.model_configs = {
-                "gemini": {
-                    "lm": dspy.LM("gemini/gemini-2.5-flash"),
-                    "default_model": "gemini-2.5-flash",
-                },
-                "openai": {
-                    "lm": dspy.LM("openai/gpt-4o-mini"),
-                    "default_model": "gpt-4o-mini",
-                },
-                "anthropic": {
-                    "lm": dspy.LM("anthropic/claude-3-5-sonnet-20241022"),
-                    "default_model": "claude-3-5-sonnet-20241022",
-                },
-                "openrouter": {
-                    "lm": dspy.LM(
-                        "deepseek/deepseek-r1", api_base="https://openrouter.ai/api/v1"
-                    ),
-                    "default_model": "deepseek/deepseek-r1",
-                },
-            }
-
-            logger.info(
-                "DSPy model configurations initialized for multi-provider support"
-            )
-
+            
+            if provider_id == "openrouter":
+                return dspy.LM(model_name, api_base="https://openrouter.ai/api/v1")
+            else:
+                return dspy.LM(f"{provider_id}/{model_name}")
+                
         except Exception as e:
-            logger.error(f"Failed to initialize DSPy model configurations: {e}")
-            self.model_configs = {}
+            logger.error(f"Failed to create DSPy LM for {provider_id}/{model_name}: {e}")
+            return None
 
     async def optimize_for_provider(
         self,
@@ -125,7 +151,8 @@ The JSON structure must be: {{"golden_nuggets": [...]}}
         auto_trigger: bool = False,
     ) -> Optional[dict]:
         """
-        Run optimization for a specific provider when enough feedback accumulates.
+        Run optimization for each model used by this provider.
+        This replaces the old single-provider optimization with provider+model optimization.
 
         Args:
             db: Database connection
@@ -140,31 +167,72 @@ The JSON structure must be: {{"golden_nuggets": [...]}}
         if provider_id not in ["gemini", "openai", "anthropic", "openrouter"]:
             raise ValueError(f"Unsupported provider: {provider_id}")
 
-        # Initialize model configs if not done
-        if not self.model_configs:
-            self._initialize_model_configs()
-
-        # Get provider-specific feedback
-        provider_feedback = await self._get_provider_feedback(db, provider_id)
-
-        if len(provider_feedback) < self.min_feedback_threshold:
-            logger.warning(
-                f"Not enough feedback for {provider_id}: {len(provider_feedback)} samples "
-                f"(minimum: {self.min_feedback_threshold})"
-            )
-            return None
-
+        # Get actual models that users are using for this provider
+        user_models = await self._get_user_models_for_provider(db, provider_id)
+        
         logger.info(
-            f"Starting optimization for {provider_id} with {len(provider_feedback)} samples",
+            f"Found {len(user_models)} models in use for {provider_id}: {user_models}",
             extra={
                 "provider_id": provider_id,
-                "feedback_count": len(provider_feedback),
+                "user_models": user_models,
                 "mode": mode,
                 "auto_trigger": auto_trigger,
             },
         )
 
-        # Create optimization run record
+        # Optimize each provider+model combination separately
+        optimization_results = []
+        
+        for model_name in user_models:
+            result = await self._optimize_provider_model(db, provider_id, model_name, mode, auto_trigger)
+            if result:
+                optimization_results.append(result)
+
+        if optimization_results:
+            return {
+                "success": True,
+                "provider_id": provider_id,
+                "optimized_models": len(optimization_results),
+                "model_results": optimization_results,
+                "mode": mode,
+            }
+        else:
+            return None
+
+    async def _optimize_provider_model(
+        self,
+        db: aiosqlite.Connection,
+        provider_id: str,
+        model_name: str,
+        mode: str,
+        auto_trigger: bool,
+    ) -> Optional[dict]:
+        """
+        Run optimization for a specific provider+model combination.
+        This is the core optimization logic that was previously in optimize_for_provider.
+        """
+        # Get feedback for this specific provider+model combination
+        provider_model_feedback = await self._get_provider_model_feedback(db, provider_id, model_name)
+
+        if len(provider_model_feedback) < self.min_feedback_threshold:
+            logger.warning(
+                f"Not enough feedback for {provider_id}+{model_name}: {len(provider_model_feedback)} samples "
+                f"(minimum: {self.min_feedback_threshold})"
+            )
+            return None
+
+        logger.info(
+            f"Starting optimization for {provider_id}+{model_name} with {len(provider_model_feedback)} samples",
+            extra={
+                "provider_id": provider_id,
+                "model_name": model_name,
+                "feedback_count": len(provider_model_feedback),
+                "mode": mode,
+                "auto_trigger": auto_trigger,
+            },
+        )
+
+        # Create optimization run record for this specific provider+model combination
         run_id = str(uuid.uuid4())
         trigger_type = "auto" if auto_trigger else "manual"
 
@@ -181,36 +249,37 @@ The JSON structure must be: {{"golden_nuggets": [...]}}
                 trigger_type,
                 datetime.now(timezone.utc),
                 "running",
-                len(provider_feedback),
+                len(provider_model_feedback),
                 provider_id,
-                self.model_configs.get(provider_id, {}).get("default_model", "unknown"),
+                model_name,  # Use actual user model, not hardcoded default
             ),
         )
         await db.commit()
 
-        # Initialize progress tracking
+        # Initialize progress tracking for this provider+model
         self._log_progress(
             provider_id,
             run_id,
             "initialization",
             10,
-            f"Setting up {provider_id} optimization",
+            f"Setting up {provider_id}+{model_name} optimization",
         )
 
         try:
-            # Run optimization in thread pool
+            # Run optimization in thread pool for this specific provider+model
             result = await asyncio.get_event_loop().run_in_executor(
                 self.executor,
-                self._run_provider_optimization,
-                provider_feedback,
+                self._run_provider_model_optimization,
+                provider_model_feedback,
                 provider_id,
+                model_name,
                 mode,
                 run_id,
             )
 
-            # Store optimized prompt
-            optimized_prompt_id = await self._store_provider_optimized_prompt(
-                db, result, run_id, provider_id
+            # Store optimized prompt for this provider+model combination
+            optimized_prompt_id = await self._store_provider_model_optimized_prompt(
+                db, result, run_id, provider_id, model_name
             )
 
             # Mark optimization as completed
@@ -250,19 +319,21 @@ The JSON structure must be: {{"golden_nuggets": [...]}}
             return {
                 "success": True,
                 "provider_id": provider_id,
+                "model_name": model_name,
                 "run_id": run_id,
                 "optimized_prompt_id": optimized_prompt_id,
                 "performance_improvement": result.get("improvement", 0.0),
-                "training_examples": len(provider_feedback),
+                "training_examples": len(provider_model_feedback),
                 "mode": mode,
             }
 
         except Exception as e:
             # Mark optimization as failed
             logger.error(
-                f"❌ Optimization failed for {provider_id}",
+                f"❌ Optimization failed for {provider_id}+{model_name}",
                 extra={
                     "provider_id": provider_id,
+                    "model_name": model_name,
                     "run_id": run_id,
                     "error": str(e),
                     "error_type": type(e).__name__,
@@ -279,12 +350,12 @@ The JSON structure must be: {{"golden_nuggets": [...]}}
             )
             await db.commit()
 
-            raise Exception(f"Optimization failed for {provider_id}: {e}")
+            raise Exception(f"Optimization failed for {provider_id}+{model_name}: {e}")
 
-    def _run_provider_optimization(
-        self, feedback_data: list[dict], provider_id: str, mode: str, run_id: str
+    def _run_provider_model_optimization(
+        self, feedback_data: list[dict], provider_id: str, model_name: str, mode: str, run_id: str
     ) -> dict:
-        """Run DSPy optimization for a specific provider (executed in thread pool)"""
+        """Run DSPy optimization for a specific provider+model combination (executed in thread pool)"""
         if not DSPY_AVAILABLE:
             return self._get_fallback_result(provider_id, feedback_data, mode)
 
@@ -299,19 +370,20 @@ The JSON structure must be: {{"golden_nuggets": [...]}}
 
             start_time = datetime.now(timezone.utc)
 
-            # Configure DSPy for this provider
-            if provider_id not in self.model_configs:
-                raise Exception(f"No DSPy configuration for provider: {provider_id}")
+            # Create DSPy LM for this specific provider+model combination
+            lm = self._create_dspy_lm_for_model(provider_id, model_name)
+            if not lm:
+                raise Exception(f"Failed to create DSPy LM for {provider_id}/{model_name}")
 
-            provider_config = self.model_configs[provider_id]
-            dspy.settings.configure(lm=provider_config["lm"])
+            # Configure DSPy with the actual user model
+            dspy.settings.configure(lm=lm)
 
             logger.info(
-                f"🔧 DSPy configured for {provider_id}",
+                f"🔧 DSPy configured for {provider_id}+{model_name}",
                 extra={
                     "provider_id": provider_id,
+                    "model_name": model_name,
                     "run_id": run_id,
-                    "model": provider_config["default_model"],
                 },
             )
 
@@ -503,6 +575,75 @@ This prompt is optimized for {provider_id} based on user feedback patterns.
         # Fallback to enhanced baseline
         return f"{self.baseline_prompts[provider_id]}\n\n# This prompt was optimized using DSPy for {provider_id}"
 
+    async def _get_provider_model_feedback(
+        self, db: aiosqlite.Connection, provider_id: str, model_name: str
+    ) -> list[dict]:
+        """Get feedback data for a specific provider+model combination"""
+        cursor = await db.execute(
+            """
+            SELECT nugget_content, original_type, corrected_type, rating, context, url,
+                   model_provider, model_name, created_at
+            FROM nugget_feedback
+            WHERE model_provider = ? AND model_name = ?
+            ORDER BY created_at DESC
+            LIMIT 500
+            """,
+            (provider_id, model_name),
+        )
+
+        nugget_feedback = await cursor.fetchall()
+
+        # Also get missing content feedback for this provider+model
+        cursor = await db.execute(
+            """
+            SELECT content, suggested_type, context, url, model_provider, model_name, created_at
+            FROM missing_content_feedback  
+            WHERE model_provider = ? AND model_name = ?
+            ORDER BY created_at DESC
+            LIMIT 200
+            """,
+            (provider_id, model_name),
+        )
+
+        missing_feedback = await cursor.fetchall()
+
+        # Convert to training format
+        training_data = []
+
+        # Process nugget feedback
+        for row in nugget_feedback:
+            training_data.append(
+                {
+                    "content": row[0],
+                    "original_type": row[1],
+                    "corrected_type": row[2],
+                    "rating": row[3],
+                    "context": row[4],
+                    "url": row[5],
+                    "model_provider": row[6],
+                    "model_name": row[7],
+                    "created_at": row[8],
+                    "feedback_type": "nugget",
+                }
+            )
+
+        # Process missing content feedback
+        for row in missing_feedback:
+            training_data.append(
+                {
+                    "content": row[0],
+                    "suggested_type": row[1],
+                    "context": row[2],
+                    "url": row[3],
+                    "model_provider": row[4],
+                    "model_name": row[5],
+                    "created_at": row[6],
+                    "feedback_type": "missing_content",
+                }
+            )
+
+        return training_data
+
     async def _get_provider_feedback(
         self, db: aiosqlite.Connection, provider_id: str
     ) -> list[dict]:
@@ -621,10 +762,67 @@ This prompt is optimized for {provider_id} based on user feedback patterns.
                 provider_id,
                 optimization_result.get(
                     "model_name",
-                    self.model_configs.get(provider_id, {}).get(
-                        "default_model", "unknown"
-                    ),
+                    self._get_default_model(provider_id),
                 ),
+            ),
+        )
+
+        await db.commit()
+        return prompt_id
+
+    async def _store_provider_model_optimized_prompt(
+        self,
+        db: aiosqlite.Connection,
+        optimization_result: dict,
+        run_id: str,
+        provider_id: str,
+        model_name: str,
+    ) -> str:
+        """Store optimized prompt for specific provider+model combination"""
+        # Get next version number for this provider+model combination
+        cursor = await db.execute(
+            """
+            SELECT COALESCE(MAX(version), 0) + 1 
+            FROM optimized_prompts 
+            WHERE model_provider = ? AND model_name = ?
+            """,
+            (provider_id, model_name),
+        )
+        result = await cursor.fetchone()
+        version = result[0] if result else 1
+
+        prompt_id = str(uuid.uuid4())
+
+        # Mark all previous prompts for this provider+model as not current
+        await db.execute(
+            """
+            UPDATE optimized_prompts 
+            SET is_current = FALSE 
+            WHERE model_provider = ? AND model_name = ?
+            """,
+            (provider_id, model_name),
+        )
+
+        # Insert new optimized prompt for this provider+model combination
+        await db.execute(
+            """
+            INSERT INTO optimized_prompts (
+                id, version, prompt, created_at, feedback_count,
+                positive_rate, is_current, optimization_run_id,
+                model_provider, model_name
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                prompt_id,
+                version,
+                optimization_result["optimized_prompt"],
+                datetime.now(timezone.utc),
+                optimization_result["training_examples_count"],
+                optimization_result["performance_score"],
+                True,  # is_current
+                run_id,
+                provider_id,
+                model_name,  # Use actual user model, not lookup from hardcoded configs
             ),
         )
 
@@ -688,7 +886,7 @@ This prompt is optimized for {provider_id} based on user feedback patterns.
     async def get_provider_current_prompt(
         self, db: aiosqlite.Connection, provider_id: str
     ) -> Optional[dict]:
-        """Get current optimized prompt for specific provider"""
+        """Get current optimized prompt for specific provider (any model)"""
         cursor = await db.execute(
             """
             SELECT id, version, prompt, created_at, feedback_count, positive_rate, model_name
@@ -712,6 +910,37 @@ This prompt is optimized for {provider_id} based on user feedback patterns.
                 "model_name": result[6],
             }
         return None
+
+    async def get_provider_model_current_prompt(
+        self, db: aiosqlite.Connection, provider_id: str, model_name: str
+    ) -> Optional[dict]:
+        """Get current optimized prompt for specific provider+model combination"""
+        cursor = await db.execute(
+            """
+            SELECT id, version, prompt, created_at, feedback_count, positive_rate, model_name
+            FROM optimized_prompts
+            WHERE is_current = TRUE AND model_provider = ? AND model_name = ?
+            ORDER BY version DESC
+            LIMIT 1
+            """,
+            (provider_id, model_name),
+        )
+        result = await cursor.fetchone()
+
+        if result:
+            return {
+                "id": result[0],
+                "version": result[1],
+                "prompt": result[2],
+                "optimizationDate": result[3],
+                "performance": {"feedbackCount": result[4], "positiveRate": result[5]},
+                "provider_id": provider_id,
+                "model_name": result[6],
+            }
+        
+        # Fallback to any prompt for this provider if no specific model prompt exists
+        logger.info(f"No optimized prompt found for {provider_id}+{model_name}, falling back to any {provider_id} prompt")
+        return await self.get_provider_current_prompt(db, provider_id)
 
     def get_provider_run_progress(
         self, provider_id: str, run_id: str
