@@ -20,7 +20,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui
 import { Badge } from '../ui/badge';
 import { Alert, AlertDescription } from '../ui/alert';
 import { TrendingUp, TrendingDown, DollarSign, Activity, Zap } from 'lucide-react';
-import api from '../../lib/api';
+import { apiClient, apiUtils } from '../../lib/api';
 import type { CostSummary } from '../../types';
 
 interface CostAnalyticsProps {
@@ -36,7 +36,7 @@ export const CostAnalytics: React.FC<CostAnalyticsProps> = ({ days = 30 }) => {
     error
   } = useQuery<CostSummary>({
     queryKey: ['costSummary', days],
-    queryFn: () => api.get(`/costs/summary?days=${days}`).then(res => res.data),
+    queryFn: () => apiClient.getCostSummary({ days }),
     refetchInterval: 30000, // Refresh every 30 seconds
   });
 
@@ -44,7 +44,7 @@ export const CostAnalytics: React.FC<CostAnalyticsProps> = ({ days = 30 }) => {
     isLoading: trendsLoading
   } = useQuery({
     queryKey: ['costTrends', days],
-    queryFn: () => api.get(`/costs/trends?days=${days}`).then(res => res.data),
+    queryFn: () => apiClient.getCostTrends({ days }),
     refetchInterval: 30000,
   });
 
@@ -345,7 +345,116 @@ export const CostAnalytics: React.FC<CostAnalyticsProps> = ({ days = 30 }) => {
             </ResponsiveContainer>
           </CardContent>
         </Card>
+
+        {/* Provider Cost Breakdown - only show if provider data exists */}
+        {costSummary.costs_by_provider && Object.keys(costSummary.costs_by_provider).length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Cost by Provider</CardTitle>
+              <CardDescription>
+                Distribution of costs across AI providers
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={250}>
+                <PieChart>
+                  <Pie
+                    data={Object.entries(costSummary.costs_by_provider).map(([provider, data]) => ({
+                      name: apiUtils.getProviderDisplayName(provider as any),
+                      cost: data.cost,
+                      icon: apiUtils.getProviderIcon(provider as any),
+                      provider
+                    }))}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={({ name, percent }) => `${name} ${percent ? (percent * 100).toFixed(0) : 0}%`}
+                    outerRadius={80}
+                    fill="#8884d8"
+                    dataKey="cost"
+                  >
+                    {Object.entries(costSummary.costs_by_provider).map((_, index) => (
+                      <Cell key={`provider-cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip formatter={(value: any) => `$${value.toFixed(4)}`} />
+                </PieChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Model Cost Breakdown - only show if model data exists */}
+        {costSummary.costs_by_model && Object.keys(costSummary.costs_by_model).length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Cost by Model</CardTitle>
+              <CardDescription>
+                Distribution of costs across specific models
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={250}>
+                <BarChart data={Object.entries(costSummary.costs_by_model).map(([model, data]) => ({
+                  name: apiUtils.formatModelName(model),
+                  cost: data.cost,
+                  tokens: data.tokens,
+                  runs: data.runs,
+                  model
+                }))}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="name" tick={{ fontSize: 10 }} angle={-45} textAnchor="end" height={80} />
+                  <YAxis tick={{ fontSize: 12 }} />
+                  <Tooltip />
+                  <Legend />
+                  <Bar dataKey="cost" fill="#8884d8" name="Cost ($)" />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        )}
       </div>
+
+      {/* Provider Details - only show if provider data exists */}
+      {costSummary.costs_by_provider && Object.keys(costSummary.costs_by_provider).length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Provider Performance Details</CardTitle>
+            <CardDescription>
+              Detailed breakdown by AI provider
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {Object.entries(costSummary.costs_by_provider).map(([provider, data], index) => (
+                <div key={provider} className="flex items-center justify-between p-3 border rounded-lg">
+                  <div className="flex items-center space-x-3">
+                    <div 
+                      className="w-3 h-3 rounded-full" 
+                      style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                    />
+                    <div className="flex items-center space-x-2">
+                      <span className="text-lg">{apiUtils.getProviderIcon(provider as any)}</span>
+                      <div>
+                        <Badge variant="secondary">{apiUtils.getProviderDisplayName(provider as any)}</Badge>
+                        <p className="text-sm text-gray-600 mt-1">
+                          {data.runs} runs • {data.tokens.toLocaleString()} tokens
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-semibold">${data.cost.toFixed(4)}</p>
+                    <p className="text-xs text-gray-500">
+                      ${(data.cost / data.runs).toFixed(4)} per run
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Mode Details */}
       <Card>

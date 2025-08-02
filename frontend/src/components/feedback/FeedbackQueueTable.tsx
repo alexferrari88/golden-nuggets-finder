@@ -31,7 +31,7 @@ import type { FilterState } from '../common/AdvancedFilters';
 import { EditFeedbackDialog } from './EditFeedbackDialog';
 import { DeleteFeedbackDialog } from './DeleteFeedbackDialog';
 import { BulkDeleteFeedbackDialog } from './BulkDeleteFeedbackDialog';
-import api from '../../lib/api';
+import { apiClient, apiUtils } from '../../lib/api';
 import type { PendingFeedback, FeedbackItem, ApiError } from '../../types';
 
 interface FeedbackQueueTableProps {
@@ -58,34 +58,41 @@ export function FeedbackQueueTable({
   } = useQuery<PendingFeedback, ApiError>({
     queryKey: ['pending-feedback', filters, page],
     queryFn: () => {
-      const params = new URLSearchParams({
-        limit: pageSize.toString(),
-        offset: (page * pageSize).toString(),
-      });
+      const params: any = {
+        limit: pageSize,
+        offset: page * pageSize,
+      };
       
       if (filters.type !== 'all') {
-        params.append('feedback_type', filters.type);
+        params.feedback_type = filters.type;
       }
       if (filters.processed !== 'all') {
-        params.append('processed', filters.processed === 'processed' ? 'true' : 'false');
+        params.processed = filters.processed === 'processed' ? 'true' : 'false';
       }
       if (filters.search) {
-        params.append('search', filters.search);
+        params.search = filters.search;
       }
       if (filters.rating !== 'all') {
-        params.append('rating', filters.rating);
+        params.rating = filters.rating;
       }
       if (filters.dateRange !== 'all') {
-        params.append('date_range', filters.dateRange);
+        params.date_range = filters.dateRange;
       }
       if (filters.sortBy) {
-        params.append('sort_by', filters.sortBy);
+        params.sort_by = filters.sortBy;
       }
       if (filters.sortOrder) {
-        params.append('sort_order', filters.sortOrder);
+        params.sort_order = filters.sortOrder;
+      }
+      // Add provider filtering support
+      if (filters.provider && filters.provider !== 'all') {
+        params.provider = filters.provider;
+      }
+      if (filters.model && filters.model !== 'all') {
+        params.model = filters.model;
       }
       
-      return api.get(`/feedback/pending?${params}`).then(res => res.data);
+      return apiClient.getPendingFeedback(params);
     },
     refetchInterval: refreshInterval,
     staleTime: 5000,
@@ -254,10 +261,25 @@ export function FeedbackQueueTable({
     showRating: true,
     showDateRange: true,
     showProcessed: true,
+    showProvider: true,
+    showModel: true,
     showSort: true,
     types: [
       { value: 'nugget', label: 'Golden Nuggets' },
       { value: 'missing_content', label: 'Missing Content' },
+    ],
+    providers: [
+      { value: 'gemini', label: 'Google Gemini' },
+      { value: 'openai', label: 'OpenAI' },
+      { value: 'anthropic', label: 'Anthropic Claude' },
+      { value: 'openrouter', label: 'OpenRouter' },
+    ],
+    models: [
+      { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash' },
+      { value: 'gpt-4o-mini', label: 'GPT-4o Mini' },
+      { value: 'gpt-4o', label: 'GPT-4o' },
+      { value: 'claude-3-sonnet', label: 'Claude 3 Sonnet' },
+      { value: 'claude-3-haiku', label: 'Claude 3 Haiku' },
     ],
     sortOptions: [
       { value: 'created_at', label: 'Created Date' },
@@ -359,6 +381,7 @@ export function FeedbackQueueTable({
                   </TableHead>
                   <TableHead className="w-10"></TableHead>
                   <TableHead>Type</TableHead>
+                  <TableHead>Provider</TableHead>
                   <TableHead>Content</TableHead>
                   <TableHead>Rating</TableHead>
                   <TableHead>Usage</TableHead>
@@ -406,6 +429,27 @@ export function FeedbackQueueTable({
                             {getDisplayType(item)}
                           </span>
                         </div>
+                      </TableCell>
+                      <TableCell>
+                        {item.model_provider ? (
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm">
+                              {apiUtils.getProviderIcon(item.model_provider)}
+                            </span>
+                            <div className="flex flex-col">
+                              <span className="text-xs font-medium">
+                                {apiUtils.getProviderDisplayName(item.model_provider)}
+                              </span>
+                              {item.model_name && (
+                                <span className="text-xs text-gray-500">
+                                  {apiUtils.formatModelName(item.model_name)}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-gray-400">Unknown</span>
+                        )}
                       </TableCell>
                       <TableCell className="max-w-md">
                         <p className="text-sm text-gray-600 truncate">

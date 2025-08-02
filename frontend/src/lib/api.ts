@@ -6,7 +6,8 @@ import type {
   CostSummary, 
   DashboardStats,
   ApiError,
-  NuggetType
+  NuggetType,
+  ProviderId
 } from '@/types';
 
 // Create axios instance with enhanced configuration
@@ -111,6 +112,10 @@ export const apiClient = {
     limit?: number;
     offset?: number;
     feedback_type?: string;
+    // Provider filtering support
+    provider?: ProviderId;
+    model?: string;
+    providers?: ProviderId[];
   } = {}): Promise<PendingFeedback> =>
     makeRequest<PendingFeedback>({
       method: 'GET',
@@ -121,6 +126,10 @@ export const apiClient = {
   getRecentFeedback: (params: {
     limit?: number;
     include_processed?: boolean;
+    // Provider filtering support
+    provider?: ProviderId;
+    model?: string;
+    providers?: ProviderId[];
   } = {}): Promise<PendingFeedback> =>
     makeRequest<PendingFeedback>({
       method: 'GET',
@@ -208,14 +217,26 @@ export const apiClient = {
       url: `/optimization/${runId}/costs`,
     }),
 
-  getCostSummary: (params: { days?: number } = {}): Promise<CostSummary> =>
+  getCostSummary: (params: { 
+    days?: number;
+    // Provider filtering support
+    provider?: ProviderId;
+    model?: string;
+    providers?: ProviderId[];
+  } = {}): Promise<CostSummary> =>
     makeRequest<CostSummary>({
       method: 'GET',
       url: '/costs/summary',
       params,
     }),
 
-  getCostTrends: (params: { days?: number } = {}): Promise<CostSummary> =>
+  getCostTrends: (params: { 
+    days?: number;
+    // Provider filtering support
+    provider?: ProviderId;
+    model?: string;
+    providers?: ProviderId[];
+  } = {}): Promise<CostSummary> =>
     makeRequest<CostSummary>({
       method: 'GET',
       url: '/costs/trends',
@@ -236,6 +257,27 @@ export const apiClient = {
       url: `/export/${dataType}`,
       params: { format },
       responseType: 'blob',
+    }),
+
+  // Provider-specific API methods for multi-provider analytics
+  getProviderStats: (params: {
+    days?: number;
+    providers?: ProviderId[];
+  } = {}) =>
+    makeRequest({
+      method: 'GET',
+      url: '/providers/stats',
+      params,
+    }),
+
+  getProviderComparison: (params: {
+    days?: number;
+    providers?: ProviderId[];
+  } = {}) =>
+    makeRequest({
+      method: 'GET',
+      url: '/providers/comparison',
+      params,
     }),
 };
 
@@ -270,6 +312,39 @@ export const apiUtils = {
       case 'unhealthy': return '🔴';
       default: return '⚫';
     }
+  },
+
+  // Provider utility functions
+  getProviderDisplayName: (providerId: ProviderId): string => {
+    switch (providerId) {
+      case 'gemini': return 'Google Gemini';
+      case 'openai': return 'OpenAI';
+      case 'anthropic': return 'Anthropic Claude';
+      case 'openrouter': return 'OpenRouter';
+      default: return providerId;
+    }
+  },
+
+  getProviderIcon: (providerId: ProviderId): string => {
+    switch (providerId) {
+      case 'gemini': return '🟦';
+      case 'openai': return '🟢';
+      case 'anthropic': return '🟠';
+      case 'openrouter': return '🔀';
+      default: return '⚪';
+    }
+  },
+
+  formatModelName: (modelName: string): string => {
+    // Simplify long model names for display
+    const mapping: Record<string, string> = {
+      'gemini-2.5-flash': 'Gemini 2.5 Flash',
+      'gpt-4o-mini': 'GPT-4o Mini',
+      'gpt-4o': 'GPT-4o',
+      'claude-3-sonnet': 'Claude 3 Sonnet',
+      'claude-3-haiku': 'Claude 3 Haiku',
+    };
+    return mapping[modelName] || modelName;
   },
 };
 

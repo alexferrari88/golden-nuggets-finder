@@ -13,7 +13,7 @@ import { FeedbackQueueTable } from '../components/feedback/FeedbackQueueTable';
 import { OperationsProgress } from '../components/operations/OperationsProgress';
 import { CostAnalytics } from '../components/analytics/CostAnalytics';
 import { HistoricalViews } from '../components/analytics/HistoricalViews';
-import api from '../lib/api';
+import { apiClient } from '../lib/api';
 import type { DashboardStats, ApiError } from '../types';
 
 export function Dashboard() {
@@ -26,7 +26,7 @@ export function Dashboard() {
     error: statsError,
   } = useQuery<DashboardStats, ApiError>({
     queryKey: ['dashboard-stats'],
-    queryFn: () => api.get('/dashboard/stats').then(res => res.data),
+    queryFn: () => apiClient.getDashboardStats(),
     refetchInterval: 10000,
     staleTime: 5000,
   });

@@ -1,6 +1,15 @@
 // Golden nugget types
 export type NuggetType = 'tool' | 'media' | 'explanation' | 'analogy' | 'model';
 
+// Provider types for multi-LLM support
+export type ProviderId = 'gemini' | 'openai' | 'anthropic' | 'openrouter';
+
+export interface ProviderInfo {
+  id: ProviderId;
+  name: string;
+  models: string[];
+}
+
 export interface SystemHealth {
   status: 'healthy' | 'degraded' | 'unhealthy';
   uptime_seconds: number;
@@ -27,6 +36,9 @@ export interface FeedbackItem {
   original_type?: string;  // Specific nugget type (tool, media, explanation, analogy, model)
   corrected_type?: string; // User-corrected type if different from original
   suggested_type?: string; // Suggested type for missing content feedback
+  // Provider/model tracking for multi-provider support
+  model_provider?: ProviderId;  // LLM provider used
+  model_name?: string;         // Specific model used
 }
 
 export interface OptimizationProgress {
@@ -42,6 +54,9 @@ export interface CostSummary {
   total_runs: number;
   daily_breakdown: DailyCost[];
   costs_by_mode: Record<string, ModeCost>;
+  // Provider-specific cost breakdowns
+  costs_by_provider?: Record<ProviderId, ModeCost>;
+  costs_by_model?: Record<string, ModeCost>;
 }
 
 export interface DailyCost {
@@ -82,6 +97,9 @@ export interface OptimizationRun {
   feedback_items_processed: number;
   success_rate?: number;
   duration_seconds?: number;
+  // Provider/model tracking for multi-provider optimization
+  model_provider?: ProviderId;
+  model_name?: string;
 }
 
 export interface HistoricalPerformance {
@@ -101,4 +119,27 @@ export interface ApiError {
   status: number;
   code: string;
   retryable: boolean;
+}
+
+// Provider filtering and analytics types
+export interface ProviderFilter {
+  providers?: ProviderId[];
+  models?: string[];
+  excludeProviders?: ProviderId[];
+}
+
+export interface ProviderStats {
+  provider_id: ProviderId;
+  model_name: string;
+  feedback_count: number;
+  positive_rate: number;
+  avg_cost_per_feedback: number;
+  total_cost: number;
+  total_tokens: number;
+}
+
+export interface ProviderComparison {
+  providers: ProviderStats[];
+  time_period_days: number;
+  last_updated: string;
 }

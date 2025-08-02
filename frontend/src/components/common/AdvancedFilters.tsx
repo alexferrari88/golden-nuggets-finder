@@ -17,6 +17,9 @@ export interface FilterState {
   processed: string;
   sortBy: string;
   sortOrder: 'asc' | 'desc';
+  // Provider filtering fields
+  provider?: string;
+  model?: string;
 }
 
 export interface FilterConfig {
@@ -27,8 +30,12 @@ export interface FilterConfig {
   showDateRange?: boolean;
   showProcessed?: boolean;
   showSort?: boolean;
+  showProvider?: boolean;
+  showModel?: boolean;
   types?: { value: string; label: string }[];
   statuses?: { value: string; label: string }[];
+  providers?: { value: string; label: string }[];
+  models?: { value: string; label: string }[];
   sortOptions?: { value: string; label: string }[];
   customFields?: Array<{
     key: string;
@@ -55,6 +62,8 @@ const defaultFilters: FilterState = {
   processed: 'all',
   sortBy: 'created_at',
   sortOrder: 'desc',
+  provider: 'all',
+  model: 'all',
 };
 
 export const AdvancedFilters: React.FC<AdvancedFiltersProps> = ({
@@ -91,6 +100,8 @@ export const AdvancedFilters: React.FC<AdvancedFiltersProps> = ({
     if (localFilters.rating !== 'all') count++;
     if (localFilters.dateRange !== 'all') count++;
     if (localFilters.processed !== 'all') count++;
+    if (localFilters.provider && localFilters.provider !== 'all') count++;
+    if (localFilters.model && localFilters.model !== 'all') count++;
     return count;
   };
 
@@ -185,6 +196,46 @@ export const AdvancedFilters: React.FC<AdvancedFiltersProps> = ({
                 <SelectItem value="all">All Items</SelectItem>
                 <SelectItem value="processed">Processed</SelectItem>
                 <SelectItem value="unprocessed">Unprocessed</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+
+        {/* Provider Filter */}
+        {config.showProvider && config.providers && (
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Provider</label>
+            <Select value={localFilters.provider || 'all'} onValueChange={(value) => handleFilterChange('provider', value)}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Providers</SelectItem>
+                {config.providers.map(provider => (
+                  <SelectItem key={provider.value} value={provider.value}>
+                    {provider.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+
+        {/* Model Filter */}
+        {config.showModel && config.models && (
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Model</label>
+            <Select value={localFilters.model || 'all'} onValueChange={(value) => handleFilterChange('model', value)}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Models</SelectItem>
+                {config.models.map(model => (
+                  <SelectItem key={model.value} value={model.value}>
+                    {model.label}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
