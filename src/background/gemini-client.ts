@@ -12,12 +12,12 @@ import {
 import { TypeFilterService } from "./type-filter-service";
 
 interface AnalysisProgressOptions {
-	analysisId: string;
+	analysisId?: string;
 	source?: "popup" | "context-menu";
 	typeFilter?: TypeFilterOptions;
 	responseSchema?: any; // Allow custom schema
 	synthesisEnabled?: boolean; // For type filtering integration
-	onProgress: (
+	onProgress?: (
 		progressType: AnalysisProgressMessage["type"],
 		step: 1 | 2 | 3 | 4,
 		message: string,
@@ -136,7 +136,7 @@ export class GeminiClient {
 				);
 
 				// Send step 3 progress: API request start
-				if (progressOptions) {
+				if (progressOptions && typeof progressOptions.onProgress === 'function') {
 					progressOptions.onProgress(
 						MESSAGE_TYPES.ANALYSIS_API_REQUEST_START,
 						3,
@@ -166,7 +166,7 @@ export class GeminiClient {
 				}
 
 				// Send step 3 completion: API response received
-				if (progressOptions) {
+				if (progressOptions && typeof progressOptions.onProgress === 'function') {
 					progressOptions.onProgress(
 						MESSAGE_TYPES.ANALYSIS_API_RESPONSE_RECEIVED,
 						3,
@@ -175,7 +175,7 @@ export class GeminiClient {
 				}
 
 				// Send step 4 progress: processing results
-				if (progressOptions) {
+				if (progressOptions && typeof progressOptions.onProgress === 'function') {
 					progressOptions.onProgress(
 						MESSAGE_TYPES.ANALYSIS_PROCESSING_RESULTS,
 						4,
