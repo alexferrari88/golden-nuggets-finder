@@ -1014,14 +1014,14 @@ export class Sidebar {
 			"thumbs-up",
 			'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"></path></svg>',
 			item.feedback?.rating === "positive",
-			() => this.handleFeedbackRating(globalIndex, "positive"),
+			async () => await this.handleFeedbackRating(globalIndex, "positive"),
 		);
 
 		const thumbsDownBtn = this.createFeedbackButton(
 			"thumbs-down",
-			'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3zm0 0H7a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h3"></path></svg>',
+			'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l1.38-9a2 2 0 0 0 2 2.3zm0 0H7a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h3"></path></svg>',
 			item.feedback?.rating === "negative",
-			() => this.handleFeedbackRating(globalIndex, "negative"),
+			async () => await this.handleFeedbackRating(globalIndex, "negative"),
 		);
 
 		ratingContainer.appendChild(thumbsUpBtn);
@@ -1189,9 +1189,9 @@ export class Sidebar {
 		});
 
 		// Handle type change
-		select.addEventListener("change", (e) => {
+		select.addEventListener("change", async (e) => {
 			const newType = (e.target as HTMLSelectElement).value as GoldenNuggetType;
-			this.handleTypeCorrection(globalIndex, newType);
+			await this.handleTypeCorrection(globalIndex, newType);
 		});
 
 		select.addEventListener("focus", () => {
@@ -1208,12 +1208,16 @@ export class Sidebar {
 		return container;
 	}
 
-	private handleFeedbackRating(
+	private async handleFeedbackRating(
 		globalIndex: number,
 		rating: FeedbackRating,
-	): void {
+	): Promise<void> {
 		const item = this.allItems[globalIndex];
 		if (!item) return;
+
+		// Get the provider info that was used for the analysis
+		const result = await chrome.storage.local.get(['lastUsedProvider']);
+		const lastUsedProvider = result.lastUsedProvider;
 
 		// Create or update feedback
 		const feedbackId = `feedback_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -1229,6 +1233,9 @@ export class Sidebar {
 			timestamp: Date.now(),
 			url: window.location.href,
 			context: context.substring(0, 200),
+			// Add provider/model data from the analysis that generated this nugget
+			modelProvider: lastUsedProvider?.providerId || 'gemini',
+			modelName: lastUsedProvider?.modelName || 'gemini-2.5-flash',
 		};
 
 		// Update the item
@@ -1244,12 +1251,16 @@ export class Sidebar {
 		this.refreshCurrentPage();
 	}
 
-	private handleTypeCorrection(
+	private async handleTypeCorrection(
 		globalIndex: number,
 		newType: GoldenNuggetType,
-	): void {
+	): Promise<void> {
 		const item = this.allItems[globalIndex];
 		if (!item) return;
+
+		// Get the provider info that was used for the analysis
+		const result = await chrome.storage.local.get(['lastUsedProvider']);
+		const lastUsedProvider = result.lastUsedProvider;
 
 		// Create feedback if it doesn't exist, or update existing
 		if (!item.feedback) {
@@ -1265,6 +1276,9 @@ export class Sidebar {
 				timestamp: Date.now(),
 				url: window.location.href,
 				context: context.substring(0, 200),
+				// Add provider/model data from the analysis that generated this nugget
+				modelProvider: lastUsedProvider?.providerId || 'gemini',
+				modelName: lastUsedProvider?.modelName || 'gemini-2.5-flash',
 			};
 		}
 
