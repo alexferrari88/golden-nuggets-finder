@@ -316,6 +316,15 @@ export class StorageManager {
 		}
 	}
 
+	/**
+	 * Synchronous version that returns cached value or default.
+	 * Use this when you need immediate access and can accept a fallback.
+	 */
+	getSynthesisEnabledSync(): boolean {
+		const cached = this.getFromCache(STORAGE_KEYS.SYNTHESIS_ENABLED);
+		return cached ?? false; // Default false for new users
+	}
+
 	async setSynthesisEnabled(enabled: boolean): Promise<void> {
 		try {
 			await chrome.storage.local.set({
