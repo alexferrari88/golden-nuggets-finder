@@ -74,6 +74,7 @@ interface AnalyzeSelectedContentRequest extends BaseRequest {
 	url: string;
 	analysisId?: string;
 	typeFilter?: TypeFilterOptions;
+	synthesisEnabled?: boolean;
 }
 
 interface GetPromptsRequest extends BaseRequest {

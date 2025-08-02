@@ -294,7 +294,7 @@ export class UIManager {
 		}
 	}
 
-	private analyzeSelectedContent(): void {
+	private async analyzeSelectedContent(): Promise<void> {
 		if (!this.currentPromptId) {
 			this.notifications.showError("No prompt selected for analysis.");
 			return;
@@ -336,6 +336,9 @@ export class UIManager {
 		// Show loading modal and hide the control panel during analysis
 		this.showAnalysisInProgress();
 
+		// Get synthesis preference from storage
+		const synthesisEnabled = await storage.getSynthesisEnabled();
+
 		// Send message directly to background script (like original implementation)
 		chrome.runtime.sendMessage({
 			type: MESSAGE_TYPES.ANALYZE_SELECTED_CONTENT,
@@ -343,6 +346,7 @@ export class UIManager {
 			promptId: this.currentPromptId,
 			url: window.location.href,
 			typeFilter: this.currentTypeFilter,
+			synthesisEnabled: synthesisEnabled,
 		});
 
 		// Note: Selection mode will be exited when analysis completes/fails
@@ -853,8 +857,8 @@ export class UIManager {
     `;
 		analyzeBtn.textContent = "Analyze Selected Content";
 
-		analyzeBtn.addEventListener("click", () => {
-			this.analyzeSelectedContent();
+		analyzeBtn.addEventListener("click", async () => {
+			await this.analyzeSelectedContent();
 		});
 
 		analyzeBtn.addEventListener("mouseenter", () => {
