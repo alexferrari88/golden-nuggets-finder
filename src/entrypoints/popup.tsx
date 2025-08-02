@@ -616,7 +616,6 @@ function IndexPopup() {
 		return (
 			<div
 				style={{
-					width: "320px",
 					padding: spacing["2xl"],
 					textAlign: "center",
 					fontFamily: typography.fontFamily.sans,
@@ -683,7 +682,6 @@ function IndexPopup() {
 		return (
 			<div
 				style={{
-					width: "320px",
 					padding: spacing["2xl"],
 					fontFamily: typography.fontFamily.sans,
 					backgroundColor: colors.background.primary,
@@ -743,7 +741,6 @@ function IndexPopup() {
 		return (
 			<div
 				style={{
-					width: "320px",
 					padding: spacing["2xl"],
 					fontFamily: typography.fontFamily.sans,
 					backgroundColor: colors.background.primary,
@@ -803,7 +800,6 @@ function IndexPopup() {
 		return (
 			<div
 				style={{
-					width: "320px",
 					minHeight: "260px",
 					padding: spacing["2xl"],
 					display: "flex",
@@ -1076,7 +1072,6 @@ function IndexPopup() {
 	return (
 		<div
 			style={{
-				width: "320px",
 				fontFamily: typography.fontFamily.sans,
 				backgroundColor: colors.background.primary,
 				borderRadius: borderRadius.lg,
