@@ -604,6 +604,106 @@ Return valid JSON with the exact structure: {{"golden_nuggets": [...]}}"""
             }
         return None
 
+    async def get_current_prompt_for_provider_model(
+        self, db: aiosqlite.Connection, provider_id: str, model_name: str
+    ) -> Optional[dict]:
+        """
+        Get the current optimized prompt for a specific provider+model combination.
+        
+        Falls back to generic optimized prompt if no provider-specific optimization exists.
+        Returns None if no optimizations are available (extension will use baseline).
+        """
+        logger.info(
+            f"Retrieving optimized prompt for {provider_id}+{model_name}",
+            extra={
+                "provider_id": provider_id,
+                "model_name": model_name,
+                "operation": "get_provider_specific_prompt"
+            }
+        )
+        
+        # First try: Get provider+model specific prompt
+        cursor = await db.execute("""
+            SELECT id, version, prompt, created_at, feedback_count, positive_rate, 
+                   model_provider, model_name
+            FROM optimized_prompts
+            WHERE model_provider = ? AND model_name = ? AND is_current = TRUE
+            ORDER BY version DESC
+            LIMIT 1
+        """, (provider_id, model_name))
+        result = await cursor.fetchone()
+
+        if result:
+            logger.info(
+                f"Found provider-specific optimized prompt for {provider_id}+{model_name} (v{result[1]})",
+                extra={
+                    "provider_id": provider_id,
+                    "model_name": model_name,
+                    "prompt_version": result[1],
+                    "optimization_type": "provider_specific"
+                }
+            )
+            return {
+                "id": result[0],
+                "version": result[1],
+                "prompt": result[2],
+                "optimizationDate": result[3],
+                "performance": {"feedbackCount": result[4], "positiveRate": result[5]},
+                "providerSpecific": True,
+                "modelProvider": result[6],
+                "modelName": result[7],
+            }
+
+        # Second try: Fall back to generic optimized prompt (no provider/model specified)
+        logger.info(
+            f"No provider-specific prompt found for {provider_id}+{model_name}, trying generic",
+            extra={
+                "provider_id": provider_id,
+                "model_name": model_name,
+                "fallback_step": "generic_prompt"
+            }
+        )
+        
+        cursor = await db.execute("""
+            SELECT id, version, prompt, created_at, feedback_count, positive_rate
+            FROM optimized_prompts
+            WHERE (model_provider IS NULL OR model_provider = '') AND is_current = TRUE
+            ORDER BY version DESC
+            LIMIT 1
+        """)
+        result = await cursor.fetchone()
+
+        if result:
+            logger.info(
+                f"Using generic optimized prompt for {provider_id}+{model_name} (v{result[1]})",
+                extra={
+                    "provider_id": provider_id,
+                    "model_name": model_name,
+                    "prompt_version": result[1],
+                    "optimization_type": "generic_fallback"
+                }
+            )
+            return {
+                "id": result[0],
+                "version": result[1],
+                "prompt": result[2],
+                "optimizationDate": result[3],
+                "performance": {"feedbackCount": result[4], "positiveRate": result[5]},
+                "providerSpecific": False,
+                "fallbackUsed": True,
+            }
+
+        # No optimized prompts available at all
+        logger.info(
+            f"No optimized prompts available for {provider_id}+{model_name}, will use baseline",
+            extra={
+                "provider_id": provider_id,
+                "model_name": model_name,
+                "optimization_type": "none_available"
+            }
+        )
+        return None
+
     async def get_optimization_history(
         self,
         db: aiosqlite.Connection,

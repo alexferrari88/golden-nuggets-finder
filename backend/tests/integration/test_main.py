@@ -113,6 +113,145 @@ def test_current_prompt(clean_database):
     assert "prompt" in data
 
 
+def test_current_prompt_with_provider_and_model_parameters(clean_database):
+    """Test getting current optimized prompt with provider and model query parameters"""
+    # Test provider+model specific request
+    response = client.get("/optimize/current?provider=openai&model=gpt-4o-mini")
+    assert response.status_code == 200
+    data = response.json()
+    
+    # Should have required fields
+    assert "id" in data
+    assert "version" in data
+    assert "prompt" in data
+    
+    # Additional fields that might be present based on optimization availability
+    if "providerSpecific" in data:
+        assert isinstance(data["providerSpecific"], bool)
+    if "fallbackUsed" in data:
+        assert isinstance(data["fallbackUsed"], bool)
+    if "modelProvider" in data:
+        assert isinstance(data["modelProvider"], str)
+    if "modelName" in data:
+        assert isinstance(data["modelName"], str)
+
+
+def test_current_prompt_with_only_provider_parameter(clean_database):
+    """Test that providing only provider parameter still works (model defaults)"""
+    response = client.get("/optimize/current?provider=gemini")
+    assert response.status_code == 200
+    data = response.json()
+    
+    # Should have required fields
+    assert "id" in data
+    assert "version" in data
+    assert "prompt" in data
+
+
+def test_current_prompt_with_only_model_parameter(clean_database):
+    """Test that providing only model parameter still works (provider defaults)"""
+    response = client.get("/optimize/current?model=claude-3-5-sonnet-20241022")
+    assert response.status_code == 200
+    data = response.json()
+    
+    # Should have required fields
+    assert "id" in data
+    assert "version" in data
+    assert "prompt" in data
+
+
+def test_current_prompt_with_invalid_provider(clean_database):
+    """Test that invalid provider parameter is handled gracefully"""
+    response = client.get("/optimize/current?provider=invalid_provider&model=some-model")
+    assert response.status_code == 200
+    data = response.json()
+    
+    # Should still return a valid response (fallback to generic or baseline)
+    assert "id" in data
+    assert "version" in data
+    assert "prompt" in data
+
+
+def test_current_prompt_with_empty_parameters(clean_database):
+    """Test that empty parameter values are handled gracefully"""
+    response = client.get("/optimize/current?provider=&model=")
+    assert response.status_code == 200
+    data = response.json()
+    
+    # Should still return a valid response
+    assert "id" in data
+    assert "version" in data
+    assert "prompt" in data
+
+
+def test_current_prompt_backward_compatibility(clean_database):
+    """Test that the endpoint maintains backward compatibility (no parameters)"""
+    # This should behave exactly like the original endpoint
+    response_without_params = client.get("/optimize/current")
+    response_with_empty_params = client.get("/optimize/current?")
+    
+    assert response_without_params.status_code == 200
+    assert response_with_empty_params.status_code == 200
+    
+    data_without = response_without_params.json()
+    data_with_empty = response_with_empty_params.json()
+    
+    # Both should have the same structure
+    assert "id" in data_without
+    assert "version" in data_without
+    assert "prompt" in data_without
+    assert "id" in data_with_empty
+    assert "version" in data_with_empty
+    assert "prompt" in data_with_empty
+
+
+def test_current_prompt_with_special_characters_in_parameters(clean_database):
+    """Test that special characters in parameters are handled gracefully"""
+    # Test with URL encoding and special characters
+    response = client.get("/optimize/current?provider=test%20provider&model=test-model-v1.0")
+    assert response.status_code == 200
+    data = response.json()
+    
+    # Should handle gracefully and return valid response
+    assert "id" in data
+    assert "version" in data
+    assert "prompt" in data
+
+
+def test_current_prompt_response_structure_consistency(clean_database):
+    """Test that response structure is consistent across different parameter combinations"""
+    # Test multiple parameter combinations
+    test_cases = [
+        "",  # No parameters
+        "?provider=openai",  # Only provider
+        "?model=gpt-4o",  # Only model
+        "?provider=openai&model=gpt-4o",  # Both parameters
+        "?provider=gemini&model=gemini-2.5-flash",  # Different provider
+        "?provider=anthropic&model=claude-3-5-sonnet-20241022",  # Another provider
+    ]
+    
+    responses = []
+    for params in test_cases:
+        url = f"/optimize/current{params}"
+        response = client.get(url)
+        assert response.status_code == 200
+        data = response.json()
+        
+        # All responses should have required fields
+        assert "id" in data
+        assert "version" in data
+        assert "prompt" in data
+        
+        responses.append(data)
+    
+    # All responses should have consistent structure for required fields
+    for response_data in responses:
+        assert isinstance(response_data["id"], str)
+        assert isinstance(response_data["version"], int)
+        assert isinstance(response_data["prompt"], str)
+        assert len(response_data["prompt"]) > 0  # Should not be empty
+
+
 def test_update_feedback_item(clean_database):
     """Test updating a feedback item"""
     # Use unique ID for each test run
