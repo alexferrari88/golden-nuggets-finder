@@ -139,9 +139,9 @@ test-e2e-headed:
 test-e2e-report:
     pnpm test:e2e:report
 
-# Run backend tests (if in backend directory)
+# Run backend tests using Docker
 test-backend:
-    cd backend && python -m pytest tests/integration tests/unit
+    cd backend && docker-compose run --rm backend-dev python -m pytest tests/integration tests/unit
 
 # ============================================================================
 # LINTING AND FORMATTING
