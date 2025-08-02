@@ -52,6 +52,8 @@ class TestDatabaseErrorHandling:
             timestamp=1642780800000,
             url="https://example.com/error-test",
             context="Test context for error scenarios",
+            modelProvider="gemini",
+            modelName="gemini-2.5-flash",
         )
 
     @pytest.mark.asyncio
@@ -364,6 +366,8 @@ class TestConcurrentOperationErrorHandling:
             timestamp=1642780800000,
             url="https://example.com",
             context="Test context",
+            modelProvider="gemini",
+            modelName="gemini-2.5-flash",
         )
 
         # Should handle database locks appropriately
@@ -393,6 +397,8 @@ class TestResourceConstraintErrorHandling:
             timestamp=1642780800000,
             url="https://example.com",
             context="Test context",
+            modelProvider="gemini",
+            modelName="gemini-2.5-flash",
         )
 
         # Should handle large content (current implementation stores full content)
