@@ -182,6 +182,11 @@ describe("MessageHandler", () => {
 		(storage.getApiKey as ReturnType<typeof vi.fn>).mockResolvedValue(
 			"test-api-key",
 		);
+
+		// Mock storage.getSynthesisEnabled to return true by default
+		(storage.getSynthesisEnabled as ReturnType<typeof vi.fn>).mockResolvedValue(
+			true,
+		);
 	});
 
 	describe("Source placeholder replacement", () => {
@@ -222,6 +227,7 @@ describe("MessageHandler", () => {
 			expect(mockProvider.extractGoldenNuggets).toHaveBeenCalledWith(
 				"Test content",
 				"Analyze this HackerNews thread for insights.",
+				true,
 			);
 		});
 
@@ -243,6 +249,7 @@ describe("MessageHandler", () => {
 			expect(mockProvider.extractGoldenNuggets).toHaveBeenCalledWith(
 				"Test content",
 				"Analyze this Reddit thread for insights.",
+				true,
 			);
 		});
 
@@ -264,6 +271,7 @@ describe("MessageHandler", () => {
 			expect(mockProvider.extractGoldenNuggets).toHaveBeenCalledWith(
 				"Test content",
 				"Analyze this Twitter thread for insights.",
+				true,
 			);
 		});
 
@@ -285,6 +293,7 @@ describe("MessageHandler", () => {
 			expect(mockProvider.extractGoldenNuggets).toHaveBeenCalledWith(
 				"Test content",
 				"Analyze this Twitter thread for insights.",
+				true,
 			);
 		});
 
@@ -306,6 +315,7 @@ describe("MessageHandler", () => {
 			expect(mockProvider.extractGoldenNuggets).toHaveBeenCalledWith(
 				"Test content",
 				"Analyze this text for insights.",
+				true,
 			);
 		});
 
@@ -337,6 +347,7 @@ describe("MessageHandler", () => {
 			expect(mockProvider.extractGoldenNuggets).toHaveBeenCalledWith(
 				"Test content",
 				"First analyze this HackerNews thread and then review the HackerNews thread again.",
+				true,
 			);
 		});
 
@@ -367,6 +378,7 @@ describe("MessageHandler", () => {
 			expect(mockProvider.extractGoldenNuggets).toHaveBeenCalledWith(
 				"Test content",
 				"Analyze this content for insights.",
+				true,
 			);
 		});
 
@@ -398,6 +410,7 @@ describe("MessageHandler", () => {
 			expect(mockProvider.extractGoldenNuggets).toHaveBeenCalledWith(
 				"Test content",
 				"Analyze this Reddit thread and this Reddit thread for insights.",
+				true,
 			);
 		});
 	});
@@ -466,6 +479,7 @@ describe("MessageHandler", () => {
 			expect(mockProvider.extractGoldenNuggets).toHaveBeenCalledWith(
 				"Test content",
 				"Provider-specific optimized prompt",
+				true,
 			);
 		});
 
@@ -525,6 +539,7 @@ describe("MessageHandler", () => {
 			expect(mockProvider.extractGoldenNuggets).toHaveBeenCalledWith(
 				"Test content",
 				"Generic optimized prompt",
+				true,
 			);
 		});
 
@@ -581,6 +596,7 @@ describe("MessageHandler", () => {
 			expect(mockProvider.extractGoldenNuggets).toHaveBeenCalledWith(
 				"Test content",
 				"Generic fallback prompt",
+				true,
 			);
 		});
 
@@ -621,6 +637,7 @@ describe("MessageHandler", () => {
 			expect(mockProvider.extractGoldenNuggets).toHaveBeenCalledWith(
 				"Test content",
 				"Original prompt text",
+				true,
 			);
 		});
 
@@ -665,6 +682,7 @@ describe("MessageHandler", () => {
 			expect(mockProvider.extractGoldenNuggets).toHaveBeenCalledWith(
 				"Test content",
 				"Original prompt text",
+				true,
 			);
 		});
 
@@ -707,6 +725,7 @@ describe("MessageHandler", () => {
 			expect(mockProvider.extractGoldenNuggets).toHaveBeenCalledWith(
 				"Test content",
 				"Original prompt text",
+				true,
 			);
 		});
 
@@ -757,6 +776,7 @@ describe("MessageHandler", () => {
 			expect(mockProvider.extractGoldenNuggets).toHaveBeenCalledWith(
 				"Test content",
 				"Original prompt text",
+				true,
 			);
 		});
 
@@ -807,6 +827,7 @@ describe("MessageHandler", () => {
 			expect(mockProvider.extractGoldenNuggets).toHaveBeenCalledWith(
 				"Test content",
 				"Original prompt text",
+				true,
 			);
 		});
 	});

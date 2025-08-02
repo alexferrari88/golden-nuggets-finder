@@ -1,4 +1,5 @@
 import { debugLogger } from "../shared/debug";
+import { processPromptTemplate } from "../shared/constants";
 import { storage } from "../shared/storage";
 import { getApiKey } from "../shared/storage/api-key-storage";
 import {
@@ -900,6 +901,10 @@ export class MessageHandler {
 				// Continue with default prompt
 			}
 
+			// Get synthesis preference and process template
+			const synthesisEnabled = request.synthesisEnabled ?? await storage.getSynthesisEnabled();
+			processedPrompt = processPromptTemplate(processedPrompt, synthesisEnabled);
+
 			// Apply type filtering if specified
 			if (request.typeFilter && request.typeFilter.selectedTypes.length > 0) {
 				// Validate selected types
@@ -937,9 +942,6 @@ export class MessageHandler {
 				source,
 				sender.tab?.id,
 			);
-
-			// Get synthesis preference
-			const synthesisEnabled = request.synthesisEnabled ?? await storage.getSynthesisEnabled();
 
 			const result = await MessageHandler.handleExtractGoldenNuggets(
 				request.content,
@@ -1053,6 +1055,10 @@ export class MessageHandler {
 				// Continue with default prompt
 			}
 
+			// Get synthesis preference and process template
+			const synthesisEnabled = await storage.getSynthesisEnabled();
+			processedPrompt = processPromptTemplate(processedPrompt, synthesisEnabled);
+
 			// Apply type filtering if specified
 			if (request.typeFilter && request.typeFilter.selectedTypes.length > 0) {
 				// Validate selected types
@@ -1090,9 +1096,6 @@ export class MessageHandler {
 				source,
 				sender.tab?.id,
 			);
-
-			// Get synthesis preference (for selected content, use same preference logic)
-			const synthesisEnabled = await storage.getSynthesisEnabled();
 
 			const result = await MessageHandler.handleExtractGoldenNuggets(
 				request.content,
