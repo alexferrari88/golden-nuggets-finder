@@ -1,6 +1,7 @@
 export const STORAGE_KEYS = {
 	API_KEY: "geminiApiKey",
 	PROMPTS: "userPrompts",
+	SYNTHESIS_ENABLED: "synthesisEnabled", // New - consistent naming
 } as const;
 
 export const GEMINI_CONFIG = {
