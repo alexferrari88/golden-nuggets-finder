@@ -124,7 +124,7 @@ const usePhaseProgression = (
 	const fallbackTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
 	// Function to complete all remaining phases immediately
-	const completeAllPhases = () => {
+	const completeAllPhases = useCallback(() => {
 		// Clear all running timers
 		timersRef.current.forEach((timer) => clearTimeout(timer));
 		timersRef.current = [];
@@ -137,10 +137,10 @@ const usePhaseProgression = (
 		// Complete all phases immediately
 		setCompletedPhases([0, 1, 2]);
 		setCurrentPhase(-1);
-	};
+	}, []);
 
 	// Process real-time progress messages
-	const processRealTimePhase = (progressMessage: AnalysisProgressMessage) => {
+	const processRealTimePhase = useCallback((progressMessage: AnalysisProgressMessage) => {
 		// Cancel fallback timing since we're getting real messages
 		if (fallbackTimeoutRef.current) {
 			clearTimeout(fallbackTimeoutRef.current);
@@ -211,7 +211,7 @@ const usePhaseProgression = (
 				}
 			}
 		}
-	};
+	}, []);
 
 	const startFallbackAnimation = useCallback(async () => {
 		// Clear any existing timers
