@@ -1,75 +1,100 @@
-import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../ui/dialog';
-import { Button } from '../ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
-import { Input } from '../ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
-import { Badge } from '../ui/badge';
-import { Alert, AlertDescription } from '../ui/alert';
-import { Download, FileText, Database, Calendar, CheckCircle, XCircle, Clock } from 'lucide-react';
-import api from '../../lib/api';
+import { useQuery } from "@tanstack/react-query"
+import {
+  Calendar,
+  CheckCircle,
+  Clock,
+  Database,
+  Download,
+  FileText,
+  XCircle,
+} from "lucide-react"
+import { useState } from "react"
+import api from "../../lib/api"
+import { Alert, AlertDescription } from "../ui/alert"
+import { Badge } from "../ui/badge"
+import { Button } from "../ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "../ui/card"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "../ui/dialog"
+import { Input } from "../ui/input"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../ui/select"
 
-export type ExportDataType = 'feedback' | 'optimization_runs' | 'cost_analysis' | 'dashboard_stats';
-export type ExportFormat = 'csv' | 'json' | 'xlsx';
+export type ExportDataType =
+  | "feedback"
+  | "optimization_runs"
+  | "cost_analysis"
+  | "dashboard_stats"
+export type ExportFormat = "csv" | "json" | "xlsx"
 
 interface ExportOptions {
-  dataType: ExportDataType;
-  format: ExportFormat;
-  dateRange: string;
-  customDateFrom?: string;
-  customDateTo?: string;
-  includeProcessed: boolean;
-  includeUnprocessed: boolean;
-  maxRecords?: number;
+  dataType: ExportDataType
+  format: ExportFormat
+  dateRange: string
+  customDateFrom?: string
+  customDateTo?: string
+  includeProcessed: boolean
+  includeUnprocessed: boolean
+  maxRecords?: number
 }
 
 interface ExportJob {
-  id: string;
-  status: 'pending' | 'processing' | 'completed' | 'failed';
-  dataType: ExportDataType;
-  format: ExportFormat;
-  recordCount?: number;
-  fileSize?: string;
-  downloadUrl?: string;
-  createdAt: string;
-  completedAt?: string;
-  error?: string;
+  id: string
+  status: "pending" | "processing" | "completed" | "failed"
+  dataType: ExportDataType
+  format: ExportFormat
+  recordCount?: number
+  fileSize?: string
+  downloadUrl?: string
+  createdAt: string
+  completedAt?: string
+  error?: string
 }
 
 interface DataExporterProps {
-  trigger?: React.ReactNode;
-  defaultDataType?: ExportDataType;
+  trigger?: React.ReactNode
+  defaultDataType?: ExportDataType
 }
 
-export const DataExporter: React.FC<DataExporterProps> = ({ 
-  trigger, 
-  defaultDataType = 'feedback' 
+export const DataExporter: React.FC<DataExporterProps> = ({
+  trigger,
+  defaultDataType = "feedback",
 }) => {
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(false)
   const [exportOptions, setExportOptions] = useState<ExportOptions>({
     dataType: defaultDataType,
-    format: 'csv',
-    dateRange: 'last_30_days',
+    format: "csv",
+    dateRange: "last_30_days",
     includeProcessed: true,
     includeUnprocessed: true,
-  });
-  const [isExporting, setIsExporting] = useState(false);
+  })
+  const [isExporting, setIsExporting] = useState(false)
 
   // Query for recent export jobs
   const { data: exportJobs, refetch: refetchJobs } = useQuery<ExportJob[]>({
-    queryKey: ['export-jobs'],
-    queryFn: () => api.get('/export/jobs').then(res => res.data),
+    queryKey: ["export-jobs"],
+    queryFn: () => api.get("/export/jobs").then((res) => res.data),
     refetchInterval: 5000, // Poll every 5 seconds for job status updates
     enabled: isOpen,
-  });
+  })
 
   const handleExport = async () => {
-    if (isExporting) return;
+    if (isExporting) return
 
     try {
-      setIsExporting(true);
-      
+      setIsExporting(true)
+
       const payload = {
         data_type: exportOptions.dataType,
         format: exportOptions.format,
@@ -79,80 +104,76 @@ export const DataExporter: React.FC<DataExporterProps> = ({
         include_processed: exportOptions.includeProcessed,
         include_unprocessed: exportOptions.includeUnprocessed,
         max_records: exportOptions.maxRecords,
-      };
+      }
 
-      await api.post('/export/create', payload);
-      
+      await api.post("/export/create", payload)
+
       // Refresh jobs list to show the new export
-      refetchJobs();
-      
-      // Reset form for next export
-      setExportOptions(prev => ({
-        ...prev,
-        dateRange: 'last_30_days',
-        maxRecords: undefined,
-      }));
+      refetchJobs()
 
+      // Reset form for next export
+      setExportOptions((prev) => ({
+        ...prev,
+        dateRange: "last_30_days",
+        maxRecords: undefined,
+      }))
     } catch (error) {
-      console.error('Export failed:', error);
+      console.error("Export failed:", error)
     } finally {
-      setIsExporting(false);
+      setIsExporting(false)
     }
-  };
+  }
 
   const handleDownload = (job: ExportJob) => {
     if (job.downloadUrl) {
-      const link = document.createElement('a');
-      link.href = job.downloadUrl;
-      link.download = `${job.dataType}_export_${job.id}.${job.format}`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      const link = document.createElement("a")
+      link.href = job.downloadUrl
+      link.download = `${job.dataType}_export_${job.id}.${job.format}`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
     }
-  };
+  }
 
   const getDataTypeIcon = (dataType: ExportDataType) => {
     switch (dataType) {
-      case 'feedback':
-        return <FileText className="h-4 w-4" />;
-      case 'optimization_runs':
-        return <Database className="h-4 w-4" />;
-      case 'cost_analysis':
-        return <Download className="h-4 w-4" />;
-      case 'dashboard_stats':
-        return <Calendar className="h-4 w-4" />;
+      case "feedback":
+        return <FileText className="h-4 w-4" />
+      case "optimization_runs":
+        return <Database className="h-4 w-4" />
+      case "cost_analysis":
+        return <Download className="h-4 w-4" />
+      case "dashboard_stats":
+        return <Calendar className="h-4 w-4" />
       default:
-        return <FileText className="h-4 w-4" />;
+        return <FileText className="h-4 w-4" />
     }
-  };
+  }
 
-  const getStatusIcon = (status: ExportJob['status']) => {
+  const getStatusIcon = (status: ExportJob["status"]) => {
     switch (status) {
-      case 'completed':
-        return <CheckCircle className="h-4 w-4 text-green-500" />;
-      case 'failed':
-        return <XCircle className="h-4 w-4 text-red-500" />;
-      case 'processing':
-        return <Clock className="h-4 w-4 text-blue-500 animate-spin" />;
+      case "completed":
+        return <CheckCircle className="h-4 w-4 text-green-500" />
+      case "failed":
+        return <XCircle className="h-4 w-4 text-red-500" />
+      case "processing":
+        return <Clock className="h-4 w-4 animate-spin text-blue-500" />
       default:
-        return <Clock className="h-4 w-4 text-gray-400" />;
+        return <Clock className="h-4 w-4 text-gray-400" />
     }
-  };
-
+  }
 
   const defaultTrigger = (
     <Button variant="outline" className="flex items-center gap-2">
       <Download className="h-4 w-4" />
       Export Data
     </Button>
-  );
+  )
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogTrigger asChild>
-        {trigger || defaultTrigger}
-      </DialogTrigger>
-      <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+      <DialogTrigger asChild>{trigger || defaultTrigger}</DialogTrigger>
+      <DialogContent className="max-h-[80vh] max-w-4xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Export Data</DialogTitle>
           <DialogDescription>
@@ -168,11 +189,13 @@ export const DataExporter: React.FC<DataExporterProps> = ({
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
-                <label className="text-sm font-medium mb-2 block">Data Type</label>
-                <Select 
-                  value={exportOptions.dataType} 
-                  onValueChange={(value: ExportDataType) => 
-                    setExportOptions(prev => ({ ...prev, dataType: value }))
+                <label className="mb-2 block font-medium text-sm">
+                  Data Type
+                </label>
+                <Select
+                  value={exportOptions.dataType}
+                  onValueChange={(value: ExportDataType) =>
+                    setExportOptions((prev) => ({ ...prev, dataType: value }))
                   }
                 >
                   <SelectTrigger>
@@ -208,11 +231,11 @@ export const DataExporter: React.FC<DataExporterProps> = ({
               </div>
 
               <div>
-                <label className="text-sm font-medium mb-2 block">Format</label>
-                <Select 
-                  value={exportOptions.format} 
-                  onValueChange={(value: ExportFormat) => 
-                    setExportOptions(prev => ({ ...prev, format: value }))
+                <label className="mb-2 block font-medium text-sm">Format</label>
+                <Select
+                  value={exportOptions.format}
+                  onValueChange={(value: ExportFormat) =>
+                    setExportOptions((prev) => ({ ...prev, format: value }))
                   }
                 >
                   <SelectTrigger>
@@ -220,18 +243,22 @@ export const DataExporter: React.FC<DataExporterProps> = ({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="csv">CSV (Comma Separated)</SelectItem>
-                    <SelectItem value="json">JSON (JavaScript Object Notation)</SelectItem>
+                    <SelectItem value="json">
+                      JSON (JavaScript Object Notation)
+                    </SelectItem>
                     <SelectItem value="xlsx">Excel (XLSX)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
               <div>
-                <label className="text-sm font-medium mb-2 block">Date Range</label>
-                <Select 
-                  value={exportOptions.dateRange} 
-                  onValueChange={(value) => 
-                    setExportOptions(prev => ({ ...prev, dateRange: value }))
+                <label className="mb-2 block font-medium text-sm">
+                  Date Range
+                </label>
+                <Select
+                  value={exportOptions.dateRange}
+                  onValueChange={(value) =>
+                    setExportOptions((prev) => ({ ...prev, dateRange: value }))
                   }
                 >
                   <SelectTrigger>
@@ -248,46 +275,54 @@ export const DataExporter: React.FC<DataExporterProps> = ({
                 </Select>
               </div>
 
-              {exportOptions.dateRange === 'custom' && (
+              {exportOptions.dateRange === "custom" && (
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="text-sm font-medium mb-1 block">From</label>
+                    <label className="mb-1 block font-medium text-sm">
+                      From
+                    </label>
                     <Input
                       type="date"
-                      value={exportOptions.customDateFrom || ''}
-                      onChange={(e) => setExportOptions(prev => ({ 
-                        ...prev, 
-                        customDateFrom: e.target.value 
-                      }))}
+                      value={exportOptions.customDateFrom || ""}
+                      onChange={(e) =>
+                        setExportOptions((prev) => ({
+                          ...prev,
+                          customDateFrom: e.target.value,
+                        }))
+                      }
                     />
                   </div>
                   <div>
-                    <label className="text-sm font-medium mb-1 block">To</label>
+                    <label className="mb-1 block font-medium text-sm">To</label>
                     <Input
                       type="date"
-                      value={exportOptions.customDateTo || ''}
-                      onChange={(e) => setExportOptions(prev => ({ 
-                        ...prev, 
-                        customDateTo: e.target.value 
-                      }))}
+                      value={exportOptions.customDateTo || ""}
+                      onChange={(e) =>
+                        setExportOptions((prev) => ({
+                          ...prev,
+                          customDateTo: e.target.value,
+                        }))
+                      }
                     />
                   </div>
                 </div>
               )}
 
-              {exportOptions.dataType === 'feedback' && (
+              {exportOptions.dataType === "feedback" && (
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Include Items</label>
+                  <label className="font-medium text-sm">Include Items</label>
                   <div className="flex items-center space-x-4">
                     <label className="flex items-center space-x-2 text-sm">
                       <input
                         type="checkbox"
                         checked={exportOptions.includeProcessed}
-                        onChange={(e) => setExportOptions(prev => ({ 
-                          ...prev, 
-                          includeProcessed: e.target.checked 
-                        }))}
-                        className="rounded border-gray-300 cursor-pointer"
+                        onChange={(e) =>
+                          setExportOptions((prev) => ({
+                            ...prev,
+                            includeProcessed: e.target.checked,
+                          }))
+                        }
+                        className="cursor-pointer rounded border-gray-300"
                       />
                       <span>Processed</span>
                     </label>
@@ -295,11 +330,13 @@ export const DataExporter: React.FC<DataExporterProps> = ({
                       <input
                         type="checkbox"
                         checked={exportOptions.includeUnprocessed}
-                        onChange={(e) => setExportOptions(prev => ({ 
-                          ...prev, 
-                          includeUnprocessed: e.target.checked 
-                        }))}
-                        className="rounded border-gray-300 cursor-pointer"
+                        onChange={(e) =>
+                          setExportOptions((prev) => ({
+                            ...prev,
+                            includeUnprocessed: e.target.checked,
+                          }))
+                        }
+                        className="cursor-pointer rounded border-gray-300"
                       />
                       <span>Unprocessed</span>
                     </label>
@@ -308,31 +345,37 @@ export const DataExporter: React.FC<DataExporterProps> = ({
               )}
 
               <div>
-                <label className="text-sm font-medium mb-2 block">Max Records (optional)</label>
+                <label className="mb-2 block font-medium text-sm">
+                  Max Records (optional)
+                </label>
                 <Input
                   type="number"
                   placeholder="Leave empty for no limit"
-                  value={exportOptions.maxRecords || ''}
-                  onChange={(e) => setExportOptions(prev => ({ 
-                    ...prev, 
-                    maxRecords: e.target.value ? parseInt(e.target.value) : undefined 
-                  }))}
+                  value={exportOptions.maxRecords || ""}
+                  onChange={(e) =>
+                    setExportOptions((prev) => ({
+                      ...prev,
+                      maxRecords: e.target.value
+                        ? parseInt(e.target.value)
+                        : undefined,
+                    }))
+                  }
                 />
               </div>
 
-              <Button 
-                onClick={handleExport} 
+              <Button
+                onClick={handleExport}
                 disabled={isExporting}
                 className="w-full"
               >
                 {isExporting ? (
                   <>
-                    <Clock className="h-4 w-4 mr-2 animate-spin" />
+                    <Clock className="mr-2 h-4 w-4 animate-spin" />
                     Creating Export...
                   </>
                 ) : (
                   <>
-                    <Download className="h-4 w-4 mr-2" />
+                    <Download className="mr-2 h-4 w-4" />
                     Create Export
                   </>
                 )}
@@ -347,17 +390,17 @@ export const DataExporter: React.FC<DataExporterProps> = ({
             </CardHeader>
             <CardContent>
               {exportJobs && exportJobs.length > 0 ? (
-                <div className="space-y-3 max-h-96 overflow-y-auto">
+                <div className="max-h-96 space-y-3 overflow-y-auto">
                   {exportJobs.map((job) => (
-                    <div 
-                      key={job.id} 
-                      className="p-3 border rounded-lg hover:bg-gray-50"
+                    <div
+                      key={job.id}
+                      className="rounded-lg border p-3 hover:bg-gray-50"
                     >
-                      <div className="flex items-center justify-between mb-2">
+                      <div className="mb-2 flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           {getDataTypeIcon(job.dataType)}
                           <span className="font-medium text-sm">
-                            {job.dataType.replace('_', ' ').toUpperCase()}
+                            {job.dataType.replace("_", " ").toUpperCase()}
                           </span>
                           <Badge variant="outline">
                             {job.format.toUpperCase()}
@@ -365,27 +408,32 @@ export const DataExporter: React.FC<DataExporterProps> = ({
                         </div>
                         <div className="flex items-center gap-1">
                           {getStatusIcon(job.status)}
-                          <Badge variant={
-                            job.status === 'completed' ? 'default' :
-                            job.status === 'failed' ? 'destructive' :
-                            'secondary'
-                          }>
+                          <Badge
+                            variant={
+                              job.status === "completed"
+                                ? "default"
+                                : job.status === "failed"
+                                  ? "destructive"
+                                  : "secondary"
+                            }
+                          >
                             {job.status}
                           </Badge>
                         </div>
                       </div>
-                      
-                      <div className="text-xs text-gray-600 mb-2">
+
+                      <div className="mb-2 text-gray-600 text-xs">
                         Created: {new Date(job.createdAt).toLocaleString()}
                         {job.completedAt && (
                           <span className="block">
-                            Completed: {new Date(job.completedAt).toLocaleString()}
+                            Completed:{" "}
+                            {new Date(job.completedAt).toLocaleString()}
                           </span>
                         )}
                       </div>
 
                       {job.recordCount && (
-                        <div className="text-xs text-gray-600 mb-2">
+                        <div className="mb-2 text-gray-600 text-xs">
                           {job.recordCount.toLocaleString()} records
                           {job.fileSize && ` • ${job.fileSize}`}
                         </div>
@@ -399,14 +447,14 @@ export const DataExporter: React.FC<DataExporterProps> = ({
                         </Alert>
                       )}
 
-                      {job.status === 'completed' && job.downloadUrl && (
+                      {job.status === "completed" && job.downloadUrl && (
                         <Button
                           variant="outline"
                           size="sm"
                           onClick={() => handleDownload(job)}
-                          className="w-full mt-2"
+                          className="mt-2 w-full"
                         >
-                          <Download className="h-3 w-3 mr-1" />
+                          <Download className="mr-1 h-3 w-3" />
                           Download
                         </Button>
                       )}
@@ -414,8 +462,8 @@ export const DataExporter: React.FC<DataExporterProps> = ({
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-8 text-gray-500">
-                  <Download className="h-8 w-8 mx-auto mb-2 text-gray-300" />
+                <div className="py-8 text-center text-gray-500">
+                  <Download className="mx-auto mb-2 h-8 w-8 text-gray-300" />
                   <p className="text-sm">No exports yet</p>
                 </div>
               )}
@@ -424,5 +472,5 @@ export const DataExporter: React.FC<DataExporterProps> = ({
         </div>
       </DialogContent>
     </Dialog>
-  );
-};
+  )
+}

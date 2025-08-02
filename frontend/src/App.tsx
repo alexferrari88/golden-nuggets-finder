@@ -1,7 +1,7 @@
-import { QueryClientProvider } from '@tanstack/react-query';
-import { Layout } from '@/components/layout/Layout';
-import { Dashboard } from '@/pages/Dashboard';
-import { queryClient } from '@/lib/queryClient';
+import { QueryClientProvider } from "@tanstack/react-query"
+import { Layout } from "@/components/layout/Layout"
+import { queryClient } from "@/lib/queryClient"
+import { Dashboard } from "@/pages/Dashboard"
 
 function App() {
   return (
@@ -10,7 +10,7 @@ function App() {
         <Dashboard />
       </Layout>
     </QueryClientProvider>
-  );
+  )
 }
 
-export default App;
+export default App

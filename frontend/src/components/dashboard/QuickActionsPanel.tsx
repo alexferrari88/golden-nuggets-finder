@@ -1,20 +1,24 @@
-import { useState } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { 
-  Play, 
-  Download, 
-  RefreshCw, 
-  Zap,
-  FileDown,
-  Database,
-  Loader2,
+import { useMutation, useQueryClient } from "@tanstack/react-query"
+import {
+  AlertCircle,
   CheckCircle,
-  AlertCircle
-} from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
-import { Button } from '../ui/button';
-import { Badge } from '../ui/badge';
-import { 
+  Database,
+  Download,
+  FileDown,
+  Loader2,
+  Play,
+  RefreshCw,
+  Zap,
+} from "lucide-react"
+import { useState } from "react"
+import api from "../../lib/api"
+import type { ApiError } from "../../types"
+import { DataExporter } from "../export/DataExporter"
+import { Alert, AlertDescription } from "../ui/alert"
+import { Badge } from "../ui/badge"
+import { Button } from "../ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "../ui/card"
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -22,63 +26,61 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from '../ui/dialog';
-import { Alert, AlertDescription } from '../ui/alert';
-import { DataExporter } from '../export/DataExporter';
-import api from '../../lib/api';
-import type { ApiError } from '../../types';
+} from "../ui/dialog"
 
 interface QuickActionsPanelProps {
-  onActionComplete?: (action: string, success: boolean) => void;
+  onActionComplete?: (action: string, success: boolean) => void
 }
 
-export function QuickActionsPanel({ onActionComplete }: QuickActionsPanelProps) {
-  const [confirmDialog, setConfirmDialog] = useState<string | null>(null);
-  const queryClient = useQueryClient();
+export function QuickActionsPanel({
+  onActionComplete,
+}: QuickActionsPanelProps) {
+  const [confirmDialog, setConfirmDialog] = useState<string | null>(null)
+  const queryClient = useQueryClient()
 
   // Optimization trigger mutation
   const optimizationMutation = useMutation({
-    mutationFn: ({ force }: { force?: boolean } = {}) => 
-      api.post('/optimization/trigger', { force }),
+    mutationFn: ({ force }: { force?: boolean } = {}) =>
+      api.post("/optimization/trigger", { force }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['recent-activity'] });
-      queryClient.invalidateQueries({ queryKey: ['system-health'] });
-      onActionComplete?.('optimization', true);
+      queryClient.invalidateQueries({ queryKey: ["recent-activity"] })
+      queryClient.invalidateQueries({ queryKey: ["system-health"] })
+      onActionComplete?.("optimization", true)
     },
     onError: () => {
-      onActionComplete?.('optimization', false);
+      onActionComplete?.("optimization", false)
     },
-  });
+  })
 
   const handleRefreshAll = () => {
-    queryClient.invalidateQueries();
-    onActionComplete?.('refresh', true);
-  };
+    queryClient.invalidateQueries()
+    onActionComplete?.("refresh", true)
+  }
 
   const handleOptimization = (force: boolean = false) => {
-    optimizationMutation.mutate({ force });
-    setConfirmDialog(null);
-  };
+    optimizationMutation.mutate({ force })
+    setConfirmDialog(null)
+  }
 
   const getActionStatus = (mutation: typeof optimizationMutation) => {
-    if (mutation.isPending) return 'loading';
-    if (mutation.isError) return 'error';
-    if (mutation.isSuccess) return 'success';
-    return 'idle';
-  };
+    if (mutation.isPending) return "loading"
+    if (mutation.isError) return "error"
+    if (mutation.isSuccess) return "success"
+    return "idle"
+  }
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'loading':
-        return <Loader2 className="h-4 w-4 animate-spin" />;
-      case 'success':
-        return <CheckCircle className="h-4 w-4 text-green-500" />;
-      case 'error':
-        return <AlertCircle className="h-4 w-4 text-red-500" />;
+      case "loading":
+        return <Loader2 className="h-4 w-4 animate-spin" />
+      case "success":
+        return <CheckCircle className="h-4 w-4 text-green-500" />
+      case "error":
+        return <AlertCircle className="h-4 w-4 text-red-500" />
       default:
-        return null;
+        return null
     }
-  };
+  }
 
   return (
     <Card>
@@ -94,21 +96,24 @@ export function QuickActionsPanel({ onActionComplete }: QuickActionsPanelProps) 
           {/* Run Optimization */}
           <div className="flex items-center justify-between">
             <div className="space-y-1">
-              <h4 className="text-sm font-medium">Run Optimization</h4>
-              <p className="text-xs text-gray-500">
+              <h4 className="font-medium text-sm">Run Optimization</h4>
+              <p className="text-gray-500 text-xs">
                 Process pending feedback and optimize prompts
               </p>
             </div>
             <div className="flex items-center gap-2">
               {getStatusIcon(getActionStatus(optimizationMutation))}
-              <Dialog open={confirmDialog === 'optimize'} onOpenChange={(open) => !open && setConfirmDialog(null)}>
+              <Dialog
+                open={confirmDialog === "optimize"}
+                onOpenChange={(open) => !open && setConfirmDialog(null)}
+              >
                 <DialogTrigger asChild>
-                  <Button 
-                    size="sm" 
+                  <Button
+                    size="sm"
                     disabled={optimizationMutation.isPending}
-                    onClick={() => setConfirmDialog('optimize')}
+                    onClick={() => setConfirmDialog("optimize")}
                   >
-                    <Play className="h-4 w-4 mr-2" />
+                    <Play className="mr-2 h-4 w-4" />
                     Run
                   </Button>
                 </DialogTrigger>
@@ -116,13 +121,14 @@ export function QuickActionsPanel({ onActionComplete }: QuickActionsPanelProps) 
                   <DialogHeader>
                     <DialogTitle>Confirm Optimization</DialogTitle>
                     <DialogDescription>
-                      This will start a new optimization run using all pending feedback. 
-                      The process may take several minutes to complete.
+                      This will start a new optimization run using all pending
+                      feedback. The process may take several minutes to
+                      complete.
                     </DialogDescription>
                   </DialogHeader>
                   <DialogFooter>
-                    <Button 
-                      variant="outline" 
+                    <Button
+                      variant="outline"
                       onClick={() => setConfirmDialog(null)}
                     >
                       Cancel
@@ -139,17 +145,13 @@ export function QuickActionsPanel({ onActionComplete }: QuickActionsPanelProps) 
           {/* Refresh Status */}
           <div className="flex items-center justify-between">
             <div className="space-y-1">
-              <h4 className="text-sm font-medium">Refresh All Data</h4>
-              <p className="text-xs text-gray-500">
+              <h4 className="font-medium text-sm">Refresh All Data</h4>
+              <p className="text-gray-500 text-xs">
                 Update all dashboard components
               </p>
             </div>
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={handleRefreshAll}
-            >
-              <RefreshCw className="h-4 w-4 mr-2" />
+            <Button variant="outline" size="sm" onClick={handleRefreshAll}>
+              <RefreshCw className="mr-2 h-4 w-4" />
               Refresh
             </Button>
           </div>
@@ -158,19 +160,19 @@ export function QuickActionsPanel({ onActionComplete }: QuickActionsPanelProps) 
         {/* Export Section */}
         <div className="border-t pt-4">
           <div className="space-y-3">
-            <h4 className="text-sm font-medium flex items-center gap-2">
+            <h4 className="flex items-center gap-2 font-medium text-sm">
               <FileDown className="h-4 w-4" />
               Data Export
             </h4>
-            
+
             <div className="flex items-center justify-between">
-              <p className="text-xs text-gray-500">
+              <p className="text-gray-500 text-xs">
                 Export data with advanced options and job tracking
               </p>
               <DataExporter
                 trigger={
                   <Button variant="outline" size="sm">
-                    <Download className="h-4 w-4 mr-2" />
+                    <Download className="mr-2 h-4 w-4" />
                     Export Data
                   </Button>
                 }
@@ -184,7 +186,8 @@ export function QuickActionsPanel({ onActionComplete }: QuickActionsPanelProps) 
           <Alert variant="destructive">
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
-              Failed to start optimization: {(optimizationMutation.error as unknown as ApiError)?.message}
+              Failed to start optimization:{" "}
+              {(optimizationMutation.error as unknown as ApiError)?.message}
             </AlertDescription>
           </Alert>
         )}
@@ -193,17 +196,21 @@ export function QuickActionsPanel({ onActionComplete }: QuickActionsPanelProps) 
           <Alert>
             <CheckCircle className="h-4 w-4" />
             <AlertDescription>
-              Optimization started successfully! Check the Operations Monitor for progress.
+              Optimization started successfully! Check the Operations Monitor
+              for progress.
             </AlertDescription>
           </Alert>
         )}
 
         {/* System Info */}
         <div className="border-t pt-4">
-          <div className="flex items-center justify-between text-xs text-gray-500">
+          <div className="flex items-center justify-between text-gray-500 text-xs">
             <div className="flex items-center gap-2">
               <Database className="h-3 w-3" />
-              <span>Backend: {import.meta.env.VITE_API_BASE_URL || 'http://localhost:7532'}</span>
+              <span>
+                Backend:{" "}
+                {import.meta.env.VITE_API_BASE_URL || "http://localhost:7532"}
+              </span>
             </div>
             <Badge variant="outline" className="text-xs">
               Live
@@ -212,5 +219,5 @@ export function QuickActionsPanel({ onActionComplete }: QuickActionsPanelProps) 
         </div>
       </CardContent>
     </Card>
-  );
+  )
 }

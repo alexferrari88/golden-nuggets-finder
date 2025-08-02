@@ -21,7 +21,10 @@ The frontend is a React-based monitoring dashboard that provides real-time overs
 ### Development Commands
 - `pnpm dev` - Start development server with hot reloading
 - `pnpm build` - Build for production (TypeScript compilation + Vite build)
-- `pnpm lint` - Run ESLint
+- `pnpm lint` - Run Biome linter
+- `pnpm lint:fix` - Run Biome linter with auto-fix
+- `pnpm format` - Format code with Biome
+- `pnpm check` - Run Biome linter and formatter together
 - `pnpm preview` - Preview production build locally
 
 ## Key Features

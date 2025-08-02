@@ -1,7 +1,11 @@
-import { useState } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Trash2, AlertTriangle, CheckSquare } from 'lucide-react';
-import { Button } from '../ui/button';
+import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { AlertTriangle, CheckSquare, Trash2 } from "lucide-react"
+import { useState } from "react"
+import { apiClient } from "../../lib/api"
+import type { FeedbackItem } from "../../types"
+import { Alert, AlertDescription } from "../ui/alert"
+import { Badge } from "../ui/badge"
+import { Button } from "../ui/button"
 import {
   Dialog,
   DialogContent,
@@ -9,57 +13,54 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from '../ui/dialog';
-import { Alert, AlertDescription } from '../ui/alert';
-import { Badge } from '../ui/badge';
-import { apiClient } from '../../lib/api';
-import type { FeedbackItem } from '../../types';
+} from "../ui/dialog"
 
 interface BulkDeleteFeedbackDialogProps {
-  items: FeedbackItem[];
-  children?: React.ReactNode;
-  onSuccess?: () => void;
+  items: FeedbackItem[]
+  children?: React.ReactNode
+  onSuccess?: () => void
 }
 
-export function BulkDeleteFeedbackDialog({ 
-  items, 
-  children, 
-  onSuccess 
+export function BulkDeleteFeedbackDialog({
+  items,
+  children,
+  onSuccess,
 }: BulkDeleteFeedbackDialogProps) {
-  const [open, setOpen] = useState(false);
-  const queryClient = useQueryClient();
+  const [open, setOpen] = useState(false)
+  const queryClient = useQueryClient()
 
   const deleteMutation = useMutation({
-    mutationFn: () => apiClient.bulkDeleteFeedbackItems(
-      items.map(item => ({ 
-        id: item.id, 
-        feedbackType: item.type as 'nugget' | 'missing_content' 
-      }))
-    ),
+    mutationFn: () =>
+      apiClient.bulkDeleteFeedbackItems(
+        items.map((item) => ({
+          id: item.id,
+          feedbackType: item.type as "nugget" | "missing_content",
+        })),
+      ),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['pending-feedback'] });
-      setOpen(false);
-      onSuccess?.();
+      queryClient.invalidateQueries({ queryKey: ["pending-feedback"] })
+      setOpen(false)
+      onSuccess?.()
     },
-  });
+  })
 
   const handleDelete = () => {
-    deleteMutation.mutate();
-  };
+    deleteMutation.mutate()
+  }
 
-  const getTypeCount = (type: 'nugget' | 'missing_content') => {
-    return items.filter(item => item.type === type).length;
-  };
+  const getTypeCount = (type: "nugget" | "missing_content") => {
+    return items.filter((item) => item.type === type).length
+  }
 
-  const nuggetCount = getTypeCount('nugget');
-  const missingContentCount = getTypeCount('missing_content');
+  const nuggetCount = getTypeCount("nugget")
+  const missingContentCount = getTypeCount("missing_content")
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         {children || (
           <Button variant="destructive" size="sm">
-            <Trash2 className="h-4 w-4 mr-2" />
+            <Trash2 className="mr-2 h-4 w-4" />
             Delete Selected ({items.length})
           </Button>
         )}
@@ -71,36 +72,38 @@ export function BulkDeleteFeedbackDialog({
             Delete {items.length} Feedback Items
           </DialogTitle>
           <DialogDescription>
-            Are you sure you want to delete these feedback items? This action cannot be undone.
+            Are you sure you want to delete these feedback items? This action
+            cannot be undone.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
-          <div className="p-3 bg-gray-50 rounded-lg">
-            <div className="flex items-center gap-2 mb-2">
+          <div className="rounded-lg bg-gray-50 p-3">
+            <div className="mb-2 flex items-center gap-2">
               <CheckSquare className="h-4 w-4 text-blue-500" />
-              <span className="text-sm font-medium text-gray-700">
+              <span className="font-medium text-gray-700 text-sm">
                 {items.length} items selected
               </span>
             </div>
-            
+
             <div className="space-y-2">
               {nuggetCount > 0 && (
                 <div className="flex items-center gap-2">
                   <Badge variant="default">{nuggetCount}</Badge>
-                  <span className="text-sm text-gray-600">Golden Nuggets</span>
+                  <span className="text-gray-600 text-sm">Golden Nuggets</span>
                 </div>
               )}
               {missingContentCount > 0 && (
                 <div className="flex items-center gap-2">
                   <Badge variant="secondary">{missingContentCount}</Badge>
-                  <span className="text-sm text-gray-600">Missing Content</span>
+                  <span className="text-gray-600 text-sm">Missing Content</span>
                 </div>
               )}
             </div>
 
-            <div className="mt-3 text-xs text-gray-500">
-              Total usage count: {items.reduce((sum, item) => sum + item.usage_count, 0)} times
+            <div className="mt-3 text-gray-500 text-xs">
+              Total usage count:{" "}
+              {items.reduce((sum, item) => sum + item.usage_count, 0)} times
             </div>
           </div>
 
@@ -126,11 +129,13 @@ export function BulkDeleteFeedbackDialog({
               onClick={handleDelete}
               disabled={deleteMutation.isPending}
             >
-              {deleteMutation.isPending ? 'Deleting...' : `Delete ${items.length} Items`}
+              {deleteMutation.isPending
+                ? "Deleting..."
+                : `Delete ${items.length} Items`}
             </Button>
           </div>
         </div>
       </DialogContent>
     </Dialog>
-  );
+  )
 }

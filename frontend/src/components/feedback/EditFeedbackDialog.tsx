@@ -1,7 +1,11 @@
-import { useState } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Edit3, ThumbsUp, ThumbsDown, X } from 'lucide-react';
-import { Button } from '../ui/button';
+import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { Edit3, ThumbsDown, ThumbsUp, X } from "lucide-react"
+import { useState } from "react"
+import { apiClient } from "../../lib/api"
+import type { FeedbackItem, NuggetType } from "../../types"
+import { Alert, AlertDescription } from "../ui/alert"
+import { Badge } from "../ui/badge"
+import { Button } from "../ui/button"
 import {
   Dialog,
   DialogContent,
@@ -9,89 +13,97 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from '../ui/dialog';
+} from "../ui/dialog"
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '../ui/select';
-import { Badge } from '../ui/badge';
-import { Alert, AlertDescription } from '../ui/alert';
-import { apiClient } from '../../lib/api';
-import type { FeedbackItem, NuggetType } from '../../types';
+} from "../ui/select"
 
 interface EditFeedbackDialogProps {
-  item: FeedbackItem;
-  children?: React.ReactNode;
+  item: FeedbackItem
+  children?: React.ReactNode
 }
 
 // Available nugget types
 const NUGGET_TYPES: { value: NuggetType; label: string }[] = [
-  { value: 'tool', label: 'Tool' },
-  { value: 'media', label: 'Media' },
-  { value: 'explanation', label: 'Explanation' },
-  { value: 'analogy', label: 'Analogy' },
-  { value: 'model', label: 'Model' },
-];
+  { value: "tool", label: "Tool" },
+  { value: "media", label: "Media" },
+  { value: "explanation", label: "Explanation" },
+  { value: "analogy", label: "Analogy" },
+  { value: "model", label: "Model" },
+]
 
-export function EditFeedbackDialog({ item, children }: EditFeedbackDialogProps) {
-  const [open, setOpen] = useState(false);
-  const [content, setContent] = useState(item.content);
-  const [rating, setRating] = useState<'positive' | 'negative' | null>(item.rating || null);
+export function EditFeedbackDialog({
+  item,
+  children,
+}: EditFeedbackDialogProps) {
+  const [open, setOpen] = useState(false)
+  const [content, setContent] = useState(item.content)
+  const [rating, setRating] = useState<"positive" | "negative" | null>(
+    item.rating || null,
+  )
   const [correctedType, setCorrectedType] = useState<NuggetType | null>(
-    (item.corrected_type || null) as NuggetType | null
-  );
+    (item.corrected_type || null) as NuggetType | null,
+  )
   const [suggestedType, setSuggestedType] = useState<NuggetType | null>(
-    (item.suggested_type || null) as NuggetType | null
-  );
-  const queryClient = useQueryClient();
+    (item.suggested_type || null) as NuggetType | null,
+  )
+  const queryClient = useQueryClient()
 
   const updateMutation = useMutation({
-    mutationFn: (updates: { 
-      content?: string; 
-      rating?: 'positive' | 'negative' | null;
-      corrected_type?: NuggetType | null;
-      suggested_type?: NuggetType | null;
-    }) =>
-      apiClient.updateFeedbackItem(item.id, item.type, updates),
+    mutationFn: (updates: {
+      content?: string
+      rating?: "positive" | "negative" | null
+      corrected_type?: NuggetType | null
+      suggested_type?: NuggetType | null
+    }) => apiClient.updateFeedbackItem(item.id, item.type, updates),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['pending-feedback'] });
-      setOpen(false);
+      queryClient.invalidateQueries({ queryKey: ["pending-feedback"] })
+      setOpen(false)
     },
-  });
+  })
 
   const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+    e.preventDefault()
     const updates: {
-      content?: string;
-      rating?: 'positive' | 'negative' | null;
-      corrected_type?: NuggetType | null;
-      suggested_type?: NuggetType | null;
-    } = {};
+      content?: string
+      rating?: "positive" | "negative" | null
+      corrected_type?: NuggetType | null
+      suggested_type?: NuggetType | null
+    } = {}
 
     if (content.trim() !== item.content) {
-      updates.content = content.trim();
+      updates.content = content.trim()
     }
     if (rating !== item.rating) {
-      updates.rating = rating;
+      updates.rating = rating
     }
-    if (item.type === 'nugget' && correctedType !== (item.corrected_type || null)) {
-      updates.corrected_type = correctedType;
+    if (
+      item.type === "nugget" &&
+      correctedType !== (item.corrected_type || null)
+    ) {
+      updates.corrected_type = correctedType
     }
-    if (item.type === 'missing_content' && suggestedType !== (item.suggested_type || null)) {
-      updates.suggested_type = suggestedType;
+    if (
+      item.type === "missing_content" &&
+      suggestedType !== (item.suggested_type || null)
+    ) {
+      updates.suggested_type = suggestedType
     }
 
-    updateMutation.mutate(updates);
-  };
+    updateMutation.mutate(updates)
+  }
 
-  const hasChanges = 
-    content.trim() !== item.content || 
+  const hasChanges =
+    content.trim() !== item.content ||
     rating !== item.rating ||
-    (item.type === 'nugget' && correctedType !== (item.corrected_type || null)) ||
-    (item.type === 'missing_content' && suggestedType !== (item.suggested_type || null));
+    (item.type === "nugget" &&
+      correctedType !== (item.corrected_type || null)) ||
+    (item.type === "missing_content" &&
+      suggestedType !== (item.suggested_type || null))
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -115,15 +127,22 @@ export function EditFeedbackDialog({ item, children }: EditFeedbackDialogProps) 
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <label className="text-sm font-medium">Type</label>
-            {item.type === 'nugget' ? (
+            <label className="font-medium text-sm">Type</label>
+            {item.type === "nugget" ? (
               <div className="space-y-2">
-                <div className="text-sm text-gray-500">
-                  Original: <Badge variant="outline">{item.original_type || 'nugget'}</Badge>
+                <div className="text-gray-500 text-sm">
+                  Original:{" "}
+                  <Badge variant="outline">
+                    {item.original_type || "nugget"}
+                  </Badge>
                 </div>
                 <Select
-                  value={correctedType || 'none'}
-                  onValueChange={(value) => setCorrectedType(value === 'none' ? null : value as NuggetType)}
+                  value={correctedType || "none"}
+                  onValueChange={(value) =>
+                    setCorrectedType(
+                      value === "none" ? null : (value as NuggetType),
+                    )
+                  }
                 >
                   <SelectTrigger className="w-full">
                     <SelectValue placeholder="Select corrected type (optional)" />
@@ -140,8 +159,12 @@ export function EditFeedbackDialog({ item, children }: EditFeedbackDialogProps) 
               </div>
             ) : (
               <Select
-                value={suggestedType || 'none'}
-                onValueChange={(value) => setSuggestedType(value === 'none' ? null : value as NuggetType)}
+                value={suggestedType || "none"}
+                onValueChange={(value) =>
+                  setSuggestedType(
+                    value === "none" ? null : (value as NuggetType),
+                  )
+                }
               >
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Select suggested type" />
@@ -159,38 +182,42 @@ export function EditFeedbackDialog({ item, children }: EditFeedbackDialogProps) 
           </div>
 
           <div className="space-y-2">
-            <label htmlFor="content" className="text-sm font-medium">
+            <label htmlFor="content" className="font-medium text-sm">
               Content
             </label>
             <textarea
               id="content"
               value={content}
               onChange={(e) => setContent(e.target.value)}
-              className="w-full min-h-32 px-3 py-2 border border-gray-300 rounded-md resize-vertical focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="resize-vertical min-h-32 w-full rounded-md border border-gray-300 px-3 py-2 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="Enter feedback content..."
             />
           </div>
 
-          {item.type === 'nugget' && (
+          {item.type === "nugget" && (
             <div className="space-y-2">
-              <label className="text-sm font-medium">Rating</label>
+              <label className="font-medium text-sm">Rating</label>
               <div className="flex gap-2">
                 <Button
                   type="button"
-                  variant={rating === 'positive' ? 'default' : 'outline'}
+                  variant={rating === "positive" ? "default" : "outline"}
                   size="sm"
-                  onClick={() => setRating(rating === 'positive' ? null : 'positive')}
-                  className="flex items-center gap-2 cursor-pointer"
+                  onClick={() =>
+                    setRating(rating === "positive" ? null : "positive")
+                  }
+                  className="flex cursor-pointer items-center gap-2"
                 >
                   <ThumbsUp className="h-4 w-4" />
                   Positive
                 </Button>
                 <Button
                   type="button"
-                  variant={rating === 'negative' ? 'default' : 'outline'}
+                  variant={rating === "negative" ? "default" : "outline"}
                   size="sm"
-                  onClick={() => setRating(rating === 'negative' ? null : 'negative')}
-                  className="flex items-center gap-2 cursor-pointer"
+                  onClick={() =>
+                    setRating(rating === "negative" ? null : "negative")
+                  }
+                  className="flex cursor-pointer items-center gap-2"
                 >
                   <ThumbsDown className="h-4 w-4" />
                   Negative
@@ -201,7 +228,7 @@ export function EditFeedbackDialog({ item, children }: EditFeedbackDialogProps) 
                     variant="ghost"
                     size="sm"
                     onClick={() => setRating(null)}
-                    className="flex items-center gap-2 cursor-pointer"
+                    className="flex cursor-pointer items-center gap-2"
                   >
                     <X className="h-4 w-4" />
                     Clear
@@ -231,14 +258,16 @@ export function EditFeedbackDialog({ item, children }: EditFeedbackDialogProps) 
             </Button>
             <Button
               type="submit"
-              disabled={!hasChanges || updateMutation.isPending || !content.trim()}
+              disabled={
+                !hasChanges || updateMutation.isPending || !content.trim()
+              }
               className="cursor-pointer"
             >
-              {updateMutation.isPending ? 'Updating...' : 'Update'}
+              {updateMutation.isPending ? "Updating..." : "Update"}
             </Button>
           </div>
         </form>
       </DialogContent>
     </Dialog>
-  );
+  )
 }
