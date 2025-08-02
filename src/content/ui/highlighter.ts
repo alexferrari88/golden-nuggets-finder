@@ -258,24 +258,28 @@ export class Highlighter {
 				currentNode = walker.nextNode() as Text;
 			}
 
-			// Find all possible start positions
+			// Find all possible start positions (case-insensitive)
+			const fullTextLower = fullText.toLowerCase();
+			const startContentLower = startContent.toLowerCase();
+			const endContentLower = endContent.toLowerCase();
+			
 			let startIndex = -1;
 			let searchFrom = 0;
 			const possibleRanges: Array<{ start: number; end: number }> = [];
 
-			// Look for all combinations of startContent -> endContent
-			startIndex = fullText.indexOf(startContent, searchFrom);
+			// Look for all combinations of startContent -> endContent (case-insensitive)
+			startIndex = fullTextLower.indexOf(startContentLower, searchFrom);
 			while (startIndex !== -1) {
-				const endContentIndex = fullText.indexOf(
-					endContent,
-					startIndex + startContent.length,
+				const endContentIndex = fullTextLower.indexOf(
+					endContentLower,
+					startIndex + startContentLower.length,
 				);
 				if (endContentIndex !== -1) {
-					const endIndex = endContentIndex + endContent.length;
+					const endIndex = endContentIndex + endContentLower.length;
 					possibleRanges.push({ start: startIndex, end: endIndex });
 				}
 				searchFrom = startIndex + 1;
-				startIndex = fullText.indexOf(startContent, searchFrom);
+				startIndex = fullTextLower.indexOf(startContentLower, searchFrom);
 			}
 
 			if (possibleRanges.length === 0) {

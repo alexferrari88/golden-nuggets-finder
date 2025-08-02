@@ -384,19 +384,24 @@ test.describe("Highlighter TDD", () => {
                 currentNode = walker.nextNode();
               }
 
-              const startIndex = fullText.indexOf(startContent);
+              // Case-insensitive search
+              const fullTextLower = fullText.toLowerCase();
+              const startContentLower = startContent.toLowerCase();
+              const endContentLower = endContent.toLowerCase();
+              
+              const startIndex = fullTextLower.indexOf(startContentLower);
               if (startIndex === -1) {
                 console.warn('Start content not found:', startContent);
                 return null;
               }
 
-              const endContentIndex = fullText.indexOf(endContent, startIndex);
+              const endContentIndex = fullTextLower.indexOf(endContentLower, startIndex);
               if (endContentIndex === -1) {
                 console.warn('End content not found:', endContent);
                 return null;
               }
 
-              const endIndex = endContentIndex + endContent.length;
+              const endIndex = endContentIndex + endContentLower.length;
 
               const startNodeInfo = textNodeMap.find(info => 
                 startIndex >= info.startIndex && startIndex < info.endIndex
