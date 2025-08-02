@@ -104,10 +104,10 @@ export class Highlighter {
 
 		// Fallback to DOM element-based scrolling
 		const highlightElement = this.highlightedElements.find((element) => {
-			const elementText = element.textContent || "";
+			const elementText = (element.textContent || "").toLowerCase();
 			return (
-				elementText.includes(nugget.startContent) &&
-				elementText.includes(nugget.endContent)
+				elementText.includes(nugget.startContent.toLowerCase()) &&
+				elementText.includes(nugget.endContent.toLowerCase())
 			);
 		});
 
@@ -172,10 +172,10 @@ export class Highlighter {
 
 		// Check DOM-based highlights (fallback)
 		return this.highlightedElements.some((element) => {
-			const elementText = element.textContent || "";
+			const elementText = (element.textContent || "").toLowerCase();
 			return (
-				elementText.includes(nugget.startContent) &&
-				elementText.includes(nugget.endContent) &&
+				elementText.includes(nugget.startContent.toLowerCase()) &&
+				elementText.includes(nugget.endContent.toLowerCase()) &&
 				element.hasAttribute("data-nugget-key") &&
 				element.getAttribute("data-nugget-key") === nuggetKey
 			);
@@ -366,10 +366,10 @@ export class Highlighter {
 	}
 
 	/**
-	 * Generate a unique key for a nugget
+	 * Generate a unique key for a nugget (case-insensitive)
 	 */
 	private getNuggetKey(nugget: GoldenNugget): string {
-		return `nugget-${nugget.startContent}-${nugget.endContent}`.replace(
+		return `nugget-${nugget.startContent.toLowerCase()}-${nugget.endContent.toLowerCase()}`.replace(
 			/[^a-zA-Z0-9-_]/g,
 			"_",
 		);

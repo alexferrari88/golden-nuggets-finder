@@ -186,7 +186,7 @@ test.describe("Highlighter Substack TDD", () => {
           }
           
           getNuggetKey(nugget) {
-            return \`nugget-\${nugget.startContent}-\${nugget.endContent}\`.replace(/[^a-zA-Z0-9-_]/g, '_');
+            return \`nugget-\${nugget.startContent.toLowerCase()}-\${nugget.endContent.toLowerCase()}\`.replace(/[^a-zA-Z0-9-_]/g, '_');
           }
 
           highlightNugget(nugget, pageContent) {
@@ -247,8 +247,8 @@ test.describe("Highlighter Substack TDD", () => {
             
             // Fallback to DOM element-based scrolling
             const highlightElement = this.highlightedElements.find(element => {
-              const elementText = element.textContent || '';
-              return elementText.includes(nugget.startContent) && elementText.includes(nugget.endContent);
+              const elementText = (element.textContent || '').toLowerCase();
+              return elementText.includes(nugget.startContent.toLowerCase()) && elementText.includes(nugget.endContent.toLowerCase());
             });
 
             if (highlightElement) {
@@ -300,9 +300,9 @@ test.describe("Highlighter Substack TDD", () => {
             
             // Check DOM-based highlights (fallback)
             return this.highlightedElements.some(element => {
-              const elementText = element.textContent || '';
-              return elementText.includes(nugget.startContent) && 
-                     elementText.includes(nugget.endContent) &&
+              const elementText = (element.textContent || '').toLowerCase();
+              return elementText.includes(nugget.startContent.toLowerCase()) && 
+                     elementText.includes(nugget.endContent.toLowerCase()) &&
                      element.hasAttribute('data-nugget-key') &&
                      element.getAttribute('data-nugget-key') === nuggetKey;
             });
