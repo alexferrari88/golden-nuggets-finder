@@ -318,3 +318,305 @@ class TestOptimizationIntegration:
                 else:
                     # Should have required structure
                     assert isinstance(result, dict)
+
+
+class TestProviderModelOptimizationRetrieval:
+    """Test provider+model specific optimization prompt retrieval"""
+
+    @pytest.mark.asyncio
+    async def test_get_provider_specific_optimization(self, clean_database):
+        """Test retrieval of provider-specific optimized prompt"""
+        optimization_service = OptimizationService()
+
+        async with get_db() as db:
+            # Insert a provider-specific optimized prompt
+            await db.execute("""
+                INSERT INTO optimized_prompts 
+                (id, version, prompt, created_at, feedback_count, positive_rate, 
+                 model_provider, model_name, is_current, optimization_mode)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                "test-openai-gpt4o-v1",
+                1,
+                "Provider-specific optimized prompt for OpenAI GPT-4o",
+                "2025-01-31T12:00:00Z",
+                15,
+                0.85,
+                "openai",
+                "gpt-4o",
+                True,
+                "cheap"
+            ))
+            await db.commit()
+
+            # Test retrieval of provider-specific prompt
+            result = await optimization_service.get_current_prompt_for_provider_model(
+                db, "openai", "gpt-4o"
+            )
+
+            assert result is not None
+            assert result["version"] == 1
+            assert result["prompt"] == "Provider-specific optimized prompt for OpenAI GPT-4o"
+            assert result["providerSpecific"] is True
+            assert result["modelProvider"] == "openai"
+            assert result["modelName"] == "gpt-4o"
+            assert result["performance"]["feedbackCount"] == 15
+            assert result["performance"]["positiveRate"] == 0.85
+            assert "fallbackUsed" not in result
+
+    @pytest.mark.asyncio
+    async def test_fallback_to_generic_optimization(self, clean_database):
+        """Test fallback to generic optimized prompt when no provider-specific prompt exists"""
+        optimization_service = OptimizationService()
+
+        async with get_db() as db:
+            # Insert only a generic optimized prompt (no provider/model)
+            await db.execute("""
+                INSERT INTO optimized_prompts 
+                (id, version, prompt, created_at, feedback_count, positive_rate, 
+                 model_provider, model_name, is_current, optimization_mode)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                "test-generic-v2",
+                2,
+                "Generic optimized prompt for all providers",
+                "2025-01-31T12:00:00Z",
+                25,
+                0.75,
+                None,  # No provider specified
+                None,  # No model specified
+                True,
+                "cheap"
+            ))
+            await db.commit()
+
+            # Test retrieval falls back to generic prompt
+            result = await optimization_service.get_current_prompt_for_provider_model(
+                db, "anthropic", "claude-3-5-sonnet-20241022"
+            )
+
+            assert result is not None
+            assert result["version"] == 2
+            assert result["prompt"] == "Generic optimized prompt for all providers"
+            assert result["providerSpecific"] is False
+            assert result["fallbackUsed"] is True
+            assert result["performance"]["feedbackCount"] == 25
+            assert result["performance"]["positiveRate"] == 0.75
+            assert "modelProvider" not in result
+            assert "modelName" not in result
+
+    @pytest.mark.asyncio
+    async def test_provider_specific_takes_precedence_over_generic(self, clean_database):
+        """Test that provider-specific prompt takes precedence over generic"""
+        optimization_service = OptimizationService()
+
+        async with get_db() as db:
+            # Insert both generic and provider-specific prompts
+            await db.execute("""
+                INSERT INTO optimized_prompts 
+                (id, version, prompt, created_at, feedback_count, positive_rate, 
+                 model_provider, model_name, is_current, optimization_mode)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                "test-generic-v1",
+                1,
+                "Generic optimized prompt",
+                "2025-01-31T11:00:00Z",
+                20,
+                0.70,
+                None,
+                None,
+                True,
+                "cheap"
+            ))
+
+            await db.execute("""
+                INSERT INTO optimized_prompts 
+                (id, version, prompt, created_at, feedback_count, positive_rate, 
+                 model_provider, model_name, is_current, optimization_mode)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                "test-gemini-flash-v1",
+                1,
+                "Gemini 2.5-flash specific optimized prompt",
+                "2025-01-31T12:00:00Z",
+                12,
+                0.90,
+                "gemini",
+                "gemini-2.5-flash",
+                True,
+                "expensive"
+            ))
+            await db.commit()
+
+            # Test that provider-specific prompt is returned
+            result = await optimization_service.get_current_prompt_for_provider_model(
+                db, "gemini", "gemini-2.5-flash"
+            )
+
+            assert result is not None
+            assert result["prompt"] == "Gemini 2.5-flash specific optimized prompt"
+            assert result["providerSpecific"] is True
+            assert result["modelProvider"] == "gemini"
+            assert result["modelName"] == "gemini-2.5-flash"
+            assert "fallbackUsed" not in result
+
+    @pytest.mark.asyncio
+    async def test_no_optimization_available(self, clean_database):
+        """Test when no optimization is available at all"""
+        optimization_service = OptimizationService()
+
+        async with get_db() as db:
+            # Don't insert any optimized prompts
+            result = await optimization_service.get_current_prompt_for_provider_model(
+                db, "openrouter", "mistral-7b-instruct"
+            )
+
+            assert result is None
+
+    @pytest.mark.asyncio
+    async def test_only_non_current_optimizations_exist(self, clean_database):
+        """Test when optimizations exist but none are marked as current"""
+        optimization_service = OptimizationService()
+
+        async with get_db() as db:
+            # Insert an optimization that is not current
+            await db.execute("""
+                INSERT INTO optimized_prompts 
+                (id, version, prompt, created_at, feedback_count, positive_rate, 
+                 model_provider, model_name, is_current, optimization_mode)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                "test-old-v1",
+                1,
+                "Old optimization prompt",
+                "2025-01-30T12:00:00Z",
+                10,
+                0.60,
+                "anthropic",
+                "claude-3-5-sonnet-20241022",
+                False,  # Not current
+                "cheap"
+            ))
+            await db.commit()
+
+            # Should return None since no current optimization exists
+            result = await optimization_service.get_current_prompt_for_provider_model(
+                db, "anthropic", "claude-3-5-sonnet-20241022"
+            )
+
+            assert result is None
+
+    @pytest.mark.asyncio
+    async def test_multiple_versions_returns_latest(self, clean_database):
+        """Test that when multiple versions exist, the latest is returned"""
+        optimization_service = OptimizationService()
+
+        async with get_db() as db:
+            # Insert multiple versions for the same provider+model
+            for version in [1, 2, 3]:
+                await db.execute("""
+                    INSERT INTO optimized_prompts 
+                    (id, version, prompt, created_at, feedback_count, positive_rate, 
+                     model_provider, model_name, is_current, optimization_mode)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    f"test-openai-v{version}",
+                    version,
+                    f"OpenAI optimization v{version}",
+                    f"2025-01-31T12:0{version}:00Z",
+                    10 + version,
+                    0.7 + (version * 0.05),
+                    "openai",
+                    "gpt-4o-mini",
+                    True,  # All marked as current for this test
+                    "cheap"
+                ))
+            await db.commit()
+
+            # Should return the latest version (v3)
+            result = await optimization_service.get_current_prompt_for_provider_model(
+                db, "openai", "gpt-4o-mini"
+            )
+
+            assert result is not None
+            assert result["version"] == 3
+            assert result["prompt"] == "OpenAI optimization v3"
+            assert result["performance"]["feedbackCount"] == 13
+            assert result["performance"]["positiveRate"] == 0.85
+
+    @pytest.mark.asyncio
+    async def test_empty_string_provider_model_treated_as_null(self, clean_database):
+        """Test that empty string provider/model values are treated as NULL (generic)"""
+        optimization_service = OptimizationService()
+
+        async with get_db() as db:
+            # Insert prompt with empty string provider/model (should be treated as generic)
+            await db.execute("""
+                INSERT INTO optimized_prompts 
+                (id, version, prompt, created_at, feedback_count, positive_rate, 
+                 model_provider, model_name, is_current, optimization_mode)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                "test-empty-string",
+                1,
+                "Prompt with empty string provider",
+                "2025-01-31T12:00:00Z",
+                18,
+                0.80,
+                "",  # Empty string provider
+                "",  # Empty string model
+                True,
+                "cheap"
+            ))
+            await db.commit()
+
+            # Should find this as a generic fallback
+            result = await optimization_service.get_current_prompt_for_provider_model(
+                db, "gemini", "gemini-2.5-flash"
+            )
+
+            assert result is not None
+            assert result["version"] == 1
+            assert result["prompt"] == "Prompt with empty string provider"
+            assert result["providerSpecific"] is False
+            assert result["fallbackUsed"] is True
+
+    @pytest.mark.asyncio
+    async def test_case_sensitivity_in_provider_model_matching(self, clean_database):
+        """Test that provider and model matching is case-sensitive"""
+        optimization_service = OptimizationService()
+
+        async with get_db() as db:
+            # Insert prompt with specific case
+            await db.execute("""
+                INSERT INTO optimized_prompts 
+                (id, version, prompt, created_at, feedback_count, positive_rate, 
+                 model_provider, model_name, is_current, optimization_mode)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                "test-case-sensitive",
+                1,
+                "Case sensitive prompt",
+                "2025-01-31T12:00:00Z",
+                10,
+                0.75,
+                "openai",  # lowercase
+                "gpt-4o-mini",  # lowercase with dashes
+                True,
+                "cheap"
+            ))
+            await db.commit()
+
+            # Should match exact case
+            result = await optimization_service.get_current_prompt_for_provider_model(
+                db, "openai", "gpt-4o-mini"
+            )
+            assert result is not None
+            assert result["prompt"] == "Case sensitive prompt"
+
+            # Should not match different case
+            result = await optimization_service.get_current_prompt_for_provider_model(
+                db, "OpenAI", "GPT-4o-mini"  # Different case
+            )
+            assert result is None

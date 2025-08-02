@@ -401,4 +401,413 @@ describe("MessageHandler", () => {
 			);
 		});
 	});
+
+	describe("Provider-specific optimized prompt retrieval", () => {
+		beforeEach(() => {
+			// Reset fetch mock for each test
+			mockFetch.mockClear();
+		});
+
+		it("should request provider-specific optimization when provider and model are available", async () => {
+			// Mock provider and model detection
+			const mockProviderConfig = { providerId: "openai" as const };
+			(ProviderSwitcher.getCurrentProvider as ReturnType<typeof vi.fn>)
+				.mockResolvedValue(mockProviderConfig);
+			(ProviderFactory.getSelectedModel as ReturnType<typeof vi.fn>)
+				.mockResolvedValue("gpt-4o-mini");
+
+			// Mock successful response with provider-specific optimization
+			const mockOptimizedResponse = {
+				prompt: "Provider-specific optimized prompt",
+				version: 2,
+				providerSpecific: true,
+				modelProvider: "openai", 
+				modelName: "gpt-4o-mini"
+			};
+			mockFetch.mockResolvedValue({
+				ok: true,
+				json: () => Promise.resolve(mockOptimizedResponse),
+			} as Response);
+
+			// Mock storage to return prompts
+			(storage.getPrompts as ReturnType<typeof vi.fn>).mockResolvedValue([
+				{
+					id: "test-prompt",
+					name: "Test Prompt", 
+					prompt: "Original prompt {{ source }}",
+					isDefault: true,
+				},
+			]);
+
+			const request = {
+				type: MESSAGE_TYPES.ANALYZE_CONTENT,
+				content: "Test content",
+				promptId: "test-prompt",
+				url: "https://example.com",
+			};
+
+			await messageHandler.handleMessage(
+				request,
+				{} as chrome.runtime.MessageSender,
+				mockSendResponse,
+			);
+
+			// Verify the correct URL was requested with query parameters
+			expect(mockFetch).toHaveBeenCalledWith(
+				"http://localhost:7532/optimize/current?provider=openai&model=gpt-4o-mini",
+				{
+					method: "GET",
+					headers: { "Content-Type": "application/json" },
+					signal: expect.any(AbortSignal),
+				}
+			);
+
+			// Verify optimized prompt was used
+			expect(mockProvider.extractGoldenNuggets).toHaveBeenCalledWith(
+				"Test content",
+				"Provider-specific optimized prompt",
+			);
+		});
+
+		it("should fallback to generic optimization when no model is selected", async () => {
+			// Mock provider without model
+			const mockProviderConfig = { providerId: "anthropic" as const };
+			(ProviderSwitcher.getCurrentProvider as ReturnType<typeof vi.fn>)
+				.mockResolvedValue(mockProviderConfig);
+			(ProviderFactory.getSelectedModel as ReturnType<typeof vi.fn>)
+				.mockResolvedValue(null);
+
+			// Mock generic optimization response
+			const mockOptimizedResponse = {
+				prompt: "Generic optimized prompt",
+				version: 1,
+				providerSpecific: false,
+				fallbackUsed: false
+			};
+			mockFetch.mockResolvedValue({
+				ok: true,
+				json: () => Promise.resolve(mockOptimizedResponse),
+			} as Response);
+
+			(storage.getPrompts as ReturnType<typeof vi.fn>).mockResolvedValue([
+				{
+					id: "test-prompt",
+					name: "Test Prompt",
+					prompt: "Original prompt {{ source }}",
+					isDefault: true,
+				},
+			]);
+
+			const request = {
+				type: MESSAGE_TYPES.ANALYZE_CONTENT,
+				content: "Test content",
+				promptId: "test-prompt",
+				url: "https://example.com",
+			};
+
+			await messageHandler.handleMessage(
+				request,
+				{} as chrome.runtime.MessageSender,
+				mockSendResponse,
+			);
+
+			// Verify generic URL was requested (no query parameters)
+			expect(mockFetch).toHaveBeenCalledWith(
+				"http://localhost:7532/optimize/current",
+				{
+					method: "GET",
+					headers: { "Content-Type": "application/json" },
+					signal: expect.any(AbortSignal),
+				}
+			);
+
+			// Verify optimized prompt was used
+			expect(mockProvider.extractGoldenNuggets).toHaveBeenCalledWith(
+				"Test content",
+				"Generic optimized prompt",
+			);
+		});
+
+		it("should fallback to generic optimization when no provider is configured", async () => {
+			// Mock no provider configured
+			(ProviderSwitcher.getCurrentProvider as ReturnType<typeof vi.fn>)
+				.mockResolvedValue(null);
+
+			// Mock generic optimization response
+			const mockOptimizedResponse = {
+				prompt: "Generic fallback prompt",
+				version: 1,
+				providerSpecific: false,
+				fallbackUsed: true
+			};
+			mockFetch.mockResolvedValue({
+				ok: true,
+				json: () => Promise.resolve(mockOptimizedResponse),
+			} as Response);
+
+			(storage.getPrompts as ReturnType<typeof vi.fn>).mockResolvedValue([
+				{
+					id: "test-prompt",
+					name: "Test Prompt",
+					prompt: "Original prompt {{ source }}",
+					isDefault: true,
+				},
+			]);
+
+			const request = {
+				type: MESSAGE_TYPES.ANALYZE_CONTENT,
+				content: "Test content", 
+				promptId: "test-prompt",
+				url: "https://example.com",
+			};
+
+			await messageHandler.handleMessage(
+				request,
+				{} as chrome.runtime.MessageSender,
+				mockSendResponse,
+			);
+
+			// Verify generic URL was requested
+			expect(mockFetch).toHaveBeenCalledWith(
+				"http://localhost:7532/optimize/current",
+				{
+					method: "GET",
+					headers: { "Content-Type": "application/json" },
+					signal: expect.any(AbortSignal),
+				}
+			);
+
+			// Verify optimized prompt was used
+			expect(mockProvider.extractGoldenNuggets).toHaveBeenCalledWith(
+				"Test content",
+				"Generic fallback prompt",
+			);
+		});
+
+		it("should use original prompt when optimization fails", async () => {
+			// Mock provider and model detection
+			const mockProviderConfig = { providerId: "gemini" as const };
+			(ProviderSwitcher.getCurrentProvider as ReturnType<typeof vi.fn>)
+				.mockResolvedValue(mockProviderConfig);
+			(ProviderFactory.getSelectedModel as ReturnType<typeof vi.fn>)
+				.mockResolvedValue("gemini-2.5-flash");
+
+			// Mock fetch failure
+			mockFetch.mockRejectedValue(new Error("Backend not available"));
+
+			(storage.getPrompts as ReturnType<typeof vi.fn>).mockResolvedValue([
+				{
+					id: "test-prompt",
+					name: "Test Prompt",
+					prompt: "Original prompt {{ source }}",
+					isDefault: true,
+				},
+			]);
+
+			const request = {
+				type: MESSAGE_TYPES.ANALYZE_CONTENT,
+				content: "Test content",
+				promptId: "test-prompt",
+				url: "https://example.com",
+			};
+
+			await messageHandler.handleMessage(
+				request,
+				{} as chrome.runtime.MessageSender,
+				mockSendResponse,
+			);
+
+			// Verify original prompt was used as fallback
+			expect(mockProvider.extractGoldenNuggets).toHaveBeenCalledWith(
+				"Test content",
+				"Original prompt text",
+			);
+		});
+
+		it("should handle HTTP errors from optimization endpoint", async () => {
+			// Mock provider and model detection
+			const mockProviderConfig = { providerId: "openai" as const };
+			(ProviderSwitcher.getCurrentProvider as ReturnType<typeof vi.fn>)
+				.mockResolvedValue(mockProviderConfig);
+			(ProviderFactory.getSelectedModel as ReturnType<typeof vi.fn>)
+				.mockResolvedValue("gpt-4o");
+
+			// Mock HTTP error response
+			mockFetch.mockResolvedValue({
+				ok: false,
+				status: 404,
+				statusText: "Not Found",
+			} as Response);
+
+			(storage.getPrompts as ReturnType<typeof vi.fn>).mockResolvedValue([
+				{
+					id: "test-prompt",
+					name: "Test Prompt",
+					prompt: "Original prompt {{ source }}",
+					isDefault: true,
+				},
+			]);
+
+			const request = {
+				type: MESSAGE_TYPES.ANALYZE_CONTENT,
+				content: "Test content",
+				promptId: "test-prompt",
+				url: "https://example.com",
+			};
+
+			await messageHandler.handleMessage(
+				request,
+				{} as chrome.runtime.MessageSender,
+				mockSendResponse,
+			);
+
+			// Verify original prompt was used as fallback
+			expect(mockProvider.extractGoldenNuggets).toHaveBeenCalledWith(
+				"Test content",
+				"Original prompt text",
+			);
+		});
+
+		it("should handle timeout during optimization request", async () => {
+			// Mock provider and model detection
+			const mockProviderConfig = { providerId: "anthropic" as const };
+			(ProviderSwitcher.getCurrentProvider as ReturnType<typeof vi.fn>)
+				.mockResolvedValue(mockProviderConfig);
+			(ProviderFactory.getSelectedModel as ReturnType<typeof vi.fn>)
+				.mockResolvedValue("claude-3-5-sonnet-20241022");
+
+			// Mock AbortError (timeout)
+			const abortError = new Error("Request timed out");
+			abortError.name = "AbortError";
+			mockFetch.mockRejectedValue(abortError);
+
+			(storage.getPrompts as ReturnType<typeof vi.fn>).mockResolvedValue([
+				{
+					id: "test-prompt",
+					name: "Test Prompt",
+					prompt: "Original prompt {{ source }}",
+					isDefault: true,
+				},
+			]);
+
+			const request = {
+				type: MESSAGE_TYPES.ANALYZE_CONTENT,
+				content: "Test content",
+				promptId: "test-prompt",
+				url: "https://example.com",
+			};
+
+			await messageHandler.handleMessage(
+				request,
+				{} as chrome.runtime.MessageSender,
+				mockSendResponse,
+			);
+
+			// Verify original prompt was used as fallback
+			expect(mockProvider.extractGoldenNuggets).toHaveBeenCalledWith(
+				"Test content",
+				"Original prompt text",
+			);
+		});
+
+		it("should reject optimization with invalid version", async () => {
+			// Mock provider and model detection
+			const mockProviderConfig = { providerId: "openai" as const };
+			(ProviderSwitcher.getCurrentProvider as ReturnType<typeof vi.fn>)
+				.mockResolvedValue(mockProviderConfig);
+			(ProviderFactory.getSelectedModel as ReturnType<typeof vi.fn>)
+				.mockResolvedValue("gpt-4o");
+
+			// Mock response with invalid version (0 or negative)
+			const mockOptimizedResponse = {
+				prompt: "Invalid optimization",
+				version: 0,
+				providerSpecific: true,
+				modelProvider: "openai",
+				modelName: "gpt-4o"
+			};
+			mockFetch.mockResolvedValue({
+				ok: true,
+				json: () => Promise.resolve(mockOptimizedResponse),
+			} as Response);
+
+			(storage.getPrompts as ReturnType<typeof vi.fn>).mockResolvedValue([
+				{
+					id: "test-prompt",
+					name: "Test Prompt",
+					prompt: "Original prompt {{ source }}",
+					isDefault: true,
+				},
+			]);
+
+			const request = {
+				type: MESSAGE_TYPES.ANALYZE_CONTENT,
+				content: "Test content",
+				promptId: "test-prompt",
+				url: "https://example.com",
+			};
+
+			await messageHandler.handleMessage(
+				request,
+				{} as chrome.runtime.MessageSender,
+				mockSendResponse,
+			);
+
+			// Verify original prompt was used (optimization rejected due to invalid version)
+			expect(mockProvider.extractGoldenNuggets).toHaveBeenCalledWith(
+				"Test content",
+				"Original prompt text",
+			);
+		});
+
+		it("should reject optimization with missing prompt", async () => {
+			// Mock provider and model detection
+			const mockProviderConfig = { providerId: "gemini" as const };
+			(ProviderSwitcher.getCurrentProvider as ReturnType<typeof vi.fn>)
+				.mockResolvedValue(mockProviderConfig);
+			(ProviderFactory.getSelectedModel as ReturnType<typeof vi.fn>)
+				.mockResolvedValue("gemini-2.5-flash");
+
+			// Mock response with missing prompt
+			const mockOptimizedResponse = {
+				prompt: null,
+				version: 1,
+				providerSpecific: true,
+				modelProvider: "gemini",
+				modelName: "gemini-2.5-flash"
+			};
+			mockFetch.mockResolvedValue({
+				ok: true,
+				json: () => Promise.resolve(mockOptimizedResponse),
+			} as Response);
+
+			(storage.getPrompts as ReturnType<typeof vi.fn>).mockResolvedValue([
+				{
+					id: "test-prompt",
+					name: "Test Prompt",
+					prompt: "Original prompt {{ source }}",
+					isDefault: true,
+				},
+			]);
+
+			const request = {
+				type: MESSAGE_TYPES.ANALYZE_CONTENT,
+				content: "Test content",
+				promptId: "test-prompt",
+				url: "https://example.com",
+			};
+
+			await messageHandler.handleMessage(
+				request,
+				{} as chrome.runtime.MessageSender,
+				mockSendResponse,
+			);
+
+			// Verify original prompt was used (optimization rejected due to missing prompt)
+			expect(mockProvider.extractGoldenNuggets).toHaveBeenCalledWith(
+				"Test content",
+				"Original prompt text",
+			);
+		});
+	});
 });

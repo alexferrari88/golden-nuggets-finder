@@ -316,18 +316,50 @@ async def get_optimization_history(
 
 
 @app.get("/optimize/current", response_model=OptimizedPromptResponse)
-async def get_current_optimized_prompt():
-    """Get the current optimized prompt if available"""
+async def get_current_optimized_prompt(
+    provider: Optional[str] = None, model: Optional[str] = None
+):
+    """
+    Get the current optimized prompt if available.
+
+    If provider and model parameters are provided, returns provider+model specific prompt.
+    Falls back to generic optimized prompt, then to default baseline prompt.
+
+    Args:
+        provider: Optional provider ID (gemini, openai, anthropic, openrouter)
+        model: Optional model name (e.g., gemini-2.5-flash, gpt-4o-mini)
+    """
     try:
         async with get_db() as db:
-            current_prompt = await optimization_service.get_current_prompt(db)
+            current_prompt = None
+
+            # If provider and model specified, try provider-specific retrieval
+            if provider and model:
+                print(f"Retrieving optimized prompt for {provider}+{model}")
+                current_prompt = (
+                    await optimization_service.get_current_prompt_for_provider_model(
+                        db, provider, model
+                    )
+                )
+            else:
+                # Backward compatibility: use existing generic retrieval
+                print("Retrieving generic optimized prompt")
+                current_prompt = await optimization_service.get_current_prompt(db)
+
             if current_prompt:
                 return OptimizedPromptResponse(**current_prompt)
             else:
+                # No optimized prompt available - return default response
+                fallback_message = (
+                    f"No optimized prompt available for {provider}+{model}"
+                    if provider and model
+                    else "No optimized prompt available yet"
+                )
+
                 return OptimizedPromptResponse(
                     id="default",
                     version=0,
-                    prompt="No optimized prompt available yet",
+                    prompt=fallback_message,
                     optimizationDate="",
                     performance={"feedbackCount": 0, "positiveRate": 0.0},
                 )
