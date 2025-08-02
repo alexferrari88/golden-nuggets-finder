@@ -7,7 +7,7 @@ export interface GoldenNugget {
 	type: GoldenNuggetType;
 	startContent: string;
 	endContent: string;
-	synthesis: string;
+	synthesis?: string; // Made optional
 }
 
 export interface GeminiResponse {
@@ -34,6 +34,9 @@ export interface ExtensionConfig {
 
 	// NEW: Multi-provider fields
 	selectedProvider?: ProviderId;
+
+	// Synthesis preference
+	synthesisEnabled?: boolean; // Default false for new users
 
 	// Provider-specific settings
 	providerSettings?: {
@@ -87,6 +90,7 @@ export interface AnalysisRequest {
 	analysisId?: string; // Unique ID for tracking progress
 	source?: "popup" | "context-menu"; // Who triggered this analysis
 	typeFilter?: TypeFilterOptions; // Type filtering options
+	synthesisEnabled?: boolean; // NEW: Pass synthesis preference to background
 }
 
 export interface CommentSelectionRequest {
@@ -108,7 +112,7 @@ export interface ExportData {
 		type: string;
 		startContent: string;
 		endContent: string;
-		synthesis: string;
+		synthesis?: string; // Made optional
 	}>;
 }
 
@@ -274,6 +278,9 @@ export interface MessageTypes {
 	ANALYSIS_RATE_LIMITED: "ANALYSIS_RATE_LIMITED";
 	ANALYSIS_RETRYING: "ANALYSIS_RETRYING";
 	ABORT_ANALYSIS: "ABORT_ANALYSIS";
+	// Synthesis Preference Messages
+	GET_SYNTHESIS_ENABLED: "GET_SYNTHESIS_ENABLED";
+	SET_SYNTHESIS_ENABLED: "SET_SYNTHESIS_ENABLED";
 }
 
 export const MESSAGE_TYPES: MessageTypes = {
@@ -315,4 +322,7 @@ export const MESSAGE_TYPES: MessageTypes = {
 	ANALYSIS_RATE_LIMITED: "ANALYSIS_RATE_LIMITED",
 	ANALYSIS_RETRYING: "ANALYSIS_RETRYING",
 	ABORT_ANALYSIS: "ABORT_ANALYSIS",
+	// Synthesis Preference Messages
+	GET_SYNTHESIS_ENABLED: "GET_SYNTHESIS_ENABLED",
+	SET_SYNTHESIS_ENABLED: "SET_SYNTHESIS_ENABLED",
 };

@@ -151,7 +151,7 @@ Continue with analysis...`;
 
 		it("should maintain schema structure consistency with base schema", () => {
 			const result = generateDynamicSchema(["tool"]);
-			const _baseSchema = generateGoldenNuggetSchema(["tool"]);
+			const _baseSchema = generateGoldenNuggetSchema(["tool"], true); // Default synthesis enabled
 
 			expect(result.type).toBe("object");
 			expect(result.required).toEqual(["golden_nuggets"]);
@@ -410,7 +410,7 @@ Continue with analysis...`;
 		it("should produce schemas compatible with generateGoldenNuggetSchema", () => {
 			const types: GoldenNuggetType[] = ["tool", "media"];
 			const filterServiceSchema = generateDynamicSchema(types);
-			const directSchema = generateGoldenNuggetSchema(types);
+			const directSchema = generateGoldenNuggetSchema(types, true); // Default synthesis enabled
 
 			expect(filterServiceSchema).toEqual(directSchema);
 		});

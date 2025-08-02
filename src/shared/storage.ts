@@ -298,6 +298,37 @@ export class StorageManager {
 		return prompts.find((p) => p.isDefault) || prompts[0] || null;
 	}
 
+	async getSynthesisEnabled(): Promise<boolean> {
+		try {
+			const cached = this.getFromCache(STORAGE_KEYS.SYNTHESIS_ENABLED);
+			if (cached !== null) {
+				return cached;
+			}
+
+			const result = await chrome.storage.local.get(STORAGE_KEYS.SYNTHESIS_ENABLED);
+			const enabled = result[STORAGE_KEYS.SYNTHESIS_ENABLED] ?? false; // Default false for new users
+			
+			this.setCache(STORAGE_KEYS.SYNTHESIS_ENABLED, enabled);
+			return enabled;
+		} catch (error) {
+			console.warn('Failed to get synthesis preference:', error);
+			return false; // Safe default
+		}
+	}
+
+	async setSynthesisEnabled(enabled: boolean): Promise<void> {
+		try {
+			await chrome.storage.local.set({
+				[STORAGE_KEYS.SYNTHESIS_ENABLED]: enabled
+			});
+			this.setCache(STORAGE_KEYS.SYNTHESIS_ENABLED, enabled);
+			this.clearCache("full_config"); // Clear config cache since it includes synthesis preference
+		} catch (error) {
+			console.error('Failed to save synthesis preference:', error);
+			throw error;
+		}
+	}
+
 	async getConfig(
 		context: AccessContext = {
 			source: "background",
@@ -311,14 +342,16 @@ export class StorageManager {
 			return cached;
 		}
 
-		const [apiKey, prompts] = await Promise.all([
+		const [apiKey, prompts, synthesisEnabled] = await Promise.all([
 			this.getApiKey(context),
 			this.getPrompts(),
+			this.getSynthesisEnabled(),
 		]);
 
 		const config = {
 			geminiApiKey: apiKey,
 			userPrompts: prompts,
+			synthesisEnabled: synthesisEnabled,
 		};
 
 		this.setCache(configKey, config);
@@ -342,6 +375,10 @@ export class StorageManager {
 		if (config.userPrompts !== undefined) {
 			updates[STORAGE_KEYS.PROMPTS] = config.userPrompts;
 			this.setCache(STORAGE_KEYS.PROMPTS, config.userPrompts);
+		}
+
+		if (config.synthesisEnabled !== undefined) {
+			await this.setSynthesisEnabled(config.synthesisEnabled);
 		}
 
 		// Clear full config cache
