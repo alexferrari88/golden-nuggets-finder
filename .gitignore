@@ -113,3 +113,6 @@ playwright-report/
 reddit-thread-*/
 twitter-thread-*/
 hn-story-*/
+
+# Claude code
+.claude/sessions
