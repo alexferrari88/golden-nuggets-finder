@@ -594,6 +594,7 @@ export class MessageHandler {
 					const normalizedResponse = normalizeResponse(
 						rawResponse,
 						providerConfig.providerId,
+						synthesisEnabled,
 					);
 
 					// Store provider metadata for feedback

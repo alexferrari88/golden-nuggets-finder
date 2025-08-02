@@ -34,6 +34,7 @@ const GoldenNuggetsSchema = z.object({
 export function normalize(
 	response: RawApiResponse,
 	providerId: ProviderId,
+	synthesisEnabled: boolean = true,
 ): GoldenNuggetsResponse {
 	try {
 		// Pre-process response to convert non-string values before validation
@@ -51,10 +52,15 @@ export function normalize(
 					endContent: String(nugget.endContent).trim(),
 					synthesis: String(nugget.synthesis).trim(),
 				}))
-				.filter(
-					(nugget) =>
-						nugget.startContent && nugget.endContent && nugget.synthesis,
-				),
+				.filter((nugget) => {
+					// Always require startContent and endContent
+					const hasRequiredContent = nugget.startContent && nugget.endContent;
+					
+					// Only require synthesis if it's enabled
+					const hasSynthesis = synthesisEnabled ? nugget.synthesis : true;
+					
+					return hasRequiredContent && hasSynthesis;
+				}),
 		};
 
 		return normalized;
