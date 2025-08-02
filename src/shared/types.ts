@@ -104,6 +104,7 @@ export interface SelectedContentAnalysisRequest {
 	url: string;
 	selectedComments: string[];
 	typeFilter?: TypeFilterOptions; // Type filtering options
+	synthesisEnabled?: boolean; // Pass synthesis preference to background
 }
 
 export interface ExportData {
