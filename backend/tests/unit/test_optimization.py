@@ -333,8 +333,8 @@ class TestProviderModelOptimizationRetrieval:
             await db.execute("""
                 INSERT INTO optimized_prompts 
                 (id, version, prompt, created_at, feedback_count, positive_rate, 
-                 model_provider, model_name, is_current, optimization_mode)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 model_provider, model_name, is_current, optimization_mode, optimization_run_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 "test-openai-gpt4o-v1",
                 1,
@@ -345,7 +345,8 @@ class TestProviderModelOptimizationRetrieval:
                 "openai",
                 "gpt-4o",
                 True,
-                "cheap"
+                "cheap",
+                "baseline-run-001"
             ))
             await db.commit()
 
@@ -374,8 +375,8 @@ class TestProviderModelOptimizationRetrieval:
             await db.execute("""
                 INSERT INTO optimized_prompts 
                 (id, version, prompt, created_at, feedback_count, positive_rate, 
-                 model_provider, model_name, is_current, optimization_mode)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 model_provider, model_name, is_current, optimization_mode, optimization_run_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 "test-generic-v2",
                 2,
@@ -386,7 +387,8 @@ class TestProviderModelOptimizationRetrieval:
                 None,  # No provider specified
                 None,  # No model specified
                 True,
-                "cheap"
+                "cheap",
+                "baseline-run-001"
             ))
             await db.commit()
 
@@ -411,12 +413,16 @@ class TestProviderModelOptimizationRetrieval:
         optimization_service = OptimizationService()
 
         async with get_db() as db:
+            # Clear existing current prompts first
+            await db.execute("UPDATE optimized_prompts SET is_current = FALSE")
+            await db.commit()
+            
             # Insert both generic and provider-specific prompts
             await db.execute("""
                 INSERT INTO optimized_prompts 
                 (id, version, prompt, created_at, feedback_count, positive_rate, 
-                 model_provider, model_name, is_current, optimization_mode)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 model_provider, model_name, is_current, optimization_mode, optimization_run_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 "test-generic-v1",
                 1,
@@ -427,14 +433,15 @@ class TestProviderModelOptimizationRetrieval:
                 None,
                 None,
                 True,
-                "cheap"
+                "cheap",
+                "baseline-run-001"
             ))
 
             await db.execute("""
                 INSERT INTO optimized_prompts 
                 (id, version, prompt, created_at, feedback_count, positive_rate, 
-                 model_provider, model_name, is_current, optimization_mode)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 model_provider, model_name, is_current, optimization_mode, optimization_run_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 "test-gemini-flash-v1",
                 1,
@@ -445,7 +452,8 @@ class TestProviderModelOptimizationRetrieval:
                 "gemini",
                 "gemini-2.5-flash",
                 True,
-                "expensive"
+                "expensive",
+                "baseline-run-001"
             ))
             await db.commit()
 
@@ -484,8 +492,8 @@ class TestProviderModelOptimizationRetrieval:
             await db.execute("""
                 INSERT INTO optimized_prompts 
                 (id, version, prompt, created_at, feedback_count, positive_rate, 
-                 model_provider, model_name, is_current, optimization_mode)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 model_provider, model_name, is_current, optimization_mode, optimization_run_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 "test-old-v1",
                 1,
@@ -496,7 +504,8 @@ class TestProviderModelOptimizationRetrieval:
                 "anthropic",
                 "claude-3-5-sonnet-20241022",
                 False,  # Not current
-                "cheap"
+                "cheap",
+                "baseline-run-001"
             ))
             await db.commit()
 
@@ -518,8 +527,8 @@ class TestProviderModelOptimizationRetrieval:
                 await db.execute("""
                     INSERT INTO optimized_prompts 
                     (id, version, prompt, created_at, feedback_count, positive_rate, 
-                     model_provider, model_name, is_current, optimization_mode)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                     model_provider, model_name, is_current, optimization_mode, optimization_run_id)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, (
                     f"test-openai-v{version}",
                     version,
@@ -530,7 +539,8 @@ class TestProviderModelOptimizationRetrieval:
                     "openai",
                     "gpt-4o-mini",
                     True,  # All marked as current for this test
-                    "cheap"
+                    "cheap",
+                    "baseline-run-001"
                 ))
             await db.commit()
 
@@ -551,12 +561,16 @@ class TestProviderModelOptimizationRetrieval:
         optimization_service = OptimizationService()
 
         async with get_db() as db:
+            # Clear existing current prompts first
+            await db.execute("UPDATE optimized_prompts SET is_current = FALSE")
+            await db.commit()
+            
             # Insert prompt with empty string provider/model (should be treated as generic)
             await db.execute("""
                 INSERT INTO optimized_prompts 
                 (id, version, prompt, created_at, feedback_count, positive_rate, 
-                 model_provider, model_name, is_current, optimization_mode)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 model_provider, model_name, is_current, optimization_mode, optimization_run_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 "test-empty-string",
                 1,
@@ -567,7 +581,8 @@ class TestProviderModelOptimizationRetrieval:
                 "",  # Empty string provider
                 "",  # Empty string model
                 True,
-                "cheap"
+                "cheap",
+                "baseline-run-001"
             ))
             await db.commit()
 
@@ -592,8 +607,8 @@ class TestProviderModelOptimizationRetrieval:
             await db.execute("""
                 INSERT INTO optimized_prompts 
                 (id, version, prompt, created_at, feedback_count, positive_rate, 
-                 model_provider, model_name, is_current, optimization_mode)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 model_provider, model_name, is_current, optimization_mode, optimization_run_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 "test-case-sensitive",
                 1,
@@ -604,7 +619,8 @@ class TestProviderModelOptimizationRetrieval:
                 "openai",  # lowercase
                 "gpt-4o-mini",  # lowercase with dashes
                 True,
-                "cheap"
+                "cheap",
+                "baseline-run-001"
             ))
             await db.commit()
 
