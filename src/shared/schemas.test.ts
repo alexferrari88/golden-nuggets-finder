@@ -29,7 +29,6 @@ describe("GOLDEN_NUGGET_SCHEMA", () => {
 				"type",
 				"startContent",
 				"endContent",
-				"synthesis",
 			]);
 		});
 
@@ -188,7 +187,7 @@ describe("GOLDEN_NUGGET_SCHEMA", () => {
 			expect(itemsSchema.required).toContain("type");
 			expect(itemsSchema.required).toContain("startContent");
 			expect(itemsSchema.required).toContain("endContent");
-			expect(itemsSchema.required).toContain("synthesis");
+			expect(itemsSchema.required).not.toContain("synthesis"); // synthesis is now optional
 		});
 	});
 

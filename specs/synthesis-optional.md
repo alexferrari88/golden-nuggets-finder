@@ -646,53 +646,74 @@ class MissingContentFeedback(BaseModel):
     context: str  # Page context
     synthesis: Optional[str] = None  # Optional for missing content too
 
-# Database migration to handle existing data
-class DatabaseMigration:
+# Database recreation for clean start
+class DatabaseRecreation:
     """
-    Migration strategy: Add synthesis as optional field without breaking existing data
-    No data loss - preserve all existing feedback and optimized prompts
+    Clean slate strategy: Drop all tables and recreate with synthesis optional from start
+    No data preservation needed - personal project with no users
     """
     
     @staticmethod
-    async def migrate_synthesis_optional():
-        # This migration adds synthesis column as optional
-        # Existing records will have synthesis=NULL which is fine
-        # New records can have synthesis=NULL or synthesis=<value>
+    async def recreate_synthesis_optional():
+        # Drop all existing tables and migrations
+        # Recreate from scratch with synthesis as optional field
         
-        migration_sql = """
-        -- Add synthesis column as optional to existing tables
-        ALTER TABLE nugget_feedback 
-        ADD COLUMN synthesis TEXT NULL;
+        recreation_sql = """
+        -- Drop all existing tables
+        DROP TABLE IF EXISTS nugget_feedback;
+        DROP TABLE IF EXISTS missing_content_feedback;
+        DROP TABLE IF EXISTS optimized_prompts;
+        DROP TABLE IF EXISTS optimization_runs;
         
-        ALTER TABLE missing_content_feedback 
-        ADD COLUMN synthesis TEXT NULL;
+        -- Recreate tables with synthesis optional from the start
+        CREATE TABLE nugget_feedback (
+            id TEXT PRIMARY KEY,
+            nugget_content TEXT NOT NULL,
+            original_type TEXT NOT NULL,
+            corrected_type TEXT,
+            rating TEXT NOT NULL,
+            timestamp INTEGER NOT NULL,
+            url TEXT NOT NULL,
+            context TEXT NOT NULL,
+            synthesis TEXT  -- Optional from the start
+        );
         
-        -- Update any existing optimization training data to handle mixed schemas
-        -- (No changes needed - JSON flexibility handles optional fields)
+        CREATE TABLE missing_content_feedback (
+            id TEXT PRIMARY KEY,
+            start_content TEXT NOT NULL,
+            end_content TEXT NOT NULL,
+            suggested_type TEXT NOT NULL,
+            timestamp INTEGER NOT NULL,
+            url TEXT NOT NULL,
+            context TEXT NOT NULL,
+            synthesis TEXT  -- Optional from the start
+        );
+        
+        -- Delete all migration files and start fresh
         """
         
-        # Execute migration...
+        # Execute recreation...
         pass
 ```
 
 #### 5.3 Training System Updates
 ```python
-# Update optimization system to handle mixed data
+# Simplified optimization system for fresh start
 class OptimizationService:
     def prepare_feedback_for_training(self, feedback_items: List[NuggetFeedback]) -> List[Dict]:
         """
-        Convert feedback to training format, preserving synthesis when available
+        Convert feedback to training format with simple optional synthesis handling
         """
         training_data = []
         
         for feedback in feedback_items:
             nugget_data = {
                 "type": feedback.originalType,
-                "startContent": feedback.nuggetContent[:50],  # Approximate
-                "endContent": feedback.nuggetContent[-50:],   # Approximate
+                "startContent": feedback.nuggetContent[:50],
+                "endContent": feedback.nuggetContent[-50:],
             }
             
-            # Include synthesis if available (backwards compatibility)
+            # Simply include synthesis if present - no legacy handling needed
             if feedback.synthesis:
                 nugget_data["synthesis"] = feedback.synthesis
             
@@ -705,18 +726,12 @@ class OptimizationService:
         
         return training_data
 
-    def optimize_prompt_with_mixed_data(self, training_data: List[Dict]) -> str:
+    def optimize_prompt_simple(self, training_data: List[Dict]) -> str:
         """
-        Optimize prompts using both synthesis and non-synthesis training examples
-        DSPy will learn to generate appropriate responses based on the training data mix
+        Simple prompt optimization with optional synthesis
         """
-        # Create training examples supporting both formats
         examples = prepare_training_data(training_data)
-        
-        # DSPy optimization can handle variable output schemas
-        # It will learn patterns from both synthesis and non-synthesis examples
         optimized_prompt = self.dspy_optimizer.optimize(examples)
-        
         return optimized_prompt
 ```
 
@@ -1102,20 +1117,20 @@ describe("E2E synthesis workflow", () => {
    - Implement conditional prompt templates
    - Add template processing function
 
-#### Phase 4: Backend Integration [BACKWARDS COMPATIBLE]
-1. **Database Migration**:
-   - Add optional synthesis columns to existing tables
-   - Preserve all existing feedback and training data
-   - No data loss migration strategy
+#### Phase 4: Backend Integration [CLEAN SLATE APPROACH]
+1. **Database Recreation**:
+   - Drop and recreate all tables with synthesis as optional from the start
+   - Delete all existing migrations and start fresh
+   - No backwards compatibility concerns
 
 2. **DSPy Training Updates**:
-   - Support mixed data (with and without synthesis)
-   - Update training data preparation
-   - Update mock data generation
+   - Simple training system that handles optional synthesis natively
+   - Generate fresh mock data with optional synthesis
+   - No mixed data handling complexity
 
 3. **Model Updates**:
-   - Make synthesis optional in Pydantic models
-   - Update optimization service
+   - Make synthesis optional in Pydantic models from scratch
+   - Simplified optimization service without legacy support
 
 #### Phase 5: Comprehensive Testing [CRITICAL]
 1. **Multi-Provider Testing**:
@@ -1138,16 +1153,16 @@ describe("E2E synthesis workflow", () => {
    - Provider switching scenarios
    - Backend integration testing
 
-#### Phase 6: Performance & Migration [PRODUCTION READY]
+#### Phase 6: Performance & Database Recreation [PRODUCTION READY]
 1. **Performance Validation**:
    - Measure API cost reduction
    - Verify response time improvements
    - Test memory usage with large datasets
 
-2. **Migration Testing**:
-   - Test with existing user data
-   - Verify backwards compatibility
-   - Test database migration process
+2. **Database Recreation Testing**:
+   - Test clean database creation process
+   - Verify fresh schema works correctly
+   - Test optional synthesis handling from scratch
 
 3. **Documentation Updates**:
    - Update all CLAUDE.md files
@@ -1156,12 +1171,12 @@ describe("E2E synthesis workflow", () => {
 
 ### 8. Edge Cases & Considerations (Comprehensive)
 
-#### 8.1 Mixed Data Scenarios [CRITICAL FOR BACKWARDS COMPATIBILITY]
-- **Backend Training**: DSPy system must handle training data with mixed synthesis presence
-- **Export Functions**: Gracefully handle `undefined` synthesis in nugget objects  
-- **UI Display**: Don't show empty synthesis sections when synthesis is missing
-- **Type Validation**: Schema validation must work with both synthesis and non-synthesis nuggets
-- **API Responses**: Providers may return mixed responses during transition period
+#### 8.1 Clean Data Scenarios [SIMPLIFIED FOR FRESH START]
+- **Backend Training**: DSPy system handles optional synthesis from the start
+- **Export Functions**: Simple handling of optional synthesis in nugget objects  
+- **UI Display**: Clean display logic without legacy synthesis handling
+- **Type Validation**: Schema validation for optional synthesis only
+- **API Responses**: Consistent provider responses with optional synthesis
 
 #### 8.2 Provider Interface Consistency [BREAKING CHANGE MITIGATION]
 - **Function Signatures**: All providers must have consistent `extractGoldenNuggets()` signatures
@@ -1250,8 +1265,8 @@ describe("E2E synthesis workflow", () => {
 #### Integration Requirements [SYSTEM COMPATIBILITY]
 - [ ] **Chrome Storage**: Extension storage handles synthesis preference correctly
 - [ ] **Backend API**: Backend processes optional synthesis in feedback/training data
-- [ ] **DSPy Training**: Training adapts to mixed data without losing effectiveness
-- [ ] **Database Migration**: Backwards compatible migration preserves existing data
+- [ ] **DSPy Training**: Training handles optional synthesis natively
+- [ ] **Database Recreation**: Clean database schema with synthesis optional from start
 - [ ] **Provider Switching**: Synthesis preference maintained when switching providers
 
 #### Testing Requirements [QUALITY ASSURANCE]
@@ -1260,20 +1275,20 @@ describe("E2E synthesis workflow", () => {
 - [ ] **UI Tests**: Sidebar display/hide logic thoroughly tested
 - [ ] **E2E Tests**: Full workflows tested with synthesis disabled from start to finish
 - [ ] **Performance Tests**: API cost and response time improvements verified
-- [ ] **Migration Tests**: Database migration tested with existing user data
+- [ ] **Database Tests**: Fresh database schema creation and optional synthesis handling
 
 #### Error Handling Requirements [ROBUSTNESS]
 - [ ] **Storage Failures**: Graceful fallback to default (false) when storage fails
 - [ ] **Provider Errors**: Schema mismatch errors don't break analysis workflow
 - [ ] **UI Error Boundaries**: Synthesis-related errors contained and recoverable
 - [ ] **Template Errors**: Prompt template processing errors handled gracefully
-- [ ] **Migration Failures**: Database migration rollback capability
+- [ ] **Database Errors**: Clean database recreation failure handling
 
 #### Documentation Requirements [MAINTAINABILITY]
 - [ ] **CLAUDE.md Updates**: All component documentation reflects synthesis changes
 - [ ] **API Documentation**: Provider interfaces and storage methods documented
 - [ ] **Implementation Guide**: Clear implementation guide for developers
-- [ ] **Migration Guide**: User migration path documented for existing data
+- [ ] **Database Schema**: Document the fresh database schema approach
 
 ## API Contracts (Complete)
 
@@ -1480,10 +1495,10 @@ function generateCacheKey(
 - **Granular cost tracking**: No per-provider cost tracking for synthesis vs non-synthesis
 - **Smart synthesis detection**: No AI-powered detection of when synthesis would be valuable
 
-### Migration Strategy (CORRECTED)
-- **NO database wipe**: Preserve all existing feedback and training data
-- **Backwards compatibility**: Support existing data with synthesis alongside new data without synthesis
-- **Graceful migration**: Add optional synthesis columns without breaking existing functionality
+### Migration Strategy (CLEAN SLATE)
+- **Complete database recreation**: Drop all tables and recreate from scratch
+- **No backwards compatibility**: Fresh start with synthesis optional from day one
+- **Delete migrations**: Remove all existing migration files and start fresh schema
 
 ### Future Considerations (Not in This Implementation)
 - **Per-prompt synthesis settings**: Each saved prompt could have its own synthesis preference
@@ -1505,7 +1520,7 @@ This revised specification addresses critical gaps and errors in the original:
 6. **Storage Integration**: Proper integration with existing multi-provider storage system
 
 ### 🏗️ **Improved Architecture**:
-1. **Backwards Compatibility**: Support mixed data instead of database wipe
+1. **Clean Slate Approach**: Fresh database schema with optional synthesis from start
 2. **Provider Interface**: Consistent interface updates across all providers
 3. **Type Filtering Integration**: Proper handling of type filtering + synthesis combinations
 4. **Template Processing**: Better approach to conditional prompt modification
@@ -1520,7 +1535,7 @@ This revised specification addresses critical gaps and errors in the original:
 
 ### 🔍 **Clarified UX Decisions**:
 1. **Global vs Local Settings**: Clear distinction between global preference and REST controls
-2. **Migration Strategy**: No data loss approach with existing user data
+2. **Clean Slate Strategy**: Fresh start with optimal database schema design
 3. **Provider Switching**: Synthesis preference maintained across provider changes
 4. **Cost Communication**: Clear messaging about API cost implications
 
