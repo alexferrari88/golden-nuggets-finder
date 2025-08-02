@@ -1099,23 +1099,34 @@ describe("E2E synthesis workflow", () => {
 - Build system validates all changes compile successfully
 - All provider integrations maintain backwards compatibility
 
-#### Phase 3: UI Integration [COMPLEX UX DECISIONS]
-1. **Sidebar Updates**:
-   - Conditional synthesis display based on global preference
-   - Update export functions with proper logic
-   - Clarify REST endpoint vs global setting relationship
+#### Phase 3: UI Integration [COMPLEX UX DECISIONS] ✅ COMPLETED
+1. **Sidebar Updates**: ✅ COMPLETED
+   - ✅ Conditional synthesis display based on global preference
+   - ✅ Update export functions with proper logic
+   - ✅ Clarify REST endpoint vs global setting relationship
 
-2. **Content Script Integration**:
-   - Pass synthesis preference in analysis requests
-   - Update progress displays
+2. **Content Script Integration**: ✅ COMPLETED
+   - ✅ Pass synthesis preference in analysis requests
+   - ✅ Update progress displays
 
-3. **Options Page**:
-   - Add synthesis toggle with clear cost implications
-   - Integrate with existing React state management
+3. **Options Page**: ✅ COMPLETED
+   - ✅ Add synthesis toggle with clear cost implications
+   - ✅ Integrate with existing React state management
 
-4. **Template System**:
-   - Implement conditional prompt templates
-   - Add template processing function
+4. **Template System**: ✅ COMPLETED
+   - ✅ Implement conditional prompt templates
+   - ✅ Add template processing function
+
+**Phase 3 Completion Notes:**
+- All UI integration components successfully implemented
+- Sidebar conditionally displays synthesis based on global preference AND nugget content
+- Export functions (JSON/Markdown) respect global synthesis setting
+- REST endpoint controls remain independent for API consumers
+- Content scripts now pass synthesis preference in all analysis requests
+- Options page includes synthesis toggle with clear cost messaging
+- Template processing system handles conditional synthesis blocks
+- All tests pass and build succeeds
+- Full integration with existing storage and design systems
 
 #### Phase 4: Backend Integration [CLEAN SLATE APPROACH]
 1. **Database Recreation**:
