@@ -4,7 +4,13 @@ import "dotenv/config";
 import { fetch, Headers, Request, Response } from "undici";
 import { beforeAll, describe, expect, it } from "vitest";
 import { z } from "zod";
-import { ProviderFactory } from "../../src/background/services/provider-factory";
+import {
+	createProvider,
+	createProviderWithSelectedModel,
+	getDefaultModel,
+	getSelectedModel,
+	getSupportedProviders,
+} from "../../src/background/services/provider-factory";
 import {
 	normalize as normalizeResponse,
 	validate as validateResponse,
@@ -48,22 +54,22 @@ describe("Multi-Provider Schema Validation Integration Tests", () => {
 		gemini: {
 			providerId: "gemini",
 			apiKey: apiKeys.gemini || "",
-			modelName: ProviderFactory.getDefaultModel("gemini"),
+			modelName: getDefaultModel("gemini"),
 		},
 		openai: {
 			providerId: "openai",
 			apiKey: apiKeys.openai || "",
-			modelName: ProviderFactory.getDefaultModel("openai"),
+			modelName: getDefaultModel("openai"),
 		},
 		anthropic: {
 			providerId: "anthropic",
 			apiKey: apiKeys.anthropic || "",
-			modelName: ProviderFactory.getDefaultModel("anthropic"),
+			modelName: getDefaultModel("anthropic"),
 		},
 		openrouter: {
 			providerId: "openrouter",
 			apiKey: apiKeys.openrouter || "",
-			modelName: ProviderFactory.getDefaultModel("openrouter"),
+			modelName: getDefaultModel("openrouter"),
 		},
 	};
 
@@ -120,7 +126,7 @@ Return only the most valuable insights that would be genuinely useful to a softw
 
 					let response;
 					try {
-						const provider = await ProviderFactory.createProvider(config);
+						const provider = await createProvider(config);
 						console.log(`Provider created successfully for ${providerId}`);
 
 						// Make API call
@@ -249,7 +255,7 @@ Return only the most valuable insights that would be genuinely useful to a softw
 
 	describe("Provider factory", () => {
 		it("should support all expected providers", () => {
-			const supportedProviders = ProviderFactory.getSupportedProviders();
+			const supportedProviders = getSupportedProviders();
 			expect(supportedProviders).toContain("gemini");
 			expect(supportedProviders).toContain("openai");
 			expect(supportedProviders).toContain("anthropic");
@@ -266,7 +272,7 @@ Return only the most valuable insights that would be genuinely useful to a softw
 			];
 
 			providers.forEach((providerId) => {
-				const defaultModel = ProviderFactory.getDefaultModel(providerId);
+				const defaultModel = getDefaultModel(providerId);
 				expect(defaultModel).toBeDefined();
 				expect(typeof defaultModel).toBe("string");
 				expect(defaultModel.length).toBeGreaterThan(0);
@@ -285,10 +291,10 @@ Return only the most valuable insights that would be genuinely useful to a softw
 				const config: ProviderConfig = {
 					providerId,
 					apiKey: "test-key",
-					modelName: ProviderFactory.getDefaultModel(providerId),
+					modelName: getDefaultModel(providerId),
 				};
 
-				const provider = await ProviderFactory.createProvider(config);
+				const provider = await createProvider(config);
 				expect(provider).toBeDefined();
 				expect(provider.providerId).toBe(providerId);
 				expect(provider.modelName).toBe(config.modelName);
@@ -306,8 +312,8 @@ Return only the most valuable insights that would be genuinely useful to a softw
 			// Test that getSelectedModel returns default models when no custom selection exists
 			for (const providerId of providers) {
 				const selectedModel =
-					await ProviderFactory.getSelectedModel(providerId);
-				const defaultModel = ProviderFactory.getDefaultModel(providerId);
+					await getSelectedModel(providerId);
+				const defaultModel = getDefaultModel(providerId);
 
 				expect(selectedModel).toBeDefined();
 				expect(typeof selectedModel).toBe("string");
@@ -326,7 +332,7 @@ Return only the most valuable insights that would be genuinely useful to a softw
 			];
 
 			for (const providerId of providers) {
-				const provider = await ProviderFactory.createProviderWithSelectedModel(
+				const provider = await createProviderWithSelectedModel(
 					providerId,
 					"test-key",
 				);
@@ -335,7 +341,7 @@ Return only the most valuable insights that would be genuinely useful to a softw
 				expect(provider.providerId).toBe(providerId);
 
 				// Should use the selected model (which defaults to default model)
-				const expectedModel = ProviderFactory.getDefaultModel(providerId);
+				const expectedModel = getDefaultModel(providerId);
 				expect(provider.modelName).toBe(expectedModel);
 			}
 		});
