@@ -42,6 +42,8 @@ class TestFeedbackAPIErrorHandling:
                     "timestamp": 1642780800000,
                     "url": "https://example.com",
                     "context": "Test context",
+                    "modelProvider": "gemini",
+                    "modelName": "gemini-2.5-flash",
                 }
             ]
         }
@@ -65,6 +67,8 @@ class TestFeedbackAPIErrorHandling:
                     "timestamp": 1642780800000,
                     "url": "https://example.com",
                     "context": "Test context",
+                    "modelProvider": "gemini",
+                    "modelName": "gemini-2.5-flash",
                 }
             ]
         }
@@ -123,6 +127,8 @@ class TestFeedbackAPIErrorHandling:
                     "timestamp": 1642780800000,
                     "url": "https://example.com",
                     "context": "Test context",
+                    "modelProvider": "gemini",
+                    "modelName": "gemini-2.5-flash",
                 }
             ]
         }
@@ -150,6 +156,8 @@ class TestFeedbackAPIErrorHandling:
                     "timestamp": 1642780800000,
                     "url": "https://example.com",
                     "context": "Test context",
+                    "modelProvider": "gemini",
+                    "modelName": "gemini-2.5-flash",
                 }
             ]
         }
@@ -435,6 +443,8 @@ class TestRateLimitingAndAbusePrevention:
                     "timestamp": 1642780800000,
                     "url": "https://example.com",
                     "context": "Test context",
+                    "modelProvider": "gemini",
+                    "modelName": "gemini-2.5-flash",
                 }
                 for i in range(10)  # 10 large items
             ]
@@ -468,6 +478,8 @@ class TestRateLimitingAndAbusePrevention:
                         "timestamp": 1642780800000,
                         "url": f"https://example.com/thread-{thread_id}",
                         "context": "Test context",
+                        "modelProvider": "gemini",
+                        "modelName": "gemini-2.5-flash",
                     }
                 ]
             }
@@ -531,6 +543,8 @@ class TestRateLimitingAndAbusePrevention:
                         "timestamp": 1642780800000,
                         "url": "https://example.com",
                         "context": "Test context",
+                        "modelProvider": "gemini",
+                        "modelName": "gemini-2.5-flash",
                     }
                 ]
             }

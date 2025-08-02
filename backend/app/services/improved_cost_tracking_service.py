@@ -42,10 +42,18 @@ class ImprovedCostTrackingService:
         # Get accurate costs from DSPy history
         operation_cost = sum([x["cost"] for x in lm.history if x["cost"] is not None])
 
-        # Get token usage details
-        total_tokens = sum([x["usage"]["total_tokens"] for x in lm.history])
-        input_tokens = sum([x["usage"]["prompt_tokens"] for x in lm.history])
-        output_tokens = sum([x["usage"]["completion_tokens"] for x in lm.history])
+        # Get token usage details (with fallback for different DSPy versions)
+        total_tokens = 0
+        input_tokens = 0
+        output_tokens = 0
+        
+        for entry in lm.history:
+            if "usage" in entry and entry["usage"]:
+                usage = entry["usage"]
+                # Try different possible field names for token counts
+                total_tokens += usage.get("total_tokens", 0) or usage.get("total", 0)
+                input_tokens += usage.get("prompt_tokens", 0) or usage.get("input_tokens", 0) or usage.get("prompt", 0)
+                output_tokens += usage.get("completion_tokens", 0) or usage.get("output_tokens", 0) or usage.get("completion", 0)
         api_calls = len(lm.history)
 
         # Get model information (from first history entry)
@@ -367,14 +375,26 @@ class ImprovedCostTrackingService:
             }
 
         total_cost = sum([x["cost"] for x in lm.history if x["cost"] is not None])
-        total_tokens = sum([x["usage"]["total_tokens"] for x in lm.history])
+        
+        # Get token usage with fallback for different DSPy versions
+        total_tokens = 0
+        input_tokens = 0
+        output_tokens = 0
+        
+        for entry in lm.history:
+            if "usage" in entry and entry["usage"]:
+                usage = entry["usage"]
+                total_tokens += usage.get("total_tokens", 0) or usage.get("total", 0)
+                input_tokens += usage.get("prompt_tokens", 0) or usage.get("input_tokens", 0) or usage.get("prompt", 0)
+                output_tokens += usage.get("completion_tokens", 0) or usage.get("output_tokens", 0) or usage.get("completion", 0)
+        
         api_calls = len(lm.history)
 
         return {
             "total_cost": total_cost,
             "total_tokens": total_tokens,
-            "input_tokens": sum([x["usage"]["prompt_tokens"] for x in lm.history]),
-            "output_tokens": sum([x["usage"]["completion_tokens"] for x in lm.history]),
+            "input_tokens": input_tokens,
+            "output_tokens": output_tokens,
             "api_calls": api_calls,
             "cost_per_call": total_cost / max(api_calls, 1),
             "cost_per_token": total_cost / max(total_tokens, 1),

@@ -31,6 +31,8 @@ def test_database_isolation_first(clean_database):
                 "timestamp": 1642780800000,
                 "url": "https://example.com/isolation1",
                 "context": "Context for isolation test 1",
+                "modelProvider": "gemini",
+                "modelName": "gemini-2.5-flash",
             }
         ]
     }
@@ -100,6 +102,8 @@ def test_concurrent_tests_dont_interfere_1(clean_database):
                 "timestamp": 1642780800000,
                 "url": "https://example.com/concurrent1",
                 "context": "Concurrent test 1 context",
+                "modelProvider": "gemini",
+                "modelName": "gemini-2.5-flash",
             }
         ]
     }
@@ -130,6 +134,8 @@ def test_concurrent_tests_dont_interfere_2(clean_database):
                 "timestamp": 1642780800000,
                 "url": "https://example.com/concurrent2",
                 "context": "Concurrent test 2 context",
+                "modelProvider": "openai",
+                "modelName": "gpt-4o-mini",
             }
         ]
     }
