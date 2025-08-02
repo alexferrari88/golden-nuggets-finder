@@ -8,17 +8,28 @@ import type {
 	ProviderConfig,
 } from "../types/providers";
 
-// Zod schema for golden nuggets (matches existing format)
-const GoldenNuggetsSchema = z.object({
-	golden_nuggets: z.array(
-		z.object({
-			type: z.enum(["tool", "media", "explanation", "analogy", "model"]),
-			startContent: z.string(),
-			endContent: z.string(),
-			synthesis: z.string(),
-		}),
-	),
-});
+// Conditional schema generation function
+const createGoldenNuggetsSchema = (synthesisEnabled: boolean) => {
+	const baseSchema = z.object({
+		type: z.enum(["tool", "media", "explanation", "analogy", "model"]),
+		startContent: z.string(),
+		endContent: z.string(),
+	});
+
+	if (synthesisEnabled) {
+		return z.object({
+			golden_nuggets: z.array(
+				baseSchema.extend({
+					synthesis: z.string(),
+				})
+			),
+		});
+	} else {
+		return z.object({
+			golden_nuggets: z.array(baseSchema),
+		});
+	}
+};
 
 export class LangChainOpenAIProvider implements LLMProvider {
 	readonly providerId = "openai" as const;
@@ -37,6 +48,7 @@ export class LangChainOpenAIProvider implements LLMProvider {
 	async extractGoldenNuggets(
 		content: string,
 		prompt: string,
+		synthesisEnabled: boolean = true, // Default true for backwards compatibility
 	): Promise<GoldenNuggetsResponse> {
 		try {
 			// Log the request
@@ -52,6 +64,8 @@ export class LangChainOpenAIProvider implements LLMProvider {
 				},
 			);
 
+			const GoldenNuggetsSchema = createGoldenNuggetsSchema(synthesisEnabled);
+			
 			const structuredModel = this.model.withStructuredOutput(
 				GoldenNuggetsSchema,
 				{

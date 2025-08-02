@@ -546,6 +546,7 @@ export class MessageHandler {
 		prompt: string,
 		analysisId?: string,
 		tabId?: number,
+		synthesisEnabled: boolean = true, // Default true for backwards compatibility
 	): Promise<GoldenNuggetsResponse> {
 		let currentProviderId: ProviderId | null = null;
 		let attempts = 0;
@@ -583,6 +584,7 @@ export class MessageHandler {
 					const rawResponse = await provider.extractGoldenNuggets(
 						content,
 						prompt,
+						synthesisEnabled,
 					);
 					const responseTime = performance.now() - startTime;
 
@@ -936,11 +938,15 @@ export class MessageHandler {
 				sender.tab?.id,
 			);
 
+			// Get synthesis preference
+			const synthesisEnabled = request.synthesisEnabled ?? await storage.getSynthesisEnabled();
+
 			const result = await MessageHandler.handleExtractGoldenNuggets(
 				request.content,
 				processedPrompt,
 				analysisId,
 				sender.tab?.id,
+				synthesisEnabled,
 			);
 
 			// Send step 4 progress: processing results
@@ -1085,11 +1091,15 @@ export class MessageHandler {
 				sender.tab?.id,
 			);
 
+			// Get synthesis preference (for selected content, use same preference logic)
+			const synthesisEnabled = await storage.getSynthesisEnabled();
+
 			const result = await MessageHandler.handleExtractGoldenNuggets(
 				request.content,
 				processedPrompt,
 				analysisId,
 				sender.tab?.id,
+				synthesisEnabled,
 			);
 
 			// Send step 4 progress: processing results
