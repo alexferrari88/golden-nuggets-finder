@@ -305,13 +305,15 @@ export class StorageManager {
 				return cached;
 			}
 
-			const result = await chrome.storage.local.get(STORAGE_KEYS.SYNTHESIS_ENABLED);
+			const result = await chrome.storage.local.get(
+				STORAGE_KEYS.SYNTHESIS_ENABLED,
+			);
 			const enabled = result[STORAGE_KEYS.SYNTHESIS_ENABLED] ?? false; // Default false for new users
-			
+
 			this.setCache(STORAGE_KEYS.SYNTHESIS_ENABLED, enabled);
 			return enabled;
 		} catch (error) {
-			console.warn('Failed to get synthesis preference:', error);
+			console.warn("Failed to get synthesis preference:", error);
 			return false; // Safe default
 		}
 	}
@@ -328,12 +330,12 @@ export class StorageManager {
 	async setSynthesisEnabled(enabled: boolean): Promise<void> {
 		try {
 			await chrome.storage.local.set({
-				[STORAGE_KEYS.SYNTHESIS_ENABLED]: enabled
+				[STORAGE_KEYS.SYNTHESIS_ENABLED]: enabled,
 			});
 			this.setCache(STORAGE_KEYS.SYNTHESIS_ENABLED, enabled);
 			this.clearCache("full_config"); // Clear config cache since it includes synthesis preference
 		} catch (error) {
-			console.error('Failed to save synthesis preference:', error);
+			console.error("Failed to save synthesis preference:", error);
 			throw error;
 		}
 	}
@@ -552,110 +554,108 @@ export class StorageManager {
 	}
 }
 
-// Migration class for multi-provider support
-export class StorageMigration {
-	private static readonly MIGRATION_VERSION = "2.0.0";
+// Migration module for multi-provider support
+const MIGRATION_VERSION = "2.0.0";
 
-	static async checkAndRunMigration(): Promise<void> {
-		const storage = await chrome.storage.sync.get([
-			"migrationVersion",
-			"geminiApiKey",
-		]);
+export async function checkAndRunMigration(): Promise<void> {
+	const storage = await chrome.storage.sync.get([
+		"migrationVersion",
+		"geminiApiKey",
+	]);
 
-		// Skip if already migrated
-		if (storage.migrationVersion === StorageMigration.MIGRATION_VERSION) {
-			return;
-		}
+	// Skip if already migrated
+	if (storage.migrationVersion === MIGRATION_VERSION) {
+		return;
+	}
+
+	if (isDevMode()) {
+		console.log("Running storage migration to multi-provider format...");
+	}
+
+	try {
+		await migrateToMultiProvider(storage);
+
+		// Mark migration as complete
+		await chrome.storage.sync.set({
+			migrationVersion: MIGRATION_VERSION,
+		});
 
 		if (isDevMode()) {
-			console.log("Running storage migration to multi-provider format...");
+			console.log("Migration completed successfully");
 		}
 
-		try {
-			await StorageMigration.migrateToMultiProvider(storage);
-
-			// Mark migration as complete
-			await chrome.storage.sync.set({
-				migrationVersion: StorageMigration.MIGRATION_VERSION,
-			});
-
-			if (isDevMode()) {
-				console.log("Migration completed successfully");
-			}
-
-			// Show migration notification to user
-			StorageMigration.showMigrationNotification();
-		} catch (error) {
-			if (isDevMode()) {
-				console.error("Migration failed:", error);
-			}
-			// Don't break existing functionality if migration fails
+		// Show migration notification to user
+		showMigrationNotification();
+	} catch (error) {
+		if (isDevMode()) {
+			console.error("Migration failed:", error);
 		}
+		// Don't break existing functionality if migration fails
+	}
+}
+
+async function migrateToMultiProvider(
+	currentStorage: Record<string, unknown>,
+): Promise<void> {
+	const updates: Record<string, unknown> = {};
+
+	// Set default provider based on existing configuration
+	if (currentStorage.geminiApiKey) {
+		updates.selectedProvider = "gemini";
+		updates.providerSettings = {
+			gemini: {
+				modelName: "gemini-2.5-flash",
+				lastUsed: new Date().toISOString(),
+				isConfigured: true,
+			},
+		};
+	} else {
+		// No existing API key - default to Gemini but not configured
+		updates.selectedProvider = "gemini";
+		updates.providerSettings = {
+			gemini: {
+				modelName: "gemini-2.5-flash",
+				lastUsed: new Date().toISOString(),
+				isConfigured: false,
+			},
+		};
 	}
 
-	private static async migrateToMultiProvider(
-		currentStorage: Record<string, unknown>,
-	): Promise<void> {
-		const updates: Record<string, unknown> = {};
+	// Preserve all existing data
+	updates.migrationDate = new Date().toISOString();
 
-		// Set default provider based on existing configuration
-		if (currentStorage.geminiApiKey) {
-			updates.selectedProvider = "gemini";
-			updates.providerSettings = {
-				gemini: {
-					modelName: "gemini-2.5-flash",
-					lastUsed: new Date().toISOString(),
-					isConfigured: true,
-				},
-			};
-		} else {
-			// No existing API key - default to Gemini but not configured
-			updates.selectedProvider = "gemini";
-			updates.providerSettings = {
-				gemini: {
-					modelName: "gemini-2.5-flash",
-					lastUsed: new Date().toISOString(),
-					isConfigured: false,
-				},
-			};
-		}
+	await chrome.storage.sync.set(updates);
+}
 
-		// Preserve all existing data
-		updates.migrationDate = new Date().toISOString();
-
-		await chrome.storage.sync.set(updates);
+function showMigrationNotification(): void {
+	// Show user-friendly notification about new features
+	if (typeof chrome !== "undefined" && chrome.notifications) {
+		chrome.notifications.create({
+			type: "basic",
+			iconUrl: "/assets/icon128.png",
+			title: "Golden Nuggets Finder Updated!",
+			message:
+				"New: Choose from multiple AI providers! Check the options page to explore OpenAI, Claude, and more.",
+		});
 	}
+}
 
-	private static showMigrationNotification(): void {
-		// Show user-friendly notification about new features
-		if (typeof chrome !== "undefined" && chrome.notifications) {
-			chrome.notifications.create({
-				type: "basic",
-				iconUrl: "/assets/icon128.png",
-				title: "Golden Nuggets Finder Updated!",
-				message:
-					"New: Choose from multiple AI providers! Check the options page to explore OpenAI, Claude, and more.",
-			});
+export async function validateMigration(): Promise<boolean> {
+	try {
+		const storage = await chrome.storage.sync.get();
+
+		// Check required fields exist
+		const hasSelectedProvider = !!storage.selectedProvider;
+		const hasProviderSettings = !!storage.providerSettings;
+		const hasMigrationVersion =
+			storage.migrationVersion === MIGRATION_VERSION;
+
+		return hasSelectedProvider && hasProviderSettings && hasMigrationVersion;
+	} catch (error) {
+		if (isDevMode()) {
+			console.error("Migration validation failed:", error);
 		}
-	}
-
-	static async validateMigration(): Promise<boolean> {
-		try {
-			const storage = await chrome.storage.sync.get();
-
-			// Check required fields exist
-			const hasSelectedProvider = !!storage.selectedProvider;
-			const hasProviderSettings = !!storage.providerSettings;
-			const hasMigrationVersion =
-				storage.migrationVersion === StorageMigration.MIGRATION_VERSION;
-
-			return hasSelectedProvider && hasProviderSettings && hasMigrationVersion;
-		} catch (error) {
-			if (isDevMode()) {
-				console.error("Migration validation failed:", error);
-			}
-			return false;
-		}
+		return false;
 	}
 }
 

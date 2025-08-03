@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as TypeFilterService from "../../src/background/type-filter-service";
-import { StorageMigration, storage } from "../../src/shared/storage";
+import { checkAndRunMigration, validateMigration, storage } from "../../src/shared/storage";
 import { MESSAGE_TYPES } from "../../src/shared/types";
 
 // Mock WXT global functions
@@ -19,10 +19,8 @@ vi.mock("../../src/shared/storage", () => ({
 		getConfig: vi.fn(),
 		saveConfig: vi.fn(),
 	},
-	StorageMigration: {
-		checkAndRunMigration: vi.fn(),
-		validateMigration: vi.fn(),
-	},
+	checkAndRunMigration: vi.fn(),
+	validateMigration: vi.fn(),
 }));
 
 // Mock Chrome APIs
@@ -125,8 +123,8 @@ describe("Background Script Context Menu", () => {
 		// Mock storage methods
 		(storage.getPrompts as any).mockResolvedValue(mockPrompts);
 
-		// Mock StorageMigration
-		(StorageMigration.checkAndRunMigration as any).mockResolvedValue(undefined);
+		// Mock migration functions
+		(checkAndRunMigration as any).mockResolvedValue(undefined);
 
 		// Mock TypeFilterService
 		(TypeFilterService as any).CONTEXT_MENU_OPTIONS = mockTypeFilterOptions;

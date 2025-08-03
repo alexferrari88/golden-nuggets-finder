@@ -88,7 +88,7 @@ test.describe("Feedback Reset Flow", () => {
 	// UI behavior testing is better handled in unit tests for content script components
 	test.skip("should handle reset confirmation modal", async ({
 		context,
-		extensionId,
+		_extensionId,
 	}) => {
 		const page = await context.newPage();
 		// Create a simple test page
@@ -278,7 +278,7 @@ test.describe("Feedback Reset Flow", () => {
 	// UI behavior testing is better handled in unit tests for content script components
 	test.skip("should handle reset button visibility", async ({
 		context,
-		extensionId,
+		_extensionId,
 	}) => {
 		const page = await context.newPage();
 		// Create a test page with mock sidebar content

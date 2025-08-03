@@ -69,12 +69,12 @@ global.fetch = vi.fn();
 
 describe("MessageHandler Error Handling", () => {
 	let messageHandler: MessageHandler;
-	let mockGeminiClient: MockGeminiClient;
+	let _mockGeminiClient: MockGeminiClient;
 	let mockSendResponse: MockSendResponse;
 
 	beforeEach(() => {
 		vi.clearAllMocks();
-		mockGeminiClient = {
+		_mockGeminiClient = {
 			analyzeContent: vi
 				.fn()
 				.mockResolvedValue({ golden_nuggets: [] } as GoldenNuggetsResponse),
