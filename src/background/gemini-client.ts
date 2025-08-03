@@ -1,7 +1,7 @@
 import { GEMINI_CONFIG } from "../shared/constants";
 import { debugLogger } from "../shared/debug";
 import { measureAPICall, performanceMonitor } from "../shared/performance";
-import { GOLDEN_NUGGET_SCHEMA, generateGoldenNuggetSchema } from "../shared/schemas";
+import { generateGoldenNuggetSchema } from "../shared/schemas";
 import { storage } from "../shared/storage";
 import {
 	type AnalysisProgressMessage,
@@ -11,11 +11,36 @@ import {
 } from "../shared/types";
 import { TypeFilterService } from "./type-filter-service";
 
+interface ResponseSchemaProperty {
+	type: string;
+	description: string;
+	enum?: string[];
+}
+
+interface ResponseSchema {
+	type: "object";
+	properties: {
+		golden_nuggets: {
+			type: "array";
+			description: string;
+			minItems: number;
+			items: {
+				type: "object";
+				properties: Record<string, ResponseSchemaProperty>;
+				required: string[];
+				propertyOrdering: string[];
+			};
+		};
+	};
+	required: string[];
+	propertyOrdering: string[];
+}
+
 interface AnalysisProgressOptions {
 	analysisId?: string;
 	source?: "popup" | "context-menu";
 	typeFilter?: TypeFilterOptions;
-	responseSchema?: any; // Allow custom schema
+	responseSchema?: ResponseSchema;
 	synthesisEnabled?: boolean; // For type filtering integration
 	onProgress?: (
 		progressType: AnalysisProgressMessage["type"],
@@ -102,14 +127,17 @@ export class GeminiClient {
 		return this.retryRequest(async () => {
 			return measureAPICall("gemini_generate_content", async () => {
 				// Use custom schema if provided, otherwise generate dynamic schema
-				const responseSchema = progressOptions?.responseSchema || 
+				const responseSchema =
+					progressOptions?.responseSchema ||
 					(progressOptions?.typeFilter?.selectedTypes?.length
 						? TypeFilterService.generateDynamicSchema(
 								progressOptions.typeFilter.selectedTypes,
-								progressOptions?.synthesisEnabled ?? true
+								progressOptions?.synthesisEnabled ?? true,
 							)
-						: generateGoldenNuggetSchema([], progressOptions?.synthesisEnabled ?? true)
-					);
+						: generateGoldenNuggetSchema(
+								[],
+								progressOptions?.synthesisEnabled ?? true,
+							));
 
 				const requestBody = {
 					system_instruction: {
@@ -136,7 +164,10 @@ export class GeminiClient {
 				);
 
 				// Send step 3 progress: API request start
-				if (progressOptions && typeof progressOptions.onProgress === 'function') {
+				if (
+					progressOptions &&
+					typeof progressOptions.onProgress === "function"
+				) {
 					progressOptions.onProgress(
 						MESSAGE_TYPES.ANALYSIS_API_REQUEST_START,
 						3,
@@ -166,7 +197,10 @@ export class GeminiClient {
 				}
 
 				// Send step 3 completion: API response received
-				if (progressOptions && typeof progressOptions.onProgress === 'function') {
+				if (
+					progressOptions &&
+					typeof progressOptions.onProgress === "function"
+				) {
 					progressOptions.onProgress(
 						MESSAGE_TYPES.ANALYSIS_API_RESPONSE_RECEIVED,
 						3,
@@ -175,7 +209,10 @@ export class GeminiClient {
 				}
 
 				// Send step 4 progress: processing results
-				if (progressOptions && typeof progressOptions.onProgress === 'function') {
+				if (
+					progressOptions &&
+					typeof progressOptions.onProgress === "function"
+				) {
 					progressOptions.onProgress(
 						MESSAGE_TYPES.ANALYSIS_PROCESSING_RESULTS,
 						4,

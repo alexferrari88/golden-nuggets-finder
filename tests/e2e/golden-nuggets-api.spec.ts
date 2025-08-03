@@ -14,7 +14,9 @@ test.describe("Golden Nuggets API Integration", () => {
 		await optionsPage.waitForLoadState("networkidle");
 
 		// First, select a provider (Gemini)
-		const geminiRadio = optionsPage.locator('input[type="radio"][value="gemini"]');
+		const geminiRadio = optionsPage.locator(
+			'input[type="radio"][value="gemini"]',
+		);
 		await geminiRadio.click();
 
 		// Now wait for the API key input field to be visible (appears after provider selection)
@@ -53,7 +55,9 @@ test.describe("Golden Nuggets API Integration", () => {
 		await optionsPage.waitForLoadState("networkidle");
 
 		// Verify that Gemini provider is selected (from beforeEach setup)
-		const geminiRadio = optionsPage.locator('input[type="radio"][value="gemini"]');
+		const geminiRadio = optionsPage.locator(
+			'input[type="radio"][value="gemini"]',
+		);
 		await expect(geminiRadio).toBeChecked();
 
 		// API key input should now be visible
@@ -156,8 +160,19 @@ test.describe("Golden Nuggets API Integration", () => {
 
 		// Inject validation test directly into the page
 		const schemaTest = await testPage.evaluate(() => {
+			// Define interfaces for validation
+			interface GoldenNugget {
+				type: "tool" | "media" | "explanation" | "analogy" | "model";
+				content: string;
+				synthesis: string;
+			}
+
+			interface GoldenNuggetsResponse {
+				golden_nuggets: GoldenNugget[];
+			}
+
 			// Define the validation function inline (simplified version)
-			const validateGoldenNuggets = (response: any) => {
+			const validateGoldenNuggets = (response: GoldenNuggetsResponse) => {
 				if (!response || !Array.isArray(response.golden_nuggets)) {
 					return false;
 				}
@@ -165,7 +180,7 @@ test.describe("Golden Nuggets API Integration", () => {
 				const validTypes = ["tool", "media", "explanation", "analogy", "model"];
 
 				return response.golden_nuggets.every(
-					(nugget: any) =>
+					(nugget: GoldenNugget) =>
 						nugget &&
 						typeof nugget.content === "string" &&
 						typeof nugget.synthesis === "string" &&
