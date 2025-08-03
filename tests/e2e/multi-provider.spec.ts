@@ -452,9 +452,12 @@ test.describe("Multi-Provider Regression Tests", () => {
 	}) => {
 		// Verify that existing message handling patterns still work
 		const testPage = await context.newPage();
-		await testPage.goto("https://example.com");
+		// Use data URL instead of external site to avoid network timeouts
+		await testPage.goto(
+			"data:text/html,<html><body><h1>Test Page</h1><p>Content for message handling testing</p></body></html>",
+		);
 
-		await testPage.waitForLoadState("networkidle");
+		await testPage.waitForLoadState("domcontentloaded");
 
 		// Test basic page functionality and extension loading
 		const pageLoaded = (await testPage.locator("body").count()) > 0;
