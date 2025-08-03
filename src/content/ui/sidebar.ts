@@ -2605,12 +2605,11 @@ ${nugget.synthesis ? `**Synthesis:**\n${nugget.synthesis}\n` : ""}---
 				method: "OPTIONS",
 				headers: {
 					"Content-Type": this.restEndpointConfig.contentType,
-					...this.restEndpointConfig.headers.reduce(
-						(acc, header) => ({
-							...acc,
-							[header.key]: header.value,
-						}),
-						{},
+					...Object.fromEntries(
+						this.restEndpointConfig.headers.map((header) => [
+							header.key,
+							header.value,
+						]),
 					),
 				},
 			});

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { createMockTab, createMockOnClickData } from "../utils/chrome-mocks";
+import { createMockOnClickData, createMockTab } from "../utils/chrome-mocks";
 
 // Mock types for Chrome API
 interface MockChrome {
@@ -212,7 +212,9 @@ describe("Background Script Security - Core Logic Tests", () => {
 
 		it("should validate tab exists and has ID", () => {
 			const analysisCompletedTabs = new Set([123]);
-			const info = createMockOnClickData({ selectionText: "Valid selected text" });
+			const info = createMockOnClickData({
+				selectionText: "Valid selected text",
+			});
 
 			// Test undefined tab
 			expect(
@@ -228,7 +230,9 @@ describe("Background Script Security - Core Logic Tests", () => {
 
 		it("should validate analysis completion state", () => {
 			const tab = createMockTab({ id: 123, url: "https://example.com" });
-			const info = createMockOnClickData({ selectionText: "Valid selected text" });
+			const info = createMockOnClickData({
+				selectionText: "Valid selected text",
+			});
 
 			// Test without completed analysis
 			const emptyTabs = new Set<number>();
@@ -284,7 +288,11 @@ describe("Background Script Security - Core Logic Tests", () => {
 
 			// Test no selection text
 			expect(
-				validateMissedNuggetReport(tab, createMockOnClickData({}), analysisCompletedTabs),
+				validateMissedNuggetReport(
+					tab,
+					createMockOnClickData({}),
+					analysisCompletedTabs,
+				),
 			).toEqual({ valid: false, reason: "Selected text too short" });
 
 			// Test undefined info
@@ -295,7 +303,9 @@ describe("Background Script Security - Core Logic Tests", () => {
 
 		it("should pass validation with all valid inputs", () => {
 			const tab = createMockTab({ id: 123, url: "https://example.com" });
-			const info = createMockOnClickData({ selectionText: "This is a valid selection text" });
+			const info = createMockOnClickData({
+				selectionText: "This is a valid selection text",
+			});
 			const analysisCompletedTabs = new Set([123]);
 
 			expect(
@@ -320,7 +330,9 @@ describe("Background Script Security - Core Logic Tests", () => {
 			).toEqual({ valid: true });
 
 			// Text that's too short after trimming
-			const infoShortAfterTrim = createMockOnClickData({ selectionText: "   ab   " });
+			const infoShortAfterTrim = createMockOnClickData({
+				selectionText: "   ab   ",
+			});
 			expect(
 				validateMissedNuggetReport(
 					tab,

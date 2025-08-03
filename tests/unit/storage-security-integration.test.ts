@@ -150,11 +150,15 @@ describe("Storage-Security Integration Tests", () => {
 
 			// Save original key
 			await storageManager.saveApiKey(originalKey, accessContext);
-			const originalStoredData = mockStorageData.get(STORAGE_KEYS.API_KEY) as any;
+			const originalStoredData = mockStorageData.get(
+				STORAGE_KEYS.API_KEY,
+			) as any;
 
 			// Update with new key
 			await storageManager.saveApiKey(updatedKey, accessContext);
-			const updatedStoredData = mockStorageData.get(STORAGE_KEYS.API_KEY) as any;
+			const updatedStoredData = mockStorageData.get(
+				STORAGE_KEYS.API_KEY,
+			) as any;
 
 			// Verify data was re-encrypted (different encrypted data)
 			expect(updatedStoredData.encryptedData).not.toEqual(
@@ -293,7 +297,9 @@ describe("Storage-Security Integration Tests", () => {
 			expect(
 				securityManager
 					.getAuditLogs()
-					.some((log: any) => log.event === "recovery" && log.success === false),
+					.some(
+						(log: any) => log.event === "recovery" && log.success === false,
+					),
 			).toBe(true);
 		});
 	});

@@ -133,8 +133,11 @@ describe("MessageHandler", () => {
 
 		// Mock response normalizer
 		vi.spyOn(ResponseNormalizer, "normalize").mockImplementation(
-			(response: unknown, _providerId: ProviderId, _synthesisEnabled?: boolean) =>
-				response as GoldenNuggetsResponse,
+			(
+				response: unknown,
+				_providerId: ProviderId,
+				_synthesisEnabled?: boolean,
+			) => response as GoldenNuggetsResponse,
 		);
 
 		// Mock error handler
@@ -168,8 +171,11 @@ describe("MessageHandler", () => {
 			ProviderFactory.createProvider as ReturnType<typeof vi.fn>
 		).mockResolvedValue(mockProvider);
 		vi.spyOn(ResponseNormalizer, "normalize").mockImplementation(
-			(response: unknown, _providerId: ProviderId, _synthesisEnabled?: boolean) =>
-				response as GoldenNuggetsResponse,
+			(
+				response: unknown,
+				_providerId: ProviderId,
+				_synthesisEnabled?: boolean,
+			) => response as GoldenNuggetsResponse,
 		);
 
 		// Mock storage.getPrompts with default prompts

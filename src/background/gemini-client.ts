@@ -80,8 +80,8 @@ export class GeminiClient {
 			// Check if this is a recoverable error that should trigger recovery flow
 			if (
 				apiKeyError &&
-				apiKeyError.code === "DEVICE_CHANGED" &&
-				apiKeyError.canRecover
+				(apiKeyError as any).code === "DEVICE_CHANGED" &&
+				(apiKeyError as any).canRecover
 			) {
 				debugLogger.log(
 					"[GeminiClient] Detected recoverable API key error, preserving enhanced error for recovery",

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { TypeFilterService } from "../../src/background/type-filter-service";
 import { MESSAGE_TYPES } from "../../src/shared/types";
-import { createMockTab, createMockOnClickData } from "../utils/chrome-mocks";
+import { createMockOnClickData, createMockTab } from "../utils/chrome-mocks";
 
 describe("Context Menu Integration Tests", () => {
 	let mockChrome: any;
@@ -47,7 +47,7 @@ describe("Context Menu Integration Tests", () => {
 
 			const type = action === "select-content" ? "selection" : "analysis";
 
-			let typeFilter;
+			let typeFilter: any;
 			if (typeId && typeId !== "all") {
 				typeFilter = { selectedTypes: [typeId] };
 			}
@@ -647,7 +647,7 @@ describe("Context Menu Integration Tests", () => {
 				const [action, promptId, typeId] = parts;
 				const type = action === "select-content" ? "selection" : "analysis";
 
-				let typeFilter;
+				let typeFilter: any;
 				if (typeId && typeId !== "all") {
 					typeFilter = { selectedTypes: [typeId] };
 				}
@@ -701,7 +701,7 @@ describe("Context Menu Integration Tests", () => {
 
 				const type = action === "select-content" ? "selection" : "analysis";
 
-				let typeFilter;
+				let typeFilter: any;
 				if (typeId && typeId !== "all") {
 					typeFilter = { selectedTypes: [typeId] };
 				}

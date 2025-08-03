@@ -1,5 +1,5 @@
-src/assets/Readability.js
-tests/fixtures/
+src/assets/**
+tests/fixtures/**
 public/Readability.js
 dist/
 node_modules/

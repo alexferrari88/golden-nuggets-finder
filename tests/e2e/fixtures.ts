@@ -97,7 +97,9 @@ export const test = base.extend<{
 			const originalQuery = window.navigator.permissions.query;
 			window.navigator.permissions.query = (parameters) =>
 				parameters.name === "notifications"
-					? Promise.resolve({ state: Notification.permission } as PermissionStatus)
+					? Promise.resolve({
+							state: Notification.permission,
+						} as PermissionStatus)
 					: originalQuery(parameters);
 
 			// Hide automation indicators

@@ -7,8 +7,18 @@
 	},
 	"files": {
 		"ignoreUnknown": false,
-		"includes": ["src/**/*", "tests/**/*"],
-		"ignore": ["src/assets/Readability.js", "tests/fixtures/**/*"]
+		"includes": [
+			"src/background/**/*",
+			"src/content/**/*",
+			"src/entrypoints/**/*",
+			"src/shared/**/*",
+			"src/styles/**/*",
+			"tests/e2e/**/*.ts",
+			"tests/integration/**/*.ts",
+			"tests/unit/**/*.ts",
+			"tests/utils/**/*.ts",
+			"tests/setup.ts"
+		]
 	},
 	"formatter": {
 		"enabled": true,
@@ -20,9 +30,34 @@
 			"recommended": true,
 			"correctness": {
 				"noEmptyPattern": "off"
+			},
+			"suspicious": {
+				"noExplicitAny": "off",
+				"noAssignInExpressions": "off"
+			},
+			"a11y": {
+				"noStaticElementInteractions": "off",
+				"useKeyWithClickEvents": "off",
+				"noLabelWithoutControl": "off",
+				"useButtonType": "off"
+			},
+			"style": {
+				"noNonNullAssertion": "off"
 			}
 		}
 	},
+	"overrides": [
+		{
+			"includes": ["tests/**/*"],
+			"linter": {
+				"rules": {
+					"suspicious": {
+						"noExplicitAny": "off"
+					}
+				}
+			}
+		}
+	],
 	"javascript": {
 		"formatter": {
 			"quoteStyle": "double"

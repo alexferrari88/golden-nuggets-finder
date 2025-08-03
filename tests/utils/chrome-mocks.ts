@@ -1,6 +1,6 @@
 /**
  * Chrome API Type Mock Utilities
- * 
+ *
  * This file provides utility functions to create properly typed Chrome extension API objects
  * for testing purposes, ensuring all required properties are present.
  */
@@ -8,7 +8,9 @@
 /**
  * Creates a mock Tab object with all required properties
  */
-export function createMockTab(overrides: Partial<chrome.tabs.Tab> = {}): chrome.tabs.Tab {
+export function createMockTab(
+	overrides: Partial<chrome.tabs.Tab> = {},
+): chrome.tabs.Tab {
 	return {
 		id: 123,
 		index: 0,
@@ -31,7 +33,9 @@ export function createMockTab(overrides: Partial<chrome.tabs.Tab> = {}): chrome.
 /**
  * Creates a mock OnClickData object with all required properties
  */
-export function createMockOnClickData(overrides: Partial<chrome.contextMenus.OnClickData> = {}): chrome.contextMenus.OnClickData {
+export function createMockOnClickData(
+	overrides: Partial<chrome.contextMenus.OnClickData> = {},
+): chrome.contextMenus.OnClickData {
 	return {
 		menuItemId: "test-menu-item",
 		editable: false,
@@ -52,7 +56,9 @@ export function createMockOnClickData(overrides: Partial<chrome.contextMenus.OnC
 /**
  * Creates a mock MessageSender object with all required properties
  */
-export function createMockMessageSender(overrides: Partial<chrome.runtime.MessageSender> = {}): chrome.runtime.MessageSender {
+export function createMockMessageSender(
+	overrides: Partial<chrome.runtime.MessageSender> = {},
+): chrome.runtime.MessageSender {
 	return {
 		tab: createMockTab(),
 		frameId: 0,
@@ -67,7 +73,9 @@ export function createMockMessageSender(overrides: Partial<chrome.runtime.Messag
 /**
  * Creates a mock MessageSender with a custom tab
  */
-export function createMockMessageSenderWithTab(tab: Partial<chrome.tabs.Tab> = {}): chrome.runtime.MessageSender {
+export function createMockMessageSenderWithTab(
+	tab: Partial<chrome.tabs.Tab> = {},
+): chrome.runtime.MessageSender {
 	return createMockMessageSender({
 		tab: createMockTab(tab),
 	});
@@ -77,30 +85,40 @@ export function createMockMessageSenderWithTab(tab: Partial<chrome.tabs.Tab> = {
  * Type guard to check if an object has the required Tab properties
  */
 export function isValidTab(obj: any): obj is chrome.tabs.Tab {
-	return obj && 
-		typeof obj.id === 'number' &&
-		typeof obj.index === 'number' &&
-		typeof obj.pinned === 'boolean' &&
-		typeof obj.highlighted === 'boolean' &&
-		typeof obj.windowId === 'number' &&
-		typeof obj.active === 'boolean' &&
-		typeof obj.incognito === 'boolean';
+	return (
+		obj &&
+		typeof obj.id === "number" &&
+		typeof obj.index === "number" &&
+		typeof obj.pinned === "boolean" &&
+		typeof obj.highlighted === "boolean" &&
+		typeof obj.windowId === "number" &&
+		typeof obj.active === "boolean" &&
+		typeof obj.incognito === "boolean"
+	);
 }
 
 /**
  * Type guard to check if an object has the required OnClickData properties
  */
-export function isValidOnClickData(obj: any): obj is chrome.contextMenus.OnClickData {
-	return obj && 
-		typeof obj.editable === 'boolean' &&
-		typeof obj.menuItemId !== 'undefined';
+export function isValidOnClickData(
+	obj: any,
+): obj is chrome.contextMenus.OnClickData {
+	return (
+		obj &&
+		typeof obj.editable === "boolean" &&
+		typeof obj.menuItemId !== "undefined"
+	);
 }
 
 /**
  * Type guard to check if an object has the required MessageSender properties
  */
-export function isValidMessageSender(obj: any): obj is chrome.runtime.MessageSender {
-	return obj && 
+export function isValidMessageSender(
+	obj: any,
+): obj is chrome.runtime.MessageSender {
+	return (
+		obj &&
 		(obj.tab === undefined || isValidTab(obj.tab)) &&
-		typeof obj.frameId === 'number';
+		typeof obj.frameId === "number"
+	);
 }

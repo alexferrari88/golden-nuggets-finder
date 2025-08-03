@@ -191,7 +191,8 @@ describe("Sidebar Pagination", () => {
 			pagination?.querySelectorAll(".pagination-button") || [],
 		).find(
 			(el): el is HTMLButtonElement =>
-				el instanceof HTMLButtonElement && el.textContent?.includes("Next"),
+				el instanceof HTMLButtonElement &&
+				(el.textContent?.includes("Next") ?? false),
 		);
 
 		expect(nextButton).toBeTruthy();
@@ -209,8 +210,8 @@ describe("Sidebar Pagination", () => {
 		// Should have Previous button but no Next button
 		const paginationButtons =
 			updatedPagination?.querySelectorAll(".pagination-button");
-		const prevButton = Array.from(paginationButtons || []).find((el) =>
-			el.textContent?.includes("Previous"),
+		const prevButton = Array.from(paginationButtons || []).find(
+			(el) => el.textContent?.includes("Previous") ?? false,
 		);
 		expect(prevButton).toBeTruthy();
 
@@ -244,7 +245,8 @@ describe("Sidebar Pagination", () => {
 			pagination?.querySelectorAll(".pagination-button") || [],
 		).find(
 			(el): el is HTMLButtonElement =>
-				el instanceof HTMLButtonElement && el.textContent?.includes("Next"),
+				el instanceof HTMLButtonElement &&
+				(el.textContent?.includes("Next") ?? false),
 		);
 		nextButton?.click();
 
@@ -270,7 +272,8 @@ describe("Sidebar Pagination", () => {
 		// Navigate to page 2
 		const nextButton = Array.from(document.querySelectorAll("button")).find(
 			(el): el is HTMLButtonElement =>
-				el instanceof HTMLButtonElement && el.textContent?.includes("Next"),
+				el instanceof HTMLButtonElement &&
+				(el.textContent?.includes("Next") ?? false),
 		);
 		nextButton?.click();
 
@@ -324,7 +327,8 @@ describe("Sidebar Pagination", () => {
 			pagination?.querySelectorAll(".pagination-button") || [],
 		).find(
 			(el): el is HTMLButtonElement =>
-				el instanceof HTMLButtonElement && el.textContent?.includes("Next"),
+				el instanceof HTMLButtonElement &&
+				(el.textContent?.includes("Next") ?? false),
 		);
 		expect(nextButton).toBeTruthy();
 

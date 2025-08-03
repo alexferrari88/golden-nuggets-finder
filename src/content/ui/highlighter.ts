@@ -16,7 +16,10 @@ declare global {
 		add(range: Range): void;
 		clear(): void;
 		delete(range: Range): boolean;
-		forEach(callbackfn: (value: Range, value2: Range, set: BrowserHighlight) => void, thisArg?: unknown): void;
+		forEach(
+			callbackfn: (value: Range, value2: Range, set: BrowserHighlight) => void,
+			thisArg?: unknown,
+		): void;
 		has(range: Range): boolean;
 		readonly size: number;
 		readonly priority: number;
@@ -41,8 +44,17 @@ export class Highlighter {
 	private cssHighlightSupported: boolean;
 
 	constructor() {
-		this.cssHighlightSupported = this.checkCSSHighlightSupport();
-		this.setupCSSHighlightStyles();
+		try {
+			this.cssHighlightSupported = this.checkCSSHighlightSupport();
+			console.log(
+				"Highlighter constructor - CSS support:",
+				this.cssHighlightSupported,
+			);
+			this.setupCSSHighlightStyles();
+		} catch (error) {
+			console.error("Error in Highlighter constructor:", error);
+			this.cssHighlightSupported = false;
+		}
 	}
 
 	/**
@@ -53,8 +65,11 @@ export class Highlighter {
 	 */
 	highlightNugget(nugget: GoldenNugget, _pageContent?: string): boolean {
 		try {
+			console.log("highlightNugget called for:", nugget.startContent);
+
 			// Check if this nugget is already highlighted
 			if (this.isAlreadyHighlighted(nugget)) {
+				console.log("Already highlighted");
 				return true;
 			}
 
@@ -75,7 +90,7 @@ export class Highlighter {
 				return false;
 			}
 
-			console.log("Successfully highlighted nugget:", nugget);
+			console.log("Successfully highlighted nugget:", nugget.startContent);
 			return true;
 		} catch (error) {
 			console.error("Error highlighting nugget:", error, nugget);
@@ -139,29 +154,41 @@ export class Highlighter {
 	 * Clear all highlights from the page
 	 */
 	clearHighlights(): void {
-		// Clear CSS highlights
-		if (this.cssHighlightSupported && CSS.highlights) {
-			if (this.globalHighlight) {
-				this.globalHighlight.clear();
-				CSS.highlights.delete("golden-nugget");
-				this.globalHighlight = null;
-			}
-			this.cssHighlights.clear();
-		}
-
-		// Clear DOM-based highlights (fallback)
-		this.highlightedElements.forEach((element) => {
-			if (element.parentNode) {
-				// Unwrap the highlighted element, preserving the text content
-				const parent = element.parentNode;
-				while (element.firstChild) {
-					parent.insertBefore(element.firstChild, element);
+		try {
+			// Clear CSS highlights
+			if (
+				this.cssHighlightSupported &&
+				typeof CSS !== "undefined" &&
+				CSS.highlights
+			) {
+				if (this.globalHighlight) {
+					this.globalHighlight.clear();
+					CSS.highlights.delete("golden-nugget");
+					this.globalHighlight = null;
 				}
-				parent.removeChild(element);
+				this.cssHighlights.clear();
 			}
-		});
 
-		this.highlightedElements = [];
+			// Clear DOM-based highlights (fallback)
+			this.highlightedElements.forEach((element) => {
+				try {
+					if (element.parentNode) {
+						// Unwrap the highlighted element, preserving the text content
+						const parent = element.parentNode;
+						while (element.firstChild) {
+							parent.insertBefore(element.firstChild, element);
+						}
+						parent.removeChild(element);
+					}
+				} catch (error) {
+					console.warn("Error removing highlight element:", error);
+				}
+			});
+
+			this.highlightedElements = [];
+		} catch (error) {
+			console.error("Error clearing highlights:", error);
+		}
 	}
 
 	/**
@@ -338,6 +365,7 @@ export class Highlighter {
 			const endOffset = bestRange.end - endNodeInfo.startIndex;
 			range.setEnd(endNodeInfo.node, endOffset);
 
+			console.log("Found text range:", startContent, "→", endContent);
 			return range;
 		} catch (error) {
 			console.error("Error finding text in DOM:", error);
@@ -349,10 +377,14 @@ export class Highlighter {
 	 * Check if CSS Custom Highlight API is supported
 	 */
 	private checkCSSHighlightSupport(): boolean {
+		// Ensure CSS object exists first
+		if (typeof CSS === "undefined") {
+			// CSS object doesn't exist, polyfill not available
+			return false;
+		}
+
 		return (
-			typeof CSS !== "undefined" &&
-			CSS.highlights !== undefined &&
-			typeof window.Highlight !== "undefined"
+			CSS.highlights !== undefined && typeof window.Highlight !== "undefined"
 		);
 	}
 
@@ -360,22 +392,34 @@ export class Highlighter {
 	 * Setup CSS styles for highlights
 	 */
 	private setupCSSHighlightStyles(): void {
+		console.log(
+			"setupCSSHighlightStyles called, supported:",
+			this.cssHighlightSupported,
+		);
 		if (!this.cssHighlightSupported) return;
 
 		// Check if styles are already added
-		if (document.querySelector("#golden-nugget-highlight-styles")) return;
+		if (document.querySelector("#golden-nugget-highlight-styles")) {
+			console.log("Styles already exist");
+			return;
+		}
 
-		const styleSheet = document.createElement("style");
-		styleSheet.id = "golden-nugget-highlight-styles";
-		styleSheet.textContent = `
-			::highlight(golden-nugget) {
-				background-color: ${colors.highlight.background} !important;
-				border-radius: 3px !important;
-				box-shadow: 0 0 0 1px ${colors.highlight.border} !important;
-				color: inherit !important;
-			}
-		`;
-		document.head.appendChild(styleSheet);
+		try {
+			const styleSheet = document.createElement("style");
+			styleSheet.id = "golden-nugget-highlight-styles";
+			styleSheet.textContent = `
+				::highlight(golden-nugget) {
+					background-color: ${colors.highlight.background} !important;
+					border-radius: 3px !important;
+					box-shadow: 0 0 0 1px ${colors.highlight.border} !important;
+					color: inherit !important;
+				}
+			`;
+			document.head.appendChild(styleSheet);
+			console.log("Added CSS highlight styles");
+		} catch (error) {
+			console.error("Error setting up CSS styles:", error);
+		}
 	}
 
 	/**
@@ -393,6 +437,7 @@ export class Highlighter {
 	 */
 	private highlightWithCSS(range: Range, nugget: GoldenNugget): boolean {
 		try {
+			console.log("highlightWithCSS called");
 			if (range.collapsed) {
 				console.warn("Cannot highlight collapsed range");
 				return false;
@@ -400,8 +445,10 @@ export class Highlighter {
 
 			// Create global highlight object if it doesn't exist
 			if (!this.globalHighlight) {
+				console.log("Creating global highlight object");
 				this.globalHighlight = new window.Highlight();
 				CSS.highlights.set("golden-nugget", this.globalHighlight);
+				console.log("Registered global highlight with name 'golden-nugget'");
 			}
 
 			// Add this range to the global highlight
@@ -416,10 +463,13 @@ export class Highlighter {
 			});
 
 			console.log("Successfully added CSS highlight:", highlightKey);
+			console.log("CSS.highlights size:", CSS.highlights.size);
 			return true;
 		} catch (error) {
 			console.error("Error creating CSS highlight:", error);
-			return false;
+			console.error("Error details:", error.message);
+			console.error("Falling back to DOM highlighting");
+			return this.highlightWithDOM(range, nugget);
 		}
 	}
 
@@ -429,6 +479,7 @@ export class Highlighter {
 	 */
 	private highlightWithDOM(range: Range, nugget: GoldenNugget): boolean {
 		try {
+			console.log("highlightWithDOM called");
 			if (range.collapsed) {
 				console.warn("Cannot highlight collapsed range");
 				return false;

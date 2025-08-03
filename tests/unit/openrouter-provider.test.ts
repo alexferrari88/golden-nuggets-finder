@@ -112,7 +112,7 @@ describe("LangChainOpenRouterProvider", () => {
 		const { ChatOpenAI } = await import("@langchain/openai");
 
 		// Mock a failure for function calling
-		(ChatOpenAI as ReturnType<typeof vi.fn>).mockImplementationOnce(() => ({
+		(ChatOpenAI as any).mockImplementationOnce(() => ({
 			withStructuredOutput: vi.fn().mockReturnValue({
 				invoke: vi.fn().mockRejectedValue(new Error("API Error")),
 			}),
@@ -158,7 +158,7 @@ describe("LangChainOpenRouterProvider", () => {
 		});
 
 		const { ChatOpenAI } = vi.mocked(await import("@langchain/openai"));
-		ChatOpenAI.mockImplementationOnce(
+		(ChatOpenAI as any).mockImplementationOnce(
 			() =>
 				({
 					withStructuredOutput: mockWithStructuredOutput,
@@ -180,7 +180,7 @@ describe("LangChainOpenRouterProvider", () => {
 	it("should handle empty response gracefully", async () => {
 		const { ChatOpenAI } = await import("@langchain/openai");
 
-		(ChatOpenAI as ReturnType<typeof vi.fn>).mockImplementationOnce(() => ({
+		(ChatOpenAI as any).mockImplementationOnce(() => ({
 			withStructuredOutput: vi.fn().mockReturnValue({
 				invoke: vi.fn().mockResolvedValue({
 					golden_nuggets: [],
@@ -229,7 +229,7 @@ describe("LangChainOpenRouterProvider", () => {
 	it("should handle network timeouts", async () => {
 		const { ChatOpenAI } = await import("@langchain/openai");
 
-		(ChatOpenAI as ReturnType<typeof vi.fn>).mockImplementationOnce(() => ({
+		(ChatOpenAI as any).mockImplementationOnce(() => ({
 			withStructuredOutput: vi.fn().mockReturnValue({
 				invoke: vi.fn().mockRejectedValue(new Error("Network timeout")),
 			}),
@@ -263,7 +263,7 @@ describe("LangChainOpenRouterProvider", () => {
 			};
 		});
 
-		(ChatOpenAI as ReturnType<typeof vi.fn>).mockImplementationOnce(() => ({
+		(ChatOpenAI as any).mockImplementationOnce(() => ({
 			withStructuredOutput: vi.fn().mockReturnValue({
 				invoke: mockInvoke,
 			}),
@@ -296,7 +296,7 @@ describe("LangChainOpenRouterProvider", () => {
 			.fn()
 			.mockRejectedValue(new Error("429 Rate limit exceeded"));
 
-		(ChatOpenAI as ReturnType<typeof vi.fn>).mockImplementationOnce(() => ({
+		(ChatOpenAI as any).mockImplementationOnce(() => ({
 			withStructuredOutput: vi.fn().mockReturnValue({
 				invoke: mockInvoke,
 			}),
@@ -320,7 +320,7 @@ describe("LangChainOpenRouterProvider", () => {
 
 		const mockInvoke = vi.fn().mockRejectedValue(new Error("Invalid API key"));
 
-		(ChatOpenAI as ReturnType<typeof vi.fn>).mockImplementationOnce(() => ({
+		(ChatOpenAI as any).mockImplementationOnce(() => ({
 			withStructuredOutput: vi.fn().mockReturnValue({
 				invoke: mockInvoke,
 			}),
@@ -416,7 +416,7 @@ describe("LangChainOpenRouterProvider", () => {
 			user_id: "user_2yCxNwyhwzv2qzz9IiogKaKcG13",
 		};
 
-		(ChatOpenAI as ReturnType<typeof vi.fn>).mockImplementationOnce(() => ({
+		(ChatOpenAI as any).mockImplementationOnce(() => ({
 			withStructuredOutput: vi.fn().mockReturnValue({
 				invoke: vi.fn().mockResolvedValue(errorResponse),
 			}),
@@ -440,7 +440,7 @@ describe("LangChainOpenRouterProvider", () => {
 			user_id: "user_2yCxNwyhwzv2qzz9IiogKaKcG13",
 		};
 
-		(ChatOpenAI as ReturnType<typeof vi.fn>).mockImplementationOnce(() => ({
+		(ChatOpenAI as any).mockImplementationOnce(() => ({
 			withStructuredOutput: vi.fn().mockReturnValue({
 				invoke: vi.fn().mockResolvedValue(errorResponse),
 			}),

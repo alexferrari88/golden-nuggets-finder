@@ -293,7 +293,7 @@ describe("MessageHandler Error Handling", () => {
 
 			await (
 				messageHandler as unknown as MessageHandlerTestAccess
-			).notifyUserOfBackendError(undefined, errorInfo);
+			).notifyUserOfBackendError(0, errorInfo);
 
 			expect(chrome.tabs.sendMessage).not.toHaveBeenCalled();
 		});

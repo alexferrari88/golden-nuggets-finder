@@ -20,11 +20,18 @@ export interface LLMRequestBody {
 	contents?: Array<{
 		parts: Array<{ text: string }>;
 	}>;
+	system_instruction?: {
+		parts: Array<{ text: string }>;
+	};
 	generationConfig?: {
 		temperature?: number;
 		maxOutputTokens?: number;
 		responseMimeType?: string;
-		responseSchema?: Record<string, unknown>;
+		responseSchema?: any;
+		thinkingConfig?: {
+			enabled?: boolean;
+			thinkingBudget?: number;
+		};
 	};
 	// Additional fields for other providers
 	model?: string;

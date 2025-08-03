@@ -65,7 +65,9 @@ test.describe("Feedback Reset Flow", () => {
 		});
 
 		// Verify the reset message was prepared
-		const resetMessage = await page.evaluate(() => (window as any).mockResetFeedback);
+		const resetMessage = await page.evaluate(
+			() => (window as any).mockResetFeedback,
+		);
 		expect(resetMessage).toEqual({
 			type: "DELETE_NUGGET_FEEDBACK",
 			feedbackId: "test-feedback-123",
@@ -190,7 +192,9 @@ test.describe("Feedback Reset Flow", () => {
 			page.locator("#reset-confirmation-overlay"),
 		).not.toBeAttached();
 
-		const cancelAction = await page.evaluate(() => (window as any).mockModalAction);
+		const cancelAction = await page.evaluate(
+			() => (window as any).mockModalAction,
+		);
 		expect(cancelAction).toBe("cancelled");
 
 		// Re-create modal for confirm test
@@ -268,7 +272,9 @@ test.describe("Feedback Reset Flow", () => {
 			page.locator("#reset-confirmation-overlay"),
 		).not.toBeAttached();
 
-		const confirmAction = await page.evaluate(() => (window as any).mockModalAction);
+		const confirmAction = await page.evaluate(
+			() => (window as any).mockModalAction,
+		);
 		expect(confirmAction).toBe("confirmed");
 
 		await page.close();
@@ -357,7 +363,9 @@ test.describe("Feedback Reset Flow", () => {
 
 		await resetBtn.click();
 
-		const wasClicked = await page.evaluate(() => (window as any).resetButtonClicked);
+		const wasClicked = await page.evaluate(
+			() => (window as any).resetButtonClicked,
+		);
 		expect(wasClicked).toBe(true);
 
 		await page.close();

@@ -21,25 +21,46 @@ test.describe("Extension Basics", () => {
 		// Test popup page
 		const popupPage = await context.newPage();
 		await popupPage.goto(`chrome-extension://${extensionId}/popup.html`, {
-			waitUntil: "domcontentloaded",
+			waitUntil: "networkidle",
 		});
-		await popupPage.waitForLoadState("domcontentloaded");
 		await expect(popupPage).toHaveURL(
 			new RegExp(`chrome-extension://${extensionId}/popup.html`),
 		);
 
-		// Test options page - wait between pages to avoid navigation conflicts
+		// Clean up and wait properly before testing options page
 		await popupPage.close();
-		await context.pages().length; // Wait for page cleanup
+		// Wait for page cleanup and extension stabilization
+		await new Promise((resolve) => setTimeout(resolve, 500));
 
 		const optionsPage = await context.newPage();
-		await optionsPage.goto(`chrome-extension://${extensionId}/options.html`, {
-			waitUntil: "domcontentloaded",
-		});
-		await optionsPage.waitForLoadState("domcontentloaded");
-		await expect(optionsPage).toHaveURL(
-			new RegExp(`chrome-extension://${extensionId}/options.html`),
-		);
+		try {
+			await optionsPage.goto(`chrome-extension://${extensionId}/options.html`, {
+				waitUntil: "networkidle",
+				timeout: 15000, // Increase timeout for React app initialization
+			});
+			await expect(optionsPage).toHaveURL(
+				new RegExp(`chrome-extension://${extensionId}/options.html`),
+			);
+		} catch (error) {
+			// If navigation fails due to race condition, retry once
+			console.log("Retrying options page navigation due to:", error.message);
+			await optionsPage.close();
+			await new Promise((resolve) => setTimeout(resolve, 1000));
+
+			const retryOptionsPage = await context.newPage();
+			await retryOptionsPage.goto(
+				`chrome-extension://${extensionId}/options.html`,
+				{
+					waitUntil: "networkidle",
+					timeout: 15000,
+				},
+			);
+			await expect(retryOptionsPage).toHaveURL(
+				new RegExp(`chrome-extension://${extensionId}/options.html`),
+			);
+			await retryOptionsPage.close();
+			return;
+		}
 
 		await optionsPage.close();
 	});

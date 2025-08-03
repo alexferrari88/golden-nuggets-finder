@@ -215,10 +215,10 @@ describe("Progress Tracking Integration Tests", () => {
 			// Verify correct step progression for each analysis
 			const analysis1Steps = progressByAnalysis
 				.get(analysisId1)
-				.map((m) => m.step);
+				.map((m: any) => m.step);
 			const analysis2Steps = progressByAnalysis
 				.get(analysisId2)
-				.map((m) => m.step);
+				.map((m: any) => m.step);
 
 			expect(analysis1Steps).toEqual([1, 2]);
 			expect(analysis2Steps).toEqual([1, 3]);
@@ -268,7 +268,8 @@ describe("Progress Tracking Integration Tests", () => {
 
 			// Verify popup messages are sent to runtime for popup display
 			const popupRuntimeMessages = progressMessageQueue.filter(
-				(item) => item.target === "runtime" && (item.message as any).source === "popup",
+				(item) =>
+					item.target === "runtime" && (item.message as any).source === "popup",
 			);
 			expect(popupRuntimeMessages).toHaveLength(1);
 		});
@@ -389,11 +390,13 @@ describe("Progress Tracking Integration Tests", () => {
 			}
 
 			function cleanupExpiredSessions(currentTime: number) {
-				Array.from(activeProgressSessions.entries()).forEach(([id, session]) => {
-					if (currentTime - session.lastUpdate > PROGRESS_TIMEOUT) {
-						activeProgressSessions.delete(id);
-					}
-				});
+				Array.from(activeProgressSessions.entries()).forEach(
+					([id, session]) => {
+						if (currentTime - session.lastUpdate > PROGRESS_TIMEOUT) {
+							activeProgressSessions.delete(id);
+						}
+					},
+				);
 			}
 
 			// Start progress session
@@ -735,7 +738,10 @@ describe("Progress Tracking Integration Tests", () => {
 				await mockChrome.tabs.sendMessage(tabId, errorProgressMessage);
 			} catch (error) {
 				// Handle the error in UI
-				uiErrorHandler.handleProgressError(analysisId, (error as Error).message);
+				uiErrorHandler.handleProgressError(
+					analysisId,
+					(error as Error).message,
+				);
 				mockUIManager.showLoadingIndicator = vi.fn(); // Reset loading state
 			}
 

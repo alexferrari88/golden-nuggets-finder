@@ -1,10 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as TypeFilterService from "../../src/background/type-filter-service";
-import {
-	checkAndRunMigration,
-	storage,
-	validateMigration,
-} from "../../src/shared/storage";
+import { checkAndRunMigration, storage } from "../../src/shared/storage";
 import { MESSAGE_TYPES } from "../../src/shared/types";
 
 // Mock WXT global functions

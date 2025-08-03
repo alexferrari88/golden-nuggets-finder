@@ -124,7 +124,7 @@ Return only the most valuable insights that would be genuinely useful to a softw
 					console.log(`Testing ${providerId} with model: ${config.modelName}`);
 					console.log(`API key length: ${config.apiKey?.length || 0}`);
 
-					let response;
+					let response: any;
 					try {
 						const provider = await createProvider(config);
 						console.log(`Provider created successfully for ${providerId}`);

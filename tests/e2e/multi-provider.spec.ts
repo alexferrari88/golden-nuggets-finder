@@ -194,7 +194,8 @@ test.describe("Multi-Provider Integration", () => {
 
 		// If migration is implemented, should also have new fields
 		const hasMigrationFields =
-			"selectedProvider" in (storageData as any) || "migrationVersion" in (storageData as any);
+			"selectedProvider" in (storageData as any) ||
+			"migrationVersion" in (storageData as any);
 
 		if (hasMigrationFields) {
 			// Migration was run - verify it preserved data
