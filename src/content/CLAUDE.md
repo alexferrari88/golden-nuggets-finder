@@ -218,3 +218,9 @@ The threads-harvester library provides automatic site detection and optimized ex
 - **Performance Optimization**: Keep components lightweight with efficient DOM operations
 - **Error Handling**: Graceful degradation for provider failures and network issues
 - **Memory Management**: Proper cleanup on page navigation and component destruction
+
+### Code Quality Enforcement
+- **ALWAYS** use the `code-quality-enforcer` agent at the end of any content script development task
+- When working with todo lists, add "Run code quality enforcement" as the **last** todo item
+- This ensures all content script code passes formatting, linting, type checking, and testing
+- Critical for content scripts since they inject into arbitrary websites and must be reliable

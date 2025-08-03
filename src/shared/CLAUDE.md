@@ -411,6 +411,12 @@ The shared utilities include comprehensive unit tests:
 - Monitor memory usage and implement cleanup (see security manager)
 - Consider lazy loading for heavy operations
 
+### Code Quality Enforcement
+- **ALWAYS** use the `code-quality-enforcer` agent at the end of any shared utility development task
+- When working with todo lists, add "Run code quality enforcement" as the **last** todo item
+- This ensures all shared utility code passes formatting, linting, type checking, and testing
+- Critical for shared utilities since they're used across all extension components
+
 ## Migration Notes
 
 ### Storage Migration

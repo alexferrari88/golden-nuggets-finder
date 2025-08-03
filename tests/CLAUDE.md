@@ -314,6 +314,12 @@ Documentation and guides for manual testing scenarios:
 3. Implement fix and verify tests pass
 4. Add regression tests for edge cases
 
+### Code Quality Enforcement
+- **ALWAYS** use the `code-quality-enforcer` agent at the end of any test development task
+- When working with todo lists, add "Run code quality enforcement" as the **last** todo item
+- This ensures all test code passes formatting, linting, type checking, and that tests run successfully
+- Critical for maintaining reliable test suites and preventing test failures in CI/CD
+
 ## Test Maintenance
 
 ### Regular Maintenance Tasks
