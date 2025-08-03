@@ -23,6 +23,39 @@ import {
 } from "../../shared/types";
 import type { Highlighter } from "./highlighter";
 
+// Extended nugget interface for UI operations
+interface EnhancedGoldenNugget extends SidebarNuggetItem['nugget'] {
+	_fullContent?: string; // Enhanced content from UIManager
+	content?: string; // Legacy content field during transition
+}
+
+// Export data structure
+interface ExportNuggetData {
+	type: string;
+	startContent: string;
+	endContent: string;
+	synthesis?: string;
+}
+
+interface ExportData {
+	url: string;
+	nuggets: ExportNuggetData[];
+}
+
+// REST endpoint payload structures
+interface RestPayloadNugget {
+	type?: string;
+	startContent?: string;
+	endContent?: string;
+	synthesis?: string;
+}
+
+interface RestPayload {
+	url?: string;
+	timestamp?: string;
+	nuggets?: RestPayloadNugget[];
+}
+
 export class Sidebar {
 	private sidebar: HTMLElement | null = null;
 	private collapsedTab: HTMLElement | null = null;
@@ -62,7 +95,7 @@ export class Sidebar {
 	 * Get display content for a nugget in the sidebar
 	 * Uses the shared reconstruction utility to show full content when possible
 	 */
-	private getSidebarDisplayContent(nugget: any): string {
+	private getSidebarDisplayContent(nugget: EnhancedGoldenNugget): string {
 		// Check if we have enhanced content from UIManager
 		if (nugget._fullContent) {
 			return nugget._fullContent;
@@ -81,7 +114,7 @@ export class Sidebar {
 	 * Get truncated display content with proper length checking
 	 */
 	private getTruncatedContent(
-		nugget: any,
+		nugget: EnhancedGoldenNugget,
 		maxLength: number,
 	): { content: string; isTruncated: boolean; fullContent: string } {
 		const fullContent = this.getSidebarDisplayContent(nugget);
@@ -101,7 +134,7 @@ export class Sidebar {
 	 * Get content for feedback submission (full content)
 	 * Prioritizes getting the absolute best/fullest content available for feedback storage
 	 */
-	private getFeedbackContent(nugget: any): string {
+	private getFeedbackContent(nugget: EnhancedGoldenNugget): string {
 		// Strategy 1: Check if we have enhanced full content from UIManager
 		if (nugget._fullContent) {
 			return nugget._fullContent;
@@ -955,7 +988,7 @@ export class Sidebar {
 		// Synthesis - conditional display based on global preference
 		let synthesisElement: HTMLElement | null = null;
 		const synthesisEnabled = storage.getSynthesisEnabledSync();
-		
+
 		if (item.nugget.synthesis && synthesisEnabled) {
 			synthesisElement = document.createElement("div");
 			synthesisElement.style.cssText = `
@@ -977,12 +1010,12 @@ export class Sidebar {
 		// Assemble the content
 		contentContainer.appendChild(headerDiv);
 		contentContainer.appendChild(contentPreview);
-		
+
 		// Only append synthesis if it was created (synthesis enabled and content exists)
 		if (synthesisElement) {
 			contentContainer.appendChild(synthesisElement);
 		}
-		
+
 		contentContainer.appendChild(feedbackSection);
 
 		nuggetDiv.appendChild(contentContainer);
@@ -1227,7 +1260,7 @@ export class Sidebar {
 		if (!item) return;
 
 		// Get the provider info that was used for the analysis
-		const result = await chrome.storage.local.get(['lastUsedProvider']);
+		const result = await chrome.storage.local.get(["lastUsedProvider"]);
 		const lastUsedProvider = result.lastUsedProvider;
 
 		// Create or update feedback
@@ -1245,8 +1278,8 @@ export class Sidebar {
 			url: window.location.href,
 			context: context.substring(0, 200),
 			// Add provider/model data from the analysis that generated this nugget
-			modelProvider: lastUsedProvider?.providerId || 'gemini',
-			modelName: lastUsedProvider?.modelName || 'gemini-2.5-flash',
+			modelProvider: lastUsedProvider?.providerId || "gemini",
+			modelName: lastUsedProvider?.modelName || "gemini-2.5-flash",
 		};
 
 		// Update the item
@@ -1270,7 +1303,7 @@ export class Sidebar {
 		if (!item) return;
 
 		// Get the provider info that was used for the analysis
-		const result = await chrome.storage.local.get(['lastUsedProvider']);
+		const result = await chrome.storage.local.get(["lastUsedProvider"]);
 		const lastUsedProvider = result.lastUsedProvider;
 
 		// Create feedback if it doesn't exist, or update existing
@@ -1288,8 +1321,8 @@ export class Sidebar {
 				url: window.location.href,
 				context: context.substring(0, 200),
 				// Add provider/model data from the analysis that generated this nugget
-				modelProvider: lastUsedProvider?.providerId || 'gemini',
-				modelName: lastUsedProvider?.modelName || 'gemini-2.5-flash',
+				modelProvider: lastUsedProvider?.providerId || "gemini",
+				modelName: lastUsedProvider?.modelName || "gemini-2.5-flash",
 			};
 		}
 
@@ -1668,17 +1701,17 @@ export class Sidebar {
 		const exportData = {
 			url,
 			nuggets: nuggets.map((item) => {
-				const nugget: any = {
+				const nugget: ExportNuggetData = {
 					type: item.nugget.type,
 					startContent: item.nugget.startContent,
 					endContent: item.nugget.endContent,
 				};
-				
+
 				// Only include synthesis if globally enabled AND present in nugget
 				if (synthesisEnabled && item.nugget.synthesis) {
 					nugget.synthesis = item.nugget.synthesis;
 				}
-				
+
 				return nugget;
 			}),
 		};
@@ -1697,20 +1730,20 @@ export class Sidebar {
 		this.downloadFile(content, filename);
 	}
 
-	private generateMarkdownContent(data: any): string {
+	private generateMarkdownContent(data: ExportData): string {
 		return `# Golden Nuggets
 
 **URL:** ${data.url}
 
 ${data.nuggets
 	.map(
-		(nugget: any) => `
+		(nugget: ExportNuggetData) => `
 ## ${nugget.type.toUpperCase()}
 
 **Content:**
 ${nugget.startContent}...${nugget.endContent}
 
-${nugget.synthesis ? `**Synthesis:**\n${nugget.synthesis}\n` : ''}---
+${nugget.synthesis ? `**Synthesis:**\n${nugget.synthesis}\n` : ""}---
 `,
 	)
 	.join("\n")}`;
@@ -2150,10 +2183,11 @@ ${nugget.synthesis ? `**Synthesis:**\n${nugget.synthesis}\n` : ''}---
 			"Synthesis (relevance note)",
 			this.restEndpointConfig.nuggetParts.synthesis,
 		);
-		
+
 		// Add help text to clarify that REST controls are for API exports only
 		const helpText = document.createElement("small");
-		helpText.textContent = "Controls REST API exports only (independent of analysis generation)";
+		helpText.textContent =
+			"Controls REST API exports only (independent of analysis generation)";
 		helpText.style.cssText = `
 			color: ${colors.text.tertiary};
 			font-size: ${typography.fontSize.xs};
@@ -2162,7 +2196,7 @@ ${nugget.synthesis ? `**Synthesis:**\n${nugget.synthesis}\n` : ''}---
 			margin-top: ${spacing.xs};
 		`;
 		synthesisCheckbox.appendChild(helpText);
-		
+
 		const synthesisCheckboxInput = synthesisCheckbox.querySelector(
 			"input",
 		) as HTMLInputElement;
@@ -2274,8 +2308,8 @@ ${nugget.synthesis ? `**Synthesis:**\n${nugget.synthesis}\n` : ''}---
 		}
 	}
 
-	private buildRestPayload(nuggets: SidebarNuggetItem[]): any {
-		const payload: any = {};
+	private buildRestPayload(nuggets: SidebarNuggetItem[]): RestPayload {
+		const payload: RestPayload = {};
 
 		if (this.restEndpointConfig.includeUrl) {
 			payload.url = window.location.href;
@@ -2287,7 +2321,7 @@ ${nugget.synthesis ? `**Synthesis:**\n${nugget.synthesis}\n` : ''}---
 
 		if (this.restEndpointConfig.includeNuggets) {
 			payload.nuggets = nuggets.map((item) => {
-				const nugget: any = {};
+				const nugget: RestPayloadNugget = {};
 
 				if (this.restEndpointConfig.nuggetParts.type) {
 					nugget.type = item.nugget.type;
@@ -2300,7 +2334,10 @@ ${nugget.synthesis ? `**Synthesis:**\n${nugget.synthesis}\n` : ''}---
 
 				// REST endpoint synthesis control is independent of global setting
 				// This allows API consumers to get synthesis data even if user has it disabled
-				if (this.restEndpointConfig.nuggetParts.synthesis && item.nugget.synthesis) {
+				if (
+					this.restEndpointConfig.nuggetParts.synthesis &&
+					item.nugget.synthesis
+				) {
 					nugget.synthesis = item.nugget.synthesis;
 				}
 
@@ -2311,7 +2348,7 @@ ${nugget.synthesis ? `**Synthesis:**\n${nugget.synthesis}\n` : ''}---
 		return payload;
 	}
 
-	private async sendToRestEndpoint(payload: any): Promise<Response> {
+	private async sendToRestEndpoint(payload: RestPayload): Promise<Response> {
 		const headers: Record<string, string> = {
 			"Content-Type": this.restEndpointConfig.contentType,
 		};

@@ -3,11 +3,21 @@ import { mockChrome } from "../../tests/setup";
 import { storage } from "../shared/storage";
 import { GeminiClient } from "./gemini-client";
 
+// Type interface for accessing private methods in tests
+interface GeminiClientTestable {
+	initializeClient(): Promise<void>;
+	apiKey: string | null;
+	enhanceError(error: unknown): Error;
+	isNonRetryableError(errorMessage: string): boolean;
+}
+
 describe("GeminiClient", () => {
 	let geminiClient: GeminiClient;
+	let geminiClientTestable: GeminiClientTestable;
 
 	beforeEach(() => {
 		geminiClient = new GeminiClient();
+		geminiClientTestable = geminiClient as unknown as GeminiClientTestable;
 		vi.clearAllMocks();
 		global.fetch = vi.fn();
 		// Clear storage cache to ensure fresh state for each test
@@ -19,15 +29,15 @@ describe("GeminiClient", () => {
 			const testApiKey = "test-api-key";
 			vi.spyOn(storage, "getApiKey").mockResolvedValue(testApiKey);
 
-			await (geminiClient as any).initializeClient();
+			await geminiClientTestable.initializeClient();
 
-			expect((geminiClient as any).apiKey).toBe(testApiKey);
+			expect(geminiClientTestable.apiKey).toBe(testApiKey);
 		});
 
 		it("should throw error if no API key found", async () => {
 			vi.spyOn(storage, "getApiKey").mockResolvedValue("");
 
-			await expect((geminiClient as any).initializeClient()).rejects.toThrow(
+			await expect(geminiClientTestable.initializeClient()).rejects.toThrow(
 				"Gemini API key not configured. Please set it in the options page.",
 			);
 		});
@@ -38,10 +48,10 @@ describe("GeminiClient", () => {
 				.spyOn(storage, "getApiKey")
 				.mockResolvedValue(testApiKey);
 
-			await (geminiClient as any).initializeClient();
+			await geminiClientTestable.initializeClient();
 			getApiKeySpy.mockClear();
 
-			await (geminiClient as any).initializeClient();
+			await geminiClientTestable.initializeClient();
 
 			expect(getApiKeySpy).not.toHaveBeenCalled();
 		});
@@ -334,7 +344,7 @@ describe("GeminiClient", () => {
 			const error = new Error(
 				"API_KEY_INVALID: The provided API key is invalid",
 			);
-			const enhanced = (geminiClient as any).enhanceError(error);
+			const enhanced = geminiClientTestable.enhanceError(error);
 
 			expect(enhanced.message).toBe(
 				"Invalid API key: API_KEY_INVALID: The provided API key is invalid. Please check your Gemini API key in settings.",
@@ -345,7 +355,7 @@ describe("GeminiClient", () => {
 			const error = new Error(
 				"Authentication failed: Invalid credentials provided",
 			);
-			const enhanced = (geminiClient as any).enhanceError(error);
+			const enhanced = geminiClientTestable.enhanceError(error);
 
 			expect(enhanced.message).toBe(
 				"Invalid API key: Authentication failed: Invalid credentials provided. Please check your Gemini API key in settings.",
@@ -354,7 +364,7 @@ describe("GeminiClient", () => {
 
 		it("should enhance rate limit error with details extraction", () => {
 			const error = new Error("Rate limit exceeded. Reset in 3600 seconds");
-			const enhanced = (geminiClient as any).enhanceError(error);
+			const enhanced = geminiClientTestable.enhanceError(error);
 
 			// The regex captures just the number, not the full phrase
 			expect(enhanced.message).toBe(
@@ -364,7 +374,7 @@ describe("GeminiClient", () => {
 
 		it("should handle rate limit without specific details", () => {
 			const error = new Error("Rate limit exceeded");
-			const enhanced = (geminiClient as any).enhanceError(error);
+			const enhanced = geminiClientTestable.enhanceError(error);
 
 			expect(enhanced.message).toBe(
 				"Rate limit reached. Please wait before trying again.",
@@ -375,7 +385,7 @@ describe("GeminiClient", () => {
 			const error = new Error(
 				"Quota exceeded for this API key. Current usage: 1000/1000 requests",
 			);
-			const enhanced = (geminiClient as any).enhanceError(error);
+			const enhanced = geminiClientTestable.enhanceError(error);
 
 			// Quota errors are caught by "api key" check first, not the quota check
 			expect(enhanced.message).toBe(
@@ -385,7 +395,7 @@ describe("GeminiClient", () => {
 
 		it("should enhance timeout error with original context", () => {
 			const error = new Error("Request timeout after 30000ms");
-			const enhanced = (geminiClient as any).enhanceError(error);
+			const enhanced = geminiClientTestable.enhanceError(error);
 
 			expect(enhanced.message).toBe(
 				"Request timed out: Request timeout after 30000ms. Please try again.",
@@ -396,7 +406,7 @@ describe("GeminiClient", () => {
 			const error = new Error(
 				"Network connection failed: DNS resolution failed",
 			);
-			const enhanced = (geminiClient as any).enhanceError(error);
+			const enhanced = geminiClientTestable.enhanceError(error);
 
 			expect(enhanced.message).toBe(
 				"Network error: Network connection failed: DNS resolution failed. Please check your internet connection.",
@@ -407,7 +417,7 @@ describe("GeminiClient", () => {
 			const error = new Error(
 				"Failed to fetch from https://generativelanguage.googleapis.com",
 			);
-			const enhanced = (geminiClient as any).enhanceError(error);
+			const enhanced = geminiClientTestable.enhanceError(error);
 
 			expect(enhanced.message).toBe(
 				"Network error: Failed to fetch from https://generativelanguage.googleapis.com. Please check your internet connection.",
@@ -416,7 +426,7 @@ describe("GeminiClient", () => {
 
 		it("should handle 400 Bad Request errors", () => {
 			const error = new Error("400 Bad Request: Invalid JSON in request body");
-			const enhanced = (geminiClient as any).enhanceError(error);
+			const enhanced = geminiClientTestable.enhanceError(error);
 
 			expect(enhanced.message).toBe(
 				"Invalid request: 400 Bad Request: Invalid JSON in request body. The content might be too large or contain unsupported characters.",
@@ -427,7 +437,7 @@ describe("GeminiClient", () => {
 			const error = new Error(
 				"403 Forbidden: API key does not have permission",
 			);
-			const enhanced = (geminiClient as any).enhanceError(error);
+			const enhanced = geminiClientTestable.enhanceError(error);
 
 			// 403 errors with "api key" in message are caught by API key check first
 			expect(enhanced.message).toBe(
@@ -437,7 +447,7 @@ describe("GeminiClient", () => {
 
 		it("should handle 403 Forbidden errors without API key mention", () => {
 			const error = new Error("403 Forbidden: Access denied to this resource");
-			const enhanced = (geminiClient as any).enhanceError(error);
+			const enhanced = geminiClientTestable.enhanceError(error);
 
 			// 403 errors without "api key" should be handled by the 403 check
 			expect(enhanced.message).toBe(
@@ -447,7 +457,7 @@ describe("GeminiClient", () => {
 
 		it("should handle 404 Not Found errors", () => {
 			const error = new Error("404 Not Found: Model not found");
-			const enhanced = (geminiClient as any).enhanceError(error);
+			const enhanced = geminiClientTestable.enhanceError(error);
 
 			expect(enhanced.message).toBe(
 				"API endpoint not found: 404 Not Found: Model not found. The Gemini API might be unavailable.",
@@ -458,7 +468,7 @@ describe("GeminiClient", () => {
 			const error = new Error(
 				"500 Internal Server Error: Service temporarily unavailable",
 			);
-			const enhanced = (geminiClient as any).enhanceError(error);
+			const enhanced = geminiClientTestable.enhanceError(error);
 
 			expect(enhanced.message).toBe(
 				"Gemini API server error: 500 Internal Server Error: Service temporarily unavailable. Please try again later.",
@@ -467,7 +477,7 @@ describe("GeminiClient", () => {
 
 		it("should preserve original message for unrecognized errors", () => {
 			const error = new Error("Some unexpected API error occurred");
-			const enhanced = (geminiClient as any).enhanceError(error);
+			const enhanced = geminiClientTestable.enhanceError(error);
 
 			expect(enhanced.message).toBe(
 				"Gemini API error: Some unexpected API error occurred",
@@ -475,7 +485,7 @@ describe("GeminiClient", () => {
 		});
 
 		it("should handle unknown error types with fallback", () => {
-			const enhanced = (geminiClient as any).enhanceError("string error");
+			const enhanced = geminiClientTestable.enhanceError("string error");
 
 			expect(enhanced.message).toBe(
 				"Analysis failed with unknown error: string error",
@@ -483,7 +493,7 @@ describe("GeminiClient", () => {
 		});
 
 		it("should handle null/undefined errors", () => {
-			const enhanced = (geminiClient as any).enhanceError(null);
+			const enhanced = geminiClientTestable.enhanceError(null);
 
 			expect(enhanced.message).toBe("Analysis failed with unknown error: null");
 		});
@@ -491,29 +501,29 @@ describe("GeminiClient", () => {
 
 	describe("isNonRetryableError", () => {
 		it("should identify API key errors as non-retryable", () => {
-			const result = (geminiClient as any).isNonRetryableError("API key invalid");
+			const result = geminiClientTestable.isNonRetryableError("API key invalid");
 			expect(result).toBe(true);
 		});
 
 		it("should identify authentication errors as non-retryable", () => {
-			const result = (geminiClient as any).isNonRetryableError("Authentication failed");
+			const result = geminiClientTestable.isNonRetryableError("Authentication failed");
 			expect(result).toBe(true);
 		});
 
 		it("should identify bad request errors as non-retryable", () => {
-			const result = (geminiClient as any).isNonRetryableError("Bad request format");
+			const result = geminiClientTestable.isNonRetryableError("Bad request format");
 			expect(result).toBe(true);
 		});
 
 		it("should identify network errors as retryable", () => {
-			const result = (geminiClient as any).isNonRetryableError(
+			const result = geminiClientTestable.isNonRetryableError(
 				"Network connection failed",
 			);
 			expect(result).toBe(false);
 		});
 
 		it("should identify timeout errors as retryable", () => {
-			const result = (geminiClient as any).isNonRetryableError("Request timed out");
+			const result = geminiClientTestable.isNonRetryableError("Request timed out");
 			expect(result).toBe(false);
 		});
 	});
