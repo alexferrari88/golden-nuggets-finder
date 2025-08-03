@@ -139,6 +139,12 @@ The extension follows a standard Chrome extension architecture with three main c
 2. Check build succeeds: `pnpm build`
 3. Test in browser with `pnpm dev`
 
+### Code Quality Enforcement
+- **ALWAYS** use the `code-quality-enforcer` agent at the end of any task involving code changes
+- If using todo lists with multiple items, add "Run code quality enforcement" as the **last** todo item
+- The code-quality-enforcer validates code through formatting, linting, type checking, and testing
+- This ensures code quality and prevents regressions before committing changes
+
 ## File Structure and Detailed Documentation
 
 ### Main Directories

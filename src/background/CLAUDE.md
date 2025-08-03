@@ -302,3 +302,9 @@ Ensures consistent data structure across providers:
 - **Memory Optimization**: Monitor memory usage with multiple provider instances
 - **Cleanup**: Proper cleanup of provider resources on extension updates
 - **Error Boundaries**: Implement provider-specific error boundaries
+
+### Code Quality Enforcement
+- **ALWAYS** use the `code-quality-enforcer` agent at the end of any background script development task
+- When working with todo lists, add "Run code quality enforcement" as the **last** todo item
+- This ensures all background script code passes formatting, linting, type checking, and testing
+- Critical for background scripts since they handle AI integration and manage extension state
