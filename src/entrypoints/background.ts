@@ -10,7 +10,7 @@ import {
 	getContextMenuOption,
 } from "../background/type-filter-service";
 import { injectContentScript } from "../shared/chrome-extension-utils";
-import { StorageMigration, storage } from "../shared/storage";
+import { checkAndRunMigration, storage } from "../shared/storage";
 import { MESSAGE_TYPES } from "../shared/types";
 
 export default defineBackground(() => {
@@ -23,7 +23,7 @@ export default defineBackground(() => {
 	let isSettingUpContextMenu = false;
 
 	// Run storage migration on startup
-	StorageMigration.checkAndRunMigration().catch((error) => {
+	checkAndRunMigration().catch((error) => {
 		console.error("[Background] Migration failed on startup:", error);
 	});
 
@@ -70,7 +70,7 @@ export default defineBackground(() => {
 	chrome.runtime.onInstalled.addListener(async (details) => {
 		// Run storage migration for updates
 		if (details.reason === "update") {
-			await StorageMigration.checkAndRunMigration();
+			await checkAndRunMigration();
 		}
 
 		updateContextMenuForActiveTab();
