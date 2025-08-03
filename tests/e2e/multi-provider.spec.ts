@@ -1,7 +1,7 @@
 import { expect, test } from "./fixtures";
 
 test.describe("Multi-Provider Integration", () => {
-	test.beforeEach(async ({ context, extensionId }) => {
+	test.beforeEach(async ({ context, extensionId: _extensionId }) => {
 		// Clear storage before each test
 		await context.addInitScript(() => {
 			chrome.storage.local.clear();
@@ -209,13 +209,16 @@ test.describe("Multi-Provider Integration", () => {
 
 	test("context menu integration works with provider selection", async ({
 		context,
-		extensionId,
+		extensionId: _extensionId,
 	}) => {
 		// Test that context menu is properly registered regardless of provider
 		const testPage = await context.newPage();
-		await testPage.goto("https://example.com");
+		// Use data URL instead of external site to avoid network timeouts
+		await testPage.goto(
+			"data:text/html,<html><body><h1>Test Page</h1><p>Content for context menu testing</p></body></html>",
+		);
 
-		await testPage.waitForLoadState("networkidle");
+		await testPage.waitForLoadState("domcontentloaded");
 
 		// Context menu testing is limited in Playwright
 		// Just verify the page loads and extension context is available
@@ -232,13 +235,16 @@ test.describe("Multi-Provider Integration", () => {
 
 	test("golden nuggets extraction format remains consistent", async ({
 		context,
-		extensionId,
+		extensionId: _extensionId,
 	}) => {
 		// Test that response format is consistent across providers
 		const testPage = await context.newPage();
 
-		await testPage.goto("https://example.com");
-		await testPage.waitForLoadState("networkidle");
+		// Use data URL instead of external site to avoid network timeouts
+		await testPage.goto(
+			"data:text/html,<html><body><h1>Test Page</h1><p>Content for extraction testing</p></body></html>",
+		);
+		await testPage.waitForLoadState("domcontentloaded");
 
 		// Test is limited by Playwright's content script injection limitations
 		// We can verify the page loads and extension context exists
@@ -442,7 +448,7 @@ test.describe("Multi-Provider Regression Tests", () => {
 
 	test("background script maintains existing message handling", async ({
 		context,
-		extensionId,
+		extensionId: _extensionId,
 	}) => {
 		// Verify that existing message handling patterns still work
 		const testPage = await context.newPage();

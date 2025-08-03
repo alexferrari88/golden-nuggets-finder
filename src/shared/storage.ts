@@ -647,8 +647,7 @@ export async function validateMigration(): Promise<boolean> {
 		// Check required fields exist
 		const hasSelectedProvider = !!storage.selectedProvider;
 		const hasProviderSettings = !!storage.providerSettings;
-		const hasMigrationVersion =
-			storage.migrationVersion === MIGRATION_VERSION;
+		const hasMigrationVersion = storage.migrationVersion === MIGRATION_VERSION;
 
 		return hasSelectedProvider && hasProviderSettings && hasMigrationVersion;
 	} catch (error) {

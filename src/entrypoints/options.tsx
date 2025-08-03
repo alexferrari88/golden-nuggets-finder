@@ -133,8 +133,12 @@ const Alert: React.FC<AlertProps> = ({ type, title, message, onClose }) => {
 					opacity: 0.6,
 					transition: "opacity 0.2s",
 				}}
-				onMouseEnter={(e) => (e.currentTarget.style.opacity = "1")}
-				onMouseLeave={(e) => (e.currentTarget.style.opacity = "0.6")}
+				onMouseEnter={(e) => {
+					e.currentTarget.style.opacity = "1";
+				}}
+				onMouseLeave={(e) => {
+					e.currentTarget.style.opacity = "0.6";
+				}}
 			>
 				<X size={16} />
 			</button>
@@ -929,12 +933,12 @@ function OptionsPage() {
 							fontSize: typography.fontSize.sm,
 							fontWeight: typography.fontWeight.medium,
 						}}
-						onMouseEnter={(e) =>
-							(e.currentTarget.style.backgroundColor = colors.text.accent)
-						}
-						onMouseLeave={(e) =>
-							(e.currentTarget.style.backgroundColor = colors.text.accent)
-						}
+						onMouseEnter={(e) => {
+							e.currentTarget.style.backgroundColor = colors.text.accent;
+						}}
+						onMouseLeave={(e) => {
+							e.currentTarget.style.backgroundColor = colors.text.accent;
+						}}
 					>
 						Try Again
 					</button>

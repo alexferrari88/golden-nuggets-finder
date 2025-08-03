@@ -150,7 +150,7 @@ test.describe("Golden Nuggets API Integration", () => {
 
 	test("Golden nuggets response schema validation", async ({
 		context,
-		extensionId,
+		extensionId: _extensionId,
 	}) => {
 		// Test schema validation using a test page since we can't import in service workers
 		const testPage = await context.newPage();
@@ -228,8 +228,8 @@ test.describe("Golden Nuggets API Integration", () => {
 	});
 
 	test.skip("Full content analysis workflow", async ({
-		context,
-		extensionId,
+		context: _context,
+		extensionId: _extensionId,
 	}) => {
 		// This test is skipped due to Playwright limitations with content script injection
 		// See tests/CLAUDE.md for details about this limitation
@@ -283,7 +283,7 @@ test.describe("Golden Nuggets API Integration", () => {
 
 	test("Performance monitoring during API calls", async ({
 		context,
-		extensionId,
+		extensionId: _extensionId,
 	}) => {
 		// Test performance monitoring functionality using a test page
 		const testPage = await context.newPage();

@@ -501,17 +501,21 @@ describe("GeminiClient", () => {
 
 	describe("isNonRetryableError", () => {
 		it("should identify API key errors as non-retryable", () => {
-			const result = geminiClientTestable.isNonRetryableError("API key invalid");
+			const result =
+				geminiClientTestable.isNonRetryableError("API key invalid");
 			expect(result).toBe(true);
 		});
 
 		it("should identify authentication errors as non-retryable", () => {
-			const result = geminiClientTestable.isNonRetryableError("Authentication failed");
+			const result = geminiClientTestable.isNonRetryableError(
+				"Authentication failed",
+			);
 			expect(result).toBe(true);
 		});
 
 		it("should identify bad request errors as non-retryable", () => {
-			const result = geminiClientTestable.isNonRetryableError("Bad request format");
+			const result =
+				geminiClientTestable.isNonRetryableError("Bad request format");
 			expect(result).toBe(true);
 		});
 
@@ -523,7 +527,8 @@ describe("GeminiClient", () => {
 		});
 
 		it("should identify timeout errors as retryable", () => {
-			const result = geminiClientTestable.isNonRetryableError("Request timed out");
+			const result =
+				geminiClientTestable.isNonRetryableError("Request timed out");
 			expect(result).toBe(false);
 		});
 	});

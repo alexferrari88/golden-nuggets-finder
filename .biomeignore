@@ -1,15 +1,6 @@
-# External libraries - should not be linted
-src/assets/Readability.js
-
-# Test fixtures - static files from saved web pages
+src/assets/
 tests/fixtures/
-
-# Build outputs
+public/Readability.js
 dist/
-build/
-
-# Dependencies
 node_modules/
-
-# Frontend project (separate linting config)
-frontend/
+.wxt/

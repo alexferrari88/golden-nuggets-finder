@@ -86,7 +86,9 @@ describe("MessageHandler Error Handling", () => {
 	describe("enhanceBackendError", () => {
 		it("should classify network/connection errors correctly", () => {
 			const networkError = new Error("Failed to fetch");
-			const result = (messageHandler as unknown as MessageHandlerTestAccess).enhanceBackendError(networkError);
+			const result = (
+				messageHandler as unknown as MessageHandlerTestAccess
+			).enhanceBackendError(networkError);
 
 			expect(result).toEqual({
 				message:
@@ -98,7 +100,9 @@ describe("MessageHandler Error Handling", () => {
 
 		it("should classify database errors correctly", () => {
 			const dbError = new Error("Failed to store feedback: database is locked");
-			const result = (messageHandler as unknown as MessageHandlerTestAccess).enhanceBackendError(dbError);
+			const result = (
+				messageHandler as unknown as MessageHandlerTestAccess
+			).enhanceBackendError(dbError);
 
 			expect(result).toEqual({
 				message:
@@ -306,10 +310,9 @@ describe("MessageHandler Error Handling", () => {
 			);
 
 			await expect(
-				(messageHandler as unknown as MessageHandlerTestAccess).notifyUserOfBackendError(
-					mockTabId,
-					errorInfo,
-				),
+				(
+					messageHandler as unknown as MessageHandlerTestAccess
+				).notifyUserOfBackendError(mockTabId, errorInfo),
 			).resolves.not.toThrow();
 		});
 	});

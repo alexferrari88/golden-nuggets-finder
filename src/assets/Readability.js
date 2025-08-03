@@ -1,5 +1,5 @@
 /* eslint-disable */
-// biome-ignore-file
+// biome-ignore lint: external library
 /*
  * Copyright (c) 2010 Arc90 Inc
  *

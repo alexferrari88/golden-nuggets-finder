@@ -20,19 +20,27 @@ test.describe("Extension Basics", () => {
 	test("extension pages are accessible", async ({ context, extensionId }) => {
 		// Test popup page
 		const popupPage = await context.newPage();
-		await popupPage.goto(`chrome-extension://${extensionId}/popup.html`);
+		await popupPage.goto(`chrome-extension://${extensionId}/popup.html`, {
+			waitUntil: "domcontentloaded",
+		});
+		await popupPage.waitForLoadState("domcontentloaded");
 		await expect(popupPage).toHaveURL(
 			new RegExp(`chrome-extension://${extensionId}/popup.html`),
 		);
 
-		// Test options page
+		// Test options page - wait between pages to avoid navigation conflicts
+		await popupPage.close();
+		await context.pages().length; // Wait for page cleanup
+
 		const optionsPage = await context.newPage();
-		await optionsPage.goto(`chrome-extension://${extensionId}/options.html`);
+		await optionsPage.goto(`chrome-extension://${extensionId}/options.html`, {
+			waitUntil: "domcontentloaded",
+		});
+		await optionsPage.waitForLoadState("domcontentloaded");
 		await expect(optionsPage).toHaveURL(
 			new RegExp(`chrome-extension://${extensionId}/options.html`),
 		);
 
-		await popupPage.close();
 		await optionsPage.close();
 	});
 });
