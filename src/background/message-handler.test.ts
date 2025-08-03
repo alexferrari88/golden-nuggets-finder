@@ -1,3 +1,4 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { storage } from "../shared/storage";
 import { MESSAGE_TYPES } from "../shared/types";
 import type {
@@ -424,18 +425,20 @@ describe("MessageHandler", () => {
 		it("should request provider-specific optimization when provider and model are available", async () => {
 			// Mock provider and model detection
 			const mockProviderConfig = { providerId: "openai" as const };
-			(ProviderSwitcher.getCurrentProvider as ReturnType<typeof vi.fn>)
-				.mockResolvedValue(mockProviderConfig);
-			(ProviderFactory.getSelectedModel as ReturnType<typeof vi.fn>)
-				.mockResolvedValue("gpt-4o-mini");
+			(
+				ProviderSwitcher.getCurrentProvider as ReturnType<typeof vi.fn>
+			).mockResolvedValue(mockProviderConfig);
+			(
+				ProviderFactory.getSelectedModel as ReturnType<typeof vi.fn>
+			).mockResolvedValue("gpt-4o-mini");
 
 			// Mock successful response with provider-specific optimization
 			const mockOptimizedResponse = {
 				prompt: "Provider-specific optimized prompt",
 				version: 2,
 				providerSpecific: true,
-				modelProvider: "openai", 
-				modelName: "gpt-4o-mini"
+				modelProvider: "openai",
+				modelName: "gpt-4o-mini",
 			};
 			mockFetch.mockResolvedValue({
 				ok: true,
@@ -446,7 +449,7 @@ describe("MessageHandler", () => {
 			(storage.getPrompts as ReturnType<typeof vi.fn>).mockResolvedValue([
 				{
 					id: "test-prompt",
-					name: "Test Prompt", 
+					name: "Test Prompt",
 					prompt: "Original prompt {{ source }}",
 					isDefault: true,
 				},
@@ -472,7 +475,7 @@ describe("MessageHandler", () => {
 					method: "GET",
 					headers: { "Content-Type": "application/json" },
 					signal: expect.any(AbortSignal),
-				}
+				},
 			);
 
 			// Verify optimized prompt was used
@@ -486,17 +489,19 @@ describe("MessageHandler", () => {
 		it("should fallback to generic optimization when no model is selected", async () => {
 			// Mock provider without model
 			const mockProviderConfig = { providerId: "anthropic" as const };
-			(ProviderSwitcher.getCurrentProvider as ReturnType<typeof vi.fn>)
-				.mockResolvedValue(mockProviderConfig);
-			(ProviderFactory.getSelectedModel as ReturnType<typeof vi.fn>)
-				.mockResolvedValue(null);
+			(
+				ProviderSwitcher.getCurrentProvider as ReturnType<typeof vi.fn>
+			).mockResolvedValue(mockProviderConfig);
+			(
+				ProviderFactory.getSelectedModel as ReturnType<typeof vi.fn>
+			).mockResolvedValue(null);
 
 			// Mock generic optimization response
 			const mockOptimizedResponse = {
 				prompt: "Generic optimized prompt",
 				version: 1,
 				providerSpecific: false,
-				fallbackUsed: false
+				fallbackUsed: false,
 			};
 			mockFetch.mockResolvedValue({
 				ok: true,
@@ -532,7 +537,7 @@ describe("MessageHandler", () => {
 					method: "GET",
 					headers: { "Content-Type": "application/json" },
 					signal: expect.any(AbortSignal),
-				}
+				},
 			);
 
 			// Verify optimized prompt was used
@@ -545,15 +550,16 @@ describe("MessageHandler", () => {
 
 		it("should fallback to generic optimization when no provider is configured", async () => {
 			// Mock no provider configured
-			(ProviderSwitcher.getCurrentProvider as ReturnType<typeof vi.fn>)
-				.mockResolvedValue(null);
+			(
+				ProviderSwitcher.getCurrentProvider as ReturnType<typeof vi.fn>
+			).mockResolvedValue(null);
 
 			// Mock generic optimization response
 			const mockOptimizedResponse = {
 				prompt: "Generic fallback prompt",
 				version: 1,
 				providerSpecific: false,
-				fallbackUsed: true
+				fallbackUsed: true,
 			};
 			mockFetch.mockResolvedValue({
 				ok: true,
@@ -571,7 +577,7 @@ describe("MessageHandler", () => {
 
 			const request = {
 				type: MESSAGE_TYPES.ANALYZE_CONTENT,
-				content: "Test content", 
+				content: "Test content",
 				promptId: "test-prompt",
 				url: "https://example.com",
 			};
@@ -589,7 +595,7 @@ describe("MessageHandler", () => {
 					method: "GET",
 					headers: { "Content-Type": "application/json" },
 					signal: expect.any(AbortSignal),
-				}
+				},
 			);
 
 			// Verify optimized prompt was used
@@ -603,10 +609,12 @@ describe("MessageHandler", () => {
 		it("should use original prompt when optimization fails", async () => {
 			// Mock provider and model detection
 			const mockProviderConfig = { providerId: "gemini" as const };
-			(ProviderSwitcher.getCurrentProvider as ReturnType<typeof vi.fn>)
-				.mockResolvedValue(mockProviderConfig);
-			(ProviderFactory.getSelectedModel as ReturnType<typeof vi.fn>)
-				.mockResolvedValue("gemini-2.5-flash");
+			(
+				ProviderSwitcher.getCurrentProvider as ReturnType<typeof vi.fn>
+			).mockResolvedValue(mockProviderConfig);
+			(
+				ProviderFactory.getSelectedModel as ReturnType<typeof vi.fn>
+			).mockResolvedValue("gemini-2.5-flash");
 
 			// Mock fetch failure
 			mockFetch.mockRejectedValue(new Error("Backend not available"));
@@ -644,10 +652,12 @@ describe("MessageHandler", () => {
 		it("should handle HTTP errors from optimization endpoint", async () => {
 			// Mock provider and model detection
 			const mockProviderConfig = { providerId: "openai" as const };
-			(ProviderSwitcher.getCurrentProvider as ReturnType<typeof vi.fn>)
-				.mockResolvedValue(mockProviderConfig);
-			(ProviderFactory.getSelectedModel as ReturnType<typeof vi.fn>)
-				.mockResolvedValue("gpt-4o");
+			(
+				ProviderSwitcher.getCurrentProvider as ReturnType<typeof vi.fn>
+			).mockResolvedValue(mockProviderConfig);
+			(
+				ProviderFactory.getSelectedModel as ReturnType<typeof vi.fn>
+			).mockResolvedValue("gpt-4o");
 
 			// Mock HTTP error response
 			mockFetch.mockResolvedValue({
@@ -689,10 +699,12 @@ describe("MessageHandler", () => {
 		it("should handle timeout during optimization request", async () => {
 			// Mock provider and model detection
 			const mockProviderConfig = { providerId: "anthropic" as const };
-			(ProviderSwitcher.getCurrentProvider as ReturnType<typeof vi.fn>)
-				.mockResolvedValue(mockProviderConfig);
-			(ProviderFactory.getSelectedModel as ReturnType<typeof vi.fn>)
-				.mockResolvedValue("claude-3-5-sonnet-20241022");
+			(
+				ProviderSwitcher.getCurrentProvider as ReturnType<typeof vi.fn>
+			).mockResolvedValue(mockProviderConfig);
+			(
+				ProviderFactory.getSelectedModel as ReturnType<typeof vi.fn>
+			).mockResolvedValue("claude-3-5-sonnet-20241022");
 
 			// Mock AbortError (timeout)
 			const abortError = new Error("Request timed out");
@@ -732,10 +744,12 @@ describe("MessageHandler", () => {
 		it("should reject optimization with invalid version", async () => {
 			// Mock provider and model detection
 			const mockProviderConfig = { providerId: "openai" as const };
-			(ProviderSwitcher.getCurrentProvider as ReturnType<typeof vi.fn>)
-				.mockResolvedValue(mockProviderConfig);
-			(ProviderFactory.getSelectedModel as ReturnType<typeof vi.fn>)
-				.mockResolvedValue("gpt-4o");
+			(
+				ProviderSwitcher.getCurrentProvider as ReturnType<typeof vi.fn>
+			).mockResolvedValue(mockProviderConfig);
+			(
+				ProviderFactory.getSelectedModel as ReturnType<typeof vi.fn>
+			).mockResolvedValue("gpt-4o");
 
 			// Mock response with invalid version (0 or negative)
 			const mockOptimizedResponse = {
@@ -743,7 +757,7 @@ describe("MessageHandler", () => {
 				version: 0,
 				providerSpecific: true,
 				modelProvider: "openai",
-				modelName: "gpt-4o"
+				modelName: "gpt-4o",
 			};
 			mockFetch.mockResolvedValue({
 				ok: true,
@@ -783,10 +797,12 @@ describe("MessageHandler", () => {
 		it("should reject optimization with missing prompt", async () => {
 			// Mock provider and model detection
 			const mockProviderConfig = { providerId: "gemini" as const };
-			(ProviderSwitcher.getCurrentProvider as ReturnType<typeof vi.fn>)
-				.mockResolvedValue(mockProviderConfig);
-			(ProviderFactory.getSelectedModel as ReturnType<typeof vi.fn>)
-				.mockResolvedValue("gemini-2.5-flash");
+			(
+				ProviderSwitcher.getCurrentProvider as ReturnType<typeof vi.fn>
+			).mockResolvedValue(mockProviderConfig);
+			(
+				ProviderFactory.getSelectedModel as ReturnType<typeof vi.fn>
+			).mockResolvedValue("gemini-2.5-flash");
 
 			// Mock response with missing prompt
 			const mockOptimizedResponse = {
@@ -794,7 +810,7 @@ describe("MessageHandler", () => {
 				version: 1,
 				providerSpecific: true,
 				modelProvider: "gemini",
-				modelName: "gemini-2.5-flash"
+				modelName: "gemini-2.5-flash",
 			};
 			mockFetch.mockResolvedValue({
 				ok: true,

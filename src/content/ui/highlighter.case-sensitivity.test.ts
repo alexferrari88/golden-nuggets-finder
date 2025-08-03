@@ -4,7 +4,7 @@
  * between search terms and actual page content.
  */
 
-import { beforeEach, describe, expect, test } from "vitest";
+import { beforeEach, describe, expect, test, vi } from "vitest";
 import type { GoldenNugget } from "../../shared/types";
 import { Highlighter } from "./highlighter";
 
@@ -204,7 +204,7 @@ describe("Highlighter Case Sensitivity Tests", () => {
 					synthesis: "Test synthesis 1",
 				},
 				{
-					type: "explanation", 
+					type: "explanation",
 					startContent: "THE QUICK", // uppercase
 					endContent: "lazy dog",
 					synthesis: "Test synthesis 2",

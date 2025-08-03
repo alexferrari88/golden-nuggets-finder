@@ -1,3 +1,4 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MESSAGE_TYPES } from "../shared/types";
 import type { GoldenNuggetsResponse } from "../shared/types/providers";
 import { MessageHandler } from "./message-handler";
@@ -46,7 +47,7 @@ vi.mock("./gemini-client");
 vi.mock("../shared/storage");
 
 // Mock Chrome APIs
-global.chrome = {
+const mockChrome = {
 	runtime: {
 		sendMessage: vi.fn().mockResolvedValue({}),
 	},
@@ -60,6 +61,8 @@ global.chrome = {
 		},
 	},
 } as MockChromeApi;
+
+global.chrome = mockChrome as unknown as typeof chrome;
 
 // Mock global fetch
 global.fetch = vi.fn();
@@ -77,15 +80,13 @@ describe("MessageHandler Error Handling", () => {
 				.mockResolvedValue({ golden_nuggets: [] } as GoldenNuggetsResponse),
 		};
 		mockSendResponse = vi.fn() as MockSendResponse;
-		messageHandler = new MessageHandler(mockGeminiClient);
+		messageHandler = new MessageHandler();
 	});
 
 	describe("enhanceBackendError", () => {
 		it("should classify network/connection errors correctly", () => {
 			const networkError = new Error("Failed to fetch");
-			const result = (
-				messageHandler as MessageHandler & MessageHandlerTestAccess
-			).enhanceBackendError(networkError);
+			const result = (messageHandler as unknown as MessageHandlerTestAccess).enhanceBackendError(networkError);
 
 			expect(result).toEqual({
 				message:
@@ -97,9 +98,7 @@ describe("MessageHandler Error Handling", () => {
 
 		it("should classify database errors correctly", () => {
 			const dbError = new Error("Failed to store feedback: database is locked");
-			const result = (
-				messageHandler as MessageHandler & MessageHandlerTestAccess
-			).enhanceBackendError(dbError);
+			const result = (messageHandler as unknown as MessageHandlerTestAccess).enhanceBackendError(dbError);
 
 			expect(result).toEqual({
 				message:
@@ -114,7 +113,7 @@ describe("MessageHandler Error Handling", () => {
 				"DSPy not available. Install with: pip install dspy-ai",
 			);
 			const result = (
-				messageHandler as MessageHandler & MessageHandlerTestAccess
+				messageHandler as unknown as MessageHandlerTestAccess
 			).enhanceBackendError(dspyError);
 
 			expect(result).toEqual({
@@ -130,7 +129,7 @@ describe("MessageHandler Error Handling", () => {
 				"Not enough training examples. Need at least 10 feedback items.",
 			);
 			const result = (
-				messageHandler as MessageHandler & MessageHandlerTestAccess
+				messageHandler as unknown as MessageHandlerTestAccess
 			).enhanceBackendError(trainingError);
 
 			expect(result).toEqual({
@@ -146,7 +145,7 @@ describe("MessageHandler Error Handling", () => {
 				"Not enough training examples. Need at least 25 feedback items.",
 			);
 			const result = (
-				messageHandler as MessageHandler & MessageHandlerTestAccess
+				messageHandler as unknown as MessageHandlerTestAccess
 			).enhanceBackendError(trainingError);
 
 			expect(result.message).toContain("need at least 25 items");
@@ -157,7 +156,7 @@ describe("MessageHandler Error Handling", () => {
 				"GEMINI_API_KEY environment variable is required",
 			);
 			const result = (
-				messageHandler as MessageHandlerTestAccess
+				messageHandler as unknown as MessageHandlerTestAccess
 			).enhanceBackendError(apiKeyError);
 
 			expect(result).toEqual({
@@ -173,7 +172,7 @@ describe("MessageHandler Error Handling", () => {
 				"Optimization request failed: 500 Internal Server Error",
 			);
 			const result = (
-				messageHandler as MessageHandlerTestAccess
+				messageHandler as unknown as MessageHandlerTestAccess
 			).enhanceBackendError(serverError);
 
 			expect(result).toEqual({
@@ -189,7 +188,7 @@ describe("MessageHandler Error Handling", () => {
 				"Backend request timed out after 10 seconds",
 			);
 			const result = (
-				messageHandler as MessageHandlerTestAccess
+				messageHandler as unknown as MessageHandlerTestAccess
 			).enhanceBackendError(timeoutError);
 
 			expect(result).toEqual({
@@ -203,7 +202,7 @@ describe("MessageHandler Error Handling", () => {
 		it("should handle generic errors with original message preservation", () => {
 			const genericError = new Error("Some unexpected backend error occurred");
 			const result = (
-				messageHandler as MessageHandlerTestAccess
+				messageHandler as unknown as MessageHandlerTestAccess
 			).enhanceBackendError(genericError);
 
 			expect(result).toEqual({
@@ -219,7 +218,7 @@ describe("MessageHandler Error Handling", () => {
 				"Failed to process request: Some unexpected error occurred",
 			);
 			const result = (
-				messageHandler as MessageHandlerTestAccess
+				messageHandler as unknown as MessageHandlerTestAccess
 			).enhanceBackendError(prefixedError);
 
 			expect(result.message).toContain("Some unexpected error occurred");
@@ -231,7 +230,7 @@ describe("MessageHandler Error Handling", () => {
 				"Failed to store feedback: database is locked",
 			);
 			const result = (
-				messageHandler as MessageHandlerTestAccess
+				messageHandler as unknown as MessageHandlerTestAccess
 			).enhanceBackendError(databaseError);
 
 			// Database errors should be caught by specific handler, not generic cleanup
@@ -257,7 +256,7 @@ describe("MessageHandler Error Handling", () => {
 			};
 
 			await (
-				messageHandler as MessageHandlerTestAccess
+				messageHandler as unknown as MessageHandlerTestAccess
 			).notifyUserOfBackendError(mockTabId, errorInfo);
 
 			expect(chrome.tabs.sendMessage).toHaveBeenCalledWith(mockTabId, {
@@ -275,7 +274,7 @@ describe("MessageHandler Error Handling", () => {
 			};
 
 			await (
-				messageHandler as MessageHandlerTestAccess
+				messageHandler as unknown as MessageHandlerTestAccess
 			).notifyUserOfBackendError(mockTabId, errorInfo);
 
 			expect(chrome.tabs.sendMessage).not.toHaveBeenCalled();
@@ -289,7 +288,7 @@ describe("MessageHandler Error Handling", () => {
 			};
 
 			await (
-				messageHandler as MessageHandlerTestAccess
+				messageHandler as unknown as MessageHandlerTestAccess
 			).notifyUserOfBackendError(undefined, errorInfo);
 
 			expect(chrome.tabs.sendMessage).not.toHaveBeenCalled();
@@ -307,7 +306,7 @@ describe("MessageHandler Error Handling", () => {
 			);
 
 			await expect(
-				(messageHandler as MessageHandlerTestAccess).notifyUserOfBackendError(
+				(messageHandler as unknown as MessageHandlerTestAccess).notifyUserOfBackendError(
 					mockTabId,
 					errorInfo,
 				),
@@ -334,11 +333,13 @@ describe("MessageHandler Error Handling", () => {
 					feedback: {
 						id: "test-id",
 						nuggetContent: "Test content",
-						originalType: "tool",
-						rating: "positive",
+						originalType: "tool" as const,
+						rating: "positive" as const,
 						timestamp: Date.now(),
 						url: "https://example.com",
 						context: "Test context",
+						modelProvider: "gemini" as const,
+						modelName: "gemini-2.5-flash",
 					},
 				};
 
@@ -375,10 +376,14 @@ describe("MessageHandler Error Handling", () => {
 					missingContentFeedback: [
 						{
 							id: "missing-test-id",
-							content: "Missing content",
-							suggestedType: "explanation",
+							startContent: "Missing content start",
+							endContent: "Missing content end",
+							suggestedType: "explanation" as const,
 							timestamp: Date.now(),
 							url: "https://example.com",
+							context: "Test context",
+							modelProvider: "gemini" as const,
+							modelName: "gemini-2.5-flash",
 						},
 					],
 				};
@@ -407,7 +412,7 @@ describe("MessageHandler Error Handling", () => {
 			it("should return enhanced error messages for optimization failures", async () => {
 				const request = {
 					type: MESSAGE_TYPES.TRIGGER_OPTIMIZATION,
-					mode: "expensive",
+					mode: "expensive" as const,
 				};
 
 				// Mock fetch to fail with DSPy error
@@ -432,7 +437,7 @@ describe("MessageHandler Error Handling", () => {
 			it("should handle network errors for optimization requests", async () => {
 				const request = {
 					type: MESSAGE_TYPES.TRIGGER_OPTIMIZATION,
-					mode: "cheap",
+					mode: "cheap" as const,
 				};
 
 				(global.fetch as ReturnType<typeof vi.fn>).mockRejectedValue(
@@ -496,11 +501,13 @@ describe("MessageHandler Error Handling", () => {
 				feedback: {
 					id: "e2e-test-id",
 					nuggetContent: "E2E test content",
-					originalType: "tool",
-					rating: "positive",
+					originalType: "tool" as const,
+					rating: "positive" as const,
 					timestamp: Date.now(),
 					url: "https://example.com",
 					context: "E2E test context",
+					modelProvider: "gemini" as const,
+					modelName: "gemini-2.5-flash",
 				},
 			};
 
