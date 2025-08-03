@@ -1,6 +1,8 @@
 # Golden Nugget Finder 🔍✨
 
 > ⚠️ **Active Development Notice**: This project is in active development and may experience breaking changes. Features and APIs are subject to change without notice. Use at your own discretion.
+>
+> **Latest Update**: Synthesis explanations are now optional (v1.1.0). This feature can be toggled in Options to reduce API costs and improve performance. The feature is disabled by default for new installations.
 
 An intelligent Chrome extension with backend infrastructure that extracts high-signal, actionable insights ("Golden Nuggets") from any webpage using multiple AI providers, with specialized functionality for discussion threads and comprehensive feedback optimization.
 
@@ -16,6 +18,7 @@ Golden Nugget Finder is designed for the "Pragmatic Synthesizer" persona - someo
 - **Multi-Prompt Management**: Create and save custom prompts for different types of analysis
 - **On-Page Highlighting**: Highlights golden nuggets directly on the webpage
 - **Results Sidebar**: Displays a complete master list of all found nuggets
+- **Optional Synthesis**: Toggle explanations for why nuggets are relevant (affects API costs)
 - **Discussion Thread Support**: Specialized scrapers for Hacker News and Reddit
 - **Universal Compatibility**: Works on any website using content extraction
 - **Feedback System**: Collect user feedback for prompt optimization
@@ -37,8 +40,10 @@ Golden Nugget Finder is designed for the "Pragmatic Synthesizer" persona - someo
 
 ### Prerequisites
 
-- Google Chrome browser
-- At least one AI provider API key:
+- **Node.js**: Version `^18.17.0 || ^20.3.0 || >=21.0.0` (for development)
+- **pnpm**: Package manager (automatically set to version `10.13.1+sha512` via packageManager field)
+- **Google Chrome browser**
+- **At least one AI provider API key**:
   - Google Gemini API key ([Get one here](https://makersuite.google.com/app/apikey))
   - Anthropic API key ([Get one here](https://console.anthropic.com/))
   - OpenAI API key ([Get one here](https://platform.openai.com/api-keys))
@@ -82,6 +87,7 @@ pnpm build
    - Enter your API key for the chosen provider
    - Create and manage your custom prompts
    - Set a default prompt
+   - Configure synthesis explanations (optional, affects API costs)
    - Configure provider-specific settings
 
 ### Analyzing Content
@@ -100,8 +106,20 @@ pnpm build
 
 After analysis, you'll see:
 - **Highlighted text**: Golden nuggets highlighted on the page with a golden background
-- **Interactive elements**: Clickable tags/icons that show detailed synthesis
-- **Results sidebar**: Complete list of all found nuggets with their categories and explanations
+- **Interactive elements**: Clickable tags/icons that show detailed synthesis (if enabled)
+- **Results sidebar**: Complete list of all found nuggets with their categories and explanations (synthesis optional)
+
+### Synthesis Feature
+
+The extension includes an optional **synthesis feature** that provides explanations for why each nugget is relevant:
+
+- **Toggle Location**: Options page → "Generate synthesis explanations" checkbox
+- **Default Setting**: Disabled for new installations (reduces API costs)
+- **Cost Impact**: Enabling synthesis increases API usage and costs across all providers
+- **UI Behavior**: When disabled, synthesis sections are completely hidden from the interface
+- **Export Impact**: Synthesis data is excluded from JSON/Markdown exports when disabled
+
+**Recommendation**: Start with synthesis disabled to minimize costs, then enable it if you find the explanations valuable for your workflow.
 
 ### Golden Nugget Categories
 
@@ -325,10 +343,13 @@ All AI providers (Gemini, Claude, OpenAI, OpenRouter) return responses in this s
     {
       "type": "tool|media|explanation|analogy|model",
       "content": "Original text verbatim",
-      "synthesis": "Why this is relevant to the user persona"
+      "synthesis": "Why this is relevant to the user persona [OPTIONAL]"
     }
   ]
 }
+```
+
+**Note**: The `synthesis` field is optional and only included when the synthesis feature is enabled in Options. This reduces API costs and response times when disabled.
 ```
 
 ### Backend API Endpoints
@@ -400,6 +421,7 @@ Use ultra-high quality filtering - prefer zero results over mediocre ones.
 - **DOM-dependent**: Only analyzes content visible when activated
 - **Site-specific**: Specialized scrapers may break if sites change their HTML structure
 - **Provider limits**: Each AI provider has different rate limits and costs
+- **Synthesis overhead**: When enabled, synthesis explanations increase API costs and response times
 
 ### Backend Infrastructure
 - **DSPy dependency**: Optimization requires DSPy framework and sufficient feedback data
@@ -470,7 +492,10 @@ ISC License - see [LICENSE](LICENSE) file for details.
 ### For Users
 1. Install the Chrome extension from source or Chrome Web Store (coming soon)
 2. Get an API key from your preferred AI provider
-3. Configure the extension in Options page
+3. Configure the extension in Options page:
+   - Add your API key
+   - Choose whether to enable synthesis explanations (optional, affects costs)
+   - Set up custom prompts if desired
 4. Start analyzing web content!
 
 ### For Developers
