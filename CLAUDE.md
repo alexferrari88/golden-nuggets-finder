@@ -86,6 +86,10 @@ fontSize: typography.fontSize.sm
 - `pnpm package` - Create extension zip package
 - `pnpm postinstall` - Run WXT preparation (automatically runs after install)
 
+### Code Quality
+- `pnpm lint` - Run Biome linting checks
+- `pnpm lint:fix` - Run Biome linting with automatic fixes
+
 ### Testing
 - `pnpm test` - Run unit tests with Vitest
 - `pnpm test:ui` - Run tests with UI
@@ -109,12 +113,24 @@ fontSize: typography.fontSize.sm
 - **Language**: TypeScript
 - **UI Framework**: React (for popup and options pages)
 - **Design System**: Notion-inspired minimalistic design with consistent colors, typography, and components
-- **API**: Google Gemini API (`gemini-2.5-flash`) with structured JSON output
+- **API**: Multi-provider AI integration (Gemini, OpenAI, Anthropic, OpenRouter) with structured JSON output
+- **Code Quality**: Biome (linting, formatting, import organization) - configured in `biome.json`
 - **Testing**: Vitest (unit), Playwright (E2E), happy-dom (test environment)
 - **Build Output**: `dist/` directory
 
 ### Extension Architecture
 The extension follows a standard Chrome extension architecture with three main components:
+
+#### Key Features
+- **Multi-Provider AI Support**: Seamlessly switch between Gemini, OpenAI, Anthropic, and OpenRouter
+- **Synthesis Optional**: Toggle synthesis generation on/off to reduce API costs and processing time
+  - Configurable in Options page with global setting
+  - Default: disabled for new users to minimize costs
+  - Affects all AI providers and export functionality
+  - Clear cost implications messaging in UI
+- **Type Filtering**: Filter analysis by nugget types (tool, media, explanation, analogy, model)
+- **Dynamic Content Injection**: Content scripts injected only when needed, not on all pages
+- **Secure Storage**: API keys encrypted with device-specific fingerprinting
 
 1. **Background Script** (`src/entrypoints/background.ts`):
    - Service worker that handles API calls to Google Gemini
@@ -231,17 +247,39 @@ All AI providers (Gemini, Claude, OpenAI, OpenRouter) are normalized to this sta
 - **Audit Logging**: Complete audit trail of all security events
 - **Key Rotation**: Automatic detection and recommendations for key updates
 
+## 3-Component System Architecture
+
+The project consists of three integrated components working together:
+
+### 1. Chrome Extension (Primary Component)
+- **Location**: Root directory (`src/`, `tests/`, etc.)
+- **Purpose**: Browser extension for content analysis and golden nugget extraction
+- **Technologies**: WXT, TypeScript, React, Biome
+- **Key Features**: Multi-provider AI, synthesis optional, dynamic injection
+
+### 2. Backend API (Supporting Component)
+- **Location**: `backend/` directory
+- **Purpose**: Feedback collection, DSPy optimization, cost tracking, monitoring
+- **Technologies**: FastAPI, SQLite, Pydantic, DSPy
+- **Key Features**: Real-time monitoring, prompt optimization, health checks
+
+### 3. Frontend Dashboard (Monitoring Component)
+- **Location**: `frontend/` directory
+- **Purpose**: Visual dashboard for monitoring backend operations and optimization progress
+- **Technologies**: React, TypeScript, Vite, TailwindCSS, Biome
+- **Key Features**: Real-time updates, optimization tracking, system health monitoring
+
 ## Multi-Component Development Guidelines
 
 ### Core Development Principles
-- **Type Safety First**: Maintain strict TypeScript across extension, backend (Pydantic), and frontend
+- **Type Safety First**: Maintain strict TypeScript across extension, backend (Pydantic), and frontend dashboard
 - **Provider Agnostic**: All new features must work across all AI providers
 - **Security by Design**: Use SecurityManager for all sensitive operations
 - **Test Coverage**: Unit, integration, and E2E tests for all components
 - **Documentation**: Update relevant CLAUDE.md files when adding features
 
 ### Integration Testing
-- **Cross-Component Testing**: Test extension → backend → dashboard workflows
+- **Cross-Component Testing**: Test extension → backend → frontend dashboard workflows
 - **Provider Testing**: Validate all features work with each AI provider
 - **Error Handling**: Test graceful degradation when components are unavailable
 - **Performance Testing**: Monitor API costs and response times across providers
