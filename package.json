@@ -28,7 +28,8 @@
 		"test:e2e:headed": "pnpm build:dev && playwright test --headed",
 		"test:e2e:report": "playwright show-report",
 		"lint": "biome check",
-		"lint:fix": "biome check --write"
+		"lint:fix": "biome check --write",
+		"typecheck": "tsc --noEmit"
 	},
 	"keywords": [
 		"browser-extension",

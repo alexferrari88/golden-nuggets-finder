@@ -116,3 +116,6 @@ hn-story-*/
 
 # Claude code
 .claude/sessions
+
+# Serena code
+.serena/
