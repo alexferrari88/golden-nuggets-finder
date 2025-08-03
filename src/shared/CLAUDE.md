@@ -74,6 +74,7 @@ Manages user-selected models for each provider:
 - **Model Selections**: User-selected models per provider with fallback defaults
 - **User Prompts**: Array of saved prompt objects with names, content, and default status
 - **Provider Configuration**: Selected provider and provider-specific settings
+- **Synthesis Preference**: User preference for synthesis vs raw extraction mode
 
 ### Storage Best Practices
 - Use local storage for user preferences and settings
@@ -285,6 +286,7 @@ Core configuration values and defaults:
 - **Storage Keys**: Centralized key definitions for Chrome storage (`STORAGE_KEYS`)
 - **Gemini Configuration**: API model selection and thinking budget settings (`GEMINI_CONFIG`)
 - **Default Prompts**: Complete default prompt system with sophisticated persona-based analysis
+- **Template Processing**: `processPromptTemplate()` function for synthesis-aware prompt handling
 
 ### Default Prompt System
 The extension includes a comprehensive default prompt that implements:
@@ -328,6 +330,170 @@ Tracks timing and memory usage:
 - Use efficient data structures for large datasets
 - Monitor and optimize memory usage patterns
 
+## Chrome Extension Utils
+
+### Chrome Extension Utilities (`chrome-extension-utils.ts`)
+Core utilities for Chrome extension operations including content script management and analysis tracking:
+
+#### ContentScriptError Class
+Custom error class for content script injection failures:
+- **Properties**: `tabId`, `cause` for detailed error tracking
+- **Usage**: Thrown when content script injection or verification fails
+- **Error Context**: Provides specific tab and error information for debugging
+
+#### injectContentScript() Function
+Robust content script injection with verification and retry logic:
+- **Verification Check**: Tests if content script already exists before injection
+- **Retry Mechanism**: 10 attempts with 100ms intervals to ensure script readiness
+- **Error Handling**: Throws ContentScriptError with detailed failure information
+- **Deduplication**: Prevents duplicate injections by checking for existing scripts
+
+```typescript
+await injectContentScript(tabId); // Injects and verifies content script
+```
+
+#### generateAnalysisId() Function
+Unique identifier generation for analysis session tracking:
+- **Format**: `analysis_${timestamp}_${random}` for guaranteed uniqueness
+- **Usage**: Tracking analysis requests across background and content scripts
+- **Performance**: Enables analysis progress monitoring and debugging
+
+## Messaging Utils
+
+### Messaging Utilities (`messaging-utils.ts`)
+Type-safe messaging system combining injection and communication patterns:
+
+#### Type-Safe Message Interface
+Comprehensive message type definitions for extension communication:
+- **BaseMessage/BaseResponse**: Foundation interfaces for all messaging
+- **Specific Message Types**: `AnalyzeContentMessage`, `EnterSelectionModeMessage`, etc.
+- **Union Types**: `MessagingRequest`/`MessagingResponse` for complete type safety
+- **Provider Integration**: Messages include provider-specific data types
+
+#### MessagingError Class
+Specialized error handling for communication failures:
+- **Properties**: `tabId`, `messageType`, `cause` for detailed debugging
+- **Context Awareness**: Tracks which tab and message type failed
+- **Error Chaining**: Preserves original error cause for root cause analysis
+
+#### sendWithInjection() Function
+Combined injection and messaging operation:
+- **Automatic Injection**: Ensures content script exists before sending messages
+- **Type Safety**: Generic return type based on expected response
+- **Error Handling**: Comprehensive error reporting with context
+- **Deduplication**: Leverages injectContentScript's deduplication logic
+
+```typescript
+const response = await sendWithInjection<AnalysisResponse>(tabId, message);
+```
+
+#### getActiveTab() Function
+Reliable active tab retrieval with validation:
+- **Tab Validation**: Ensures tab exists and has valid ID
+- **Error Handling**: Throws MessagingError for missing or invalid tabs
+- **Type Safety**: Returns properly typed chrome.tabs.Tab object
+
+#### sendToActiveTab() Function
+Convenience function combining tab retrieval and messaging:
+- **One-Step Operation**: Handles tab lookup, injection, and messaging
+- **Error Propagation**: Maintains error context through the entire chain
+- **Type Safety**: Preserves response type through generic parameters
+
+```typescript
+const response = await sendToActiveTab<AnalysisResponse>(message);
+```
+
+## Provider Validation Utils
+
+### Provider Validation Utilities (`provider-validation-utils.ts`)
+Centralized provider configuration validation system:
+
+#### ProviderValidationResult Interface
+Complete provider validation state information:
+- **isConfigured**: Boolean indicating if provider has valid API key
+- **provider**: Current ProviderId (gemini, anthropic, openai, openrouter)
+- **model**: Selected model name for the provider
+- **error**: Optional error message if validation failed
+
+#### ProviderConfigurationError Class
+Specialized error for provider configuration issues:
+- **Provider Context**: Includes which provider failed configuration
+- **Usage**: Thrown when operations require configured provider but none exists
+- **Error Propagation**: Preserves original error context
+
+#### validateCurrentProvider() Function
+Comprehensive provider validation with parallel checks:
+- **Parallel Validation**: Simultaneously checks provider, model, and configuration
+- **Fallback Handling**: Returns default provider on failure with error details
+- **Performance Optimized**: Uses Promise.all for efficient validation
+- **Error Recovery**: Never throws, always returns validation result
+
+```typescript
+const validation = await validateCurrentProvider();
+if (!validation.isConfigured) {
+  // Handle unconfigured provider
+}
+```
+
+#### requireConfiguredProvider() Function
+Validation with mandatory configuration requirement:
+- **Strict Validation**: Throws error if provider not configured
+- **Operation Gating**: Use before operations requiring valid provider
+- **Clear Error Messages**: Provides actionable error messages for users
+- **Type Safety**: Returns validated provider info on success
+
+```typescript
+const provider = await requireConfiguredProvider(); // Throws if not configured
+```
+
+## Synthesis Feature System
+
+### Synthesis Preference Storage
+User-configurable synthesis feature with persistent storage:
+
+#### Storage Integration (`storage.ts`)
+Synthesis preference management in Chrome storage:
+- **Storage Key**: `STORAGE_KEYS.SYNTHESIS_ENABLED` for consistent naming
+- **Default Value**: `true` for backwards compatibility with existing prompts
+- **Cache Integration**: Automatic cache clearing when synthesis preference changes
+- **Error Handling**: Graceful fallback to default value on storage errors
+
+#### Provider Interface Integration (`types/providers.ts`)
+Synthesis parameter in provider analysis calls:
+- **Optional Parameter**: `synthesisEnabled?: boolean` in LLMProvider.analyzeContent()
+- **Backwards Compatibility**: Defaults to `true` when not specified
+- **Provider Agnostic**: Supported across all AI providers (Gemini, Claude, OpenAI, OpenRouter)
+
+### Prompt Template Processing
+
+#### processPromptTemplate() Function (`constants.ts`)
+Dynamic prompt template processing based on synthesis preference:
+- **Conditional Blocks**: Processes `{{#if synthesisEnabled}}...{{else}}...{{/if}}` syntax
+- **Flexible Parsing**: Handles whitespace variations in template syntax
+- **Content Switching**: Returns appropriate prompt section based on user preference
+- **Template Validation**: Safely handles malformed or missing conditional blocks
+
+```typescript
+const processedPrompt = processPromptTemplate(template, synthesisEnabled);
+```
+
+#### Template Syntax
+Handlebars-style conditional syntax for synthesis-aware prompts:
+```
+{{#if synthesisEnabled}}
+For each nugget, explain why this is valuable...
+{{else}}
+Extract only raw content without explanations...
+{{/if}}
+```
+
+### Synthesis Feature Benefits
+- **User Control**: Users can toggle between synthesis and raw extraction modes
+- **Backward Compatibility**: Existing prompts work without modification
+- **Provider Independence**: Works consistently across all AI providers
+- **Performance Optimization**: Shorter prompts when synthesis disabled
+- **Context Awareness**: Synthesis content tailored to user persona and needs
+
 ## Utility Functions
 
 ### Common Utilities
@@ -363,11 +529,18 @@ The shared utilities include comprehensive unit tests:
 - **Schema Validation Tests** (`schemas.test.ts`): Tests for JSON schema generation and validation
 - **Security System Tests** (`security.test.ts`): Tests for encryption, decryption, and access control  
 - **Storage System Tests** (`storage.test.ts`): Tests for storage operations and error handling
+- **Chrome Extension Utils Tests** (`chrome-extension-utils.test.ts`): Tests for content script injection and analysis ID generation
+- **Provider Validation Tests** (`provider-validation-utils.test.ts`): Tests for provider configuration validation and error handling
+- **Content Reconstruction Tests** (`content-reconstruction.test.ts`): Tests for text matching and reconstruction algorithms
+- **Model Storage Tests** (`storage/model-storage.test.ts`): Tests for provider model selection and storage
 
 ### Test Coverage Areas
 - **Security**: Encryption/decryption cycles, device fingerprinting, error recovery
 - **Schema**: Dynamic schema generation, type validation, property ordering
 - **Storage**: CRUD operations, error handling, data integrity validation
+- **Chrome Extension Operations**: Content script injection, deduplication, retry logic
+- **Provider Validation**: Configuration checks, error scenarios, fallback handling
+- **Content Processing**: Text reconstruction, fuzzy matching, normalization
 - **Performance**: Timing validation, memory usage monitoring
 - **Error Handling**: Edge cases, malformed data, security failures
 
@@ -387,6 +560,27 @@ The shared utilities include comprehensive unit tests:
 4. **Testing Coverage**: Add comprehensive unit tests in corresponding `.test.ts` file
 5. **Security Considerations**: Consider security implications for sensitive operations
 6. **Documentation**: Update this CLAUDE.md file with new utility documentation
+
+#### Utility File Organization
+The shared utilities are organized into specialized modules for maintainability:
+
+- **`chrome-extension-utils.ts`**: Core Chrome extension operations (injection, analysis IDs)
+- **`messaging-utils.ts`**: Type-safe messaging patterns with injection integration
+- **`provider-validation-utils.ts`**: Provider configuration validation and error handling
+- **`storage.ts`**: Chrome storage abstraction with caching and security
+- **`security.ts`**: Encryption, access control, and audit logging
+- **`content-reconstruction.ts`**: Text matching and content reconstruction
+- **`fuzzy-matching.ts`**: Tolerance-based content matching algorithms
+
+#### Utility Integration Patterns
+When creating new utilities, follow these established patterns:
+
+1. **Error Classes**: Create specialized error classes (e.g., `ContentScriptError`, `MessagingError`)
+2. **Type Safety**: Use generics and strict typing (e.g., `sendWithInjection<T>()`)
+3. **Parallel Operations**: Use `Promise.all()` for independent async operations
+4. **Error Recovery**: Provide fallback values and graceful degradation
+5. **Function Composition**: Combine smaller utilities into higher-level operations
+6. **Context Preservation**: Maintain error context through the call stack
 
 ### Adding New Providers
 1. **Provider Implementation**: Create new provider class in `providers/` directory
