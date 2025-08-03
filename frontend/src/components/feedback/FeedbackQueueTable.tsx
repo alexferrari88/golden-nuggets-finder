@@ -442,22 +442,17 @@ export function FeedbackQueueTable({
                         </TableCell>
                         <TableCell>
                           {item.model_provider ? (
-                            <div className="flex items-center gap-2">
-                              <span className="text-sm">
-                                {apiUtils.getProviderIcon(item.model_provider)}
-                              </span>
-                              <div className="flex flex-col">
-                                <span className="font-medium text-xs">
-                                  {apiUtils.getProviderDisplayName(
-                                    item.model_provider,
-                                  )}
-                                </span>
-                                {item.model_name && (
-                                  <span className="text-gray-500 text-xs">
-                                    {apiUtils.formatModelName(item.model_name)}
-                                  </span>
+                            <div className="flex flex-col">
+                              <span className="font-medium text-xs">
+                                {apiUtils.getProviderDisplayName(
+                                  item.model_provider,
                                 )}
-                              </div>
+                              </span>
+                              {item.model_name && (
+                                <span className="text-gray-500 text-xs">
+                                  {apiUtils.formatModelName(item.model_name)}
+                                </span>
+                              )}
                             </div>
                           ) : (
                             <span className="text-gray-400 text-xs">
