@@ -13,7 +13,11 @@ test.describe("Golden Nuggets API Integration", () => {
 		// Wait for page to load completely
 		await optionsPage.waitForLoadState("networkidle");
 
-		// Wait for the API key input field to be visible
+		// First, select a provider (Gemini)
+		const geminiRadio = optionsPage.locator('input[type="radio"][value="gemini"]');
+		await geminiRadio.click();
+
+		// Now wait for the API key input field to be visible (appears after provider selection)
 		await optionsPage.waitForSelector('input[type="password"]', {
 			timeout: 10000,
 		});
@@ -46,6 +50,13 @@ test.describe("Golden Nuggets API Integration", () => {
 		await optionsPage.goto(`chrome-extension://${extensionId}/options.html`);
 
 		// Wait for page to load
+		await optionsPage.waitForLoadState("networkidle");
+
+		// Verify that Gemini provider is selected (from beforeEach setup)
+		const geminiRadio = optionsPage.locator('input[type="radio"][value="gemini"]');
+		await expect(geminiRadio).toBeChecked();
+
+		// API key input should now be visible
 		await optionsPage.waitForSelector('input[type="password"]', {
 			timeout: 10000,
 		});
