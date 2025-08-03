@@ -93,7 +93,7 @@ export default defineBackground(() => {
 		console.log("[Background] Context menu clicked:", {
 			menuItemId: info.menuItemId,
 			selectionText: `${info.selectionText?.substring(0, 50)}...`,
-			contexts: info.contexts,
+			pageUrl: info.pageUrl,
 		});
 
 		if (info.menuItemId && typeof info.menuItemId === "string") {

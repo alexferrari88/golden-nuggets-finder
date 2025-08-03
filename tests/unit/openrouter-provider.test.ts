@@ -46,14 +46,12 @@ describe("LangChainOpenRouterProvider", () => {
 	});
 
 	it("should use default model when not specified", () => {
-		const configWithoutModel = {
+		const configWithoutModel: ProviderConfig = {
 			...mockConfig,
-			modelName: undefined,
+			modelName: "",
 		};
 
-		const provider = new LangChainOpenRouterProvider(
-			configWithoutModel as ProviderConfig,
-		);
+		const provider = new LangChainOpenRouterProvider(configWithoutModel);
 
 		expect(provider.modelName).toBe("z-ai/glm-4.5-air:free");
 	});

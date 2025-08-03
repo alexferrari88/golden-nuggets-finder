@@ -44,14 +44,12 @@ describe("LangChainOpenAIProvider", () => {
 	});
 
 	it("should use default model when not specified", () => {
-		const configWithoutModel = {
+		const configWithoutModel: ProviderConfig = {
 			...mockConfig,
-			modelName: undefined,
+			modelName: "",
 		};
 
-		const provider = new LangChainOpenAIProvider(
-			configWithoutModel as ProviderConfig,
-		);
+		const provider = new LangChainOpenAIProvider(configWithoutModel);
 
 		expect(provider.modelName).toBe("gpt-4.1-mini");
 	});

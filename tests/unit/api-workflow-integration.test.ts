@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { GeminiClient } from "../../src/background/gemini-client";
 import { MessageHandler } from "../../src/background/message-handler";
 import { MESSAGE_TYPES } from "../../src/shared/types";
+import { createMockMessageSenderWithTab } from "../utils/chrome-mocks";
 
 /*
  * INTEGRATION TEST STATUS: SKIPPED DUE TO MOCKING COMPLEXITY
@@ -196,7 +197,7 @@ describe("API Workflow Integration Tests", () => {
 				},
 			);
 
-			const sender = { tab: { id: 123 } };
+			const sender = createMockMessageSenderWithTab({ id: 123 });
 			const sendResponse = vi.fn();
 
 			// Execute the analysis workflow
@@ -257,7 +258,7 @@ describe("API Workflow Integration Tests", () => {
 
 			mockGeminiClient.analyzeContent.mockResolvedValueOnce(mockFilteredResult);
 
-			const sender = { tab: { id: 456 } };
+			const sender = createMockMessageSenderWithTab({ id: 456 });
 			const sendResponse = vi.fn();
 
 			await messageHandler.handleMessage(analysisRequest, sender, sendResponse);
@@ -313,7 +314,7 @@ describe("API Workflow Integration Tests", () => {
 
 			mockGeminiClient.analyzeContent.mockResolvedValueOnce(mockResult);
 
-			const sender = { tab: { id: 789 } };
+			const sender = createMockMessageSenderWithTab({ id: 789 });
 			const sendResponse = vi.fn();
 
 			await messageHandler.handleMessage(analysisRequest, sender, sendResponse);
@@ -360,7 +361,7 @@ describe("API Workflow Integration Tests", () => {
 
 			mockGeminiClient.analyzeContent.mockResolvedValueOnce(mockResult);
 
-			const sender = { tab: { id: 101 } };
+			const sender = createMockMessageSenderWithTab({ id: 101 });
 			const sendResponse = vi.fn();
 
 			await messageHandler.handleMessage(analysisRequest, sender, sendResponse);
@@ -410,7 +411,7 @@ describe("API Workflow Integration Tests", () => {
 
 			mockGeminiClient.analyzeContent.mockResolvedValueOnce(mockResult);
 
-			const sender = { tab: { id: 202 } };
+			const sender = createMockMessageSenderWithTab({ id: 202 });
 			const sendResponse = vi.fn();
 
 			await messageHandler.handleMessage(
@@ -458,7 +459,7 @@ describe("API Workflow Integration Tests", () => {
 			const analysisError = new Error("Gemini API rate limit exceeded");
 			mockGeminiClient.analyzeContent.mockRejectedValueOnce(analysisError);
 
-			const sender = { tab: { id: 303 } };
+			const sender = createMockMessageSenderWithTab({ id: 303 });
 			const sendResponse = vi.fn();
 
 			await messageHandler.handleMessage(
@@ -504,7 +505,7 @@ describe("API Workflow Integration Tests", () => {
 
 			await messageHandler.handleMessage(
 				getPromptsRequest,
-				{ tab: { id: 1 } },
+				createMockMessageSenderWithTab({ id: 1 }),
 				sendResponse,
 			);
 
@@ -545,7 +546,7 @@ describe("API Workflow Integration Tests", () => {
 			const sendResponse = vi.fn();
 			await messageHandler.handleMessage(
 				saveRequest,
-				{ tab: { id: 1 } },
+				createMockMessageSenderWithTab({ id: 1 }),
 				sendResponse,
 			);
 
@@ -560,7 +561,7 @@ describe("API Workflow Integration Tests", () => {
 			const sendResponse2 = vi.fn();
 			await messageHandler.handleMessage(
 				setDefaultRequest,
-				{ tab: { id: 1 } },
+				createMockMessageSenderWithTab({ id: 1 }),
 				sendResponse2,
 			);
 
@@ -575,7 +576,7 @@ describe("API Workflow Integration Tests", () => {
 			const sendResponse3 = vi.fn();
 			await messageHandler.handleMessage(
 				deleteRequest,
-				{ tab: { id: 1 } },
+				createMockMessageSenderWithTab({ id: 1 }),
 				sendResponse3,
 			);
 
@@ -593,7 +594,7 @@ describe("API Workflow Integration Tests", () => {
 			const sendResponse = vi.fn();
 			await messageHandler.handleMessage(
 				getConfigRequest,
-				{ tab: { id: 1 } },
+				createMockMessageSenderWithTab({ id: 1 }),
 				sendResponse,
 			);
 
@@ -626,7 +627,7 @@ describe("API Workflow Integration Tests", () => {
 			const sendResponse2 = vi.fn();
 			await messageHandler.handleMessage(
 				saveConfigRequest,
-				{ tab: { id: 1 } },
+				createMockMessageSenderWithTab({ id: 1 }),
 				sendResponse2,
 			);
 
@@ -645,7 +646,7 @@ describe("API Workflow Integration Tests", () => {
 			const sendResponse = vi.fn();
 			await messageHandler.handleMessage(
 				openOptionsRequest,
-				{ tab: { id: 1 } },
+				createMockMessageSenderWithTab({ id: 1 }),
 				sendResponse,
 			);
 
@@ -664,7 +665,7 @@ describe("API Workflow Integration Tests", () => {
 				analysisId: "missing_prompt_test",
 			};
 
-			const sender = { tab: { id: 404 } };
+			const sender = createMockMessageSenderWithTab({ id: 404 });
 			const sendResponse = vi.fn();
 
 			await messageHandler.handleMessage(analysisRequest, sender, sendResponse);
@@ -693,7 +694,7 @@ describe("API Workflow Integration Tests", () => {
 				analysisId: "invalid_types_test",
 			};
 
-			const sender = { tab: { id: 405 } };
+			const sender = createMockMessageSenderWithTab({ id: 405 });
 			const sendResponse = vi.fn();
 
 			await messageHandler.handleMessage(analysisRequest, sender, sendResponse);
@@ -739,7 +740,7 @@ describe("API Workflow Integration Tests", () => {
 				analysisId: "api_error_test",
 			};
 
-			const sender = { tab: { id: 500 } };
+			const sender = createMockMessageSenderWithTab({ id: 500 });
 			const sendResponse = vi.fn();
 
 			await messageHandler.handleMessage(analysisRequest, sender, sendResponse);
@@ -793,7 +794,7 @@ describe("API Workflow Integration Tests", () => {
 				const sendResponse = vi.fn();
 				await messageHandler.handleMessage(
 					analysisRequest,
-					{ tab: { id: 1 } },
+					createMockMessageSenderWithTab({ id: 1 }),
 					sendResponse,
 				);
 

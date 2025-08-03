@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createMockTab, createMockOnClickData } from "../utils/chrome-mocks";
 
 // Mock types for Chrome API
 interface MockChrome {
@@ -211,7 +212,7 @@ describe("Background Script Security - Core Logic Tests", () => {
 
 		it("should validate tab exists and has ID", () => {
 			const analysisCompletedTabs = new Set([123]);
-			const info = { selectionText: "Valid selected text" };
+			const info = createMockOnClickData({ selectionText: "Valid selected text" });
 
 			// Test undefined tab
 			expect(
@@ -226,8 +227,8 @@ describe("Background Script Security - Core Logic Tests", () => {
 		});
 
 		it("should validate analysis completion state", () => {
-			const tab = { id: 123, url: "https://example.com" };
-			const info = { selectionText: "Valid selected text" };
+			const tab = createMockTab({ id: 123, url: "https://example.com" });
+			const info = createMockOnClickData({ selectionText: "Valid selected text" });
 
 			// Test without completed analysis
 			const emptyTabs = new Set<number>();
@@ -251,14 +252,14 @@ describe("Background Script Security - Core Logic Tests", () => {
 		});
 
 		it("should validate selected text length and content", () => {
-			const tab = { id: 123, url: "https://example.com" };
+			const tab = createMockTab({ id: 123, url: "https://example.com" });
 			const analysisCompletedTabs = new Set([123]);
 
 			// Test empty text
 			expect(
 				validateMissedNuggetReport(
 					tab,
-					{ selectionText: "" },
+					createMockOnClickData({ selectionText: "" }),
 					analysisCompletedTabs,
 				),
 			).toEqual({ valid: false, reason: "Selected text too short" });
@@ -267,7 +268,7 @@ describe("Background Script Security - Core Logic Tests", () => {
 			expect(
 				validateMissedNuggetReport(
 					tab,
-					{ selectionText: "short" },
+					createMockOnClickData({ selectionText: "short" }),
 					analysisCompletedTabs,
 				),
 			).toEqual({ valid: false, reason: "Selected text too short" });
@@ -276,14 +277,14 @@ describe("Background Script Security - Core Logic Tests", () => {
 			expect(
 				validateMissedNuggetReport(
 					tab,
-					{ selectionText: "   " },
+					createMockOnClickData({ selectionText: "   " }),
 					analysisCompletedTabs,
 				),
 			).toEqual({ valid: false, reason: "Selected text too short" });
 
 			// Test no selection text
 			expect(
-				validateMissedNuggetReport(tab, {}, analysisCompletedTabs),
+				validateMissedNuggetReport(tab, createMockOnClickData({}), analysisCompletedTabs),
 			).toEqual({ valid: false, reason: "Selected text too short" });
 
 			// Test undefined info
@@ -293,8 +294,8 @@ describe("Background Script Security - Core Logic Tests", () => {
 		});
 
 		it("should pass validation with all valid inputs", () => {
-			const tab = { id: 123, url: "https://example.com" };
-			const info = { selectionText: "This is a valid selection text" };
+			const tab = createMockTab({ id: 123, url: "https://example.com" });
+			const info = createMockOnClickData({ selectionText: "This is a valid selection text" });
 			const analysisCompletedTabs = new Set([123]);
 
 			expect(
@@ -303,13 +304,13 @@ describe("Background Script Security - Core Logic Tests", () => {
 		});
 
 		it("should handle whitespace trimming correctly", () => {
-			const tab = { id: 123, url: "https://example.com" };
+			const tab = createMockTab({ id: 123, url: "https://example.com" });
 			const analysisCompletedTabs = new Set([123]);
 
 			// Text that's valid after trimming
-			const infoWithWhitespace = {
+			const infoWithWhitespace = createMockOnClickData({
 				selectionText: "   Valid content after trimming   ",
-			};
+			});
 			expect(
 				validateMissedNuggetReport(
 					tab,
@@ -319,7 +320,7 @@ describe("Background Script Security - Core Logic Tests", () => {
 			).toEqual({ valid: true });
 
 			// Text that's too short after trimming
-			const infoShortAfterTrim = { selectionText: "   ab   " };
+			const infoShortAfterTrim = createMockOnClickData({ selectionText: "   ab   " });
 			expect(
 				validateMissedNuggetReport(
 					tab,

@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { TypeFilterService } from "../../src/background/type-filter-service";
 import { MESSAGE_TYPES } from "../../src/shared/types";
+import { createMockTab, createMockOnClickData } from "../utils/chrome-mocks";
 
 describe("Context Menu Integration Tests", () => {
 	let mockChrome: any;
@@ -277,25 +278,17 @@ describe("Context Menu Integration Tests", () => {
 
 	describe("Context Menu Click Handling Integration", () => {
 		it("should handle page analysis context menu clicks with type filtering", async () => {
-			const clickInfo: chrome.contextMenus.OnClickData = {
+			const clickInfo = createMockOnClickData({
 				menuItemId: "prompt__default-prompt__tool",
 				pageUrl: "https://news.ycombinator.com/item?id=123",
 				selectionText: undefined,
-			};
+			});
 
-			const tab: chrome.tabs.Tab = {
+			const tab = createMockTab({
 				id: 123,
 				url: "https://news.ycombinator.com/item?id=123",
 				title: "HN Discussion",
-				active: true,
-				highlighted: false,
-				pinned: false,
-				discarded: false,
-				autoDiscardable: true,
-				index: 0,
-				windowId: 1,
-				incognito: false,
-			};
+			});
 
 			// Mock content script injection
 			mockChrome.scripting.executeScript.mockResolvedValueOnce([]);
@@ -325,25 +318,17 @@ describe("Context Menu Integration Tests", () => {
 		});
 
 		it("should handle all types analysis without type filtering", async () => {
-			const clickInfo: chrome.contextMenus.OnClickData = {
+			const clickInfo = createMockOnClickData({
 				menuItemId: "prompt__custom-prompt-1__all",
 				pageUrl: "https://reddit.com/r/programming/comments/abc/",
 				selectionText: undefined,
-			};
+			});
 
-			const tab: chrome.tabs.Tab = {
+			const tab = createMockTab({
 				id: 456,
 				url: "https://reddit.com/r/programming/comments/abc/",
 				title: "Reddit Discussion",
-				active: true,
-				highlighted: false,
-				pinned: false,
-				discarded: false,
-				autoDiscardable: true,
-				index: 0,
-				windowId: 1,
-				incognito: false,
-			};
+			});
 
 			mockChrome.scripting.executeScript.mockResolvedValueOnce([]);
 			mockChrome.tabs.sendMessage.mockResolvedValueOnce({ success: true });
@@ -363,25 +348,17 @@ describe("Context Menu Integration Tests", () => {
 		});
 
 		it("should handle content selection mode activation", async () => {
-			const clickInfo: chrome.contextMenus.OnClickData = {
+			const clickInfo = createMockOnClickData({
 				menuItemId: "select-content__custom-prompt-2__media",
 				pageUrl: "https://example.com/article",
 				selectionText: undefined,
-			};
+			});
 
-			const tab: chrome.tabs.Tab = {
+			const tab = createMockTab({
 				id: 789,
 				url: "https://example.com/article",
 				title: "Example Article",
-				active: true,
-				highlighted: false,
-				pinned: false,
-				discarded: false,
-				autoDiscardable: true,
-				index: 0,
-				windowId: 1,
-				incognito: false,
-			};
+			});
 
 			mockChrome.scripting.executeScript.mockResolvedValueOnce([]);
 			mockChrome.tabs.sendMessage.mockResolvedValueOnce({ success: true });
@@ -407,25 +384,17 @@ describe("Context Menu Integration Tests", () => {
 			// Mark tab as having completed analysis
 			analysisCompletedTabs.add(tabId);
 
-			const clickInfo: chrome.contextMenus.OnClickData = {
+			const clickInfo = createMockOnClickData({
 				menuItemId: "report-missed-nugget",
 				pageUrl: "https://example.com/content",
 				selectionText: "This important content was missed by the analysis",
-			};
+			});
 
-			const tab: chrome.tabs.Tab = {
+			const tab = createMockTab({
 				id: tabId,
 				url: "https://example.com/content",
 				title: "Content Page",
-				active: true,
-				highlighted: false,
-				pinned: false,
-				discarded: false,
-				autoDiscardable: true,
-				index: 0,
-				windowId: 1,
-				incognito: false,
-			};
+			});
 
 			// Mock validation function (normally in background script)
 			function validateMissedNuggetReport(
@@ -475,25 +444,17 @@ describe("Context Menu Integration Tests", () => {
 			// DO NOT mark tab as having completed analysis
 			// analysisCompletedTabs.add(tabId); // Commented out intentionally
 
-			const clickInfo: chrome.contextMenus.OnClickData = {
+			const clickInfo = createMockOnClickData({
 				menuItemId: "report-missed-nugget",
 				pageUrl: "https://example.com/no-analysis",
 				selectionText: "This content cannot be reported as missed",
-			};
+			});
 
-			const tab: chrome.tabs.Tab = {
+			const tab = createMockTab({
 				id: tabId,
 				url: "https://example.com/no-analysis",
 				title: "No Analysis Page",
-				active: true,
-				highlighted: false,
-				pinned: false,
-				discarded: false,
-				autoDiscardable: true,
-				index: 0,
-				windowId: 1,
-				incognito: false,
-			};
+			});
 
 			// Validation function
 			function validateMissedNuggetReport(
@@ -528,25 +489,17 @@ describe("Context Menu Integration Tests", () => {
 			const tabId = 303;
 			analysisCompletedTabs.add(tabId);
 
-			const clickInfo: chrome.contextMenus.OnClickData = {
+			const clickInfo = createMockOnClickData({
 				menuItemId: "report-missed-nugget",
 				pageUrl: "https://example.com/short",
 				selectionText: "short", // Only 5 characters - should be rejected
-			};
+			});
 
-			const tab: chrome.tabs.Tab = {
+			const tab = createMockTab({
 				id: tabId,
 				url: "https://example.com/short",
 				title: "Short Text Page",
-				active: true,
-				highlighted: false,
-				pinned: false,
-				discarded: false,
-				autoDiscardable: true,
-				index: 0,
-				windowId: 1,
-				incognito: false,
-			};
+			});
 
 			// Validation function
 			function validateMissedNuggetReport(

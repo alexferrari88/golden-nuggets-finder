@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { GeminiClient } from "../../src/background/gemini-client";
 import { MessageHandler } from "../../src/background/message-handler";
 import { MESSAGE_TYPES } from "../../src/shared/types";
+import { createMockMessageSenderWithTab } from "../utils/chrome-mocks";
 
 describe("Backend Integration Tests", () => {
 	let mockFetch: any;
@@ -320,7 +321,7 @@ describe("Backend Integration Tests", () => {
 				feedbackId,
 			};
 
-			const sender = { tab: { id: 303 } };
+			const sender = createMockMessageSenderWithTab({ id: 303 });
 			const sendResponse = vi.fn();
 
 			await messageHandler.handleMessage(request, sender, sendResponse);
@@ -365,7 +366,7 @@ describe("Backend Integration Tests", () => {
 				feedbackId,
 			};
 
-			const sender = { tab: { id: 404 } };
+			const sender = createMockMessageSenderWithTab({ id: 404 });
 			const sendResponse = vi.fn();
 
 			await messageHandler.handleMessage(request, sender, sendResponse);
@@ -424,7 +425,7 @@ describe("Backend Integration Tests", () => {
 
 			await messageHandler.handleMessage(
 				request,
-				{ tab: { id: 1 } },
+				createMockMessageSenderWithTab({ id: 1 }),
 				sendResponse,
 			);
 
@@ -462,7 +463,7 @@ describe("Backend Integration Tests", () => {
 
 			await messageHandler.handleMessage(
 				request,
-				{ tab: { id: 1 } },
+				createMockMessageSenderWithTab({ id: 1 }),
 				sendResponse,
 			);
 
@@ -489,7 +490,7 @@ describe("Backend Integration Tests", () => {
 
 			await messageHandler.handleMessage(
 				request,
-				{ tab: { id: 1 } },
+				createMockMessageSenderWithTab({ id: 1 }),
 				sendResponse,
 			);
 
@@ -526,7 +527,7 @@ describe("Backend Integration Tests", () => {
 
 			await messageHandler.handleMessage(
 				request,
-				{ tab: { id: 1 } },
+				createMockMessageSenderWithTab({ id: 1 }),
 				sendResponse,
 			);
 
@@ -560,7 +561,7 @@ describe("Backend Integration Tests", () => {
 
 			await messageHandler.handleMessage(
 				request,
-				{ tab: { id: 1 } },
+				createMockMessageSenderWithTab({ id: 1 }),
 				sendResponse,
 			);
 
@@ -605,7 +606,7 @@ describe("Backend Integration Tests", () => {
 
 			await messageHandler.handleMessage(
 				request,
-				{ tab: { id: 1 } },
+				createMockMessageSenderWithTab({ id: 1 }),
 				sendResponse,
 			);
 
@@ -637,7 +638,7 @@ describe("Backend Integration Tests", () => {
 
 			await messageHandler.handleMessage(
 				request,
-				{ tab: { id: 1 } },
+				createMockMessageSenderWithTab({ id: 1 }),
 				sendResponse,
 			);
 

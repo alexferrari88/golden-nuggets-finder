@@ -1,0 +1,49 @@
+{
+  "folders": [
+    {
+      "name": "Root (Chrome Extension)",
+      "path": "."
+    },
+    {
+      "name": "Frontend Dashboard",
+      "path": "./frontend"
+    },
+    {
+      "name": "Backend API",
+      "path": "./backend"
+    }
+  ],
+  "settings": {
+    "typescript.preferences.includePackageJsonAutoImports": "on",
+    "typescript.suggest.autoImports": true,
+    "typescript.preferences.useAliasesForRenames": false,
+    "files.exclude": {
+      "**/node_modules": true,
+      "**/dist": true,
+      "**/.wxt": true,
+      "**/__pycache__": true,
+      "**/.pytest_cache": true
+    },
+    "search.exclude": {
+      "**/node_modules": true,
+      "**/dist": true,
+      "**/.wxt": true,
+      "**/__pycache__": true,
+      "**/.pytest_cache": true
+    },
+    "eslint.workingDirectories": [
+      ".",
+      "./frontend"
+    ],
+    "typescript.preferences.resolveJsonModule": true
+  },
+  "extensions": {
+    "recommendations": [
+      "biomejs.biome",
+      "ms-vscode.vscode-typescript-next",
+      "bradlc.vscode-tailwindcss",
+      "ms-python.python",
+      "ms-playwright.playwright"
+    ]
+  }
+}

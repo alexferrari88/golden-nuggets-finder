@@ -259,7 +259,8 @@ describe("Response Normalizer Functions", () => {
 				golden_nuggets: [
 					{
 						type: "invalid_type",
-						content: "Test content",
+						startContent: "Test content",
+						endContent: "Test content",
 						synthesis: "Test synthesis",
 					},
 				],
@@ -273,7 +274,8 @@ describe("Response Normalizer Functions", () => {
 				golden_nuggets: [
 					{
 						type: "tool" as const,
-						content: "Missing synthesis",
+						startContent: "Missing synthesis",
+						endContent: "Missing synthesis",
 						// synthesis field missing
 					},
 				],

@@ -1724,22 +1724,22 @@ export class MessageHandler {
 			const currentProvider = await getCurrentProvider();
 			let requestUrl = "http://localhost:7532/optimize/current";
 
-			if (currentProvider?.providerId) {
-				const currentModel = await getSelectedModel(currentProvider.providerId);
+			if (currentProvider) {
+				const currentModel = await getSelectedModel(currentProvider);
 				if (currentModel) {
 					// Add provider and model as query parameters
 					const params = new URLSearchParams({
-						provider: currentProvider.providerId,
+						provider: currentProvider,
 						model: currentModel,
 					});
 					requestUrl += `?${params.toString()}`;
 
 					console.log(
-						`Requesting optimized prompt for ${currentProvider.providerId}+${currentModel}`,
+						`Requesting optimized prompt for ${currentProvider}+${currentModel}`,
 					);
 				} else {
 					console.log(
-						`No model selected for ${currentProvider.providerId}, using generic optimization`,
+						`No model selected for ${currentProvider}, using generic optimization`,
 					);
 				}
 			} else {
@@ -1846,7 +1846,14 @@ export class MessageHandler {
 	): Promise<void> {
 		try {
 			const currentProvider = await getCurrentProvider();
-			sendResponse({ success: true, data: currentProvider });
+			const currentModel = await getSelectedModel(currentProvider);
+			sendResponse({
+				success: true,
+				data: {
+					providerId: currentProvider,
+					modelName: currentModel,
+				},
+			});
 		} catch (error) {
 			console.error("Failed to get current provider:", error);
 			sendResponse({ success: false, error: (error as Error).message });
@@ -1903,6 +1910,8 @@ export class MessageHandler {
 				success: true,
 				data: {
 					isValid: false,
+					providerId: request.providerId,
+					modelName: config.modelName || "default",
 					error: userFriendlyMessage,
 					originalError: (error as Error).message,
 				},

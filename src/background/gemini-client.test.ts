@@ -73,7 +73,8 @@ describe("GeminiClient", () => {
 										golden_nuggets: [
 											{
 												type: "tool",
-												content: "Test content",
+												startContent: "Test content",
+												endContent: "Test content",
 												synthesis: "Test synthesis",
 											},
 										],
@@ -99,7 +100,8 @@ describe("GeminiClient", () => {
 				golden_nuggets: [
 					{
 						type: "tool",
-						content: "Test content",
+						startContent: "Test content",
+						endContent: "Test content",
 						synthesis: "Test synthesis",
 					},
 				],

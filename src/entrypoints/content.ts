@@ -727,7 +727,7 @@ export default defineContentScript({
 				await uiManager.displayResults(
 					[],
 					extractedPageContent || undefined,
-					providerMetadata,
+					providerMetadata || undefined,
 				);
 				return;
 			}
@@ -741,7 +741,7 @@ export default defineContentScript({
 			await uiManager.displayResults(
 				nuggets,
 				extractedPageContent || undefined,
-				providerMetadata,
+				providerMetadata || undefined,
 			);
 		}
 

@@ -44,14 +44,12 @@ describe("LangChainAnthropicProvider", () => {
 	});
 
 	it("should use default model when not specified", () => {
-		const configWithoutModel = {
+		const configWithoutModel: ProviderConfig = {
 			...mockConfig,
-			modelName: undefined,
+			modelName: "",
 		};
 
-		const provider = new LangChainAnthropicProvider(
-			configWithoutModel as ProviderConfig,
-		);
+		const provider = new LangChainAnthropicProvider(configWithoutModel);
 
 		expect(provider.modelName).toBe("claude-3-5-haiku-latest");
 	});

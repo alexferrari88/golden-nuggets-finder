@@ -308,32 +308,70 @@ function OptionsPage() {
 	const [selectedProvider, setSelectedProvider] = useState<ProviderId | null>(
 		null,
 	);
-	const [apiKeys, setApiKeys] = useState<Record<ProviderId, string>>({});
+	const [apiKeys, setApiKeys] = useState<Record<ProviderId, string>>({
+		gemini: "",
+		openai: "",
+		anthropic: "",
+		openrouter: "",
+	});
 	const [validationStatus, setValidationStatus] = useState<
 		Record<ProviderId, boolean | null>
-	>({});
+	>({
+		gemini: null,
+		openai: null,
+		anthropic: null,
+		openrouter: null,
+	});
 
 	// Model selection state
 	const [availableModels, setAvailableModels] = useState<
 		Record<ProviderId, ModelInfo[]>
-	>({});
+	>({
+		gemini: [],
+		openai: [],
+		anthropic: [],
+		openrouter: [],
+	});
 	const [selectedModels, setSelectedModels] = useState<
 		Record<ProviderId, string>
-	>({});
+	>({
+		gemini: "",
+		openai: "",
+		anthropic: "",
+		openrouter: "",
+	});
 	const [modelLoadingStatus, setModelLoadingStatus] = useState<
 		Record<ProviderId, boolean>
-	>({});
+	>({
+		gemini: false,
+		openai: false,
+		anthropic: false,
+		openrouter: false,
+	});
 	const [modelSaveStatus, setModelSaveStatus] = useState<
 		Record<ProviderId, { success: boolean; timestamp: number } | null>
-	>({});
+	>({
+		gemini: null,
+		openai: null,
+		anthropic: null,
+		openrouter: null,
+	});
 
 	// Model filtering state
-	const [modelFilter, setModelFilter] = useState<Record<ProviderId, string>>(
-		{},
-	);
+	const [modelFilter, setModelFilter] = useState<Record<ProviderId, string>>({
+		gemini: "",
+		openai: "",
+		anthropic: "",
+		openrouter: "",
+	});
 	const [showModelDropdown, setShowModelDropdown] = useState<
 		Record<ProviderId, boolean>
-	>({});
+	>({
+		gemini: false,
+		openai: false,
+		anthropic: false,
+		openrouter: false,
+	});
 
 	// Debug logging state
 	const [debugLoggingEnabled, setDebugLoggingEnabled] = useState(false);
@@ -381,7 +419,7 @@ function OptionsPage() {
 			});
 
 			const keyResults = await Promise.all(keyPromises);
-			const keyMap: Record<ProviderId, string> = {};
+			const keyMap = {} as Record<ProviderId, string>;
 			keyResults.forEach(({ providerId, key }) => {
 				keyMap[providerId] = key;
 			});

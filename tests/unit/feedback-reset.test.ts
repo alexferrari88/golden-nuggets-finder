@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { GeminiClient } from "../../src/background/gemini-client";
 import { MessageHandler } from "../../src/background/message-handler";
 import { MESSAGE_TYPES } from "../../src/shared/types";
+import { createMockMessageSenderWithTab } from "../utils/chrome-mocks";
 
 // Mock Chrome runtime APIs
 const mockChrome = {
@@ -43,7 +44,7 @@ describe("Feedback Reset Functionality", () => {
 				feedbackId: "test-feedback-id-123",
 			};
 
-			const sender = { tab: { id: 1 } };
+			const sender = createMockMessageSenderWithTab({ id: 1 });
 			const sendResponse = vi.fn();
 
 			// Mock successful backend response
@@ -74,7 +75,7 @@ describe("Feedback Reset Functionality", () => {
 				feedbackId: "test-feedback-id-123",
 			};
 
-			const sender = { tab: { id: 1 } };
+			const sender = createMockMessageSenderWithTab({ id: 1 });
 			const sendResponse = vi.fn();
 
 			// Mock backend failure
@@ -103,7 +104,7 @@ describe("Feedback Reset Functionality", () => {
 				// feedbackId missing
 			};
 
-			const sender = { tab: { id: 1 } };
+			const sender = createMockMessageSenderWithTab({ id: 1 });
 			const sendResponse = vi.fn();
 
 			await messageHandler.handleMessage(request, sender, sendResponse);
@@ -120,7 +121,7 @@ describe("Feedback Reset Functionality", () => {
 				feedbackId: "non-existent-id",
 			};
 
-			const sender = { tab: { id: 1 } };
+			const sender = createMockMessageSenderWithTab({ id: 1 });
 			const sendResponse = vi.fn();
 
 			// Mock backend returning 404
@@ -151,7 +152,7 @@ describe("Feedback Reset Functionality", () => {
 				feedbackId: "test-feedback-id-123",
 			};
 
-			const sender = { tab: { id: 1 } };
+			const sender = createMockMessageSenderWithTab({ id: 1 });
 			const sendResponse = vi.fn();
 
 			// Mock successful backend response
@@ -184,7 +185,7 @@ describe("Feedback Reset Functionality", () => {
 				feedbackId: "test-feedback-id-123",
 			};
 
-			const sender = { tab: { id: 1 } };
+			const sender = createMockMessageSenderWithTab({ id: 1 });
 			const sendResponse = vi.fn();
 
 			// Mock timeout error
@@ -217,7 +218,7 @@ describe("Feedback Reset Functionality", () => {
 				feedbackId: "test-feedback-id-123",
 			};
 
-			const sender = { tab: { id: 1 } };
+			const sender = createMockMessageSenderWithTab({ id: 1 });
 			const sendResponse = vi.fn();
 
 			const mockFeedbackArray = [
@@ -250,7 +251,7 @@ describe("Feedback Reset Functionality", () => {
 				feedbackId: "test-feedback-id-123",
 			};
 
-			const sender = { tab: { id: 1 } };
+			const sender = createMockMessageSenderWithTab({ id: 1 });
 			const sendResponse = vi.fn();
 
 			// Mock empty local storage
@@ -277,7 +278,7 @@ describe("Feedback Reset Functionality", () => {
 				feedbackId: "test-feedback-id-123",
 			};
 
-			const sender = { tab: { id: 1 } };
+			const sender = createMockMessageSenderWithTab({ id: 1 });
 			const sendResponse = vi.fn();
 
 			// Mock network error
@@ -306,7 +307,7 @@ describe("Feedback Reset Functionality", () => {
 				feedbackId: "test-feedback-id-123",
 			};
 
-			const sender = { tab: { id: 1 } };
+			const sender = createMockMessageSenderWithTab({ id: 1 });
 			const sendResponse = vi.fn();
 
 			// Mock 500 server error
@@ -337,7 +338,7 @@ describe("Feedback Reset Functionality", () => {
 				feedbackId: "test-feedback-id-123",
 			};
 
-			const sender = { tab: { id: 42 } };
+			const sender = createMockMessageSenderWithTab({ id: 42 });
 			const sendResponse = vi.fn();
 
 			// Mock Chrome tabs.sendMessage

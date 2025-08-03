@@ -18,6 +18,29 @@ The frontend is a React-based monitoring dashboard that provides real-time overs
 - **Charts**: Recharts for analytics visualization
 - **Icons**: Lucide React
 
+### Path Alias Configuration
+The frontend uses `@/` path aliases for clean, absolute imports:
+
+```typescript
+// ✅ Use @/ aliases for cleaner imports
+import { Button } from "@/components/ui/button"
+import { apiClient } from "@/lib/api"
+import { Dashboard } from "@/pages/Dashboard"
+
+// ❌ Avoid relative imports when possible
+import { Button } from "../../components/ui/button"
+```
+
+**Configuration:**
+- **TypeScript**: Path mapping configured in `tsconfig.app.json` with `"@/*": ["./src/*"]`
+- **Vite**: Alias resolution in `vite.config.ts` with `"@": path.resolve(__dirname, "./src")`
+- **IDE Support**: VS Code workspace configuration ensures proper IntelliSense
+
+**Important Notes:**
+- Always run TypeScript checks from within the `frontend/` directory for proper path resolution
+- The @/ alias only works within the frontend project scope
+- Build and development servers automatically resolve @/ aliases via Vite configuration
+
 ### Development Commands
 - `pnpm dev` - Start development server with hot reloading
 - `pnpm build` - Build for production (TypeScript compilation + Vite build)
@@ -26,6 +49,15 @@ The frontend is a React-based monitoring dashboard that provides real-time overs
 - `pnpm format` - Format code with Biome
 - `pnpm check` - Run Biome linter and formatter together
 - `pnpm preview` - Preview production build locally
+
+**TypeScript Checking:**
+```bash
+# ✅ Run from frontend directory for proper @/ alias resolution
+cd frontend && npx tsc --noEmit
+
+# ❌ Don't run from project root - @/ aliases won't resolve
+npx tsc --noEmit frontend/src/App.tsx
+```
 
 ## Key Features
 
