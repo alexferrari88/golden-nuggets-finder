@@ -44,7 +44,7 @@ load_dotenv()
 app = FastAPI(
     title="Golden Nuggets Feedback API",
     description="Backend for collecting feedback and optimizing prompts using DSPy",
-    version="1.0.0",
+    version="1.1.0",
 )
 
 # Configure CORS for Chrome extension and dashboard
