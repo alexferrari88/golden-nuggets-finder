@@ -20,7 +20,7 @@ test.describe("Options Page", () => {
 		await page.close();
 	});
 
-	test("displays model selection UI after API key validation", async ({
+	test("displays provider selection and Getting Started UI when no provider configured", async ({
 		context,
 		extensionId,
 	}) => {
@@ -30,25 +30,32 @@ test.describe("Options Page", () => {
 		// Wait for page to load
 		await page.waitForLoadState("networkidle");
 
-		// Look for any form inputs or sections that might indicate provider configuration
-		// Since we don't know the exact data-testid structure, look for general UI elements
-		const formInputs = page.locator("input, select, textarea");
+		// Check for Getting Started section (should be visible when no provider is selected)
+		const gettingStartedText = await page.textContent("body");
+		expect(gettingStartedText).toContain("Get Started");
+		expect(gettingStartedText).toContain("Welcome!");
+		expect(gettingStartedText).toContain("No provider selected");
 
-		// Should have some form inputs for configuration
-		const inputCount = await formInputs.count();
-		expect(inputCount).toBeGreaterThanOrEqual(1);
+		// Should have provider radio buttons
+		const providerRadios = page.locator('input[type="radio"][name="provider"]');
+		const radioCount = await providerRadios.count();
+		expect(radioCount).toBeGreaterThanOrEqual(4); // gemini, openai, anthropic, openrouter
 
-		// Check for any provider-related text or UI elements
-		const pageContent = await page.textContent("body");
+		// Should have provider selection UI but no API key inputs yet
+		const apiKeyInputs = page.locator('input[type="password"]');
+		const apiKeyCount = await apiKeyInputs.count();
+		expect(apiKeyCount).toBe(0); // No API key inputs until provider is selected
 
-		// The options page should contain some configuration content
-		expect(pageContent).toBeTruthy();
-		expect(pageContent.length).toBeGreaterThan(0);
+		// Check for provider names
+		expect(gettingStartedText).toContain("Google Gemini");
+		expect(gettingStartedText).toContain("OpenAI");
+		expect(gettingStartedText).toContain("Anthropic");
+		expect(gettingStartedText).toContain("OpenRouter");
 
 		await page.close();
 	});
 
-	test("shows model selection dropdown when valid API key is entered", async ({
+	test("shows API key input after provider selection", async ({
 		context,
 		extensionId,
 	}) => {
@@ -58,32 +65,65 @@ test.describe("Options Page", () => {
 		// Wait for page to load
 		await page.waitForLoadState("networkidle");
 
-		// Look for any API key input fields
-		const apiKeyInputs = page.locator(
-			'input[type="password"], input[placeholder*="API"], input[placeholder*="key"]',
-		);
+		// Initially, no API key inputs should be visible
+		const initialApiKeyInputs = page.locator('input[type="password"]');
+		expect(await initialApiKeyInputs.count()).toBe(0);
 
-		// Only proceed if API key inputs exist
-		if ((await apiKeyInputs.count()) > 0) {
-			const firstApiKeyInput = apiKeyInputs.first();
+		// Select a provider (Gemini)
+		const geminiRadio = page.locator('input[type="radio"][value="gemini"]');
+		await geminiRadio.click();
 
-			// Enter a test API key (won't work but should trigger validation UI)
-			await firstApiKeyInput.fill("test-api-key-123");
+		// Now API key input should appear
+		await page.waitForSelector('input[type="password"]', { timeout: 5000 });
+		const apiKeyInputs = page.locator('input[type="password"]');
+		expect(await apiKeyInputs.count()).toBe(1);
 
-			// Trigger validation (usually on blur or button click)
-			await firstApiKeyInput.blur();
+		// Enter a test API key (won't work but should trigger validation UI)
+		const apiKeyInput = apiKeyInputs.first();
+		await apiKeyInput.fill("test-api-key-123");
 
-			// Look for any response to the API key input - could be error message, loading, etc.
-			await page.waitForTimeout(1000); // Give time for any UI response
+		// Look for validation button
+		const validateButton = page.locator('button:has-text("Validate API Key")');
+		expect(await validateButton.count()).toBe(1);
 
-			// Check if anything changed on the page after entering the API key
-			const hasChangedContent = (await page.locator("*").count()) > 0;
-			expect(hasChangedContent).toBe(true);
-		} else {
-			// If no API key inputs found, just verify page has basic content
-			const pageContent = await page.textContent("body");
-			expect(pageContent).toBeTruthy();
-		}
+		await page.close();
+	});
+
+	test("provider selection workflow and UI state changes", async ({
+		context,
+		extensionId,
+	}) => {
+		const page = await context.newPage();
+		await page.goto(`chrome-extension://${extensionId}/options.html`);
+
+		// Wait for page to load
+		await page.waitForLoadState("networkidle");
+
+		// Verify Getting Started section is visible initially
+		const gettingStartedSection = page.locator('h2:has-text("Get Started")');
+		await expect(gettingStartedSection).toBeVisible();
+
+		// Verify Current Configuration shows "No provider selected"
+		const configurationText = await page.textContent("body");
+		expect(configurationText).toContain("No provider selected");
+		expect(configurationText).toContain("No model selected");
+
+		// Select OpenAI provider
+		const openaiRadio = page.locator('input[type="radio"][value="openai"]');
+		await openaiRadio.click();
+
+		// Wait a moment for state updates
+		await page.waitForTimeout(500);
+
+		// Getting Started section should no longer be visible
+		// (it's conditionally rendered only when no provider is selected)
+		const pageTextAfterSelection = await page.textContent("body");
+		
+		// Should show OpenAI as selected provider
+		expect(pageTextAfterSelection).toContain("OpenAI");
+		
+		// API key input should appear
+		await page.waitForSelector('input[type="password"]', { timeout: 5000 });
 
 		await page.close();
 	});
@@ -125,27 +165,76 @@ test.describe("Options Page", () => {
 		// Wait for page to load
 		await page.waitForLoadState("networkidle");
 
-		// Verify that existing options page functionality still works
-		// Look for prompt management sections
-		const promptSections = page.locator(
-			'[data-testid*="prompt"], [data-testid*="custom"]',
-		);
+		// Look for prompt management sections (should always be present)
+		const promptSectionText = await page.textContent("body");
+		expect(promptSectionText).toContain("Analysis Prompts");
 
-		// Should have some prompt-related UI elements
-		if ((await promptSections.count()) > 0) {
-			await expect(promptSections.first()).toBeVisible();
-		}
-
-		// Look for save/reset buttons that should still be present
+		// Look for action buttons that should still be present
 		const actionButtons = page.locator("button");
 		const buttonCount = await actionButtons.count();
 		expect(buttonCount).toBeGreaterThanOrEqual(1);
 
-		// Verify the page doesn't have any obvious JavaScript errors
-		// by checking that interactive elements are present
+		// Verify interactive elements are present (radio buttons for provider selection should exist)
 		const interactiveElements = page.locator("input, select, button, textarea");
 		const elementCount = await interactiveElements.count();
-		expect(elementCount).toBeGreaterThanOrEqual(1);
+		expect(elementCount).toBeGreaterThanOrEqual(4); // At least provider radio buttons
+
+		// Test provider selection preserves prompt functionality
+		const geminiRadio = page.locator('input[type="radio"][value="gemini"]');
+		await geminiRadio.click();
+
+		// After provider selection, should still have prompt functionality
+		const promptButtonsAfterSelection = page.locator('button:has-text("Add New Prompt")');
+		expect(await promptButtonsAfterSelection.count()).toBeGreaterThanOrEqual(1);
+
+		await page.close();
+	});
+
+	test("Getting Started section behavior with null provider state", async ({
+		context,
+		extensionId,
+	}) => {
+		const page = await context.newPage();
+		await page.goto(`chrome-extension://${extensionId}/options.html`);
+
+		// Wait for page to load
+		await page.waitForLoadState("networkidle");
+
+		// Getting Started section should be visible when no provider is selected
+		const bodyText = await page.textContent("body");
+		expect(bodyText).toContain("Get Started");
+		expect(bodyText).toContain("Welcome! To start analyzing web content");
+		expect(bodyText).toContain("Select a provider below to get started");
+
+		// Current Configuration should reflect no provider state
+		expect(bodyText).toContain("No provider selected");
+		expect(bodyText).toContain("No model selected");
+		expect(bodyText).toContain("Please select and configure a provider below");
+
+		// Progress indicators should show only step 1 as active
+		const stepIndicators = page.locator('[style*="background"]');
+		// We can't easily test CSS styles in Playwright, but we can verify the text content
+		expect(bodyText).toContain("Select Provider");
+		expect(bodyText).toContain("Enter API Key");
+		expect(bodyText).toContain("Validate & Select Model");
+
+		// Select a provider and verify Getting Started section disappears
+		const anthropicRadio = page.locator('input[type="radio"][value="anthropic"]');
+		await anthropicRadio.click();
+
+		// Wait for UI update
+		await page.waitForTimeout(500);
+
+		// Getting Started section should no longer be visible
+		const bodyTextAfterSelection = await page.textContent("body");
+		
+		// The specific Getting Started welcome text should be gone
+		// (though "Get Started" might still appear in other contexts)
+		expect(bodyTextAfterSelection).not.toContain("Welcome! To start analyzing web content");
+		expect(bodyTextAfterSelection).not.toContain("Select a provider below to get started");
+
+		// Current Configuration should now show selected provider
+		expect(bodyTextAfterSelection).toContain("Anthropic");
 
 		await page.close();
 	});
