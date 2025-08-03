@@ -55,10 +55,10 @@ export function normalize(
 				.filter((nugget) => {
 					// Always require startContent and endContent
 					const hasRequiredContent = nugget.startContent && nugget.endContent;
-					
+
 					// Only require synthesis if it's enabled
 					const hasSynthesis = synthesisEnabled ? nugget.synthesis : true;
-					
+
 					return hasRequiredContent && hasSynthesis;
 				}),
 		};

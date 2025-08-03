@@ -15,11 +15,15 @@ export const GEMINI_CONFIG = {
  * @param synthesisEnabled - Boolean to determine which block to use
  * @returns Processed prompt string
  */
-export function processPromptTemplate(template: string, synthesisEnabled: boolean): string {
+export function processPromptTemplate(
+	template: string,
+	synthesisEnabled: boolean,
+): string {
 	// Find all conditional blocks using regex with flexible whitespace
-	const conditionalRegex = /\{\{\s*#if\s+synthesisEnabled\s*\}\}([\s\S]*?)\{\{\s*else\s*\}\}([\s\S]*?)\{\{\s*\/if\s*\}\}/g;
-	
-	return template.replace(conditionalRegex, (match, ifBlock, elseBlock) => {
+	const conditionalRegex =
+		/\{\{\s*#if\s+synthesisEnabled\s*\}\}([\s\S]*?)\{\{\s*else\s*\}\}([\s\S]*?)\{\{\s*\/if\s*\}\}/g;
+
+	return template.replace(conditionalRegex, (_match, ifBlock, elseBlock) => {
 		// Return the appropriate block based on synthesisEnabled
 		return synthesisEnabled ? ifBlock.trim() : elseBlock.trim();
 	});

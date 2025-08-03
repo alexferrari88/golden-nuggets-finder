@@ -1728,7 +1728,7 @@ export class UIManager {
 		const selectedType = typeSelect.value as GoldenNuggetType;
 
 		// Get the provider info that was used for the analysis
-		const result = await chrome.storage.local.get(['lastUsedProvider']);
+		const result = await chrome.storage.local.get(["lastUsedProvider"]);
 		const lastUsedProvider = result.lastUsedProvider;
 
 		// Create feedback for each selected item
@@ -1748,8 +1748,8 @@ export class UIManager {
 					url: window.location.href,
 					context: context.substring(0, 200),
 					// Add provider/model data from the analysis that generated the original results
-					modelProvider: lastUsedProvider?.providerId || 'gemini',
-					modelName: lastUsedProvider?.modelName || 'gemini-2.5-flash',
+					modelProvider: lastUsedProvider?.providerId || "gemini",
+					modelName: lastUsedProvider?.modelName || "gemini-2.5-flash",
 				});
 			}
 		});

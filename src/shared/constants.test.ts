@@ -22,9 +22,13 @@ Find golden nuggets.
 		const result = processPromptTemplate(template, true);
 
 		expect(result).toContain("## SYNTHESIS REQUIREMENT:");
-		expect(result).toContain("For each extracted nugget, provide a \"synthesis\" field explaining why this content is valuable.");
+		expect(result).toContain(
+			'For each extracted nugget, provide a "synthesis" field explaining why this content is valuable.',
+		);
 		expect(result).not.toContain("## EXTRACTION FOCUS:");
-		expect(result).not.toContain("Extract only the raw, high-quality content without explanations.");
+		expect(result).not.toContain(
+			"Extract only the raw, high-quality content without explanations.",
+		);
 		expect(result).not.toContain("{{#if synthesisEnabled}}");
 		expect(result).not.toContain("{{else}}");
 		expect(result).not.toContain("{{/if}}");
@@ -50,9 +54,13 @@ Find golden nuggets.
 		const result = processPromptTemplate(template, false);
 
 		expect(result).not.toContain("## SYNTHESIS REQUIREMENT:");
-		expect(result).not.toContain("For each extracted nugget, provide a \"synthesis\" field explaining why this content is valuable.");
+		expect(result).not.toContain(
+			'For each extracted nugget, provide a "synthesis" field explaining why this content is valuable.',
+		);
 		expect(result).toContain("## EXTRACTION FOCUS:");
-		expect(result).toContain("Extract only the raw, high-quality content without explanations.");
+		expect(result).toContain(
+			"Extract only the raw, high-quality content without explanations.",
+		);
 		expect(result).not.toContain("{{#if synthesisEnabled}}");
 		expect(result).not.toContain("{{else}}");
 		expect(result).not.toContain("{{/if}}");
@@ -138,9 +146,13 @@ After block
 		`.trim();
 
 		const resultTrue = processPromptTemplate(template, true);
-		expect(resultTrue).toBe("Before block\nSynthesis with leading/trailing whitespace\nAfter block");
+		expect(resultTrue).toBe(
+			"Before block\nSynthesis with leading/trailing whitespace\nAfter block",
+		);
 
 		const resultFalse = processPromptTemplate(template, false);
-		expect(resultFalse).toBe("Before block\nRaw with leading/trailing whitespace\nAfter block");
+		expect(resultFalse).toBe(
+			"Before block\nRaw with leading/trailing whitespace\nAfter block",
+		);
 	});
 });

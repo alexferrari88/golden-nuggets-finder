@@ -311,8 +311,7 @@ Return only the most valuable insights that would be genuinely useful to a softw
 
 			// Test that getSelectedModel returns default models when no custom selection exists
 			for (const providerId of providers) {
-				const selectedModel =
-					await getSelectedModel(providerId);
+				const selectedModel = await getSelectedModel(providerId);
 				const defaultModel = getDefaultModel(providerId);
 
 				expect(selectedModel).toBeDefined();

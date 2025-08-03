@@ -21,7 +21,7 @@ const createGoldenNuggetsSchema = (synthesisEnabled: boolean) => {
 			golden_nuggets: z.array(
 				baseSchema.extend({
 					synthesis: z.string(),
-				})
+				}),
 			),
 		});
 	} else {
@@ -65,7 +65,7 @@ export class LangChainOpenAIProvider implements LLMProvider {
 			);
 
 			const GoldenNuggetsSchema = createGoldenNuggetsSchema(synthesisEnabled);
-			
+
 			const structuredModel = this.model.withStructuredOutput(
 				GoldenNuggetsSchema,
 				{

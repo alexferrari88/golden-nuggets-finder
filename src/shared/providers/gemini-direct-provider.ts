@@ -35,7 +35,9 @@ export class GeminiDirectProvider implements LLMProvider {
 				type: nugget.type,
 				startContent: nugget.startContent,
 				endContent: nugget.endContent,
-				...(synthesisEnabled && nugget.synthesis ? { synthesis: nugget.synthesis } : {}),
+				...(synthesisEnabled && nugget.synthesis
+					? { synthesis: nugget.synthesis }
+					: {}),
 			})),
 		};
 	}

@@ -379,11 +379,12 @@ describe("SecurityManager", () => {
 			const originalCheckRateLimit = (
 				securityManager as SecurityManagerTestAccess
 			).checkRateLimit;
-			vi.spyOn(securityManager as SecurityManagerTestAccess, "checkRateLimit").mockImplementation(
-				() => {
-					throw new Error("Test error");
-				},
-			);
+			vi.spyOn(
+				securityManager as SecurityManagerTestAccess,
+				"checkRateLimit",
+			).mockImplementation(() => {
+				throw new Error("Test error");
+			});
 
 			const result = securityManager.validateAccess(errorContext);
 			expect(result).toBe(false);

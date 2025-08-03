@@ -21,7 +21,7 @@ const createGoldenNuggetsSchema = (synthesisEnabled: boolean) => {
 			golden_nuggets: z.array(
 				baseSchema.extend({
 					synthesis: z.string(),
-				})
+				}),
 			),
 		});
 	} else {
@@ -197,8 +197,9 @@ export class LangChainOpenRouterProvider implements LLMProvider {
 
 		try {
 			const response = await this.executeWithRetry(async () => {
-				const FlexibleGoldenNuggetsSchema = createGoldenNuggetsSchema(synthesisEnabled);
-				
+				const FlexibleGoldenNuggetsSchema =
+					createGoldenNuggetsSchema(synthesisEnabled);
+
 				const structuredModel = this.model.withStructuredOutput(
 					FlexibleGoldenNuggetsSchema,
 					{

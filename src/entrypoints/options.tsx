@@ -301,8 +301,9 @@ function OptionsPage() {
 	}>({ isOpen: false, title: "", message: "", onConfirm: () => {} });
 
 	// Provider configuration state
-	const [selectedProvider, setSelectedProvider] =
-		useState<ProviderId>("gemini");
+	const [selectedProvider, setSelectedProvider] = useState<ProviderId | null>(
+		null,
+	);
 	const [apiKeys, setApiKeys] = useState<Record<ProviderId, string>>({});
 	const [validationStatus, setValidationStatus] = useState<
 		Record<ProviderId, boolean | null>
@@ -344,7 +345,7 @@ function OptionsPage() {
 				chrome.storage.local.get(["selectedProvider", "extensionConfig"]),
 			]);
 			setPrompts(savedPrompts);
-			setSelectedProvider(storageData.selectedProvider || "gemini");
+			setSelectedProvider(storageData.selectedProvider || null);
 
 			// Load debug logging setting
 			setDebugLoggingEnabled(
@@ -385,14 +386,15 @@ function OptionsPage() {
 			// Load selected models for all providers
 			const selectedModelsMap = await ModelStorage.getAllModels();
 
-			// Apply fallbacks to defaults where no model is selected
+			// Only set models for providers that have been configured
 			const modelsWithFallbacks: Record<ProviderId, string> = {} as Record<
 				ProviderId,
 				string
 			>;
 			for (const [providerId, model] of Object.entries(selectedModelsMap)) {
-				modelsWithFallbacks[providerId as ProviderId] =
-					model || getDefaultModel(providerId as ProviderId);
+				if (model) {
+					modelsWithFallbacks[providerId as ProviderId] = model;
+				}
 			}
 
 			setSelectedModels(modelsWithFallbacks);
@@ -726,7 +728,9 @@ function OptionsPage() {
 		setShowModelDropdown((prev) => ({ ...prev, [providerId]: false }));
 	};
 
-	const getSelectedModelName = (providerId: ProviderId): string => {
+	const getSelectedModelName = (providerId: ProviderId | null): string => {
+		if (!providerId) return "No model selected";
+
 		const selectedModelId =
 			selectedModels[providerId] || getDefaultModel(providerId);
 		const model = availableModels[providerId]?.find(
@@ -806,10 +810,10 @@ function OptionsPage() {
 			setTimeout(() => setApiKeyStatus(null), 5000);
 		} catch (error) {
 			console.error("Failed to update synthesis setting:", error);
-			
+
 			// Revert state on error
 			setSynthesisEnabledState(!enabled);
-			
+
 			setApiKeyStatus({
 				type: "error",
 				title: "Update Failed",
@@ -1092,10 +1096,14 @@ function OptionsPage() {
 								style={{
 									fontSize: typography.fontSize.lg,
 									fontWeight: typography.fontWeight.semibold,
-									color: colors.text.primary,
+									color: selectedProvider
+										? colors.text.primary
+										: colors.text.secondary,
 								}}
 							>
-								{getProviderDisplayName(selectedProvider)}
+								{selectedProvider
+									? getProviderDisplayName(selectedProvider)
+									: "No provider selected"}
 							</div>
 							<div
 								style={{
@@ -1104,12 +1112,14 @@ function OptionsPage() {
 									marginTop: spacing.xs,
 								}}
 							>
-								{apiKeys[selectedProvider] &&
-								validationStatus[selectedProvider] === true
-									? "API key validated"
-									: apiKeys[selectedProvider]
-										? "API key not validated"
-										: "No API key configured"}
+								{!selectedProvider
+									? "Please select and configure a provider below"
+									: apiKeys[selectedProvider] &&
+											validationStatus[selectedProvider] === true
+										? "API key validated"
+										: apiKeys[selectedProvider]
+											? "API key not validated"
+											: "No API key configured"}
 							</div>
 						</div>
 
@@ -1148,10 +1158,14 @@ function OptionsPage() {
 								style={{
 									fontSize: typography.fontSize.lg,
 									fontWeight: typography.fontWeight.semibold,
-									color: colors.text.primary,
+									color: selectedProvider
+										? colors.text.primary
+										: colors.text.secondary,
 								}}
 							>
-								{selectedModels[selectedProvider] || "Default Model"}
+								{!selectedProvider
+									? "No model selected"
+									: selectedModels[selectedProvider] || "Default Model"}
 							</div>
 							<div
 								style={{
@@ -1160,13 +1174,83 @@ function OptionsPage() {
 									marginTop: spacing.xs,
 								}}
 							>
-								{selectedModels[selectedProvider]
-									? `Using ${selectedModels[selectedProvider]}`
-									: `Using default: ${getDefaultModel(selectedProvider)}`}
+								{!selectedProvider
+									? "Configure API key to select model"
+									: selectedModels[selectedProvider]
+										? `Using ${selectedModels[selectedProvider]}`
+										: `Using default: ${getDefaultModel(selectedProvider)}`}
 							</div>
 						</div>
 					</div>
 				</div>
+
+				{/* Getting Started Section - Only show when no provider configured */}
+				{!selectedProvider && (
+					<div
+						style={{
+							marginBottom: spacing["3xl"],
+							backgroundColor: colors.background.secondary,
+							padding: spacing["3xl"],
+							borderRadius: borderRadius.xl,
+							border: `2px solid ${colors.text.accent}`,
+							textAlign: "center",
+						}}
+					>
+						<div
+							style={{
+								display: "flex",
+								alignItems: "center",
+								justifyContent: "center",
+								gap: spacing.md,
+								marginBottom: spacing.lg,
+							}}
+						>
+							<div style={{ color: colors.text.accent }}>
+								<Sparkles size={24} />
+							</div>
+							<h2
+								style={{
+									margin: 0,
+									fontSize: typography.fontSize.xl,
+									fontWeight: typography.fontWeight.semibold,
+									color: colors.text.primary,
+								}}
+							>
+								Get Started
+							</h2>
+						</div>
+						<p
+							style={{
+								margin: `0 0 ${spacing.lg} 0`,
+								fontSize: typography.fontSize.base,
+								color: colors.text.secondary,
+								lineHeight: typography.lineHeight.normal,
+								maxWidth: "600px",
+								marginLeft: "auto",
+								marginRight: "auto",
+							}}
+						>
+							Welcome! To start analyzing web content, please choose an AI
+							provider below and configure your API key. This enables the
+							extension to extract golden nuggets from any webpage.
+						</p>
+						<div
+							style={{
+								display: "flex",
+								alignItems: "center",
+								justifyContent: "center",
+								gap: spacing.sm,
+								fontSize: typography.fontSize.sm,
+								color: colors.text.accent,
+								fontWeight: typography.fontWeight.medium,
+							}}
+						>
+							<span>👇</span>
+							<span>Select a provider below to get started</span>
+							<span>👇</span>
+						</div>
+					</div>
+				)}
 
 				{/* Provider Selection Section */}
 				<div
@@ -1293,12 +1377,14 @@ function OptionsPage() {
 										width: "20px",
 										height: "20px",
 										borderRadius: "50%",
-										backgroundColor: apiKeys[selectedProvider]
-											? colors.text.accent
-											: colors.border.default,
-										color: apiKeys[selectedProvider]
-											? colors.white
-											: colors.text.secondary,
+										backgroundColor:
+											selectedProvider && apiKeys[selectedProvider]
+												? colors.text.accent
+												: colors.border.default,
+										color:
+											selectedProvider && apiKeys[selectedProvider]
+												? colors.white
+												: colors.text.secondary,
 										display: "flex",
 										alignItems: "center",
 										justifyContent: "center",
@@ -1323,10 +1409,12 @@ function OptionsPage() {
 										height: "20px",
 										borderRadius: "50%",
 										backgroundColor:
+											selectedProvider &&
 											validationStatus[selectedProvider] === true
 												? colors.success
 												: colors.border.default,
 										color:
+											selectedProvider &&
 											validationStatus[selectedProvider] === true
 												? colors.white
 												: colors.text.secondary,
@@ -1430,7 +1518,7 @@ function OptionsPage() {
 					</div>
 
 					{/* API Key Configuration for selected provider */}
-					{
+					{selectedProvider && (
 						<div
 							style={{
 								padding: spacing.lg,
@@ -1857,7 +1945,7 @@ function OptionsPage() {
 								</div>
 							)}
 						</div>
-					}
+					)}
 				</div>
 
 				{/* Debug Settings Section */}
@@ -2075,12 +2163,15 @@ function OptionsPage() {
 										lineHeight: typography.lineHeight.normal,
 									}}
 								>
-									Explains why each nugget is relevant to your persona and goals. This provides valuable context but increases API costs due to additional processing.
+									Explains why each nugget is relevant to your persona and
+									goals. This provides valuable context but increases API costs
+									due to additional processing.
 									{synthesisEnabled && (
 										<>
 											<br />
 											<strong style={{ color: colors.text.accent }}>
-												Synthesis is enabled - each nugget will include relevance explanations.
+												Synthesis is enabled - each nugget will include
+												relevance explanations.
 											</strong>
 										</>
 									)}

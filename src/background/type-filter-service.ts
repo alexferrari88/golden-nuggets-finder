@@ -107,7 +107,7 @@ ${filteredSections}`;
  */
 export function generateDynamicSchema(
 	selectedTypes: GoldenNuggetType[],
-	includeSynthesis: boolean = true // NEW: Add parameter
+	includeSynthesis: boolean = true, // NEW: Add parameter
 ) {
 	return generateGoldenNuggetSchema(selectedTypes, includeSynthesis);
 }

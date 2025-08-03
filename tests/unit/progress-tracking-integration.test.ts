@@ -40,10 +40,12 @@ describe("Progress Tracking Integration Tests", () => {
 				}),
 			},
 			tabs: {
-				sendMessage: vi.fn().mockImplementation((tabId: number, message: unknown) => {
-					progressMessageQueue.push({ target: "tab", tabId, message });
-					return Promise.resolve({ success: true });
-				}),
+				sendMessage: vi
+					.fn()
+					.mockImplementation((tabId: number, message: unknown) => {
+						progressMessageQueue.push({ target: "tab", tabId, message });
+						return Promise.resolve({ success: true });
+					}),
 			},
 		};
 
