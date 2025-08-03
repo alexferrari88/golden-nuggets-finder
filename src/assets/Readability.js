@@ -1,3 +1,5 @@
+/* eslint-disable */
+// biome-ignore-file
 /*
  * Copyright (c) 2010 Arc90 Inc
  *

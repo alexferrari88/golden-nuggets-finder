@@ -118,10 +118,10 @@ test.describe("Options Page", () => {
 		// Getting Started section should no longer be visible
 		// (it's conditionally rendered only when no provider is selected)
 		const pageTextAfterSelection = await page.textContent("body");
-		
+
 		// Should show OpenAI as selected provider
 		expect(pageTextAfterSelection).toContain("OpenAI");
-		
+
 		// API key input should appear
 		await page.waitForSelector('input[type="password"]', { timeout: 5000 });
 
@@ -184,7 +184,9 @@ test.describe("Options Page", () => {
 		await geminiRadio.click();
 
 		// After provider selection, should still have prompt functionality
-		const promptButtonsAfterSelection = page.locator('button:has-text("Add New Prompt")');
+		const promptButtonsAfterSelection = page.locator(
+			'button:has-text("Add New Prompt")',
+		);
 		expect(await promptButtonsAfterSelection.count()).toBeGreaterThanOrEqual(1);
 
 		await page.close();
@@ -212,14 +214,16 @@ test.describe("Options Page", () => {
 		expect(bodyText).toContain("Please select and configure a provider below");
 
 		// Progress indicators should show only step 1 as active
-		const stepIndicators = page.locator('[style*="background"]');
+		const _stepIndicators = page.locator('[style*="background"]');
 		// We can't easily test CSS styles in Playwright, but we can verify the text content
 		expect(bodyText).toContain("Select Provider");
 		expect(bodyText).toContain("Enter API Key");
 		expect(bodyText).toContain("Validate & Select Model");
 
 		// Select a provider and verify Getting Started section disappears
-		const anthropicRadio = page.locator('input[type="radio"][value="anthropic"]');
+		const anthropicRadio = page.locator(
+			'input[type="radio"][value="anthropic"]',
+		);
 		await anthropicRadio.click();
 
 		// Wait for UI update
@@ -227,11 +231,15 @@ test.describe("Options Page", () => {
 
 		// Getting Started section should no longer be visible
 		const bodyTextAfterSelection = await page.textContent("body");
-		
+
 		// The specific Getting Started welcome text should be gone
 		// (though "Get Started" might still appear in other contexts)
-		expect(bodyTextAfterSelection).not.toContain("Welcome! To start analyzing web content");
-		expect(bodyTextAfterSelection).not.toContain("Select a provider below to get started");
+		expect(bodyTextAfterSelection).not.toContain(
+			"Welcome! To start analyzing web content",
+		);
+		expect(bodyTextAfterSelection).not.toContain(
+			"Select a provider below to get started",
+		);
 
 		// Current Configuration should now show selected provider
 		expect(bodyTextAfterSelection).toContain("Anthropic");

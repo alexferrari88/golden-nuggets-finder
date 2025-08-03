@@ -459,6 +459,24 @@ export const AdvancedFilters: React.FC<AdvancedFiltersProps> = ({
               />
             </Badge>
           )}
+          {localFilters.provider && localFilters.provider !== "all" && (
+            <Badge variant="secondary" className="flex items-center gap-1">
+              Provider: {config.providers?.find(p => p.value === localFilters.provider)?.label || localFilters.provider}
+              <X
+                className="h-3 w-3 cursor-pointer"
+                onClick={() => handleFilterChange("provider", "all")}
+              />
+            </Badge>
+          )}
+          {localFilters.model && localFilters.model !== "all" && (
+            <Badge variant="secondary" className="flex items-center gap-1">
+              Model: {config.models?.find(m => m.value === localFilters.model)?.label || localFilters.model}
+              <X
+                className="h-3 w-3 cursor-pointer"
+                onClick={() => handleFilterChange("model", "all")}
+              />
+            </Badge>
+          )}
           <Button
             variant="outline"
             size="sm"

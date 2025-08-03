@@ -140,78 +140,81 @@ const usePhaseProgression = (
 	}, []);
 
 	// Process real-time progress messages
-	const processRealTimePhase = useCallback((progressMessage: AnalysisProgressMessage) => {
-		// Cancel fallback timing since we're getting real messages
-		if (fallbackTimeoutRef.current) {
-			clearTimeout(fallbackTimeoutRef.current);
-			fallbackTimeoutRef.current = null;
-		}
-
-		// Map real progress messages to phases
-		let phaseIndex = -1;
-		let shouldComplete = false;
-
-		if (
-			progressMessage.type === MESSAGE_TYPES.ANALYSIS_CONTENT_EXTRACTED ||
-			progressMessage.type === MESSAGE_TYPES.ANALYSIS_CONTENT_OPTIMIZED
-		) {
-			// Steps 1-2: Setup phase (instant)
-			phaseIndex = 0;
-			shouldComplete = true; // These are instant, complete immediately
-		} else if (
-			progressMessage.type === MESSAGE_TYPES.ANALYSIS_API_REQUEST_START
-		) {
-			// Step 3 start: AI thinking phase begins
-			phaseIndex = 1;
-			setAiStartTime(Date.now()); // Track AI start time
-			shouldComplete = false; // Don't complete yet, AI is thinking
-		} else if (
-			progressMessage.type === MESSAGE_TYPES.ANALYSIS_API_RESPONSE_RECEIVED
-		) {
-			// Step 3 complete: AI thinking phase completes
-			phaseIndex = 1;
-			shouldComplete = true;
-		} else if (
-			progressMessage.type === MESSAGE_TYPES.ANALYSIS_PROCESSING_RESULTS
-		) {
-			// Step 4: Finalize phase (instant)
-			phaseIndex = 2;
-			shouldComplete = true;
-		}
-
-		if (phaseIndex >= 0) {
-			// Make sure phase is visible
-			setVisiblePhases((prev) => {
-				const newVisible = [...prev];
-				for (let i = 0; i <= phaseIndex; i++) {
-					if (!newVisible.includes(i)) {
-						newVisible.push(i);
-					}
-				}
-				return newVisible;
-			});
-
-			// Set current phase if not completing
-			if (!shouldComplete) {
-				setCurrentPhase(phaseIndex);
+	const processRealTimePhase = useCallback(
+		(progressMessage: AnalysisProgressMessage) => {
+			// Cancel fallback timing since we're getting real messages
+			if (fallbackTimeoutRef.current) {
+				clearTimeout(fallbackTimeoutRef.current);
+				fallbackTimeoutRef.current = null;
 			}
 
-			// Mark as completed if this is a completion message
-			if (shouldComplete) {
-				setCompletedPhases((prev) => {
-					if (!prev.includes(phaseIndex)) {
-						return [...prev, phaseIndex];
+			// Map real progress messages to phases
+			let phaseIndex = -1;
+			let shouldComplete = false;
+
+			if (
+				progressMessage.type === MESSAGE_TYPES.ANALYSIS_CONTENT_EXTRACTED ||
+				progressMessage.type === MESSAGE_TYPES.ANALYSIS_CONTENT_OPTIMIZED
+			) {
+				// Steps 1-2: Setup phase (instant)
+				phaseIndex = 0;
+				shouldComplete = true; // These are instant, complete immediately
+			} else if (
+				progressMessage.type === MESSAGE_TYPES.ANALYSIS_API_REQUEST_START
+			) {
+				// Step 3 start: AI thinking phase begins
+				phaseIndex = 1;
+				setAiStartTime(Date.now()); // Track AI start time
+				shouldComplete = false; // Don't complete yet, AI is thinking
+			} else if (
+				progressMessage.type === MESSAGE_TYPES.ANALYSIS_API_RESPONSE_RECEIVED
+			) {
+				// Step 3 complete: AI thinking phase completes
+				phaseIndex = 1;
+				shouldComplete = true;
+			} else if (
+				progressMessage.type === MESSAGE_TYPES.ANALYSIS_PROCESSING_RESULTS
+			) {
+				// Step 4: Finalize phase (instant)
+				phaseIndex = 2;
+				shouldComplete = true;
+			}
+
+			if (phaseIndex >= 0) {
+				// Make sure phase is visible
+				setVisiblePhases((prev) => {
+					const newVisible = [...prev];
+					for (let i = 0; i <= phaseIndex; i++) {
+						if (!newVisible.includes(i)) {
+							newVisible.push(i);
+						}
 					}
-					return prev;
+					return newVisible;
 				});
 
-				// Clear current phase if completing
-				if (phaseIndex < 2) {
-					setCurrentPhase(-1);
+				// Set current phase if not completing
+				if (!shouldComplete) {
+					setCurrentPhase(phaseIndex);
+				}
+
+				// Mark as completed if this is a completion message
+				if (shouldComplete) {
+					setCompletedPhases((prev) => {
+						if (!prev.includes(phaseIndex)) {
+							return [...prev, phaseIndex];
+						}
+						return prev;
+					});
+
+					// Clear current phase if completing
+					if (phaseIndex < 2) {
+						setCurrentPhase(-1);
+					}
 				}
 			}
-		}
-	}, []);
+		},
+		[],
+	);
 
 	const startFallbackAnimation = useCallback(async () => {
 		// Clear any existing timers

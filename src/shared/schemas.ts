@@ -44,7 +44,7 @@ export const GOLDEN_NUGGET_SCHEMA = {
 							"A concise explanation of why this is relevant to the persona, connecting it to their core interests or cognitive profile.",
 					},
 				},
-				required: ["type", "startContent", "endContent"], // Remove synthesis from required
+				required: ["type", "startContent", "endContent"],
 				propertyOrdering: ["type", "startContent", "endContent", "synthesis"],
 			},
 		},
@@ -55,7 +55,7 @@ export const GOLDEN_NUGGET_SCHEMA = {
 
 export function generateGoldenNuggetSchema(
 	selectedTypes: GoldenNuggetType[],
-	includeSynthesis: boolean = true // Default true for backwards compatibility
+	includeSynthesis: boolean = true, // Default true for backwards compatibility
 ) {
 	const properties = {
 		type: {

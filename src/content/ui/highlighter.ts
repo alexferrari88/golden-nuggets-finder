@@ -262,7 +262,7 @@ export class Highlighter {
 			const fullTextLower = fullText.toLowerCase();
 			const startContentLower = startContent.toLowerCase();
 			const endContentLower = endContent.toLowerCase();
-			
+
 			let startIndex = -1;
 			let searchFrom = 0;
 			const possibleRanges: Array<{ start: number; end: number }> = [];

@@ -7,6 +7,7 @@
     "downlevelIteration": true,
     "lib": ["ES2020", "DOM", "DOM.Iterable"],
     "skipLibCheck": true,
-    "moduleResolution": "node"
+    "moduleResolution": "node",
+    "types": ["vitest/globals", "node", "@types/chrome"]
   }
 }

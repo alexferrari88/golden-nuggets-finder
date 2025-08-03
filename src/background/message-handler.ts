@@ -1,5 +1,5 @@
-import { debugLogger } from "../shared/debug";
 import { processPromptTemplate } from "../shared/constants";
+import { debugLogger } from "../shared/debug";
 import { storage } from "../shared/storage";
 import { getApiKey } from "../shared/storage/api-key-storage";
 import {
@@ -904,8 +904,12 @@ export class MessageHandler {
 			}
 
 			// Get synthesis preference and process template
-			const synthesisEnabled = request.synthesisEnabled ?? await storage.getSynthesisEnabled();
-			processedPrompt = processPromptTemplate(processedPrompt, synthesisEnabled);
+			const synthesisEnabled =
+				request.synthesisEnabled ?? (await storage.getSynthesisEnabled());
+			processedPrompt = processPromptTemplate(
+				processedPrompt,
+				synthesisEnabled,
+			);
 
 			// Apply type filtering if specified
 			if (request.typeFilter && request.typeFilter.selectedTypes.length > 0) {
@@ -1059,7 +1063,10 @@ export class MessageHandler {
 
 			// Get synthesis preference and process template
 			const synthesisEnabled = await storage.getSynthesisEnabled();
-			processedPrompt = processPromptTemplate(processedPrompt, synthesisEnabled);
+			processedPrompt = processPromptTemplate(
+				processedPrompt,
+				synthesisEnabled,
+			);
 
 			// Apply type filtering if specified
 			if (request.typeFilter && request.typeFilter.selectedTypes.length > 0) {
@@ -1716,23 +1723,23 @@ export class MessageHandler {
 			// Get current provider and model for provider-specific optimization
 			const currentProvider = await getCurrentProvider();
 			let requestUrl = "http://localhost:7532/optimize/current";
-			
+
 			if (currentProvider?.providerId) {
 				const currentModel = await getSelectedModel(currentProvider.providerId);
 				if (currentModel) {
 					// Add provider and model as query parameters
 					const params = new URLSearchParams({
 						provider: currentProvider.providerId,
-						model: currentModel
+						model: currentModel,
 					});
 					requestUrl += `?${params.toString()}`;
-					
+
 					console.log(
-						`Requesting optimized prompt for ${currentProvider.providerId}+${currentModel}`
+						`Requesting optimized prompt for ${currentProvider.providerId}+${currentModel}`,
 					);
 				} else {
 					console.log(
-						`No model selected for ${currentProvider.providerId}, using generic optimization`
+						`No model selected for ${currentProvider.providerId}, using generic optimization`,
 					);
 				}
 			} else {
@@ -1755,12 +1762,14 @@ export class MessageHandler {
 			// Only return if we have a valid prompt with decent performance
 			if (result?.prompt && result.version > 0) {
 				// Log which type of optimization was used
-				const optimizationType = result.providerSpecific 
+				const optimizationType = result.providerSpecific
 					? `provider-specific (${result.modelProvider}+${result.modelName})`
-					: result.fallbackUsed 
-						? "generic fallback" 
+					: result.fallbackUsed
+						? "generic fallback"
 						: "standard";
-				console.log(`Using ${optimizationType} optimized prompt v${result.version}`);
+				console.log(
+					`Using ${optimizationType} optimized prompt v${result.version}`,
+				);
 				return result;
 			}
 			return null;

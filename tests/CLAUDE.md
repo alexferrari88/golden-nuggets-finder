@@ -10,6 +10,7 @@ This document covers the testing strategy, setup, and best practices for the Gol
 - **Focus**: Individual components and utilities
 - **Coverage**: Excludes UI entry points but covers core logic
 - **Locations**: Tests exist in both `src/` directories (component tests) and `tests/unit/` (integration unit tests)
+- **Test Counts**: 16 component tests in `src/` directories, 17 integration unit tests in `tests/unit/`
 
 ### End-to-End Testing
 - **Framework**: Playwright
@@ -17,6 +18,7 @@ This document covers the testing strategy, setup, and best practices for the Gol
 - **Environment**: Chrome browser with extension loaded via official Playwright extension testing
 - **Coverage**: Extension loading, service worker, extension pages, basic UI smoke tests
 - **Architecture**: Simple fixtures following Playwright's official Chrome extension documentation
+- **Test Count**: 11 E2E spec files covering extension infrastructure and workflows
 
 ### Component Testing
 - **Framework**: Vitest
@@ -30,6 +32,7 @@ This document covers the testing strategy, setup, and best practices for the Gol
 - **Focus**: Multi-provider integration, API response validation, schema compliance
 - **Coverage**: Cross-component workflows and provider interoperability
 - **Location**: Tests located in `tests/integration/` directory
+- **Test Count**: 1 integration test file with real API validation
 
 ### Manual Testing
 - **Focus**: Full user workflows requiring content script injection
@@ -169,6 +172,11 @@ Documentation and guides for manual testing scenarios:
 - `pnpm test:watch` - Run tests in watch mode
 - `pnpm test:coverage` - Run tests with coverage report
 
+### Integration Tests
+- `pnpm test:integration` - Run integration tests with real API calls
+- `pnpm test:integration:watch` - Run integration tests in watch mode
+- `pnpm test:integration:ui` - Run integration tests with UI
+
 ### E2E Tests
 - `pnpm test:e2e` - Run E2E tests with Playwright (builds extension first with `build:dev`)
 - `pnpm test:e2e:ui` - Run E2E tests with UI (builds extension first)
@@ -198,6 +206,12 @@ Documentation and guides for manual testing scenarios:
 - **Purpose**: Use `tests/fixtures/` for test data and mocks
 - **Content**: Sample HTML pages, API responses, test data
 - **Organization**: Organize by test type and component
+
+#### Available Test Fixtures
+- `hn-story-2025.html` - HackerNews story page for content extraction testing
+- `reddit-thread-2025.html` - Reddit discussion thread for content extraction testing
+- `twitter-thread-2025.html` - Twitter thread page for social media content extraction testing
+- `mock-data.ts` - Mock API responses and test data objects
 
 ### Mock Strategy
 - Mock external APIs (Google Gemini) for predictable testing
