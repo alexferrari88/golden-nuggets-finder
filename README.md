@@ -1,5 +1,7 @@
 # Golden Nugget Finder 🔍✨
 
+> ⚠️ **Active Development Notice**: This project is in active development and may experience breaking changes. Features and APIs are subject to change without notice. Use at your own discretion.
+
 An intelligent Chrome extension with backend infrastructure that extracts high-signal, actionable insights ("Golden Nuggets") from any webpage using multiple AI providers, with specialized functionality for discussion threads and comprehensive feedback optimization.
 
 ## Overview
