@@ -3,7 +3,7 @@ import { expect, test } from "./fixtures";
 test.describe("HackerNews Analysis", () => {
 	test("can load and analyze HackerNews discussion page", async ({
 		context,
-		_extensionId,
+		extensionId,
 	}) => {
 		const page = await context.newPage();
 
@@ -65,7 +65,7 @@ test.describe("HackerNews Analysis", () => {
 
 	test("can simulate extension analysis on HackerNews page", async ({
 		context,
-		_extensionId,
+		extensionId,
 	}) => {
 		const page = await context.newPage();
 
@@ -122,7 +122,7 @@ test.describe("HackerNews Analysis", () => {
 
 	test("can test HackerNews content structure for highlighting", async ({
 		context,
-		_extensionId,
+		extensionId,
 	}) => {
 		const page = await context.newPage();
 
