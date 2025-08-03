@@ -216,8 +216,8 @@ test.describe("Golden Nuggets API Integration", () => {
 			};
 
 			return {
-				validationPassed: validateGoldenNuggets(validResponse),
-				validationFailed: !validateGoldenNuggets(invalidResponse),
+				validationPassed: validateGoldenNuggets(validResponse as any),
+				validationFailed: !validateGoldenNuggets(invalidResponse as any),
 			};
 		});
 

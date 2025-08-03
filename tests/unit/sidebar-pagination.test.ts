@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  */
 
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Sidebar } from "../../src/content/ui/sidebar";
 import type { GoldenNugget, SidebarNuggetItem } from "../../src/shared/types";
 

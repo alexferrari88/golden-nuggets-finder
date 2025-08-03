@@ -497,8 +497,8 @@ test.describe("Highlighter Substack TDD", () => {
         }
 
         // Make available globally for tests
-        window.Highlighter = Highlighter;
-        window.testGoldenNuggets = ${JSON.stringify(GOLDEN_NUGGETS)};
+        (window as any).Highlighter = Highlighter;
+        (window as any).testGoldenNuggets = ${JSON.stringify(GOLDEN_NUGGETS)};
       `,
 		});
 	});
@@ -552,10 +552,10 @@ test.describe("Highlighter Substack TDD", () => {
 		cleanPage,
 	}) => {
 		const results = await cleanPage.evaluate(() => {
-			const highlighter = new window.Highlighter();
+			const highlighter = new (window as any).Highlighter();
 			const results = [];
 
-			for (const nugget of window.testGoldenNuggets) {
+			for (const nugget of (window as any).testGoldenNuggets) {
 				const highlighted = highlighter.highlightNugget(nugget);
 				results.push({ nugget, highlighted });
 			}
@@ -587,9 +587,9 @@ test.describe("Highlighter Substack TDD", () => {
 		const originalContent = await cleanPage.textContent("body");
 
 		await cleanPage.evaluate(() => {
-			const highlighter = new window.Highlighter();
+			const highlighter = new (window as any).Highlighter();
 
-			for (const nugget of window.testGoldenNuggets) {
+			for (const nugget of (window as any).testGoldenNuggets) {
 				highlighter.highlightNugget(nugget);
 			}
 		});
@@ -610,7 +610,7 @@ test.describe("Highlighter Substack TDD", () => {
 
 	test("should clear highlights without errors", async ({ cleanPage }) => {
 		await cleanPage.evaluate(() => {
-			const highlighter = new window.Highlighter();
+			const highlighter = new (window as any).Highlighter();
 			highlighter.clearHighlights(); // Should not throw
 		});
 
@@ -625,8 +625,8 @@ test.describe("Highlighter Substack TDD", () => {
 		cleanPage,
 	}) => {
 		const debug = await cleanPage.evaluate(() => {
-			const highlighter = new window.Highlighter();
-			const nugget = window.testGoldenNuggets[0]; // "I think vision is" -> "and to ourselves."
+			const highlighter = new (window as any).Highlighter();
+			const nugget = (window as any).testGoldenNuggets[0]; // "I think vision is" -> "and to ourselves."
 
 			const result = highlighter.highlightNugget(nugget);
 
@@ -658,10 +658,10 @@ test.describe("Highlighter Substack TDD", () => {
 		cleanPage,
 	}) => {
 		const results = await cleanPage.evaluate(() => {
-			const highlighter = new window.Highlighter();
+			const highlighter = new (window as any).Highlighter();
 			const results = [];
 
-			for (const nugget of window.testGoldenNuggets) {
+			for (const nugget of (window as any).testGoldenNuggets) {
 				const highlighted = highlighter.highlightNugget(nugget);
 				results.push({ nugget, highlighted });
 			}
@@ -699,8 +699,8 @@ test.describe("Highlighter Substack TDD", () => {
 
 	test("should not create duplicate highlights", async ({ cleanPage }) => {
 		const result = await cleanPage.evaluate(() => {
-			const highlighter = new window.Highlighter();
-			const nugget = window.testGoldenNuggets[0];
+			const highlighter = new (window as any).Highlighter();
+			const nugget = (window as any).testGoldenNuggets[0];
 
 			// Highlight the same nugget twice
 			const first = highlighter.highlightNugget(nugget);
@@ -731,9 +731,9 @@ test.describe("Highlighter Substack TDD", () => {
 		const originalContent = await cleanPage.textContent("body");
 
 		await cleanPage.evaluate(() => {
-			const highlighter = new window.Highlighter();
+			const highlighter = new (window as any).Highlighter();
 
-			for (const nugget of window.testGoldenNuggets) {
+			for (const nugget of (window as any).testGoldenNuggets) {
 				highlighter.highlightNugget(nugget);
 			}
 		});
@@ -744,8 +744,8 @@ test.describe("Highlighter Substack TDD", () => {
 
 	test("should apply correct highlighting styles", async ({ cleanPage }) => {
 		const result = await cleanPage.evaluate(() => {
-			const highlighter = new window.Highlighter();
-			const nugget = window.testGoldenNuggets[0];
+			const highlighter = new (window as any).Highlighter();
+			const nugget = (window as any).testGoldenNuggets[0];
 			const success = highlighter.highlightNugget(nugget);
 
 			return {
@@ -786,8 +786,8 @@ test.describe("Highlighter Substack TDD", () => {
 
 	test("should scroll to highlighted content", async ({ cleanPage }) => {
 		const result = await cleanPage.evaluate(() => {
-			const highlighter = new window.Highlighter();
-			const nugget = window.testGoldenNuggets[0];
+			const highlighter = new (window as any).Highlighter();
+			const nugget = (window as any).testGoldenNuggets[0];
 			const highlighted = highlighter.highlightNugget(nugget);
 
 			// Get initial scroll position
@@ -822,10 +822,10 @@ test.describe("Highlighter Substack TDD", () => {
 
 	test("should clear all highlights", async ({ cleanPage }) => {
 		const result = await cleanPage.evaluate(() => {
-			const highlighter = new window.Highlighter();
+			const highlighter = new (window as any).Highlighter();
 
 			// Add all highlights
-			for (const nugget of window.testGoldenNuggets) {
+			for (const nugget of (window as any).testGoldenNuggets) {
 				highlighter.highlightNugget(nugget);
 			}
 
@@ -868,7 +868,7 @@ test.describe("Highlighter Substack TDD", () => {
 		cleanPage,
 	}) => {
 		const result = await cleanPage.evaluate(() => {
-			const highlighter = new window.Highlighter();
+			const highlighter = new (window as any).Highlighter();
 
 			// Test the specific nugget that was causing content to disappear
 			const specificNugget = {
@@ -926,7 +926,7 @@ test.describe("Highlighter Substack TDD", () => {
 		cleanPage,
 	}) => {
 		const result = await cleanPage.evaluate(() => {
-			const highlighter = new window.Highlighter();
+			const highlighter = new (window as any).Highlighter();
 
 			// Create a test scenario that demonstrates the fix
 			const testDiv = document.createElement("div");

@@ -49,7 +49,7 @@ describe("Progress Tracking Integration Tests", () => {
 			},
 		};
 
-		global.chrome = mockChrome;
+		(global as any).chrome = mockChrome;
 
 		// Mock UI Manager for progress handling
 		mockUIManager = {
@@ -133,10 +133,11 @@ describe("Progress Tracking Integration Tests", () => {
 			expect(runtimeMessages).toHaveLength(5);
 
 			runtimeMessages.forEach((item, index) => {
-				expect(item.message.analysisId).toBe(analysisId);
-				expect(item.message.source).toBe(source);
-				expect(item.message.step).toBe(progressSteps[index].step);
-				expect(item.message.type).toBe(progressSteps[index].type);
+				const message = item.message as any;
+				expect(message.analysisId).toBe(analysisId);
+				expect(message.source).toBe(source);
+				expect(message.step).toBe(progressSteps[index].step);
+				expect(message.type).toBe(progressSteps[index].type);
 			});
 
 			// Verify tab messages
@@ -147,8 +148,9 @@ describe("Progress Tracking Integration Tests", () => {
 
 			tabMessages.forEach((item, index) => {
 				expect(item.tabId).toBe(tabId);
-				expect(item.message.analysisId).toBe(analysisId);
-				expect(item.message.step).toBe(progressSteps[index].step);
+				const message = item.message as any;
+				expect(message.analysisId).toBe(analysisId);
+				expect(message.step).toBe(progressSteps[index].step);
 			});
 
 			// Verify UI manager received all progress updates
@@ -255,10 +257,10 @@ describe("Progress Tracking Integration Tests", () => {
 
 			// Verify messages were routed correctly based on source
 			const contextMenuMessages = progressMessageQueue.filter(
-				(item) => item.message.source === "context-menu",
+				(item) => (item.message as any).source === "context-menu",
 			);
 			const popupMessages = progressMessageQueue.filter(
-				(item) => item.message.source === "popup",
+				(item) => (item.message as any).source === "popup",
 			);
 
 			expect(contextMenuMessages).toHaveLength(2); // tab + runtime
@@ -266,7 +268,7 @@ describe("Progress Tracking Integration Tests", () => {
 
 			// Verify popup messages are sent to runtime for popup display
 			const popupRuntimeMessages = progressMessageQueue.filter(
-				(item) => item.target === "runtime" && item.message.source === "popup",
+				(item) => item.target === "runtime" && (item.message as any).source === "popup",
 			);
 			expect(popupRuntimeMessages).toHaveLength(1);
 		});
@@ -303,8 +305,9 @@ describe("Progress Tracking Integration Tests", () => {
 
 			// Verify messages maintained sequence
 			tabMessages.forEach((item, index) => {
-				expect(item.message.sequenceNumber).toBe(index + 1);
-				expect(item.message.message).toBe(`Rapid update ${index + 1}`);
+				const message = item.message as any;
+				expect(message.sequenceNumber).toBe(index + 1);
+				expect(message.message).toBe(`Rapid update ${index + 1}`);
 			});
 		});
 
@@ -345,11 +348,11 @@ describe("Progress Tracking Integration Tests", () => {
 
 			const tabMessages = progressMessageQueue
 				.filter((item) => item.target === "tab")
-				.map((item) => item.message);
+				.map((item) => item.message as any);
 
 			// Verify messages can be reordered by timestamp
 			const sortedByTimestamp = [...tabMessages].sort(
-				(a, b) => a.timestamp - b.timestamp,
+				(a: any, b: any) => a.timestamp - b.timestamp,
 			);
 
 			expect(sortedByTimestamp[0].step).toBe(1);
@@ -386,11 +389,11 @@ describe("Progress Tracking Integration Tests", () => {
 			}
 
 			function cleanupExpiredSessions(currentTime: number) {
-				for (const [id, session] of activeProgressSessions.entries()) {
+				Array.from(activeProgressSessions.entries()).forEach(([id, session]) => {
 					if (currentTime - session.lastUpdate > PROGRESS_TIMEOUT) {
 						activeProgressSessions.delete(id);
 					}
-				}
+				});
 			}
 
 			// Start progress session
@@ -732,7 +735,7 @@ describe("Progress Tracking Integration Tests", () => {
 				await mockChrome.tabs.sendMessage(tabId, errorProgressMessage);
 			} catch (error) {
 				// Handle the error in UI
-				uiErrorHandler.handleProgressError(analysisId, error.message);
+				uiErrorHandler.handleProgressError(analysisId, (error as Error).message);
 				mockUIManager.showLoadingIndicator = vi.fn(); // Reset loading state
 			}
 

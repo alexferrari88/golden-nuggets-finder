@@ -1,4 +1,4 @@
-import path from "node:path";
+import * as path from "node:path";
 import {
 	type BrowserContext,
 	test as base,
@@ -97,13 +97,13 @@ export const test = base.extend<{
 			const originalQuery = window.navigator.permissions.query;
 			window.navigator.permissions.query = (parameters) =>
 				parameters.name === "notifications"
-					? Promise.resolve({ state: Notification.permission })
+					? Promise.resolve({ state: Notification.permission } as PermissionStatus)
 					: originalQuery(parameters);
 
 			// Hide automation indicators
-			delete window.cdc_adoQpoasnfa76pfcZLmcfl_Array;
-			delete window.cdc_adoQpoasnfa76pfcZLmcfl_Promise;
-			delete window.cdc_adoQpoasnfa76pfcZLmcfl_Symbol;
+			delete (window as any).cdc_adoQpoasnfa76pfcZLmcfl_Array;
+			delete (window as any).cdc_adoQpoasnfa76pfcZLmcfl_Promise;
+			delete (window as any).cdc_adoQpoasnfa76pfcZLmcfl_Symbol;
 		});
 
 		await use(context);
@@ -117,7 +117,7 @@ export const test = base.extend<{
 });
 
 // Additional stealth test variant using playwright-extra
-let stealthChromium: typeof import("playwright-extra").chromium | null = null;
+let stealthChromium: any = null;
 
 export const stealthTest = base.extend<{
 	stealthContext: BrowserContext;

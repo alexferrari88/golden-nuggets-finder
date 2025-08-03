@@ -71,9 +71,9 @@ test.describe("Multi-Provider Integration", () => {
 		});
 
 		// Test should pass if either old or new storage format exists
-		const _hasGeminiKey = "geminiApiKey" in storageData;
-		const _hasSelectedProvider = "selectedProvider" in storageData;
-		const _hasProviderSettings = "providerSettings" in storageData;
+		const _hasGeminiKey = "geminiApiKey" in (storageData as any);
+		const _hasSelectedProvider = "selectedProvider" in (storageData as any);
+		const _hasProviderSettings = "providerSettings" in (storageData as any);
 
 		// Should have either existing Gemini config or new multi-provider config
 		// For now, just verify basic storage functionality exists
@@ -194,7 +194,7 @@ test.describe("Multi-Provider Integration", () => {
 
 		// If migration is implemented, should also have new fields
 		const hasMigrationFields =
-			"selectedProvider" in storageData || "migrationVersion" in storageData;
+			"selectedProvider" in (storageData as any) || "migrationVersion" in (storageData as any);
 
 		if (hasMigrationFields) {
 			// Migration was run - verify it preserved data
@@ -419,7 +419,7 @@ test.describe("Multi-Provider Regression Tests", () => {
 
 		expect(storageData).toHaveProperty("geminiApiKey", "existing-gemini-key");
 		expect(storageData).toHaveProperty("userPrompts");
-		expect(Array.isArray(storageData.userPrompts)).toBe(true);
+		expect(Array.isArray((storageData as any).userPrompts)).toBe(true);
 
 		await optionsPage.close();
 	});

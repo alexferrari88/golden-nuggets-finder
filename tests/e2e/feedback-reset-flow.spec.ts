@@ -12,7 +12,7 @@ test.describe("Feedback Reset Flow", () => {
 		// Mock the Golden Nuggets analysis to return some test nuggets
 		await page.evaluate(() => {
 			// Mock the content script being injected
-			window.mockNuggets = [
+			(window as any).mockNuggets = [
 				{
 					type: "tool",
 					startContent: "This is a useful tool",
@@ -61,11 +61,11 @@ test.describe("Feedback Reset Flow", () => {
 
 			// In the actual implementation, this would go through chrome.runtime.sendMessage
 			// For testing, we'll simulate the behavior
-			window.mockResetFeedback = mockMessage;
+			(window as any).mockResetFeedback = mockMessage;
 		});
 
 		// Verify the reset message was prepared
-		const resetMessage = await page.evaluate(() => window.mockResetFeedback);
+		const resetMessage = await page.evaluate(() => (window as any).mockResetFeedback);
 		expect(resetMessage).toEqual({
 			type: "DELETE_NUGGET_FEEDBACK",
 			feedbackId: "test-feedback-123",
@@ -169,12 +169,12 @@ test.describe("Feedback Reset Flow", () => {
 			// Add event listeners
 			cancelBtn.addEventListener("click", () => {
 				document.body.removeChild(overlay);
-				window.mockModalAction = "cancelled";
+				(window as any).mockModalAction = "cancelled";
 			});
 
 			resetBtn.addEventListener("click", () => {
 				document.body.removeChild(overlay);
-				window.mockModalAction = "confirmed";
+				(window as any).mockModalAction = "confirmed";
 			});
 		});
 
@@ -190,13 +190,13 @@ test.describe("Feedback Reset Flow", () => {
 			page.locator("#reset-confirmation-overlay"),
 		).not.toBeAttached();
 
-		const cancelAction = await page.evaluate(() => window.mockModalAction);
+		const cancelAction = await page.evaluate(() => (window as any).mockModalAction);
 		expect(cancelAction).toBe("cancelled");
 
 		// Re-create modal for confirm test
 		await page.evaluate(() => {
 			// Reset the action variable
-			window.mockModalAction = null;
+			(window as any).mockModalAction = null;
 
 			// Recreate the modal (same code as above, but could be extracted to a function)
 			const overlay = document.createElement("div");
@@ -256,7 +256,7 @@ test.describe("Feedback Reset Flow", () => {
 
 			resetBtn.addEventListener("click", () => {
 				document.body.removeChild(overlay);
-				window.mockModalAction = "confirmed";
+				(window as any).mockModalAction = "confirmed";
 			});
 		});
 
@@ -268,7 +268,7 @@ test.describe("Feedback Reset Flow", () => {
 			page.locator("#reset-confirmation-overlay"),
 		).not.toBeAttached();
 
-		const confirmAction = await page.evaluate(() => window.mockModalAction);
+		const confirmAction = await page.evaluate(() => (window as any).mockModalAction);
 		expect(confirmAction).toBe("confirmed");
 
 		await page.close();
@@ -351,13 +351,13 @@ test.describe("Feedback Reset Flow", () => {
 		await page.evaluate(() => {
 			const resetBtn = document.querySelector(".feedback-reset-btn");
 			resetBtn.addEventListener("click", () => {
-				window.resetButtonClicked = true;
+				(window as any).resetButtonClicked = true;
 			});
 		});
 
 		await resetBtn.click();
 
-		const wasClicked = await page.evaluate(() => window.resetButtonClicked);
+		const wasClicked = await page.evaluate(() => (window as any).resetButtonClicked);
 		expect(wasClicked).toBe(true);
 
 		await page.close();
