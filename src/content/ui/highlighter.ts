@@ -9,13 +9,26 @@ import type { GoldenNugget } from "../../shared/types";
 // Type declarations for CSS Custom Highlight API
 declare global {
 	interface Window {
-		Highlight: typeof Highlight;
+		Highlight: typeof BrowserHighlight;
 	}
-	class Highlight {
+	class BrowserHighlight {
 		constructor(...ranges: Range[]);
+		add(range: Range): void;
+		clear(): void;
+		delete(range: Range): boolean;
+		forEach(callbackfn: (value: Range, value2: Range, set: BrowserHighlight) => void, thisArg?: unknown): void;
+		has(range: Range): boolean;
+		readonly size: number;
+		readonly priority: number;
+		readonly type: string;
+		readonly [Symbol.toStringTag]: string;
+		[Symbol.iterator](): IterableIterator<Range>;
+		entries(): IterableIterator<[Range, Range]>;
+		keys(): IterableIterator<Range>;
+		values(): IterableIterator<Range>;
 	}
 	interface CSS {
-		highlights: Map<string, Highlight>;
+		highlights: Map<string, BrowserHighlight>;
 	}
 }
 
@@ -23,7 +36,7 @@ export class Highlighter {
 	private highlightedElements: HTMLElement[] = [];
 	private cssHighlights: Map<string, { range: Range; nugget: GoldenNugget }> =
 		new Map();
-	private globalHighlight: Highlight | null = null;
+	private globalHighlight: BrowserHighlight | null = null;
 	private highlightClassName = "golden-nugget-highlight";
 	private cssHighlightSupported: boolean;
 
@@ -339,7 +352,7 @@ export class Highlighter {
 		return (
 			typeof CSS !== "undefined" &&
 			CSS.highlights !== undefined &&
-			typeof Highlight !== "undefined"
+			typeof window.Highlight !== "undefined"
 		);
 	}
 
@@ -387,7 +400,7 @@ export class Highlighter {
 
 			// Create global highlight object if it doesn't exist
 			if (!this.globalHighlight) {
-				this.globalHighlight = new Highlight();
+				this.globalHighlight = new window.Highlight();
 				CSS.highlights.set("golden-nugget", this.globalHighlight);
 			}
 

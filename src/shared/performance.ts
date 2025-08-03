@@ -3,6 +3,19 @@
  */
 import { isDevMode } from "./debug";
 
+// Type declarations for Chrome-specific Performance.memory API
+interface MemoryInfo {
+	usedJSHeapSize: number;
+	totalJSHeapSize: number;
+	jsHeapSizeLimit: number;
+}
+
+declare global {
+	interface Performance {
+		memory?: MemoryInfo;
+	}
+}
+
 export class PerformanceMonitor {
 	private static instance: PerformanceMonitor;
 	private metrics: Map<string, number[]> = new Map();
@@ -123,9 +136,7 @@ export class PerformanceMonitor {
 	measureMemory(): void {
 		if (!this.enabled) return;
 
-		// @ts-ignore - performance.memory is available in Chrome
 		if (performance.memory) {
-			// @ts-ignore
 			const { usedJSHeapSize, totalJSHeapSize, jsHeapSizeLimit } =
 				performance.memory;
 			console.log(

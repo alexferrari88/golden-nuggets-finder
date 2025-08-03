@@ -45,7 +45,7 @@ function truncateErrorMessage(
 
 export class NotificationManager {
 	private currentBanner: HTMLElement | null = null;
-	private autoHideTimeout: number | null = null;
+	private autoHideTimeout: ReturnType<typeof setTimeout> | null = null;
 
 	showProgress(message: string): void {
 		this.hideBanner();

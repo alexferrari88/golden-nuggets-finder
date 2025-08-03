@@ -16,6 +16,7 @@ import { ALL_NUGGET_TYPES, type GoldenNuggetType } from "../../shared/schemas";
 import { storage } from "../../shared/storage";
 import {
 	type FeedbackRating,
+	type GoldenNugget,
 	MESSAGE_TYPES,
 	type NuggetFeedback,
 	type ProviderId,
@@ -24,7 +25,7 @@ import {
 import type { Highlighter } from "./highlighter";
 
 // Extended nugget interface for UI operations
-interface EnhancedGoldenNugget extends SidebarNuggetItem['nugget'] {
+interface EnhancedGoldenNugget extends GoldenNugget {
 	_fullContent?: string; // Enhanced content from UIManager
 	content?: string; // Legacy content field during transition
 }

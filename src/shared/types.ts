@@ -1,4 +1,5 @@
 import type { GoldenNuggetType } from "./schemas";
+import type { ProviderId } from "./types/providers";
 
 // Export provider types for multi-LLM support
 export * from "./types/providers";
@@ -69,6 +70,7 @@ export interface SidebarNuggetItem {
 	nugget: GoldenNugget;
 	status: "highlighted" | "not-found";
 	selected: boolean;
+	highlightVisited?: boolean; // Track if highlighted item was clicked
 	feedback?: NuggetFeedback;
 }
 

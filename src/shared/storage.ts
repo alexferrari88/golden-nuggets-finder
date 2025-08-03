@@ -660,5 +660,5 @@ export async function validateMigration(): Promise<boolean> {
 
 export const storage = StorageManager.getInstance();
 
-// Export the new multi-provider API key storage
-export { ApiKeyStorage } from "./storage/api-key-storage";
+// Export the new multi-provider API key storage functions
+export * as ApiKeyStorage from "./storage/api-key-storage";
