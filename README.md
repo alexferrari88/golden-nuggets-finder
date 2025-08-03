@@ -70,7 +70,7 @@ pnpm build
    - Open Chrome and go to `chrome://extensions/`
    - Enable "Developer mode"
    - Click "Load unpacked"
-   - Select the `dist/chrome-mv3-prod` directory
+   - Select the `dist/chrome-mv3` directory
 
 ## Usage
 

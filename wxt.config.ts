@@ -11,7 +11,7 @@ export default defineConfig({
 	manifest: {
 		name: "Golden Nugget Finder",
 		description: "Extract high-value insights from web content using AI",
-		version: "1.0.0",
+		version: "1.1.0",
 		icons: {
 			16: "assets/icon16.png",
 			32: "assets/icon32.png",
