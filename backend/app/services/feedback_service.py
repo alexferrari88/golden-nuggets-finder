@@ -666,7 +666,7 @@ class FeedbackService:
                     id, nugget_content as content, rating,
                     original_type, corrected_type, url,
                     processed, last_used_at, usage_count,
-                    client_timestamp, created_at
+                    client_timestamp, created_at, model_provider, model_name
                 FROM nugget_feedback
                 WHERE processed = FALSE
                 ORDER BY created_at DESC
@@ -692,6 +692,8 @@ class FeedbackService:
                         "usage_count": item[9],
                         "client_timestamp": item[10],
                         "created_at": item[11],
+                        "model_provider": item[12],
+                        "model_name": item[13],
                     }
                 )
 
@@ -707,7 +709,7 @@ class FeedbackService:
                     'missing_content' as feedback_type,
                     id, content, suggested_type, url,
                     processed, last_used_at, usage_count,
-                    client_timestamp, created_at
+                    client_timestamp, created_at, model_provider, model_name
                 FROM missing_content_feedback
                 WHERE processed = FALSE
                 ORDER BY created_at DESC
@@ -731,6 +733,8 @@ class FeedbackService:
                         "usage_count": item[7],
                         "client_timestamp": item[8],
                         "created_at": item[9],
+                        "model_provider": item[10],
+                        "model_name": item[11],
                     }
                 )
 
