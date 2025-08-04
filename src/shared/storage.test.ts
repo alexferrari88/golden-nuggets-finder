@@ -431,4 +431,95 @@ describe("StorageManager", () => {
 			// No exception should be thrown
 		});
 	});
+
+	describe("Analysis State Management", () => {
+		it("should save analysis state to storage", async () => {
+			const testState = {
+				analysisId: "test-save-basic",
+				promptName: "Save Test",
+				startTime: Date.now(),
+				source: "popup" as const,
+				currentPhase: 1,
+				completedPhases: [0],
+				aiStartTime: Date.now() + 1000,
+			};
+
+			mockChrome.storage.local.set.mockResolvedValueOnce(undefined);
+
+			await storageManager.setAnalysisState(testState);
+
+			expect(mockChrome.storage.local.set).toHaveBeenCalledWith({
+				analysisState: testState,
+			});
+		});
+
+		it("should clear analysis state from storage", async () => {
+			mockChrome.storage.local.remove.mockResolvedValueOnce(undefined);
+
+			await storageManager.clearAnalysisState();
+
+			expect(mockChrome.storage.local.remove).toHaveBeenCalledWith("analysisState");
+		});
+
+		it("should propagate storage errors in setAnalysisState", async () => {
+			const testState = {
+				analysisId: "error-test",
+				promptName: "Error Test",
+				startTime: Date.now(),
+				source: "popup" as const,
+				currentPhase: 1,
+				completedPhases: [0],
+			};
+
+			mockChrome.storage.local.set.mockRejectedValueOnce(new Error("Storage full"));
+
+			await expect(storageManager.setAnalysisState(testState)).rejects.toThrow("Storage full");
+		});
+
+		it("should propagate storage errors in clearAnalysisState", async () => {
+			mockChrome.storage.local.remove.mockRejectedValueOnce(new Error("Permission denied"));
+
+			await expect(storageManager.clearAnalysisState()).rejects.toThrow("Permission denied");
+		});
+
+		it("should handle states with all required fields", async () => {
+			const fullState = {
+				analysisId: "full-test",
+				promptName: "Full Test",
+				startTime: Date.now(),
+				source: "context-menu" as const,
+				currentPhase: 2,
+				completedPhases: [0, 1],
+				aiStartTime: Date.now() + 1000,
+			};
+
+			mockChrome.storage.local.set.mockResolvedValueOnce(undefined);
+
+			await storageManager.setAnalysisState(fullState);
+
+			expect(mockChrome.storage.local.set).toHaveBeenCalledWith({
+				analysisState: fullState,
+			});
+		});
+
+		it("should handle states with minimal required fields", async () => {
+			const minimalState = {
+				analysisId: "minimal-test",
+				promptName: "Minimal",
+				startTime: Date.now(),
+				source: "popup" as const,
+				currentPhase: 0,
+				completedPhases: [],
+				// aiStartTime is optional
+			};
+
+			mockChrome.storage.local.set.mockResolvedValueOnce(undefined);
+
+			await storageManager.setAnalysisState(minimalState);
+
+			expect(mockChrome.storage.local.set).toHaveBeenCalledWith({
+				analysisState: minimalState,
+			});
+		});
+	});
 });

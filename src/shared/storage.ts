@@ -5,7 +5,11 @@ import {
 	type EncryptedData,
 	securityManager,
 } from "./security";
-import type { ExtensionConfig, SavedPrompt } from "./types";
+import type {
+	ExtensionConfig,
+	PersistentAnalysisState,
+	SavedPrompt,
+} from "./types";
 
 export class StorageManager {
 	private static instance: StorageManager;
@@ -336,6 +340,51 @@ export class StorageManager {
 			this.clearCache("full_config"); // Clear config cache since it includes synthesis preference
 		} catch (error) {
 			console.error("Failed to save synthesis preference:", error);
+			throw error;
+		}
+	}
+
+	// Analysis state management for popup persistence
+	async getAnalysisState(): Promise<PersistentAnalysisState | null> {
+		try {
+			const cached = this.getFromCache(STORAGE_KEYS.ANALYSIS_STATE);
+			if (cached !== null) {
+				return cached;
+			}
+
+			const result = await chrome.storage.local.get(
+				STORAGE_KEYS.ANALYSIS_STATE,
+			);
+			const state = result[STORAGE_KEYS.ANALYSIS_STATE] || null;
+
+			if (state) {
+				this.setCache(STORAGE_KEYS.ANALYSIS_STATE, state);
+			}
+			return state;
+		} catch (error) {
+			console.warn("Failed to get analysis state:", error);
+			return null; // Safe default
+		}
+	}
+
+	async setAnalysisState(state: PersistentAnalysisState): Promise<void> {
+		try {
+			await chrome.storage.local.set({
+				[STORAGE_KEYS.ANALYSIS_STATE]: state,
+			});
+			this.setCache(STORAGE_KEYS.ANALYSIS_STATE, state);
+		} catch (error) {
+			console.error("Failed to save analysis state:", error);
+			throw error;
+		}
+	}
+
+	async clearAnalysisState(): Promise<void> {
+		try {
+			await chrome.storage.local.remove(STORAGE_KEYS.ANALYSIS_STATE);
+			this.clearCache(STORAGE_KEYS.ANALYSIS_STATE);
+		} catch (error) {
+			console.error("Failed to clear analysis state:", error);
 			throw error;
 		}
 	}

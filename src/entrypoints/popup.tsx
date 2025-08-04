@@ -114,6 +114,11 @@ const useTypingEffect = (text: string, speed: number = 80) => {
 const usePhaseProgression = (
 	isTypingComplete: boolean,
 	analysisId?: string,
+	onStateUpdate?: (
+		currentPhase: number,
+		completedPhases: number[],
+		aiStartTime?: number,
+	) => void,
 ) => {
 	const [currentPhase, setCurrentPhase] = useState(-1);
 	const [completedPhases, setCompletedPhases] = useState<number[]>([]);
@@ -195,15 +200,26 @@ const usePhaseProgression = (
 				// Set current phase if not completing
 				if (!shouldComplete) {
 					setCurrentPhase(phaseIndex);
+					// Update persistent state
+					if (onStateUpdate) {
+						onStateUpdate(phaseIndex, completedPhases, aiStartTime);
+					}
 				}
 
 				// Mark as completed if this is a completion message
 				if (shouldComplete) {
 					setCompletedPhases((prev) => {
-						if (!prev.includes(phaseIndex)) {
-							return [...prev, phaseIndex];
+						const newCompleted = !prev.includes(phaseIndex)
+							? [...prev, phaseIndex]
+							: prev;
+
+						// Update persistent state with new completed phases
+						if (onStateUpdate && newCompleted !== prev) {
+							const newCurrentPhase = phaseIndex < 2 ? -1 : phaseIndex;
+							onStateUpdate(newCurrentPhase, newCompleted, aiStartTime);
 						}
-						return prev;
+
+						return newCompleted;
 					});
 
 					// Clear current phase if completing
@@ -213,7 +229,7 @@ const usePhaseProgression = (
 				}
 			}
 		},
-		[],
+		[completedPhases, aiStartTime, onStateUpdate],
 	);
 
 	const startFallbackAnimation = useCallback(async () => {
@@ -336,6 +352,33 @@ function IndexPopup() {
 		analyzing ? "Analyzing your content..." : "",
 		80,
 	);
+
+	// Callback to update persistent analysis state
+	const updateAnalysisState = useCallback(
+		async (
+			currentPhase: number,
+			completedPhases: number[],
+			aiStartTime?: number,
+		) => {
+			if (currentAnalysisId && analyzing) {
+				try {
+					await storage.setAnalysisState({
+						analysisId: currentAnalysisId,
+						promptName: analyzing,
+						startTime: Date.now(), // We don't have the original start time here, so use current
+						source: "popup",
+						currentPhase,
+						completedPhases,
+						aiStartTime,
+					});
+				} catch (error) {
+					console.warn("Failed to update analysis state:", error);
+				}
+			}
+		},
+		[currentAnalysisId, analyzing],
+	);
+
 	const {
 		currentPhase,
 		completedPhases,
@@ -343,7 +386,11 @@ function IndexPopup() {
 		aiStartTime,
 		processRealTimePhase,
 		completeAllPhases,
-	} = usePhaseProgression(isComplete, currentAnalysisId || undefined);
+	} = usePhaseProgression(
+		isComplete,
+		currentAnalysisId || undefined,
+		updateAnalysisState,
+	);
 
 	// Use ref to track current analysis ID for message listener
 	const currentAnalysisIdRef = useRef<string | null>(null);
@@ -443,10 +490,78 @@ function IndexPopup() {
 			setLoading(false);
 		}
 	}, []);
+	const restoreAnalysisState = useCallback(async () => {
+		try {
+			const savedState = await storage.getAnalysisState();
+			if (savedState) {
+				console.log("Restoring analysis state:", savedState);
+
+				// Check if analysis is still recent (within 5 minutes)
+				const ageInMinutes = (Date.now() - savedState.startTime) / (1000 * 60);
+				if (ageInMinutes > 5) {
+					console.log("Analysis state too old, clearing it");
+					await storage.clearAnalysisState();
+					return;
+				}
+
+				// Restore UI state
+				setAnalyzing(savedState.promptName);
+				setCurrentAnalysisId(savedState.analysisId);
+				currentAnalysisIdRef.current = savedState.analysisId;
+
+				// Restore phase progression state if available
+				if (
+					savedState.currentPhase >= 0 ||
+					savedState.completedPhases.length > 0
+				) {
+					// Restore completed phases first
+					for (const phaseIndex of savedState.completedPhases) {
+						let messageType: AnalysisProgressMessage["type"];
+						if (phaseIndex === 0) {
+							messageType = MESSAGE_TYPES.ANALYSIS_CONTENT_EXTRACTED;
+						} else if (phaseIndex === 1) {
+							messageType = MESSAGE_TYPES.ANALYSIS_API_RESPONSE_RECEIVED;
+						} else {
+							messageType = MESSAGE_TYPES.ANALYSIS_PROCESSING_RESULTS;
+						}
+
+						processRealTimePhase({
+							type: messageType,
+							step: (phaseIndex + 1) as 1 | 2 | 3 | 4,
+							message: "Restoring completed phase...",
+							timestamp: Date.now(),
+							analysisId: savedState.analysisId,
+							source: savedState.source,
+						} as AnalysisProgressMessage);
+					}
+
+					// If there's a current phase (in progress), restore it
+					if (
+						savedState.currentPhase >= 0 &&
+						!savedState.completedPhases.includes(savedState.currentPhase)
+					) {
+						processRealTimePhase({
+							type: MESSAGE_TYPES.ANALYSIS_API_REQUEST_START,
+							step: 3,
+							message: "Analysis in progress...",
+							timestamp: Date.now(),
+							analysisId: savedState.analysisId,
+							source: savedState.source,
+						} as AnalysisProgressMessage);
+					}
+				}
+			}
+		} catch (error) {
+			console.warn("Failed to restore analysis state:", error);
+			// Clear invalid state
+			storage.clearAnalysisState().catch(() => {});
+		}
+	}, [processRealTimePhase]);
 
 	useEffect(() => {
 		loadPrompts();
 		checkBackendStatus();
+		restoreAnalysisState();
 
 		// Add message listener for analysis completion and progress
 		const messageListener = (
@@ -460,11 +575,17 @@ function IndexPopup() {
 			if (message.type === MESSAGE_TYPES.ANALYSIS_COMPLETE) {
 				completeAllPhases();
 				// Brief delay to show completion, then clear analyzing state
-				cleanupTimeoutRef.current = setTimeout(() => {
+				cleanupTimeoutRef.current = setTimeout(async () => {
 					setAnalyzing(null);
 					setCurrentAnalysisId(null);
 					currentAnalysisIdRef.current = null;
 					cleanupTimeoutRef.current = null;
+					// Clear persisted analysis state
+					try {
+						await storage.clearAnalysisState();
+					} catch (error) {
+						console.warn("Failed to clear analysis state:", error);
+					}
 				}, 600);
 			} else if (message.type === MESSAGE_TYPES.ANALYSIS_ERROR) {
 				completeAllPhases();
@@ -476,6 +597,10 @@ function IndexPopup() {
 				setAnalyzing(null); // Clear analyzing state immediately on error
 				setCurrentAnalysisId(null);
 				currentAnalysisIdRef.current = null;
+				// Clear persisted analysis state immediately on error
+				storage.clearAnalysisState().catch((error) => {
+					console.warn("Failed to clear analysis state on error:", error);
+				});
 				// Display the actual error message to the user
 				setError(message.error || "Analysis failed. Please try again.");
 			}
@@ -508,6 +633,7 @@ function IndexPopup() {
 		completeAllPhases,
 		loadPrompts,
 		processRealTimePhase,
+		restoreAnalysisState,
 	]); // Remove dependencies to prevent infinite re-renders
 
 	const analyzeWithPrompt = async (promptId: string) => {
@@ -524,6 +650,21 @@ function IndexPopup() {
 			setCurrentAnalysisId(analysisId);
 			// Update ref immediately so message listener can access it
 			currentAnalysisIdRef.current = analysisId;
+
+			// Save analysis state for popup persistence
+			try {
+				await storage.setAnalysisState({
+					analysisId,
+					promptName,
+					startTime: Date.now(),
+					source: "popup",
+					currentPhase: -1,
+					completedPhases: [],
+				});
+			} catch (error) {
+				console.warn("Failed to save analysis state:", error);
+				// Continue with analysis even if state saving fails
+			}
 
 			// Get the current active tab
 			const [tab] = await chrome.tabs.query({

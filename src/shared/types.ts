@@ -225,6 +225,17 @@ export interface AnalysisProgressMessage {
 	source?: "popup" | "context-menu"; // Who triggered this analysis
 }
 
+// Persistent analysis state for popup restoration
+export interface PersistentAnalysisState {
+	analysisId: string;
+	promptName: string;
+	startTime: number;
+	source: "popup" | "context-menu";
+	currentPhase: number;
+	completedPhases: number[];
+	aiStartTime?: number;
+}
+
 export interface RateLimitedMessage {
 	type: "ANALYSIS_RATE_LIMITED";
 	provider: string;

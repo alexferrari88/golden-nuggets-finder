@@ -2,6 +2,7 @@ export const STORAGE_KEYS = {
 	API_KEY: "geminiApiKey",
 	PROMPTS: "userPrompts",
 	SYNTHESIS_ENABLED: "synthesisEnabled", // New - consistent naming
+	ANALYSIS_STATE: "analysisState", // Analysis progress state
 } as const;
 
 export const GEMINI_CONFIG = {
