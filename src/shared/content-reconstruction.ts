@@ -6,6 +6,27 @@ import type { GoldenNugget } from "./types";
  */
 
 /**
+ * Sanitizes endContent by removing hallucinated trailing punctuation and whitespace
+ * that LLMs sometimes add to the end of extracted content.
+ *
+ * @param endContent - The endContent string to sanitize
+ * @returns Sanitized endContent without trailing punctuation/whitespace
+ */
+export function sanitizeEndContent(endContent: string): string {
+	// Handle null/undefined input gracefully
+	if (!endContent || typeof endContent !== "string") {
+		return "";
+	}
+
+	// Remove trailing punctuation and whitespace using regex
+	// This matches any combination of punctuation (.,!;:?) and whitespace at the end
+	const sanitized = endContent.replace(/[.,!;:?\s]+$/, "").trim();
+
+	// If the entire string was just punctuation/whitespace, return empty string
+	return sanitized;
+}
+
+/**
  * Advanced text normalization for matching with comprehensive Unicode handling.
  * Handles all common Unicode character variants that can cause matching failures.
  */
@@ -96,10 +117,16 @@ function findTextWithOriginalCasing(
 	}
 
 	try {
+		// Sanitize endContent to remove hallucinated punctuation/spaces
+		const sanitizedEndContent = sanitizeEndContent(endContent);
+		if (!sanitizedEndContent) {
+			return null;
+		}
+
 		// Step 1: Validate using original normalization approach (ensures reliability)
 		const normalizedSearch = normalizeText(searchText);
 		const normalizedStart = normalizeText(startContent);
-		const normalizedEnd = normalizeText(endContent);
+		const normalizedEnd = normalizeText(sanitizedEndContent);
 
 		// Find start position in normalized text for validation
 		const startIndex = normalizedSearch.indexOf(normalizedStart);
@@ -112,7 +139,7 @@ function findTextWithOriginalCasing(
 
 		// Step 2: Create flexible regex patterns that handle Unicode variants
 		const startPattern = createUnicodeFlexibleRegex(startContent);
-		const endPattern = createUnicodeFlexibleRegex(endContent);
+		const endPattern = createUnicodeFlexibleRegex(sanitizedEndContent);
 
 		// Step 3: Find start position in original text using case-insensitive regex
 		const startMatch = searchText.match(startPattern);
@@ -202,7 +229,7 @@ export function getDisplayContent(
 ): string {
 	// Validate nugget data to prevent errors
 	if (!nugget || !nugget.startContent || !nugget.endContent) {
-		return nugget?.content || "";
+		return "";
 	}
 
 	if (pageContent && typeof pageContent === "string") {
@@ -270,9 +297,18 @@ export function improvedStartEndMatching(
 	endContent: string,
 	pageContent: string,
 ): MatchResult {
+	// Sanitize endContent to remove hallucinated punctuation/spaces
+	const sanitizedEndContent = sanitizeEndContent(endContent);
+	if (!sanitizedEndContent) {
+		return {
+			success: false,
+			reason: "End content is empty after sanitization",
+		};
+	}
+
 	const normalizedText = advancedNormalize(pageContent);
 	const normalizedStart = advancedNormalize(startContent);
-	const normalizedEnd = advancedNormalize(endContent);
+	const normalizedEnd = advancedNormalize(sanitizedEndContent);
 
 	const startIndex = normalizedText.indexOf(normalizedStart);
 	if (startIndex === -1) {
@@ -313,9 +349,15 @@ export function improvedStartEndTextMatching(
 		return false;
 	}
 
+	// Sanitize endContent to remove hallucinated punctuation/spaces
+	const sanitizedEndContent = sanitizeEndContent(nugget.endContent);
+	if (!sanitizedEndContent) {
+		return false;
+	}
+
 	const normalizedSearch = normalizeText(searchText);
 	const normalizedStart = normalizeText(nugget.startContent);
-	const normalizedEnd = normalizeText(nugget.endContent);
+	const normalizedEnd = normalizeText(sanitizedEndContent);
 
 	// Strategy 1: Check if both start and end content exist in the text
 	const hasStart = normalizedSearch.includes(normalizedStart);
@@ -331,7 +373,7 @@ export function improvedStartEndTextMatching(
 	// Strategy 2: If we can't find both, try the full reconstructed content approach
 	const reconstructed = findTextBetweenStartAndEnd(
 		nugget.startContent,
-		nugget.endContent,
+		sanitizedEndContent,
 		searchText,
 	);
 	if (reconstructed) {
