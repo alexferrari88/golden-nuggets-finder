@@ -389,6 +389,80 @@ export class StorageManager {
 		}
 	}
 
+	/**
+	 * Validates if a stored analysis state represents an actually active analysis
+	 * @param state The analysis state to validate
+	 * @returns true if the analysis appears to be genuinely active, false if it's stale/completed
+	 */
+	isAnalysisStateActive(state: PersistentAnalysisState): boolean {
+		// Check if analysis is too old (more than 10 minutes)
+		const ageInMinutes = (Date.now() - state.startTime) / (1000 * 60);
+		if (ageInMinutes > 10) {
+			return false;
+		}
+
+		// Check if all phases are completed (0=setup, 1=AI thinking, 2=finalize)
+		const allPhasesCompleted = [0, 1, 2].every((phase) =>
+			state.completedPhases.includes(phase),
+		);
+		if (allPhasesCompleted) {
+			return false;
+		}
+
+		// If we have completed phases but no current phase, it's likely completed
+		if (state.completedPhases.length > 0 && state.currentPhase === -1) {
+			// Exception: if we only have setup phase (0) completed, AI might still be thinking
+			const onlySetupCompleted =
+				state.completedPhases.length === 1 && state.completedPhases[0] === 0;
+			if (!onlySetupCompleted) {
+				return false;
+			}
+		}
+
+		// Analysis appears to be genuinely active
+		return true;
+	}
+
+	/**
+	 * Gets analysis state and validates if it's actually active.
+	 * Automatically clears stale/completed states.
+	 * @returns The analysis state if genuinely active, null if no active analysis
+	 */
+	async getActiveAnalysisState(): Promise<PersistentAnalysisState | null> {
+		try {
+			const state = await this.getAnalysisState();
+			if (!state) {
+				return null;
+			}
+
+			const isActive = this.isAnalysisStateActive(state);
+			if (!isActive) {
+				console.log("[Popup] Clearing stale analysis state:", {
+					analysisId: state.analysisId,
+					promptName: state.promptName,
+					ageMinutes: Math.round((Date.now() - state.startTime) / (1000 * 60)),
+					completedPhases: state.completedPhases,
+					currentPhase: state.currentPhase,
+				});
+				// Clear the stale state
+				await this.clearAnalysisState();
+				return null;
+			}
+
+			console.log("[Popup] Restored active analysis state:", {
+				analysisId: state.analysisId,
+				promptName: state.promptName,
+				ageMinutes: Math.round((Date.now() - state.startTime) / (1000 * 60)),
+				completedPhases: state.completedPhases,
+				currentPhase: state.currentPhase,
+			});
+			return state;
+		} catch (error) {
+			console.warn("Failed to get/validate analysis state:", error);
+			return null;
+		}
+	}
+
 	async getConfig(
 		context: AccessContext = {
 			source: "background",

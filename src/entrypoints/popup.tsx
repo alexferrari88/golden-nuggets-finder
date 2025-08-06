@@ -492,68 +492,62 @@ function IndexPopup() {
 	}, []);
 	const restoreAnalysisState = useCallback(async () => {
 		try {
-			const savedState = await storage.getAnalysisState();
-			if (savedState) {
-				console.log("Restoring analysis state:", savedState);
+			// Use the new validation method that automatically clears stale states
+			const savedState = await storage.getActiveAnalysisState();
+			if (!savedState) {
+				// No active analysis state found
+				return;
+			}
 
-				// Check if analysis is still recent (within 5 minutes)
-				const ageInMinutes = (Date.now() - savedState.startTime) / (1000 * 60);
-				if (ageInMinutes > 5) {
-					console.log("Analysis state too old, clearing it");
-					await storage.clearAnalysisState();
-					return;
+			// Restore UI state for genuinely active analysis
+			setAnalyzing(savedState.promptName);
+			setCurrentAnalysisId(savedState.analysisId);
+			currentAnalysisIdRef.current = savedState.analysisId;
+
+			// Restore phase progression state if available
+			if (
+				savedState.currentPhase >= 0 ||
+				savedState.completedPhases.length > 0
+			) {
+				// Restore completed phases first
+				for (const phaseIndex of savedState.completedPhases) {
+					let messageType: AnalysisProgressMessage["type"];
+					if (phaseIndex === 0) {
+						messageType = MESSAGE_TYPES.ANALYSIS_CONTENT_EXTRACTED;
+					} else if (phaseIndex === 1) {
+						messageType = MESSAGE_TYPES.ANALYSIS_API_RESPONSE_RECEIVED;
+					} else {
+						messageType = MESSAGE_TYPES.ANALYSIS_PROCESSING_RESULTS;
+					}
+
+					processRealTimePhase({
+						type: messageType,
+						step: (phaseIndex + 1) as 1 | 2 | 3 | 4,
+						message: "Restoring completed phase...",
+						timestamp: Date.now(),
+						analysisId: savedState.analysisId,
+						source: savedState.source,
+					} as AnalysisProgressMessage);
 				}
 
-				// Restore UI state
-				setAnalyzing(savedState.promptName);
-				setCurrentAnalysisId(savedState.analysisId);
-				currentAnalysisIdRef.current = savedState.analysisId;
-
-				// Restore phase progression state if available
+				// If there's a current phase (in progress), restore it
 				if (
-					savedState.currentPhase >= 0 ||
-					savedState.completedPhases.length > 0
+					savedState.currentPhase >= 0 &&
+					!savedState.completedPhases.includes(savedState.currentPhase)
 				) {
-					// Restore completed phases first
-					for (const phaseIndex of savedState.completedPhases) {
-						let messageType: AnalysisProgressMessage["type"];
-						if (phaseIndex === 0) {
-							messageType = MESSAGE_TYPES.ANALYSIS_CONTENT_EXTRACTED;
-						} else if (phaseIndex === 1) {
-							messageType = MESSAGE_TYPES.ANALYSIS_API_RESPONSE_RECEIVED;
-						} else {
-							messageType = MESSAGE_TYPES.ANALYSIS_PROCESSING_RESULTS;
-						}
-
-						processRealTimePhase({
-							type: messageType,
-							step: (phaseIndex + 1) as 1 | 2 | 3 | 4,
-							message: "Restoring completed phase...",
-							timestamp: Date.now(),
-							analysisId: savedState.analysisId,
-							source: savedState.source,
-						} as AnalysisProgressMessage);
-					}
-
-					// If there's a current phase (in progress), restore it
-					if (
-						savedState.currentPhase >= 0 &&
-						!savedState.completedPhases.includes(savedState.currentPhase)
-					) {
-						processRealTimePhase({
-							type: MESSAGE_TYPES.ANALYSIS_API_REQUEST_START,
-							step: 3,
-							message: "Analysis in progress...",
-							timestamp: Date.now(),
-							analysisId: savedState.analysisId,
-							source: savedState.source,
-						} as AnalysisProgressMessage);
-					}
+					processRealTimePhase({
+						type: MESSAGE_TYPES.ANALYSIS_API_REQUEST_START,
+						step: 3,
+						message: "Analysis in progress...",
+						timestamp: Date.now(),
+						analysisId: savedState.analysisId,
+						source: savedState.source,
+					} as AnalysisProgressMessage);
 				}
 			}
 		} catch (error) {
 			console.warn("Failed to restore analysis state:", error);
-			// Clear invalid state
+			// Clear any potentially invalid state
 			storage.clearAnalysisState().catch(() => {});
 		}
 	}, [processRealTimePhase]);
@@ -563,8 +557,33 @@ function IndexPopup() {
 		checkBackendStatus();
 		restoreAnalysisState();
 
+		// Helper function to clear analysis state reliably
+		const clearAnalysisStateImmediately = async (reason: string) => {
+			console.log(`[Popup] Clearing analysis state: ${reason}`);
+
+			// Clear any pending cleanup timeout
+			if (cleanupTimeoutRef.current) {
+				clearTimeout(cleanupTimeoutRef.current);
+				cleanupTimeoutRef.current = null;
+			}
+
+			// Clear UI state immediately
+			setAnalyzing(null);
+			setCurrentAnalysisId(null);
+			currentAnalysisIdRef.current = null;
+
+			// Clear persisted analysis state with improved error handling
+			try {
+				await storage.clearAnalysisState();
+				console.log("[Popup] Analysis state cleared successfully");
+			} catch (error) {
+				console.error("Failed to clear analysis state:", error);
+				// Even if storage clearing fails, UI state is already cleared
+			}
+		};
+
 		// Add message listener for analysis completion and progress
-		const messageListener = (
+		const messageListener = async (
 			message:
 				| AnalysisProgressMessage
 				| RateLimitedMessage
@@ -575,32 +594,13 @@ function IndexPopup() {
 			if (message.type === MESSAGE_TYPES.ANALYSIS_COMPLETE) {
 				completeAllPhases();
 				// Brief delay to show completion, then clear analyzing state
-				cleanupTimeoutRef.current = setTimeout(async () => {
-					setAnalyzing(null);
-					setCurrentAnalysisId(null);
-					currentAnalysisIdRef.current = null;
-					cleanupTimeoutRef.current = null;
-					// Clear persisted analysis state
-					try {
-						await storage.clearAnalysisState();
-					} catch (error) {
-						console.warn("Failed to clear analysis state:", error);
-					}
+				setTimeout(async () => {
+					await clearAnalysisStateImmediately("analysis completed");
 				}, 600);
 			} else if (message.type === MESSAGE_TYPES.ANALYSIS_ERROR) {
 				completeAllPhases();
-				// Clear any pending cleanup timeout
-				if (cleanupTimeoutRef.current) {
-					clearTimeout(cleanupTimeoutRef.current);
-					cleanupTimeoutRef.current = null;
-				}
-				setAnalyzing(null); // Clear analyzing state immediately on error
-				setCurrentAnalysisId(null);
-				currentAnalysisIdRef.current = null;
-				// Clear persisted analysis state immediately on error
-				storage.clearAnalysisState().catch((error) => {
-					console.warn("Failed to clear analysis state on error:", error);
-				});
+				// Clear analysis state immediately on error (no delay)
+				await clearAnalysisStateImmediately("analysis error occurred");
 				// Display the actual error message to the user
 				setError(message.error || "Analysis failed. Please try again.");
 			}
@@ -627,6 +627,17 @@ function IndexPopup() {
 				clearTimeout(cleanupTimeoutRef.current);
 				cleanupTimeoutRef.current = null;
 			}
+
+			// Clear any analysis state when popup unmounts during active analysis
+			// This prevents stale loading states when popup is reopened
+			if (currentAnalysisIdRef.current) {
+				console.log(
+					"[Popup] Popup unmounting during active analysis, clearing state",
+				);
+				storage.clearAnalysisState().catch(() => {
+					// Ignore errors during cleanup
+				});
+			}
 		};
 	}, [
 		checkBackendStatus,
@@ -638,6 +649,14 @@ function IndexPopup() {
 
 	const analyzeWithPrompt = async (promptId: string) => {
 		try {
+			// Clear any existing analysis state before starting new analysis
+			console.log(
+				"[Popup] Clearing any existing analysis state before starting new analysis",
+			);
+			await storage.clearAnalysisState().catch(() => {
+				// Ignore errors - we're about to create new state anyway
+			});
+
 			// Find the prompt name for better UX
 			const prompt = prompts.find((p) => p.id === promptId);
 			const promptName = prompt?.name || "Unknown";
@@ -708,9 +727,14 @@ function IndexPopup() {
 			chrome.runtime.onMessage.addListener(listener);
 		} catch (err) {
 			console.error("Failed to start analysis:", err);
+			// Clear all analysis state on error
 			setAnalyzing(null);
 			setCurrentAnalysisId(null);
 			currentAnalysisIdRef.current = null;
+			// Also clear persisted state
+			storage.clearAnalysisState().catch(() => {
+				// Ignore errors in cleanup
+			});
 			setError("Failed to start analysis. Please try again.");
 		}
 	};
