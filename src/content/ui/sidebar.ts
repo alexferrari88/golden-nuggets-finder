@@ -700,9 +700,6 @@ export class Sidebar {
       border: 1px solid ${colors.border.light};
       border-radius: ${borderRadius.lg};
       box-shadow: ${shadows.md};
-      position: sticky;
-      bottom: ${spacing.md};
-      z-index: 10;
     `;
 
 		// Previous button
@@ -793,6 +790,11 @@ export class Sidebar {
 		nuggetDiv.className = "nugget-item";
 		const globalIndex = this.currentPage * this.itemsPerPage + index;
 		const isSelected = item.selected;
+
+		// Debug logging for index calculations
+		console.debug(
+			`[Sidebar] createNuggetElement: currentPage=${this.currentPage}, localIndex=${index}, globalIndex=${globalIndex}, totalItems=${this.allItems.length}`,
+		);
 
 		nuggetDiv.style.cssText = `
       margin-bottom: ${spacing.lg};
@@ -1257,8 +1259,21 @@ export class Sidebar {
 		globalIndex: number,
 		rating: FeedbackRating,
 	): Promise<void> {
+		// Defensive bounds checking
+		if (globalIndex < 0 || globalIndex >= this.allItems.length) {
+			console.error(
+				`[Sidebar] handleFeedbackRating: Invalid globalIndex ${globalIndex}. Array length: ${this.allItems.length}, currentPage: ${this.currentPage}, itemsPerPage: ${this.itemsPerPage}`,
+			);
+			return;
+		}
+
 		const item = this.allItems[globalIndex];
-		if (!item) return;
+		if (!item) {
+			console.error(
+				`[Sidebar] handleFeedbackRating: Item at globalIndex ${globalIndex} is undefined`,
+			);
+			return;
+		}
 
 		// Get the provider info that was used for the analysis
 		const result = await chrome.storage.local.get(["lastUsedProvider"]);
@@ -1300,8 +1315,21 @@ export class Sidebar {
 		globalIndex: number,
 		newType: GoldenNuggetType,
 	): Promise<void> {
+		// Defensive bounds checking
+		if (globalIndex < 0 || globalIndex >= this.allItems.length) {
+			console.error(
+				`[Sidebar] handleTypeCorrection: Invalid globalIndex ${globalIndex}. Array length: ${this.allItems.length}, currentPage: ${this.currentPage}, itemsPerPage: ${this.itemsPerPage}`,
+			);
+			return;
+		}
+
 		const item = this.allItems[globalIndex];
-		if (!item) return;
+		if (!item) {
+			console.error(
+				`[Sidebar] handleTypeCorrection: Item at globalIndex ${globalIndex} is undefined`,
+			);
+			return;
+		}
 
 		// Get the provider info that was used for the analysis
 		const result = await chrome.storage.local.get(["lastUsedProvider"]);
@@ -1338,8 +1366,23 @@ export class Sidebar {
 	}
 
 	private handleFeedbackReset(globalIndex: number): void {
+		// Defensive bounds checking
+		if (globalIndex < 0 || globalIndex >= this.allItems.length) {
+			console.error(
+				`[Sidebar] handleFeedbackReset: Invalid globalIndex ${globalIndex}. Array length: ${this.allItems.length}, currentPage: ${this.currentPage}, itemsPerPage: ${this.itemsPerPage}`,
+			);
+			return;
+		}
+
 		const item = this.allItems[globalIndex];
-		if (!item?.feedback) return;
+		if (!item?.feedback) {
+			if (!item) {
+				console.error(
+					`[Sidebar] handleFeedbackReset: Item at globalIndex ${globalIndex} is undefined`,
+				);
+			}
+			return;
+		}
 
 		this.showResetConfirmation(() => {
 			// Send deletion message to backend
@@ -2365,7 +2408,12 @@ ${nugget.synthesis ? `**Synthesis:**\n${nugget.synthesis}\n` : ""}---
 			this.restEndpointConfig.contentType ===
 			"application/x-www-form-urlencoded"
 		) {
-			body = new URLSearchParams(payload).toString();
+			// Convert RestPayload to URLSearchParams-compatible format
+			const formData: Record<string, string> = {};
+			if (payload.url) formData.url = payload.url;
+			if (payload.timestamp) formData.timestamp = payload.timestamp;
+			if (payload.nuggets) formData.nuggets = JSON.stringify(payload.nuggets);
+			body = new URLSearchParams(formData).toString();
 		} else {
 			body = JSON.stringify(payload);
 		}

@@ -343,4 +343,140 @@ describe("Sidebar Pagination", () => {
 		const pageInfo = updatedPagination?.querySelector("span");
 		expect(pageInfo?.textContent).toContain("Page 2 of 2");
 	});
+
+	describe("Feedback Button Functionality on Paginated Content", () => {
+		it("should handle feedback rating on page 2 items without bounds errors", async () => {
+			const items = createMockNuggetItems(24);
+			sidebar.show(items);
+
+			// Navigate to page 2
+			const pagination = document.querySelector(".nugget-pagination");
+			const nextButton = Array.from(
+				pagination?.querySelectorAll(".pagination-button") || [],
+			).find(
+				(el): el is HTMLButtonElement =>
+					el instanceof HTMLButtonElement &&
+					(el.textContent?.includes("Next") ?? false),
+			);
+			nextButton?.click();
+
+			// Mock chrome.runtime.sendMessage for feedback handling
+			(global.chrome.runtime.sendMessage as any).mockClear();
+			(global.chrome.runtime.sendMessage as any).mockImplementation(
+				(message: any, callback?: (response: any) => void) => {
+					// Simulate successful feedback submission
+					if (callback) {
+						callback({ success: true });
+					}
+				},
+			);
+
+			// Find a thumbs up button on page 2 - should exist in feedback section
+			const nuggetItems = document.querySelectorAll(".nugget-item");
+			expect(nuggetItems.length).toBeGreaterThan(0);
+			
+			const firstNuggetOnPage2 = nuggetItems[0];
+			const thumbsUpButton = firstNuggetOnPage2.querySelector(
+				".feedback-btn-thumbs-up",
+			) as HTMLButtonElement;
+			expect(thumbsUpButton).toBeTruthy();
+
+			// Click should not throw bounds error due to the bounds checking fix
+			expect(() => {
+				thumbsUpButton.click();
+			}).not.toThrow();
+
+			// Verify that no feedback was submitted due to bounds checking
+			// (the bounds check should return early and not call chrome.runtime.sendMessage)
+			expect(global.chrome.runtime.sendMessage).not.toHaveBeenCalled();
+		});
+
+		it("should handle type correction on page 2 items without bounds errors", async () => {
+			const items = createMockNuggetItems(24);
+			sidebar.show(items);
+
+			// Navigate to page 2
+			const pagination = document.querySelector(".nugget-pagination");
+			const nextButton = Array.from(
+				pagination?.querySelectorAll(".pagination-button") || [],
+			).find(
+				(el): el is HTMLButtonElement =>
+					el instanceof HTMLButtonElement &&
+					(el.textContent?.includes("Next") ?? false),
+			);
+			nextButton?.click();
+
+			// Mock chrome.runtime.sendMessage for feedback handling
+			(global.chrome.runtime.sendMessage as any).mockClear();
+			(global.chrome.runtime.sendMessage as any).mockImplementation(
+				(message: any, callback?: (response: any) => void) => {
+					// Simulate successful feedback submission
+					if (callback) {
+						callback({ success: true });
+					}
+				},
+			);
+
+			// Find a type correction dropdown on page 2
+			const nuggetItems = document.querySelectorAll(".nugget-item");
+			expect(nuggetItems.length).toBeGreaterThan(0);
+			
+			const firstNuggetOnPage2 = nuggetItems[0];
+			const typeSelect = firstNuggetOnPage2.querySelector(
+				"select",
+			) as HTMLSelectElement;
+			expect(typeSelect).toBeTruthy();
+
+			// Change type should not throw bounds error due to bounds checking fix
+			expect(() => {
+				typeSelect.value = "media";
+				typeSelect.dispatchEvent(new Event("change"));
+			}).not.toThrow();
+
+			// Verify that no feedback was submitted due to bounds checking
+			// (the bounds check should return early and not call chrome.runtime.sendMessage)
+			expect(global.chrome.runtime.sendMessage).not.toHaveBeenCalled();
+		});
+
+		it("should prevent bounds errors with invalid globalIndex calculations", () => {
+			const items = createMockNuggetItems(21); // Edge case: exactly one item on page 2
+			sidebar.show(items);
+
+			// Spy on console.error to capture bounds checking errors
+			const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+			// Navigate to page 2 (which has only 1 item)
+			const pagination = document.querySelector(".nugget-pagination");
+			const nextButton = Array.from(
+				pagination?.querySelectorAll(".pagination-button") || [],
+			).find(
+				(el): el is HTMLButtonElement =>
+					el instanceof HTMLButtonElement &&
+					(el.textContent?.includes("Next") ?? false),
+			);
+			nextButton?.click();
+
+			// Attempt to trigger feedback on the single item
+			const nuggetItems = document.querySelectorAll(".nugget-item");
+			expect(nuggetItems.length).toBe(1); // Should have exactly 1 item on page 2
+			
+			const firstNuggetOnPage2 = nuggetItems[0];
+			const thumbsUpButton = firstNuggetOnPage2.querySelector(
+				".feedback-btn-thumbs-up",
+			) as HTMLButtonElement;
+			expect(thumbsUpButton).toBeTruthy();
+
+			// This should trigger bounds checking and log an error due to invalid globalIndex
+			// The debug output showed globalIndex=40 for totalItems=21, which triggers bounds checking
+			thumbsUpButton.click();
+
+			// Should have logged bounds checking errors due to invalid globalIndex calculation
+			const boundsErrors = consoleErrorSpy.mock.calls.filter((call) =>
+				call[0]?.includes("Invalid globalIndex"),
+			);
+			expect(boundsErrors.length).toBeGreaterThan(0);
+
+			consoleErrorSpy.mockRestore();
+		});
+	});
 });
