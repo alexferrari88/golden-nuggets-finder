@@ -354,6 +354,42 @@ class Highlighter {
     }
   }
 
+  // Normalize text for flexible matching by removing common punctuation
+  normalizeTextForMatching(text) {
+    return text
+      .replace(/[.!?;,:'"()\\[\\]{}]+$/g, '') // Remove trailing punctuation
+      .replace(/\\s+/g, ' ') // Normalize whitespace
+      .trim();
+  }
+  
+  // Try to find text using multiple matching strategies
+  findTextWithStrategies(fullTextLower, startContentLower, endContentLower, strategyName) {
+    let startIndex = -1;
+    let searchFrom = 0;
+    const possibleRanges = [];
+
+    // Look for all combinations of startContent -> endContent
+    startIndex = fullTextLower.indexOf(startContentLower, searchFrom);
+    while (startIndex !== -1) {
+      const endContentIndex = fullTextLower.indexOf(
+        endContentLower,
+        startIndex + startContentLower.length,
+      );
+      if (endContentIndex !== -1) {
+        const endIndex = endContentIndex + endContentLower.length;
+        possibleRanges.push({ start: startIndex, end: endIndex });
+      }
+      searchFrom = startIndex + 1;
+      startIndex = fullTextLower.indexOf(startContentLower, searchFrom);
+    }
+
+    if (possibleRanges.length > 0) {
+      console.log(\`Found text range using \${strategyName} strategy\`);
+    }
+
+    return possibleRanges;
+  }
+
   findTextInDOM(startContent, endContent) {
     try {
       const walker = document.createTreeWalker(
@@ -393,30 +429,91 @@ class Highlighter {
         currentNode = walker.nextNode();
       }
 
-      // Case-insensitive search
       const fullTextLower = fullText.toLowerCase();
+      let possibleRanges = [];
+
+      // Debug logging to help understand what content is available
+      console.log("DOM text analysis:", {
+        searchingFor: { start: startContent, end: endContent },
+        domTextLength: fullText.length,
+        domTextSample: fullText.substring(0, 200),
+        containsStart: fullTextLower.includes(startContent.toLowerCase()),
+        containsEnd: fullTextLower.includes(endContent.toLowerCase())
+      });
+
+      // Strategy 1: Exact match (case-insensitive)
       const startContentLower = startContent.toLowerCase();
       const endContentLower = endContent.toLowerCase();
-      
-      const startIndex = fullTextLower.indexOf(startContentLower);
-      if (startIndex === -1) {
-        console.warn('Start content not found:', startContent);
+      possibleRanges = this.findTextWithStrategies(
+        fullTextLower,
+        startContentLower,
+        endContentLower,
+        "exact match"
+      );
+
+      // Strategy 2: Try with normalized punctuation if exact match fails
+      if (possibleRanges.length === 0) {
+        const normalizedStartContent = this.normalizeTextForMatching(startContent).toLowerCase();
+        const normalizedEndContent = this.normalizeTextForMatching(endContent).toLowerCase();
+        
+        console.log("Trying normalized matching:", {
+          originalStart: startContent,
+          normalizedStart: normalizedStartContent,
+          originalEnd: endContent,
+          normalizedEnd: normalizedEndContent
+        });
+        
+        // Only try normalized matching if it's actually different from the original
+        if (normalizedStartContent !== startContentLower || normalizedEndContent !== endContentLower) {
+          possibleRanges = this.findTextWithStrategies(
+            fullTextLower,
+            normalizedStartContent,
+            normalizedEndContent,
+            "normalized punctuation"
+          );
+        } else {
+          console.log("Skipping normalized matching - no difference from original");
+        }
+      }
+
+      // Strategy 3: Try with only end content normalized (common case where endContent has punctuation)
+      if (possibleRanges.length === 0) {
+        const normalizedEndContentOnly = this.normalizeTextForMatching(endContent).toLowerCase();
+        
+        if (normalizedEndContentOnly !== endContentLower) {
+          possibleRanges = this.findTextWithStrategies(
+            fullTextLower,
+            startContentLower,
+            normalizedEndContentOnly,
+            "end content normalized"
+          );
+        }
+      }
+
+      if (possibleRanges.length === 0) {
+        console.warn(
+          "No valid range found for:",
+          startContent,
+          "→",
+          endContent,
+          "(tried exact, normalized, and end-normalized matching)"
+        );
         return null;
       }
 
-      const endContentIndex = fullTextLower.indexOf(endContentLower, startIndex);
-      if (endContentIndex === -1) {
-        console.warn('End content not found:', endContent);
-        return null;
-      }
+      // If multiple ranges found, prefer the shortest one (most specific)
+      const bestRange = possibleRanges.reduce((shortest, current) => {
+        const currentLength = current.end - current.start;
+        const shortestLength = shortest.end - shortest.start;
+        return currentLength < shortestLength ? current : shortest;
+      });
 
-      const endIndex = endContentIndex + endContentLower.length;
-
+      // Find the DOM nodes that contain the start and end positions
       const startNodeInfo = textNodeMap.find(info => 
-        startIndex >= info.startIndex && startIndex < info.endIndex
+        bestRange.start >= info.startIndex && bestRange.start < info.endIndex
       );
       const endNodeInfo = textNodeMap.find(info => 
-        endIndex > info.startIndex && endIndex <= info.endIndex
+        bestRange.end > info.startIndex && bestRange.end <= info.endIndex
       );
 
       if (!startNodeInfo || !endNodeInfo) {
@@ -425,9 +522,9 @@ class Highlighter {
       }
 
       const range = document.createRange();
-      const startOffset = startIndex - startNodeInfo.startIndex;
+      const startOffset = bestRange.start - startNodeInfo.startIndex;
       range.setStart(startNodeInfo.node, startOffset);
-      const endOffset = endIndex - endNodeInfo.startIndex;
+      const endOffset = bestRange.end - endNodeInfo.startIndex;
       range.setEnd(endNodeInfo.node, endOffset);
 
       console.log('Found text range:', startContent, '→', endContent);

@@ -388,4 +388,98 @@ test.describe("Highlighter TDD", () => {
 		);
 		await expect(highlightedElements).toHaveCount(0);
 	});
+
+	test("should handle punctuation mismatch between endContent and displayed text", async ({
+		cleanPage,
+	}) => {
+		// This test reproduces the issue where endContent has extra punctuation
+		// that might not match exactly in the DOM, but should still be found
+		const consoleMessages: string[] = [];
+		cleanPage.on("console", (msg) => {
+			consoleMessages.push(`${msg.type()}: ${msg.text()}`);
+		});
+
+		const result = await cleanPage.evaluate(() => {
+			const highlighter = new (window as any).Highlighter();
+
+			// Use an existing nugget but add extra punctuation to test our fallback logic
+			// This simulates the scenario where the API returns text with extra punctuation
+			const testNugget = {
+				type: "explanation",
+				startContent: "Generalization only begins when",
+				endContent: "generalization occurs...", // Extra dots compared to actual content
+				synthesis: "Test synthesis for punctuation handling",
+			};
+
+			console.log("Testing punctuation mismatch nugget:", testNugget);
+
+			// Try to highlight the nugget
+			const highlighted = highlighter.highlightNugget(testNugget);
+
+			return {
+				highlighted,
+				cssSupported: highlighter.cssHighlightSupported,
+				highlightCount: highlighter.getHighlightCount(),
+				nugget: testNugget,
+			};
+		});
+
+		console.log("Punctuation test result:", result);
+		console.log("Console messages from browser:");
+		for (const msg of consoleMessages) {
+			console.log("  ", msg);
+		}
+
+		// The highlighter should successfully find and highlight the text
+		// even if there's a punctuation mismatch (extra dots)
+		expect(result.highlighted).toBe(true);
+		expect(result.highlightCount).toBeGreaterThan(0);
+	});
+
+	test("should handle missing punctuation in endContent", async ({
+		cleanPage,
+	}) => {
+		// This test reproduces the case where sidebar strips punctuation
+		// but highlighter searches for text with punctuation
+		const consoleMessages: string[] = [];
+		cleanPage.on("console", (msg) => {
+			consoleMessages.push(`${msg.type()}: ${msg.text()}`);
+		});
+
+		const result = await cleanPage.evaluate(() => {
+			const highlighter = new (window as any).Highlighter();
+
+			// Use an existing nugget but remove punctuation to test our fallback logic
+			// This simulates the scenario where sidebar displays cleaned text
+			const testNugget = {
+				type: "tool",
+				startContent: "Project CETI is a large-scale",
+				endContent: "to talk to whales", // Missing period compared to actual content
+				synthesis: "Test synthesis for missing punctuation handling",
+			};
+
+			console.log("Testing missing punctuation nugget:", testNugget);
+
+			// Try to highlight the nugget
+			const highlighted = highlighter.highlightNugget(testNugget);
+
+			return {
+				highlighted,
+				cssSupported: highlighter.cssHighlightSupported,
+				highlightCount: highlighter.getHighlightCount(),
+				nugget: testNugget,
+			};
+		});
+
+		console.log("Missing punctuation test result:", result);
+		console.log("Console messages from browser:");
+		for (const msg of consoleMessages) {
+			console.log("  ", msg);
+		}
+
+		// The highlighter should successfully find and highlight the text
+		// even if endContent is missing punctuation
+		expect(result.highlighted).toBe(true);
+		expect(result.highlightCount).toBeGreaterThan(0);
+	});
 });

@@ -241,9 +241,55 @@ export class Highlighter {
 	}
 
 	/**
+	 * Normalize text for flexible matching by removing common punctuation
+	 * that might be stripped during display processing
+	 */
+	private normalizeTextForMatching(text: string): string {
+		return text
+			.replace(/[.!?;,:'"()[\]{}]+$/g, "") // Remove trailing punctuation
+			.replace(/\s+/g, " ") // Normalize whitespace
+			.trim();
+	}
+
+	/**
+	 * Try to find text using multiple matching strategies
+	 */
+	private findTextWithStrategies(
+		fullTextLower: string,
+		startContentLower: string,
+		endContentLower: string,
+		strategyName: string,
+	): Array<{ start: number; end: number }> {
+		let startIndex = -1;
+		let searchFrom = 0;
+		const possibleRanges: Array<{ start: number; end: number }> = [];
+
+		// Look for all combinations of startContent -> endContent
+		startIndex = fullTextLower.indexOf(startContentLower, searchFrom);
+		while (startIndex !== -1) {
+			const endContentIndex = fullTextLower.indexOf(
+				endContentLower,
+				startIndex + startContentLower.length,
+			);
+			if (endContentIndex !== -1) {
+				const endIndex = endContentIndex + endContentLower.length;
+				possibleRanges.push({ start: startIndex, end: endIndex });
+			}
+			searchFrom = startIndex + 1;
+			startIndex = fullTextLower.indexOf(startContentLower, searchFrom);
+		}
+
+		if (possibleRanges.length > 0) {
+			console.log(`Found text range using ${strategyName} strategy`);
+		}
+
+		return possibleRanges;
+	}
+
+	/**
 	 * Find text content in the DOM tree
 	 * Creates a Range that spans from startContent to endContent
-	 * Uses more intelligent matching to avoid duplicates
+	 * Uses more intelligent matching to avoid duplicates and handle punctuation mismatches
 	 */
 	private findTextInDOM(
 		startContent: string,
@@ -298,28 +344,95 @@ export class Highlighter {
 				currentNode = walker.nextNode() as Text;
 			}
 
-			// Find all possible start positions (case-insensitive)
 			const fullTextLower = fullText.toLowerCase();
+			let possibleRanges: Array<{ start: number; end: number }> = [];
+
+			// Debug logging to help understand what content is available
+			console.log("DOM text analysis:", {
+				searchingFor: { start: startContent, end: endContent },
+				domTextLength: fullText.length,
+				domTextSample: fullText.substring(0, 200),
+				containsStart: fullTextLower.includes(startContent.toLowerCase()),
+				containsEnd: fullTextLower.includes(endContent.toLowerCase()),
+			});
+
+			// Strategy 1: Exact match (case-insensitive)
 			const startContentLower = startContent.toLowerCase();
 			const endContentLower = endContent.toLowerCase();
+			possibleRanges = this.findTextWithStrategies(
+				fullTextLower,
+				startContentLower,
+				endContentLower,
+				"exact match",
+			);
 
-			let startIndex = -1;
-			let searchFrom = 0;
-			const possibleRanges: Array<{ start: number; end: number }> = [];
+			// Strategy 2: Try with normalized punctuation if exact match fails
+			if (possibleRanges.length === 0) {
+				const normalizedStartContent =
+					this.normalizeTextForMatching(startContent).toLowerCase();
+				const normalizedEndContent =
+					this.normalizeTextForMatching(endContent).toLowerCase();
 
-			// Look for all combinations of startContent -> endContent (case-insensitive)
-			startIndex = fullTextLower.indexOf(startContentLower, searchFrom);
-			while (startIndex !== -1) {
-				const endContentIndex = fullTextLower.indexOf(
-					endContentLower,
-					startIndex + startContentLower.length,
-				);
-				if (endContentIndex !== -1) {
-					const endIndex = endContentIndex + endContentLower.length;
-					possibleRanges.push({ start: startIndex, end: endIndex });
+				console.log("Trying normalized matching:", {
+					originalStart: startContent,
+					normalizedStart: normalizedStartContent,
+					originalEnd: endContent,
+					normalizedEnd: normalizedEndContent,
+				});
+
+				// Only try normalized matching if it's actually different from the original
+				if (
+					normalizedStartContent !== startContentLower ||
+					normalizedEndContent !== endContentLower
+				) {
+					possibleRanges = this.findTextWithStrategies(
+						fullTextLower,
+						normalizedStartContent,
+						normalizedEndContent,
+						"normalized punctuation",
+					);
+				} else {
+					console.log(
+						"Skipping normalized matching - no difference from original",
+					);
 				}
-				searchFrom = startIndex + 1;
-				startIndex = fullTextLower.indexOf(startContentLower, searchFrom);
+			}
+
+			// Strategy 3: Try with only end content normalized (common case where endContent has punctuation)
+			if (possibleRanges.length === 0) {
+				const normalizedEndContentOnly =
+					this.normalizeTextForMatching(endContent).toLowerCase();
+
+				if (normalizedEndContentOnly !== endContentLower) {
+					possibleRanges = this.findTextWithStrategies(
+						fullTextLower,
+						startContentLower,
+						normalizedEndContentOnly,
+						"end content normalized",
+					);
+				}
+			}
+
+			// Strategy 4: Try with normalized DOM text (for cases where search text has more punctuation than DOM)
+			if (possibleRanges.length === 0) {
+				// Create a normalized version of the DOM text for comparison
+				const normalizedFullText =
+					this.normalizeTextForMatching(fullText).toLowerCase();
+
+				// If the normalized version is different from original, try matching against it
+				if (normalizedFullText !== fullTextLower) {
+					const normalizedStartContent =
+						this.normalizeTextForMatching(startContent).toLowerCase();
+					const normalizedEndContent =
+						this.normalizeTextForMatching(endContent).toLowerCase();
+
+					possibleRanges = this.findTextWithStrategies(
+						normalizedFullText,
+						normalizedStartContent,
+						normalizedEndContent,
+						"both DOM and search text normalized",
+					);
+				}
 			}
 
 			if (possibleRanges.length === 0) {
@@ -328,6 +441,7 @@ export class Highlighter {
 					startContent,
 					"→",
 					endContent,
+					"(tried exact, normalized, and end-normalized matching)",
 				);
 				return null;
 			}
@@ -447,7 +561,7 @@ export class Highlighter {
 			if (!this.globalHighlight) {
 				console.log("Creating global highlight object");
 				this.globalHighlight = new window.Highlight();
-				CSS.highlights.set("golden-nugget", this.globalHighlight);
+				CSS.highlights.set("golden-nugget", this.globalHighlight as any);
 				console.log("Registered global highlight with name 'golden-nugget'");
 			}
 

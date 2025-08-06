@@ -57,7 +57,7 @@ export function generateGoldenNuggetSchema(
 	selectedTypes: GoldenNuggetType[],
 	includeSynthesis: boolean = true, // Default true for backwards compatibility
 ) {
-	const properties = {
+	const properties: Record<string, any> = {
 		type: {
 			type: "string",
 			description: "The category of the extracted golden nugget.",
