@@ -438,11 +438,11 @@ describe("Sidebar Pagination", () => {
 			expect(global.chrome.runtime.sendMessage).not.toHaveBeenCalled();
 		});
 
-		it("should prevent bounds errors with invalid globalIndex calculations", () => {
+		it("should prevent bounds errors with correct globalIndex calculations", () => {
 			const items = createMockNuggetItems(21); // Edge case: exactly one item on page 2
 			sidebar.show(items);
 
-			// Spy on console.error to capture bounds checking errors
+			// Spy on console.error to ensure no bounds checking errors occur
 			const consoleErrorSpy = vi
 				.spyOn(console, "error")
 				.mockImplementation(() => {});
@@ -468,15 +468,15 @@ describe("Sidebar Pagination", () => {
 			) as HTMLButtonElement;
 			expect(thumbsUpButton).toBeTruthy();
 
-			// This should trigger bounds checking and log an error due to invalid globalIndex
-			// The debug output showed globalIndex=40 for totalItems=21, which triggers bounds checking
+			// This should now work correctly without bounds errors
+			// The globalIndex should be calculated correctly as 20 (not 40) for the first item on page 2
 			thumbsUpButton.click();
 
-			// Should have logged bounds checking errors due to invalid globalIndex calculation
+			// Should NOT have logged any bounds checking errors due to fixed globalIndex calculation
 			const boundsErrors = consoleErrorSpy.mock.calls.filter((call) =>
 				call[0]?.includes("Invalid globalIndex"),
 			);
-			expect(boundsErrors.length).toBeGreaterThan(0);
+			expect(boundsErrors.length).toBe(0);
 
 			consoleErrorSpy.mockRestore();
 		});
