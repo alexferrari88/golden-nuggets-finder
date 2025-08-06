@@ -628,16 +628,14 @@ function IndexPopup() {
 				cleanupTimeoutRef.current = null;
 			}
 
-			// Clear any analysis state when popup unmounts during active analysis
-			// This prevents stale loading states when popup is reopened
-			if (currentAnalysisIdRef.current) {
-				console.log(
-					"[Popup] Popup unmounting during active analysis, clearing state",
-				);
-				storage.clearAnalysisState().catch(() => {
-					// Ignore errors during cleanup
-				});
-			}
+			// Keep analysis state persistent across popup close/open cycles
+			// Analysis state should only be cleared when:
+			// 1. Analysis actually completes (success/error)
+			// 2. New analysis starts (explicit replacement)
+			// 3. State is genuinely stale (>10 minutes old)
+			console.log(
+				"[Popup] Popup unmounting, preserving analysis state for persistence",
+			);
 		};
 	}, [
 		checkBackendStatus,

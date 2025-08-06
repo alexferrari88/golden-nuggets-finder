@@ -395,9 +395,16 @@ export class StorageManager {
 	 * @returns true if the analysis appears to be genuinely active, false if it's stale/completed
 	 */
 	isAnalysisStateActive(state: PersistentAnalysisState): boolean {
-		// Check if analysis is too old (more than 10 minutes)
 		const ageInMinutes = (Date.now() - state.startTime) / (1000 * 60);
+
+		// Check if analysis is too old (more than 10 minutes)
 		if (ageInMinutes > 10) {
+			console.log("[Storage] Clearing stale analysis state:", {
+				analysisId: state.analysisId,
+				promptName: state.promptName,
+				ageMinutes: ageInMinutes.toFixed(1),
+				reason: "age_limit_exceeded",
+			});
 			return false;
 		}
 
@@ -406,20 +413,31 @@ export class StorageManager {
 			state.completedPhases.includes(phase),
 		);
 		if (allPhasesCompleted) {
+			console.log("[Storage] Clearing completed analysis state:", {
+				analysisId: state.analysisId,
+				promptName: state.promptName,
+				ageMinutes: ageInMinutes.toFixed(1),
+				completedPhases: state.completedPhases,
+				reason: "all_phases_completed",
+			});
 			return false;
 		}
 
-		// If we have completed phases but no current phase, it's likely completed
-		if (state.completedPhases.length > 0 && state.currentPhase === -1) {
-			// Exception: if we only have setup phase (0) completed, AI might still be thinking
-			const onlySetupCompleted =
-				state.completedPhases.length === 1 && state.completedPhases[0] === 0;
-			if (!onlySetupCompleted) {
-				return false;
-			}
-		}
+		// Be conservative about clearing analysis states
+		// Previous logic was too aggressive and cleared legitimate "between phases" states
+		// Only clear states when we're very confident they're no longer active:
+		// 1. Age > 10 minutes (handled above)
+		// 2. All phases completed (handled above)
 
-		// Analysis appears to be genuinely active
+		// Analysis appears to be genuinely active or between phases
+		console.log("[Storage] Preserving active analysis state:", {
+			analysisId: state.analysisId,
+			promptName: state.promptName,
+			ageMinutes: ageInMinutes.toFixed(1),
+			completedPhases: state.completedPhases,
+			currentPhase: state.currentPhase,
+			reason: "appears_active",
+		});
 		return true;
 	}
 
