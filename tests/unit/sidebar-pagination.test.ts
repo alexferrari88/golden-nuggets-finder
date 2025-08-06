@@ -363,7 +363,7 @@ describe("Sidebar Pagination", () => {
 			// Mock chrome.runtime.sendMessage for feedback handling
 			(global.chrome.runtime.sendMessage as any).mockClear();
 			(global.chrome.runtime.sendMessage as any).mockImplementation(
-				(message: any, callback?: (response: any) => void) => {
+				(_message: any, callback?: (response: any) => void) => {
 					// Simulate successful feedback submission
 					if (callback) {
 						callback({ success: true });
@@ -374,7 +374,7 @@ describe("Sidebar Pagination", () => {
 			// Find a thumbs up button on page 2 - should exist in feedback section
 			const nuggetItems = document.querySelectorAll(".nugget-item");
 			expect(nuggetItems.length).toBeGreaterThan(0);
-			
+
 			const firstNuggetOnPage2 = nuggetItems[0];
 			const thumbsUpButton = firstNuggetOnPage2.querySelector(
 				".feedback-btn-thumbs-up",
@@ -409,7 +409,7 @@ describe("Sidebar Pagination", () => {
 			// Mock chrome.runtime.sendMessage for feedback handling
 			(global.chrome.runtime.sendMessage as any).mockClear();
 			(global.chrome.runtime.sendMessage as any).mockImplementation(
-				(message: any, callback?: (response: any) => void) => {
+				(_message: any, callback?: (response: any) => void) => {
 					// Simulate successful feedback submission
 					if (callback) {
 						callback({ success: true });
@@ -420,7 +420,7 @@ describe("Sidebar Pagination", () => {
 			// Find a type correction dropdown on page 2
 			const nuggetItems = document.querySelectorAll(".nugget-item");
 			expect(nuggetItems.length).toBeGreaterThan(0);
-			
+
 			const firstNuggetOnPage2 = nuggetItems[0];
 			const typeSelect = firstNuggetOnPage2.querySelector(
 				"select",
@@ -443,7 +443,9 @@ describe("Sidebar Pagination", () => {
 			sidebar.show(items);
 
 			// Spy on console.error to capture bounds checking errors
-			const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+			const consoleErrorSpy = vi
+				.spyOn(console, "error")
+				.mockImplementation(() => {});
 
 			// Navigate to page 2 (which has only 1 item)
 			const pagination = document.querySelector(".nugget-pagination");
@@ -459,7 +461,7 @@ describe("Sidebar Pagination", () => {
 			// Attempt to trigger feedback on the single item
 			const nuggetItems = document.querySelectorAll(".nugget-item");
 			expect(nuggetItems.length).toBe(1); // Should have exactly 1 item on page 2
-			
+
 			const firstNuggetOnPage2 = nuggetItems[0];
 			const thumbsUpButton = firstNuggetOnPage2.querySelector(
 				".feedback-btn-thumbs-up",
