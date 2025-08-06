@@ -458,7 +458,9 @@ describe("StorageManager", () => {
 
 			await storageManager.clearAnalysisState();
 
-			expect(mockChrome.storage.local.remove).toHaveBeenCalledWith("analysisState");
+			expect(mockChrome.storage.local.remove).toHaveBeenCalledWith(
+				"analysisState",
+			);
 		});
 
 		it("should propagate storage errors in setAnalysisState", async () => {
@@ -471,15 +473,23 @@ describe("StorageManager", () => {
 				completedPhases: [0],
 			};
 
-			mockChrome.storage.local.set.mockRejectedValueOnce(new Error("Storage full"));
+			mockChrome.storage.local.set.mockRejectedValueOnce(
+				new Error("Storage full"),
+			);
 
-			await expect(storageManager.setAnalysisState(testState)).rejects.toThrow("Storage full");
+			await expect(storageManager.setAnalysisState(testState)).rejects.toThrow(
+				"Storage full",
+			);
 		});
 
 		it("should propagate storage errors in clearAnalysisState", async () => {
-			mockChrome.storage.local.remove.mockRejectedValueOnce(new Error("Permission denied"));
+			mockChrome.storage.local.remove.mockRejectedValueOnce(
+				new Error("Permission denied"),
+			);
 
-			await expect(storageManager.clearAnalysisState()).rejects.toThrow("Permission denied");
+			await expect(storageManager.clearAnalysisState()).rejects.toThrow(
+				"Permission denied",
+			);
 		});
 
 		it("should handle states with all required fields", async () => {

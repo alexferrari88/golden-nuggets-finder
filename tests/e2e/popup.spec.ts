@@ -26,7 +26,7 @@ test.describe("Popup Page", () => {
 	}) => {
 		// This test verifies that the popup can handle analysis state persistence
 		// without requiring real analysis (which needs API keys)
-		
+
 		const page = await context.newPage();
 		await page.goto(`chrome-extension://${extensionId}/popup.html`);
 
@@ -45,10 +45,11 @@ test.describe("Popup Page", () => {
 		await page.waitForTimeout(1000);
 
 		// Filter out expected/unrelated errors and focus on analysis state errors
-		const analysisStateErrors = errors.filter(error => 
-			error.toLowerCase().includes("analysis") || 
-			error.toLowerCase().includes("persistent") ||
-			error.toLowerCase().includes("storage")
+		const analysisStateErrors = errors.filter(
+			(error) =>
+				error.toLowerCase().includes("analysis") ||
+				error.toLowerCase().includes("persistent") ||
+				error.toLowerCase().includes("storage"),
 		);
 
 		// Should not have analysis state related errors
@@ -60,7 +61,7 @@ test.describe("Popup Page", () => {
 			const body = document.body;
 			return body && body.innerHTML.trim().length > 0;
 		});
-		
+
 		expect(hasContent).toBe(true);
 
 		await page.close();
@@ -72,7 +73,7 @@ test.describe("Popup Page", () => {
 	}) => {
 		// Test analysis state storage without requiring API keys
 		// This tests the storage integration layer
-		
+
 		const page = await context.newPage();
 
 		// Test that we can access storage APIs from the popup context
@@ -84,7 +85,10 @@ test.describe("Popup Page", () => {
 			try {
 				// Test that chrome.storage.local is accessible
 				if (!chrome?.storage?.local) {
-					return { success: false, error: "chrome.storage.local not available" };
+					return {
+						success: false,
+						error: "chrome.storage.local not available",
+					};
 				}
 
 				// Test basic storage operations
@@ -109,7 +113,8 @@ test.describe("Popup Page", () => {
 				await chrome.storage.local.remove(testKey);
 
 				// Verify data matches
-				const matches = retrieved && 
+				const matches =
+					retrieved &&
 					retrieved.analysisId === testData.analysisId &&
 					retrieved.promptName === testData.promptName &&
 					retrieved.source === testData.source;
