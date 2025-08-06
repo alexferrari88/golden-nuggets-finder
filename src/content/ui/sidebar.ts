@@ -677,7 +677,10 @@ export class Sidebar {
 		const fragment = document.createDocumentFragment();
 
 		for (let i = start; i < end; i++) {
-			const nuggetElement = this.createNuggetElement(this.allItems[i], i);
+			const nuggetElement = this.createNuggetElement(
+				this.allItems[i],
+				i - start,
+			);
 			fragment.appendChild(nuggetElement);
 		}
 
