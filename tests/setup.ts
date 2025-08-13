@@ -24,6 +24,18 @@ const mockChrome = {
 			hasListener: vi.fn(),
 		},
 	},
+	alarms: {
+		create: vi.fn().mockResolvedValue(undefined),
+		clear: vi.fn().mockResolvedValue(true),
+		clearAll: vi.fn().mockResolvedValue(true),
+		get: vi.fn().mockResolvedValue(undefined),
+		getAll: vi.fn().mockResolvedValue([]),
+		onAlarm: {
+			addListener: vi.fn(),
+			removeListener: vi.fn(),
+			hasListener: vi.fn(),
+		},
+	},
 };
 
 // Make chrome available globally

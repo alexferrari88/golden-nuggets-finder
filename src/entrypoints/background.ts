@@ -11,7 +11,7 @@ import {
 } from "../background/type-filter-service";
 import { injectContentScript } from "../shared/chrome-extension-utils";
 import { checkAndRunMigration, storage } from "../shared/storage";
-import { MESSAGE_TYPES } from "../shared/types";
+import { type FeedbackSubmission, MESSAGE_TYPES } from "../shared/types";
 
 export default defineBackground(() => {
 	const messageHandler = new MessageHandler();
@@ -75,6 +75,12 @@ export default defineBackground(() => {
 
 		updateContextMenuForActiveTab();
 
+		// Set up periodic sync alarm for backend feedback
+		chrome.alarms.create("syncPendingFeedback", {
+			delayInMinutes: 5,
+			periodInMinutes: 5,
+		});
+
 		// Open options page on first install
 		if (details.reason === "install") {
 			chrome.runtime.openOptionsPage();
@@ -85,6 +91,15 @@ export default defineBackground(() => {
 	chrome.storage.onChanged.addListener((changes, namespace) => {
 		if (namespace === "sync" && changes.userPrompts) {
 			updateContextMenuForActiveTab();
+		}
+	});
+
+	// Handle periodic sync alarm
+	chrome.alarms.onAlarm.addListener((alarm) => {
+		if (alarm.name === "syncPendingFeedback") {
+			syncPendingFeedback().catch((error) => {
+				console.error("[Background] Sync failed:", error);
+			});
 		}
 	});
 
@@ -377,6 +392,58 @@ export default defineBackground(() => {
 		} catch (error) {
 			console.error(
 				"[Background] Failed to handle missed nugget report:",
+				error,
+			);
+		}
+	}
+
+	// Sync pending feedback to backend when available
+	async function syncPendingFeedback(): Promise<void> {
+		try {
+			// Get pending feedback from local storage
+			const pendingData = await chrome.storage.local.get([
+				"nugget_feedback",
+				"missing_feedback",
+			]);
+
+			const nuggetFeedback = pendingData.nugget_feedback || [];
+			const missingFeedback = pendingData.missing_feedback || [];
+
+			// If no pending feedback, return early
+			if (nuggetFeedback.length === 0 && missingFeedback.length === 0) {
+				return;
+			}
+
+			console.log(
+				`[Background] Syncing ${nuggetFeedback.length} nugget feedback and ${missingFeedback.length} missing content feedback items`,
+			);
+
+			// Prepare feedback submission
+			const feedbackSubmission: FeedbackSubmission = {};
+			if (nuggetFeedback.length > 0) {
+				feedbackSubmission.nuggetFeedback = nuggetFeedback;
+			}
+			if (missingFeedback.length > 0) {
+				feedbackSubmission.missingContentFeedback = missingFeedback;
+			}
+
+			// Use messageHandler's private method through reflection
+			const result = await (messageHandler as any).sendFeedbackToBackend(
+				feedbackSubmission,
+			);
+
+			console.log("[Background] Successfully synced pending feedback:", result);
+
+			// Clear successfully sent feedback from local storage
+			const keysToRemove = [];
+			if (nuggetFeedback.length > 0) keysToRemove.push("nugget_feedback");
+			if (missingFeedback.length > 0) keysToRemove.push("missing_feedback");
+
+			await chrome.storage.local.remove(keysToRemove);
+			console.log("[Background] Cleared synced feedback from local storage");
+		} catch (error) {
+			console.log(
+				"[Background] Sync failed, feedback will retry in 5 minutes:",
 				error,
 			);
 		}

@@ -72,12 +72,24 @@ const mockScripting = {
 	executeScript: vi.fn(),
 };
 
+const mockAlarms = {
+	create: vi.fn(),
+	clear: vi.fn(),
+	clearAll: vi.fn(),
+	get: vi.fn(),
+	getAll: vi.fn(),
+	onAlarm: {
+		addListener: vi.fn(),
+	},
+};
+
 global.chrome = {
 	contextMenus: mockContextMenus,
 	tabs: mockTabs,
 	runtime: mockRuntime,
 	storage: mockStorage,
 	scripting: mockScripting,
+	alarms: mockAlarms,
 } as any;
 
 describe("Background Script Context Menu", () => {
