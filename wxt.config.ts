@@ -17,7 +17,7 @@ export default defineConfig({
 			32: "assets/icon32.png",
 			128: "assets/icon128.png",
 		},
-		permissions: ["activeTab", "storage", "contextMenus", "scripting"],
+		permissions: ["activeTab", "storage", "contextMenus", "scripting", "alarms"],
 		// Host permissions for LLM provider APIs (always needed)
 		host_permissions: [
 			"https://generativelanguage.googleapis.com/*",
