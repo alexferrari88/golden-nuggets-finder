@@ -9,5 +9,6 @@
     "skipLibCheck": true,
     "moduleResolution": "node",
     "types": ["vitest/globals", "node", "@types/chrome"]
-  }
+  },
+  "exclude": ["node_modules", "dist", "frontend", "backend"]
 }
