@@ -376,15 +376,24 @@ function OptionsPage() {
 	// Debug logging state
 	const [debugLoggingEnabled, setDebugLoggingEnabled] = useState(false);
 
+	// Persona configuration state
+	const [userPersona, setUserPersona] = useState("");
+	const [personaSaveStatus, setPersonaSaveStatus] = useState<{
+		type: AlertType;
+		timestamp: number;
+	} | null>(null);
+
 	const loadData = useCallback(async () => {
 		try {
 			setLoading(true);
-			const [savedPrompts, storageData] = await Promise.all([
+			const [savedPrompts, storageData, savedPersona] = await Promise.all([
 				storage.getPrompts(),
 				chrome.storage.local.get(["selectedProvider", "extensionConfig"]),
+				storage.getPersona(),
 			]);
 			setPrompts(savedPrompts);
 			setSelectedProvider(storageData.selectedProvider || null);
+			setUserPersona(savedPersona);
 
 			// Load debug logging setting
 			setDebugLoggingEnabled(
@@ -828,6 +837,38 @@ function OptionsPage() {
 				title: "Update Failed",
 				message: "Failed to update debug logging setting. Please try again.",
 			});
+		}
+	};
+
+	// Persona management functions
+	const handlePersonaUpdate = async (persona: string) => {
+		try {
+			setUserPersona(persona);
+			await storage.savePersona(persona);
+
+			// Set success feedback
+			setPersonaSaveStatus({
+				type: "success",
+				timestamp: Date.now(),
+			});
+
+			// Clear success feedback after 3 seconds
+			setTimeout(() => {
+				setPersonaSaveStatus(null);
+			}, 3000);
+		} catch (error) {
+			console.error("Failed to save persona:", error);
+
+			// Set error feedback
+			setPersonaSaveStatus({
+				type: "error",
+				timestamp: Date.now(),
+			});
+
+			// Clear error feedback after 5 seconds
+			setTimeout(() => {
+				setPersonaSaveStatus(null);
+			}, 5000);
 		}
 	};
 
@@ -1953,6 +1994,182 @@ function OptionsPage() {
 							)}
 						</div>
 					)}
+				</div>
+
+				{/* Persona Configuration Section */}
+				<div
+					style={{
+						marginBottom: spacing["3xl"],
+						backgroundColor: colors.background.primary,
+						padding: spacing["3xl"],
+						borderRadius: borderRadius.xl,
+						boxShadow: shadows.md,
+						border: `1px solid ${colors.border.light}`,
+					}}
+				>
+					<div
+						style={{
+							display: "flex",
+							alignItems: "center",
+							gap: spacing.md,
+							marginBottom: spacing["2xl"],
+						}}
+					>
+						<div style={{ color: colors.text.accent }}>
+							<StickyNote size={20} />
+						</div>
+						<h2
+							style={{
+								margin: 0,
+								fontSize: typography.fontSize.xl,
+								fontWeight: typography.fontWeight.semibold,
+								color: colors.text.primary,
+							}}
+						>
+							Persona Configuration
+						</h2>
+					</div>
+
+					<div
+						style={{
+							marginBottom: spacing["2xl"],
+							padding: spacing.lg,
+							backgroundColor: colors.background.secondary,
+							borderRadius: borderRadius.lg,
+							border: `1px solid ${colors.border.light}`,
+						}}
+					>
+						<div
+							style={{
+								display: "flex",
+								alignItems: "flex-start",
+								gap: spacing.md,
+								marginBottom: spacing.md,
+							}}
+						>
+							<div style={{ color: colors.text.accent, marginTop: "2px" }}>
+								<CircleAlert size={16} />
+							</div>
+							<div>
+								<h3
+									style={{
+										margin: "0 0 4px 0",
+										fontSize: typography.fontSize.sm,
+										fontWeight: typography.fontWeight.semibold,
+										color: colors.text.primary,
+									}}
+								>
+									Personalize Your Analysis
+								</h3>
+								<p
+									style={{
+										margin: 0,
+										fontSize: typography.fontSize.sm,
+										color: colors.text.secondary,
+										lineHeight: typography.lineHeight.normal,
+									}}
+								>
+									Describe yourself to help the AI find content that's most
+									relevant to your interests, profession, and goals. This
+									persona will be used to filter and prioritize golden nuggets.
+								</p>
+							</div>
+						</div>
+					</div>
+
+					<div
+						style={{
+							padding: spacing.lg,
+							backgroundColor: colors.background.secondary,
+							borderRadius: borderRadius.lg,
+							border: `1px solid ${colors.border.light}`,
+						}}
+					>
+						<label
+							style={{
+								display: "block",
+								marginBottom: spacing.sm,
+								color: colors.text.primary,
+								fontSize: typography.fontSize.sm,
+								fontWeight: typography.fontWeight.medium,
+							}}
+						>
+							Your Persona:
+						</label>
+						<textarea
+							value={userPersona}
+							onChange={(e) => handlePersonaUpdate(e.target.value)}
+							placeholder="e.g., Pragmatic Processor with ADHD, Software Engineer, Creative Writer"
+							rows={3}
+							style={{
+								...components.input.default,
+								width: "100%",
+								resize: "vertical",
+								minHeight: "80px",
+								boxSizing: "border-box",
+								fontFamily: typography.fontFamily.sans,
+							}}
+							onFocus={(e) => {
+								e.target.style.borderColor = colors.text.accent;
+							}}
+							onBlur={(e) => {
+								e.target.style.borderColor = colors.border.default;
+							}}
+						/>
+
+						{/* Persona Save Status Feedback */}
+						{personaSaveStatus && (
+							<div
+								style={{
+									marginTop: spacing.sm,
+									padding: spacing.sm,
+									backgroundColor: colors.background.primary,
+									borderRadius: borderRadius.md,
+									fontSize: typography.fontSize.xs,
+									fontWeight: typography.fontWeight.medium,
+									color:
+										personaSaveStatus.type === "success"
+											? colors.success
+											: colors.error,
+									display: "flex",
+									alignItems: "center",
+									gap: spacing.xs,
+									border: `1px solid ${
+										personaSaveStatus.type === "success"
+											? `${colors.success}33`
+											: `${colors.error}33`
+									}`,
+								}}
+							>
+								{personaSaveStatus.type === "success" ? (
+									<>
+										<CircleCheck size={12} />
+										Persona saved automatically
+									</>
+								) : (
+									<>
+										<CircleAlert size={12} />
+										Failed to save persona
+									</>
+								)}
+							</div>
+						)}
+
+						<div
+							style={{
+								marginTop: spacing.md,
+								padding: spacing.sm,
+								backgroundColor: colors.background.primary,
+								borderRadius: borderRadius.md,
+								fontSize: typography.fontSize.xs,
+								color: colors.text.tertiary,
+							}}
+						>
+							💡 Tips: Include your profession, interests, learning style, or
+							any specific context that would help the AI understand what
+							content is most valuable to you. Changes are saved automatically.
+						</div>
+					</div>
 				</div>
 
 				{/* Debug Settings Section */}
