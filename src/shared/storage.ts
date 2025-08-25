@@ -302,6 +302,24 @@ export class StorageManager {
 		return prompts.find((p) => p.isDefault) || prompts[0] || null;
 	}
 
+	async getPersona(): Promise<string> {
+		const cached = this.getFromCache(STORAGE_KEYS.USER_PERSONA);
+		if (cached !== null) {
+			return cached;
+		}
+
+		const result = await chrome.storage.sync.get(STORAGE_KEYS.USER_PERSONA);
+		const persona = result[STORAGE_KEYS.USER_PERSONA] || "";
+
+		this.setCache(STORAGE_KEYS.USER_PERSONA, persona);
+		return persona;
+	}
+
+	async savePersona(persona: string): Promise<void> {
+		this.setCache(STORAGE_KEYS.USER_PERSONA, persona);
+		await chrome.storage.sync.set({ [STORAGE_KEYS.USER_PERSONA]: persona });
+	}
+
 	// Analysis state management for popup persistence
 	async getAnalysisState(): Promise<PersistentAnalysisState | null> {
 		try {
@@ -452,14 +470,16 @@ export class StorageManager {
 			return cached;
 		}
 
-		const [apiKey, prompts] = await Promise.all([
+		const [apiKey, prompts, persona] = await Promise.all([
 			this.getApiKey(context),
 			this.getPrompts(),
+			this.getPersona(),
 		]);
 
 		const config = {
 			geminiApiKey: apiKey,
 			userPrompts: prompts,
+			userPersona: persona,
 		};
 
 		this.setCache(configKey, config);
@@ -483,6 +503,11 @@ export class StorageManager {
 		if (config.userPrompts !== undefined) {
 			updates[STORAGE_KEYS.PROMPTS] = config.userPrompts;
 			this.setCache(STORAGE_KEYS.PROMPTS, config.userPrompts);
+		}
+
+		if (config.userPersona !== undefined) {
+			updates[STORAGE_KEYS.USER_PERSONA] = config.userPersona;
+			this.setCache(STORAGE_KEYS.USER_PERSONA, config.userPersona);
 		}
 
 		// Clear full config cache
