@@ -163,8 +163,8 @@ test.describe("Golden Nuggets API Integration", () => {
 			// Define interfaces for validation
 			interface GoldenNugget {
 				type: "tool" | "media" | "explanation" | "analogy" | "model";
-				content: string;
-				synthesis: string;
+				startContent: string;
+				endContent: string;
 			}
 
 			interface GoldenNuggetsResponse {
@@ -182,8 +182,8 @@ test.describe("Golden Nuggets API Integration", () => {
 				return response.golden_nuggets.every(
 					(nugget: GoldenNugget) =>
 						nugget &&
-						typeof nugget.content === "string" &&
-						typeof nugget.synthesis === "string" &&
+						typeof nugget.startContent === "string" &&
+						typeof nugget.endContent === "string" &&
 						validTypes.includes(nugget.type),
 				);
 			};
@@ -193,13 +193,13 @@ test.describe("Golden Nuggets API Integration", () => {
 				golden_nuggets: [
 					{
 						type: "tool",
-						content: "Use regex101.com for testing regular expressions",
-						synthesis: "Perfect for someone who values precision and testing",
+						startContent: "Use regex101.com for",
+						endContent: "testing regular expressions",
 					},
 					{
 						type: "explanation",
-						content: "React hooks follow composition over inheritance",
-						synthesis: "Aligns with first-principles thinking",
+						startContent: "React hooks follow",
+						endContent: "composition over inheritance",
 					},
 				],
 			};
@@ -209,8 +209,8 @@ test.describe("Golden Nuggets API Integration", () => {
 				golden_nuggets: [
 					{
 						type: "invalid_type",
-						content: "Some content",
-						synthesis: "Some synthesis",
+						startContent: "Some content",
+						endContent: "Some content",
 					},
 				],
 			};

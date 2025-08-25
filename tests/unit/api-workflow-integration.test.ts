@@ -149,7 +149,6 @@ describe("API Workflow Integration Tests", () => {
 						type: "tool",
 						startContent: "Test tool content",
 						endContent: "End of tool content",
-						synthesis: "This is a useful tool for testing",
 					},
 				],
 			};
@@ -251,7 +250,6 @@ describe("API Workflow Integration Tests", () => {
 						type: "tool",
 						startContent: "Filtered tool",
 						endContent: "End tool",
-						synthesis: "Tool synthesis",
 					},
 				],
 			};
@@ -307,7 +305,6 @@ describe("API Workflow Integration Tests", () => {
 						type: "explanation",
 						startContent: "Optimized explanation",
 						endContent: "End explanation",
-						synthesis: "Optimized synthesis",
 					},
 				],
 			};
@@ -354,7 +351,6 @@ describe("API Workflow Integration Tests", () => {
 						type: "analogy",
 						startContent: "Fallback analogy",
 						endContent: "End analogy",
-						synthesis: "Fallback synthesis",
 					},
 				],
 			};
@@ -404,7 +400,6 @@ describe("API Workflow Integration Tests", () => {
 						type: "model",
 						startContent: "Selected mental model",
 						endContent: "End model",
-						synthesis: "Selected content synthesis",
 					},
 				],
 			};

@@ -75,7 +75,6 @@ describe("GeminiClient", () => {
 												type: "tool",
 												startContent: "Test content",
 												endContent: "Test content",
-												synthesis: "Test synthesis",
 											},
 										],
 									}),
@@ -102,7 +101,6 @@ describe("GeminiClient", () => {
 						type: "tool",
 						startContent: "Test content",
 						endContent: "Test content",
-						synthesis: "Test synthesis",
 					},
 				],
 			});

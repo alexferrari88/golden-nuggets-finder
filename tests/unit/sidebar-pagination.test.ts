@@ -120,7 +120,6 @@ function createMockNuggetItems(count: number): SidebarNuggetItem[] {
 			type: "explanation" as const,
 			startContent: `Start content ${i + 1}`,
 			endContent: `End content ${i + 1}`,
-			synthesis: `Synthesis ${i + 1}`,
 		} as GoldenNugget,
 		status: "highlighted" as "highlighted" | "not-found",
 		selected: false,

@@ -57,12 +57,8 @@ describe("Response Normalizer Functions", () => {
 
 			const result = normalize(responseWithWhitespace, "anthropic");
 
-			expect(result.golden_nuggets[0].startContent).toBe(
-				"Test start content",
-			);
-			expect(result.golden_nuggets[0].endContent).toBe(
-				"Test end content",
-			);
+			expect(result.golden_nuggets[0].startContent).toBe("Test start content");
+			expect(result.golden_nuggets[0].endContent).toBe("Test end content");
 		});
 
 		it("should filter out nuggets with empty content", () => {
@@ -134,8 +130,8 @@ describe("Response Normalizer Functions", () => {
 				golden_nuggets: [
 					{
 						type: "invalid_type",
-						content: "Test content",
-						synthesis: "Test synthesis",
+						startContent: "Test content",
+						endContent: "Test content",
 					},
 				],
 			};

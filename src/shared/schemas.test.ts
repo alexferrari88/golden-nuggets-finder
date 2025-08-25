@@ -97,7 +97,6 @@ describe("GOLDEN_NUGGET_SCHEMA", () => {
 		});
 	});
 
-
 	describe("Schema Validation", () => {
 		it("should validate a correct golden nugget structure", () => {
 			const validNugget = {

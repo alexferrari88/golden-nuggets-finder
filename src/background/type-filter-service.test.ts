@@ -409,7 +409,7 @@ Continue with analysis...`;
 		it("should produce schemas compatible with generateGoldenNuggetSchema", () => {
 			const types: GoldenNuggetType[] = ["tool", "media"];
 			const filterServiceSchema = generateDynamicSchema(types);
-			const directSchema = generateGoldenNuggetSchema(types, true); // Default synthesis enabled
+			const directSchema = generateGoldenNuggetSchema(types); // Synthesis removed
 
 			expect(filterServiceSchema).toEqual(directSchema);
 		});
