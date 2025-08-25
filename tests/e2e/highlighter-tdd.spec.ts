@@ -10,36 +10,26 @@ const GOLDEN_NUGGETS: GoldenNugget[] = [
 		type: "tool",
 		startContent: "Project CETI is a large-scale",
 		endContent: "to talk to whales.",
-		synthesis:
-			"A large-scale project demonstrating the ambitious potential of AI to decode complex natural communication (whale speech), which can inspire developers and entrepreneurs to tackle grand challenges with AI.",
 	},
 	{
 		type: "analogy",
 		startContent: "Growing up, I sometimes played",
 		endContent: "guess almost anything.",
-		synthesis:
-			"This analogy provides a simple yet powerful mental model for how semantic search or large language models might narrow down concepts in a high-dimensional space, valuable for understanding vector embeddings or knowledge representation.",
 	},
 	{
 		type: "explanation",
 		startContent: "One perspective on AI",
 		endContent: "the source coding theorem.)",
-		synthesis:
-			"This core explanation posits that intelligence is fundamentally compression, linking it to Shannon's theorem and scaling laws. It provides a unifying theoretical framework for AI developers and researchers to understand model capabilities and the path to AGI.",
 	},
 	{
 		type: "explanation",
 		startContent: "Generalization only begins when",
 		endContent: "generalization occurs.",
-		synthesis:
-			"Explains a critical insight: AI models generalize not by memorizing but by being forced to compress and combine information when training datasets exceed their capacity. This is vital for developers optimizing training strategies and understanding model behavior.",
 	},
 	{
 		type: "model",
 		startContent: "The theory that models",
 		endContent: "bigger and smarter.",
-		synthesis:
-			"Introduces a significant new model suggesting that AI models converge to a shared universal representation space as they scale. This provides a valuable framework for understanding model interoperability, transfer learning, and the future of AI.",
 	},
 ];
 
@@ -408,7 +398,6 @@ test.describe("Highlighter TDD", () => {
 				type: "explanation",
 				startContent: "Generalization only begins when",
 				endContent: "generalization occurs...", // Extra dots compared to actual content
-				synthesis: "Test synthesis for punctuation handling",
 			};
 
 			console.log("Testing punctuation mismatch nugget:", testNugget);
@@ -455,7 +444,6 @@ test.describe("Highlighter TDD", () => {
 				type: "tool",
 				startContent: "Project CETI is a large-scale",
 				endContent: "to talk to whales", // Missing period compared to actual content
-				synthesis: "Test synthesis for missing punctuation handling",
 			};
 
 			console.log("Testing missing punctuation nugget:", testNugget);

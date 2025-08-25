@@ -73,7 +73,6 @@ describe("Content Reconstruction - Error Handling", () => {
 		it("should handle undefined pageContent gracefully", () => {
 			const nugget: GoldenNugget = {
 				type: "explanation",
-				synthesis: "Test synthesis",
 				startContent: "start",
 				endContent: "end",
 			};
@@ -85,7 +84,6 @@ describe("Content Reconstruction - Error Handling", () => {
 		it("should handle null pageContent gracefully", () => {
 			const nugget: GoldenNugget = {
 				type: "explanation",
-				synthesis: "Test synthesis",
 				startContent: "start",
 				endContent: "end",
 			};
@@ -97,7 +95,6 @@ describe("Content Reconstruction - Error Handling", () => {
 		it("should handle empty pageContent gracefully", () => {
 			const nugget: GoldenNugget = {
 				type: "explanation",
-				synthesis: "Test synthesis",
 				startContent: "start",
 				endContent: "end",
 			};
@@ -107,7 +104,6 @@ describe("Content Reconstruction - Error Handling", () => {
 		it("should work with valid inputs", () => {
 			const nugget: GoldenNugget = {
 				type: "explanation",
-				synthesis: "Test synthesis",
 				startContent: "This is",
 				endContent: "a test",
 			};
@@ -146,7 +142,6 @@ describe("Content Reconstruction - Error Handling", () => {
 		it("should handle undefined pageContent gracefully", () => {
 			const nugget: GoldenNugget = {
 				type: "explanation",
-				synthesis: "Test synthesis",
 				startContent: "start",
 				endContent: "end",
 			};
@@ -156,7 +151,6 @@ describe("Content Reconstruction - Error Handling", () => {
 		it("should handle non-string pageContent gracefully", () => {
 			const nugget: GoldenNugget = {
 				type: "explanation",
-				synthesis: "Test synthesis",
 				startContent: "start",
 				endContent: "end",
 			};
@@ -171,7 +165,6 @@ describe("Content Reconstruction - Error Handling", () => {
 		it("should work with valid inputs", () => {
 			const nugget: GoldenNugget = {
 				type: "explanation",
-				synthesis: "Test synthesis",
 				startContent: "start",
 				endContent: "end",
 			};
@@ -261,7 +254,6 @@ describe("Content Reconstruction - Error Handling", () => {
 		it("should handle undefined searchText gracefully", () => {
 			const nugget: GoldenNugget = {
 				type: "explanation",
-				synthesis: "Test synthesis",
 				startContent: "start",
 				endContent: "end",
 			};
@@ -273,7 +265,6 @@ describe("Content Reconstruction - Error Handling", () => {
 		it("should handle null searchText gracefully", () => {
 			const nugget: GoldenNugget = {
 				type: "explanation",
-				synthesis: "Test synthesis",
 				startContent: "start",
 				endContent: "end",
 			};
@@ -285,7 +276,6 @@ describe("Content Reconstruction - Error Handling", () => {
 		it("should work with valid inputs", () => {
 			const nugget: GoldenNugget = {
 				type: "explanation",
-				synthesis: "Test synthesis",
 				startContent: "This is",
 				endContent: "a test",
 			};
@@ -361,7 +351,6 @@ describe("Content Reconstruction - LLM Hallucinated EndContent", () => {
 				"This is a sample text that contains some important information for testing.";
 			const nuggetWithHallucinatedEnd: GoldenNugget = {
 				type: "explanation",
-				synthesis: "Test synthesis",
 				startContent: "This is a sample",
 				endContent: "information for testing.", // Hallucinated period
 			};
@@ -380,7 +369,6 @@ describe("Content Reconstruction - LLM Hallucinated EndContent", () => {
 				"The quick brown fox jumps over the lazy dog every morning.";
 			const nuggetWithHallucinatedEnd: GoldenNugget = {
 				type: "tool",
-				synthesis: "Test synthesis",
 				startContent: "The quick brown",
 				endContent: "lazy dog ", // Hallucinated space
 			};
@@ -399,7 +387,6 @@ describe("Content Reconstruction - LLM Hallucinated EndContent", () => {
 				"Advanced machine learning algorithms can solve complex problems efficiently.";
 			const nuggetWithHallucinatedEnd: GoldenNugget = {
 				type: "model",
-				synthesis: "Test synthesis",
 				startContent: "Advanced machine learning",
 				endContent: "complex problems efficiently.  ", // Hallucinated period and spaces
 			};
@@ -497,7 +484,6 @@ describe("Content Reconstruction - OpenRouter Error Integration", () => {
 	it("should handle edge case where text processing fails", () => {
 		const nugget: GoldenNugget = {
 			type: "explanation",
-			synthesis: "Test synthesis",
 			startContent: "start",
 			endContent: "end",
 		};

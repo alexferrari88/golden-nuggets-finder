@@ -35,7 +35,6 @@ const GoldenNuggetsResponseSchema = z.object({
 			type: z.enum(["tool", "media", "explanation", "analogy", "model"]),
 			startContent: z.string(),
 			endContent: z.string(),
-			synthesis: z.string(),
 		}),
 	),
 });
@@ -180,8 +179,6 @@ Return only the most valuable insights that would be genuinely useful to a softw
 								expect(nugget.startContent.length).toBeGreaterThan(0);
 								expect(typeof nugget.endContent).toBe("string");
 								expect(nugget.endContent.length).toBeGreaterThan(0);
-								expect(typeof nugget.synthesis).toBe("string");
-								expect(nugget.synthesis.length).toBeGreaterThan(0);
 							});
 						}
 
@@ -212,13 +209,11 @@ Return only the most valuable insights that would be genuinely useful to a softw
 						type: "tool" as const,
 						startContent: "React hooks",
 						endContent: "like useState",
-						synthesis: "Useful for managing component state",
 					},
 					{
 						type: "explanation" as const,
 						startContent: "Components are functions",
 						endContent: "return JSX",
-						synthesis: "This mental model helps understand React architecture",
 					},
 				],
 			};
@@ -234,7 +229,6 @@ Return only the most valuable insights that would be genuinely useful to a softw
 						type: "invalid-type",
 						startContent: "Some content",
 						endContent: "Some content",
-						synthesis: "Some synthesis",
 					},
 				],
 			};

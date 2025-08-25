@@ -17,13 +17,11 @@ test.describe("Feedback Reset Flow", () => {
 					type: "tool",
 					startContent: "This is a useful tool",
 					endContent: "for productivity",
-					synthesis: "Great for workflow optimization",
 				},
 				{
 					type: "explanation",
 					startContent: "Complex concepts explained",
 					endContent: "in simple terms",
-					synthesis: "Helps understand difficult topics",
 				},
 			];
 		});

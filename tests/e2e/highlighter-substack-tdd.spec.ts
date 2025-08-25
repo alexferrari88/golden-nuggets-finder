@@ -11,85 +11,61 @@ const GOLDEN_NUGGETS: GoldenNugget[] = [
 		type: "explanation",
 		startContent: "I think vision is",
 		endContent: "and to ourselves.",
-		synthesis:
-			"Defines 'vision' as a critical, undersupplied virtue, crucial for entrepreneurs and knowledge workers to articulate desired future states for projects, products, and personal growth, moving beyond problem identification to proactive creation.",
 	},
 	{
 		type: "explanation",
 		startContent: "having to articulate a",
 		endContent: "could be possible.",
-		synthesis:
-			"Highlights the power of vision in elevating aspiration and fostering innovation by reorienting focus from current problems to future possibilities, essential for entrepreneurs seeking to build new solutions.",
 	},
 	{
 		type: "analogy",
 		startContent: "At the individual level,",
 		endContent: "to do that thing.",
-		synthesis:
-			"Explains the psychological impact of vision, drawing an analogy to elite athlete visualization, emphasizing how articulating a future state increases the probability of achieving it—a valuable concept for goal-setting in software projects or business ventures.",
 	},
 	{
 		type: "explanation",
 		startContent: "At the collective level,",
 		endContent: "manifest that future.",
-		synthesis:
-			"Underscores the critical role of a compelling vision in fostering team alignment and motivation, a cornerstone for entrepreneurs building startups or leaders guiding complex software development projects.",
 	},
 	{
 		type: "model",
 		startContent: "In general, when you",
 		endContent: "look like here?",
-		synthesis:
-			"Offers a practical framework for shifting from critical analysis to constructive visioning, urging practitioners to always imagine the ideal solution or outcome after identifying a problem.",
 	},
 	{
 		type: "model",
 		startContent: "[Self] Draft/sketch your obituary.",
 		endContent: "in your life today?",
-		synthesis:
-			"Provides a powerful, introspective tool for personal visioning, helping individuals align daily actions with long-term aspirations, crucial for entrepreneurs defining their legacy and knowledge workers seeking purpose.",
 	},
 	{
 		type: "model",
 		startContent: "[World or work] On",
 		endContent: "or president, etc.)",
-		synthesis:
-			"Presents a scalable framework for problem-solving, encouraging individuals to adopt a leadership mindset and articulate a desired future state for complex challenges, directly applicable to product development, business strategy, or social impact initiatives.",
 	},
 	{
 		type: "model",
 		startContent: "Demand more from others,",
 		endContent: "want to help.",
-		synthesis:
-			"Advocates for proactively demanding clear, inspiring visions from leaders, which is vital for entrepreneurs and knowledge workers to evaluate potential collaborators, investors, or policymakers based on their ability to articulate a compelling future.",
 	},
 	{
 		type: "model",
 		startContent: "A more specific question might",
 		endContent: "cultivate more of it?",
-		synthesis:
-			"Provides a practical, actionable framework for entrepreneurs and knowledge workers to identify and cultivate critical virtues or traits needed in their organizations or society, offering a structured approach to problem-solving and positive change beyond abstract ethical debates.",
 	},
 	{
 		type: "analogy",
 		startContent: "At the individual level, visualizing",
 		endContent: "manifest that future.",
-		synthesis:
-			"Leverages the powerful analogy of elite athletes visualizing success to demonstrate how articulated vision makes daunting goals seem achievable, both individually and collectively. It highlights vision's role in motivation and aligning teams (velocity and force), directly relevant for leaders and project managers.",
 	},
 	{
 		type: "explanation",
 		startContent: "Why is it in such",
 		endContent: "resolve and practice.",
-		synthesis:
-			"Provides a candid explanation of a common challenge for modern knowledge workers: the pursuit of external validation ('gold stars') without a clear, internally-driven vision, leading to burnout and existential questioning. This insight is crucial for self-aware career development and avoiding common entrepreneurial pitfalls.",
 	},
 	{
 		type: "model",
 		startContent: "How do we cultivate",
 		endContent: "or president, etc.)",
-		synthesis:
-			"Offers a concrete, actionable framework with specific prompts ([Self], [Relationships], [World or work]) for individuals to cultivate a strong sense of vision. This directly helps software developers, entrepreneurs, and knowledge workers in personal goal setting, relationship building, and strategic problem-solving.",
 	},
 ];
 
@@ -480,7 +456,6 @@ test.describe("Highlighter Substack TDD", () => {
 				type: "tool",
 				startContent: "Here are some prompts",
 				endContent: "solving the problem.",
-				synthesis: "The nugget that was causing issues",
 			};
 
 			// Verify it exists on the page
@@ -544,7 +519,6 @@ test.describe("Highlighter Substack TDD", () => {
 				type: "test",
 				startContent: "Here are some prompts",
 				endContent: "solving the problem.",
-				synthesis: "Test nugget demonstrating the fix",
 			};
 
 			const contentBefore = document.body.textContent;

@@ -10,36 +10,26 @@ export const mockGoldenNuggets: GoldenNugget[] = [
 		type: "tool",
 		startContent: "Use regex101.com for testing",
 		endContent: "regular expressions",
-		synthesis:
-			"Perfect for someone who values precision and testing - allows you to validate patterns before implementation",
 	},
 	{
 		type: "explanation",
 		startContent: "React hooks follow the principle",
 		endContent: "modular and reusable",
-		synthesis:
-			"Aligns with first-principles thinking - explains the fundamental design philosophy behind React hooks",
 	},
 	{
 		type: "analogy",
 		startContent: "Database indexing is like having",
 		endContent: "without scanning every page",
-		synthesis:
-			"Excellent mental model for understanding database performance optimization",
 	},
 	{
 		type: "model",
 		startContent: "The MVC pattern separates concerns:",
 		endContent: "Controller (logic)",
-		synthesis:
-			"Fundamental architectural pattern that provides clear mental framework for organizing code",
 	},
 	{
 		type: "media",
 		startContent: "Check out this video on system",
 		endContent: "https://youtube.com/watch?v=example",
-		synthesis:
-			"Visual learning resource that complements theoretical understanding of system architecture",
 	},
 ];
 

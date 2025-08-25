@@ -197,7 +197,8 @@ describe("MessageHandler", () => {
 					id: "test-prompt",
 					name: "Test Prompt",
 					prompt: "Analyze this {{ source }} for insights.",
-					isDefault: 				},
+					isDefault: true,
+				},
 			]);
 		});
 
@@ -227,7 +228,7 @@ describe("MessageHandler", () => {
 			expect(mockProvider.extractGoldenNuggets).toHaveBeenCalledWith(
 				"Test content",
 				"Analyze this HackerNews thread for insights.",
-							);
+			);
 		});
 
 		it('should replace {{ source }} with "Reddit thread" for Reddit URLs', async () => {
@@ -248,7 +249,7 @@ describe("MessageHandler", () => {
 			expect(mockProvider.extractGoldenNuggets).toHaveBeenCalledWith(
 				"Test content",
 				"Analyze this Reddit thread for insights.",
-							);
+			);
 		});
 
 		it('should replace {{ source }} with "Twitter thread" for Twitter URLs', async () => {
@@ -269,7 +270,7 @@ describe("MessageHandler", () => {
 			expect(mockProvider.extractGoldenNuggets).toHaveBeenCalledWith(
 				"Test content",
 				"Analyze this Twitter thread for insights.",
-							);
+			);
 		});
 
 		it('should replace {{ source }} with "Twitter thread" for X.com URLs', async () => {
@@ -290,7 +291,7 @@ describe("MessageHandler", () => {
 			expect(mockProvider.extractGoldenNuggets).toHaveBeenCalledWith(
 				"Test content",
 				"Analyze this Twitter thread for insights.",
-							);
+			);
 		});
 
 		it('should replace {{ source }} with "text" for other URLs', async () => {
@@ -311,7 +312,7 @@ describe("MessageHandler", () => {
 			expect(mockProvider.extractGoldenNuggets).toHaveBeenCalledWith(
 				"Test content",
 				"Analyze this text for insights.",
-							);
+			);
 		});
 
 		it("should handle multiple {{ source }} placeholders in the same prompt", async () => {
@@ -321,7 +322,8 @@ describe("MessageHandler", () => {
 					name: "Multi Source Prompt",
 					prompt:
 						"First analyze this {{ source }} and then review the {{ source }} again.",
-					isDefault: 				},
+					isDefault: true,
+				},
 			]);
 
 			const request = {
@@ -341,7 +343,7 @@ describe("MessageHandler", () => {
 			expect(mockProvider.extractGoldenNuggets).toHaveBeenCalledWith(
 				"Test content",
 				"First analyze this HackerNews thread and then review the HackerNews thread again.",
-							);
+			);
 		});
 
 		it("should handle prompts without {{ source }} placeholder", async () => {
@@ -350,7 +352,8 @@ describe("MessageHandler", () => {
 					id: "no-placeholder-prompt",
 					name: "No Placeholder Prompt",
 					prompt: "Analyze this content for insights.",
-					isDefault: 				},
+					isDefault: true,
+				},
 			]);
 
 			const request = {
@@ -370,7 +373,7 @@ describe("MessageHandler", () => {
 			expect(mockProvider.extractGoldenNuggets).toHaveBeenCalledWith(
 				"Test content",
 				"Analyze this content for insights.",
-							);
+			);
 		});
 
 		it("should handle {{ source }} with different spacing", async () => {
@@ -380,7 +383,8 @@ describe("MessageHandler", () => {
 					name: "Spaced Prompt",
 					prompt:
 						"Analyze this {{source}} and this {{  source  }} for insights.",
-					isDefault: 				},
+					isDefault: true,
+				},
 			]);
 
 			const request = {
@@ -400,7 +404,7 @@ describe("MessageHandler", () => {
 			expect(mockProvider.extractGoldenNuggets).toHaveBeenCalledWith(
 				"Test content",
 				"Analyze this Reddit thread and this Reddit thread for insights.",
-							);
+			);
 		});
 	});
 
@@ -423,11 +427,13 @@ describe("MessageHandler", () => {
 			const mockOptimizedResponse = {
 				prompt: "Provider-specific optimized prompt",
 				version: 2,
-				providerSpecific: 				modelProvider: "openai",
+				providerSpecific: true,
+				modelProvider: "openai",
 				modelName: "gpt-4o-mini",
 			};
 			mockFetch.mockResolvedValue({
-				ok: 				json: () => Promise.resolve(mockOptimizedResponse),
+				ok: true,
+				json: () => Promise.resolve(mockOptimizedResponse),
 			} as Response);
 
 			// Mock storage to return prompts
@@ -436,7 +442,8 @@ describe("MessageHandler", () => {
 					id: "test-prompt",
 					name: "Test Prompt",
 					prompt: "Original prompt {{ source }}",
-					isDefault: 				},
+					isDefault: true,
+				},
 			]);
 
 			const request = {
@@ -466,7 +473,7 @@ describe("MessageHandler", () => {
 			expect(mockProvider.extractGoldenNuggets).toHaveBeenCalledWith(
 				"Test content",
 				"Provider-specific optimized prompt",
-							);
+			);
 		});
 
 		it("should fallback to generic optimization when no model is selected", async () => {
@@ -486,7 +493,8 @@ describe("MessageHandler", () => {
 				fallbackUsed: false,
 			};
 			mockFetch.mockResolvedValue({
-				ok: 				json: () => Promise.resolve(mockOptimizedResponse),
+				ok: true,
+				json: () => Promise.resolve(mockOptimizedResponse),
 			} as Response);
 
 			(storage.getPrompts as ReturnType<typeof vi.fn>).mockResolvedValue([
@@ -494,7 +502,8 @@ describe("MessageHandler", () => {
 					id: "test-prompt",
 					name: "Test Prompt",
 					prompt: "Original prompt {{ source }}",
-					isDefault: 				},
+					isDefault: true,
+				},
 			]);
 
 			const request = {
@@ -524,7 +533,7 @@ describe("MessageHandler", () => {
 			expect(mockProvider.extractGoldenNuggets).toHaveBeenCalledWith(
 				"Test content",
 				"Generic optimized prompt",
-							);
+			);
 		});
 
 		it("should fallback to generic optimization when no provider is configured", async () => {
@@ -538,9 +547,11 @@ describe("MessageHandler", () => {
 				prompt: "Generic fallback prompt",
 				version: 1,
 				providerSpecific: false,
-				fallbackUsed: 			};
+				fallbackUsed: true,
+			};
 			mockFetch.mockResolvedValue({
-				ok: 				json: () => Promise.resolve(mockOptimizedResponse),
+				ok: true,
+				json: () => Promise.resolve(mockOptimizedResponse),
 			} as Response);
 
 			(storage.getPrompts as ReturnType<typeof vi.fn>).mockResolvedValue([
@@ -548,7 +559,8 @@ describe("MessageHandler", () => {
 					id: "test-prompt",
 					name: "Test Prompt",
 					prompt: "Original prompt {{ source }}",
-					isDefault: 				},
+					isDefault: true,
+				},
 			]);
 
 			const request = {
@@ -578,7 +590,7 @@ describe("MessageHandler", () => {
 			expect(mockProvider.extractGoldenNuggets).toHaveBeenCalledWith(
 				"Test content",
 				"Generic fallback prompt",
-							);
+			);
 		});
 
 		it("should use original prompt when optimization fails", async () => {
@@ -598,7 +610,8 @@ describe("MessageHandler", () => {
 					id: "test-prompt",
 					name: "Test Prompt",
 					prompt: "Original prompt {{ source }}",
-					isDefault: 				},
+					isDefault: true,
+				},
 			]);
 
 			const request = {
@@ -618,7 +631,7 @@ describe("MessageHandler", () => {
 			expect(mockProvider.extractGoldenNuggets).toHaveBeenCalledWith(
 				"Test content",
 				"Original prompt text",
-							);
+			);
 		});
 
 		it("should handle HTTP errors from optimization endpoint", async () => {
@@ -642,7 +655,8 @@ describe("MessageHandler", () => {
 					id: "test-prompt",
 					name: "Test Prompt",
 					prompt: "Original prompt {{ source }}",
-					isDefault: 				},
+					isDefault: true,
+				},
 			]);
 
 			const request = {
@@ -662,7 +676,7 @@ describe("MessageHandler", () => {
 			expect(mockProvider.extractGoldenNuggets).toHaveBeenCalledWith(
 				"Test content",
 				"Original prompt text",
-							);
+			);
 		});
 
 		it("should handle timeout during optimization request", async () => {
@@ -684,7 +698,8 @@ describe("MessageHandler", () => {
 					id: "test-prompt",
 					name: "Test Prompt",
 					prompt: "Original prompt {{ source }}",
-					isDefault: 				},
+					isDefault: true,
+				},
 			]);
 
 			const request = {
@@ -704,7 +719,7 @@ describe("MessageHandler", () => {
 			expect(mockProvider.extractGoldenNuggets).toHaveBeenCalledWith(
 				"Test content",
 				"Original prompt text",
-							);
+			);
 		});
 
 		it("should reject optimization with invalid version", async () => {
@@ -720,11 +735,13 @@ describe("MessageHandler", () => {
 			const mockOptimizedResponse = {
 				prompt: "Invalid optimization",
 				version: 0,
-				providerSpecific: 				modelProvider: "openai",
+				providerSpecific: true,
+				modelProvider: "openai",
 				modelName: "gpt-4o",
 			};
 			mockFetch.mockResolvedValue({
-				ok: 				json: () => Promise.resolve(mockOptimizedResponse),
+				ok: true,
+				json: () => Promise.resolve(mockOptimizedResponse),
 			} as Response);
 
 			(storage.getPrompts as ReturnType<typeof vi.fn>).mockResolvedValue([
@@ -732,7 +749,8 @@ describe("MessageHandler", () => {
 					id: "test-prompt",
 					name: "Test Prompt",
 					prompt: "Original prompt {{ source }}",
-					isDefault: 				},
+					isDefault: true,
+				},
 			]);
 
 			const request = {
@@ -752,7 +770,7 @@ describe("MessageHandler", () => {
 			expect(mockProvider.extractGoldenNuggets).toHaveBeenCalledWith(
 				"Test content",
 				"Original prompt text",
-							);
+			);
 		});
 
 		it("should reject optimization with missing prompt", async () => {
@@ -768,11 +786,13 @@ describe("MessageHandler", () => {
 			const mockOptimizedResponse = {
 				prompt: null,
 				version: 1,
-				providerSpecific: 				modelProvider: "gemini",
+				providerSpecific: true,
+				modelProvider: "gemini",
 				modelName: "gemini-2.5-flash",
 			};
 			mockFetch.mockResolvedValue({
-				ok: 				json: () => Promise.resolve(mockOptimizedResponse),
+				ok: true,
+				json: () => Promise.resolve(mockOptimizedResponse),
 			} as Response);
 
 			(storage.getPrompts as ReturnType<typeof vi.fn>).mockResolvedValue([
@@ -780,7 +800,8 @@ describe("MessageHandler", () => {
 					id: "test-prompt",
 					name: "Test Prompt",
 					prompt: "Original prompt {{ source }}",
-					isDefault: 				},
+					isDefault: true,
+				},
 			]);
 
 			const request = {
@@ -800,7 +821,7 @@ describe("MessageHandler", () => {
 			expect(mockProvider.extractGoldenNuggets).toHaveBeenCalledWith(
 				"Test content",
 				"Original prompt text",
-							);
+			);
 		});
 	});
 });

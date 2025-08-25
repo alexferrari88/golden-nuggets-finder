@@ -255,7 +255,7 @@ describe("LangChainOpenRouterProvider", () => {
 						type: "tool",
 						startContent: "Test start",
 						endContent: "Test end",
-						},
+					},
 				],
 			};
 		});

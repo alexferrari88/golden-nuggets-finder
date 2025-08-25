@@ -23,7 +23,6 @@ export class GeminiDirectProvider implements LLMProvider {
 		const geminiResponse = await this.geminiClient.analyzeContent(
 			content,
 			prompt,
-			{ synthesisEnabled: false }, // Synthesis disabled
 		);
 
 		// Pass through the correct GeminiResponse format without synthesis

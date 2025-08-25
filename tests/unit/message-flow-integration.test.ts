@@ -205,7 +205,6 @@ describe("Message Flow Integration Tests", () => {
 							type: "tool",
 							startContent: "Test nugget content",
 							endContent: "End of test content",
-							synthesis: "This is a test synthesis",
 						},
 					],
 				},

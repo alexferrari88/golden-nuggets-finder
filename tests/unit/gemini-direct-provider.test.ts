@@ -102,7 +102,6 @@ describe("GeminiDirectProvider", () => {
 			expect(mockGeminiClient.analyzeContent).toHaveBeenCalledWith(
 				"test content",
 				"test prompt",
-				{ synthesisEnabled: false },
 			);
 		});
 
