@@ -31,6 +31,7 @@ export interface SavedPrompt {
 export interface ExtensionConfig {
 	geminiApiKey: string;
 	userPrompts: SavedPrompt[];
+	userPersona?: string;
 
 	// NEW: Multi-provider fields
 	selectedProvider?: ProviderId;

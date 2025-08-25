@@ -864,6 +864,17 @@ export class MessageHandler {
 				return;
 			}
 
+			// Validate persona is configured
+			const persona = await storage.getPersona();
+			if (!persona || persona.trim().length === 0) {
+				sendResponse({
+					success: false,
+					error:
+						"Please set a persona in extension options before analyzing content",
+				});
+				return;
+			}
+
 			// Send step 1 progress: content extraction
 			this.sendProgressMessage(
 				MESSAGE_TYPES.ANALYSIS_CONTENT_EXTRACTED,
@@ -880,6 +891,9 @@ export class MessageHandler {
 				request.url,
 			);
 
+			// Replace {{ persona }} placeholder with user persona
+			processedPrompt = await this.replacePersonaPlaceholder(processedPrompt);
+
 			// Check if we should use optimized prompt from backend
 			try {
 				const optimizedPromptResponse =
@@ -890,6 +904,9 @@ export class MessageHandler {
 						optimizedPromptResponse.prompt,
 						request.url,
 					);
+					// Also replace persona placeholder for optimized prompt
+					processedPrompt =
+						await this.replacePersonaPlaceholder(processedPrompt);
 				}
 			} catch (error) {
 				console.log(
@@ -1014,6 +1031,17 @@ export class MessageHandler {
 				return;
 			}
 
+			// Validate persona is configured
+			const persona = await storage.getPersona();
+			if (!persona || persona.trim().length === 0) {
+				sendResponse({
+					success: false,
+					error:
+						"Please set a persona in extension options before analyzing content",
+				});
+				return;
+			}
+
 			// Send step 1 progress: content extraction
 			this.sendProgressMessage(
 				MESSAGE_TYPES.ANALYSIS_CONTENT_EXTRACTED,
@@ -1030,6 +1058,9 @@ export class MessageHandler {
 				request.url,
 			);
 
+			// Replace {{ persona }} placeholder with user persona
+			processedPrompt = await this.replacePersonaPlaceholder(processedPrompt);
+
 			// Check if we should use optimized prompt from backend
 			try {
 				const optimizedPromptResponse =
@@ -1042,6 +1073,9 @@ export class MessageHandler {
 						optimizedPromptResponse.prompt,
 						request.url,
 					);
+					// Also replace persona placeholder for optimized prompt
+					processedPrompt =
+						await this.replacePersonaPlaceholder(processedPrompt);
 				}
 			} catch (error) {
 				console.log(
@@ -1267,6 +1301,25 @@ export class MessageHandler {
 	private replaceSourcePlaceholder(prompt: string, url: string): string {
 		const sourceType = this.detectSourceType(url);
 		return prompt.replace(/\{\{\s*source\s*\}\}/g, sourceType);
+	}
+
+	private async replacePersonaPlaceholder(prompt: string): Promise<string> {
+		try {
+			const config = await storage.getConfig({
+				source: "background",
+				action: "read",
+				timestamp: Date.now(),
+			});
+			const persona = config.userPersona || "";
+			return prompt.replace(/\{\{\s*persona\s*\}\}/g, persona);
+		} catch (error) {
+			console.error(
+				"Failed to get user persona for placeholder replacement:",
+				error,
+			);
+			// Return empty string if persona can't be retrieved (validation handled separately)
+			return prompt.replace(/\{\{\s*persona\s*\}\}/g, "");
+		}
 	}
 
 	private detectSourceType(url: string): string {
@@ -1849,22 +1902,23 @@ export class MessageHandler {
 		request: ValidateProviderRequest,
 		sendResponse: (response: ValidateProviderResponse) => void,
 	): Promise<void> {
+		const providerId: ProviderId = request.providerId;
+		const apiKey: string = request.apiKey;
+
+		if (!providerId) {
+			sendResponse({ success: false, error: "Provider ID is required" });
+			return;
+		}
+
+		if (!apiKey) {
+			sendResponse({ success: false, error: "API key is required" });
+			return;
+		}
+
+		// Create provider configuration outside try block
+		let config: ProviderConfig;
 		try {
-			const providerId: ProviderId = request.providerId;
-			const apiKey: string = request.apiKey;
-
-			if (!providerId) {
-				sendResponse({ success: false, error: "Provider ID is required" });
-				return;
-			}
-
-			if (!apiKey) {
-				sendResponse({ success: false, error: "API key is required" });
-				return;
-			}
-
-			// Create provider configuration
-			const config: ProviderConfig = {
+			config = {
 				providerId,
 				apiKey,
 				modelName: await getSelectedModel(providerId),
@@ -1896,7 +1950,7 @@ export class MessageHandler {
 				data: {
 					isValid: false,
 					providerId: request.providerId,
-					modelName: config.modelName || "default",
+					modelName: config?.modelName || "default",
 					error: userFriendlyMessage,
 					originalError: (error as Error).message,
 				},
