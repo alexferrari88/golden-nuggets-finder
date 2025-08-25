@@ -293,16 +293,105 @@ describe("StorageManager", () => {
 		});
 	});
 
+	describe("Persona Management", () => {
+		it("should get persona from storage", async () => {
+			const testPersona =
+				"I am a software engineer interested in AI and productivity";
+			// Clear cache and reset mocks for this test
+			storageManager.clearAllCache();
+			mockChrome.storage.sync.get.mockReset();
+			mockChrome.storage.sync.get.mockResolvedValue({
+				userPersona: testPersona,
+			});
+
+			const result = await storageManager.getPersona();
+			expect(result).toBe(testPersona);
+			expect(mockChrome.storage.sync.get).toHaveBeenCalledWith("userPersona");
+		});
+
+		it("should return empty string if no persona exists", async () => {
+			// Clear cache and reset mocks for this test
+			storageManager.clearAllCache();
+			mockChrome.storage.sync.get.mockReset();
+			mockChrome.storage.sync.get.mockResolvedValue({});
+
+			const result = await storageManager.getPersona();
+			expect(result).toBe("");
+		});
+
+		it("should return cached persona when available", async () => {
+			const testPersona = "Cached persona";
+			// Clear cache and reset mocks for this test
+			storageManager.clearAllCache();
+			mockChrome.storage.sync.get.mockReset();
+
+			// First call - should go to storage
+			mockChrome.storage.sync.get.mockResolvedValue({
+				userPersona: testPersona,
+			});
+
+			const result1 = await storageManager.getPersona();
+			expect(result1).toBe(testPersona);
+			expect(mockChrome.storage.sync.get).toHaveBeenCalledTimes(1);
+
+			// Second call - should use cache
+			const result2 = await storageManager.getPersona();
+			expect(result2).toBe(testPersona);
+			expect(mockChrome.storage.sync.get).toHaveBeenCalledTimes(1); // No additional calls
+		});
+
+		it("should save persona to storage", async () => {
+			const testPersona = "New persona description";
+			// Clear cache and reset mocks for this test
+			storageManager.clearAllCache();
+			mockChrome.storage.sync.set.mockReset();
+			mockChrome.storage.sync.set.mockResolvedValue(undefined);
+
+			await storageManager.savePersona(testPersona);
+			expect(mockChrome.storage.sync.set).toHaveBeenCalledWith({
+				userPersona: testPersona,
+			});
+		});
+
+		it("should save persona and retrieve correctly", async () => {
+			const testPersona = "Round trip test persona";
+			// Clear cache and reset mocks for this test
+			storageManager.clearAllCache();
+			mockChrome.storage.sync.set.mockReset();
+			mockChrome.storage.sync.get.mockReset();
+
+			mockChrome.storage.sync.set.mockResolvedValue(undefined);
+			mockChrome.storage.sync.get.mockResolvedValue({
+				userPersona: testPersona,
+			});
+
+			// Save persona
+			await storageManager.savePersona(testPersona);
+			expect(mockChrome.storage.sync.set).toHaveBeenCalledWith({
+				userPersona: testPersona,
+			});
+
+			// Clear cache to test retrieval from storage
+			storageManager.clearAllCache();
+
+			// Retrieve persona
+			const result = await storageManager.getPersona();
+			expect(result).toBe(testPersona);
+		});
+	});
+
 	describe("Configuration Management", () => {
 		it("should get complete configuration", async () => {
 			const testApiKey = "test-api-key";
 			const testPrompts = [
 				{ id: "1", name: "Test", prompt: "Test prompt", isDefault: true },
 			];
+			const testPersona = "Configuration test persona";
 
 			// Mock the individual methods
 			vi.spyOn(storageManager, "getApiKey").mockResolvedValue(testApiKey);
 			vi.spyOn(storageManager, "getPrompts").mockResolvedValue(testPrompts);
+			vi.spyOn(storageManager, "getPersona").mockResolvedValue(testPersona);
 
 			const context: AccessContext = {
 				source: "background",
@@ -313,10 +402,12 @@ describe("StorageManager", () => {
 
 			expect(result).toHaveProperty("geminiApiKey");
 			expect(result).toHaveProperty("userPrompts");
+			expect(result).toHaveProperty("userPersona");
 			expect(result.geminiApiKey).toBe(testApiKey);
 			expect(Array.isArray(result.userPrompts)).toBe(true);
 			expect(result.userPrompts).toHaveLength(1);
 			expect(result.userPrompts[0]).toEqual(testPrompts[0]);
+			expect(result.userPersona).toBe(testPersona);
 
 			// Verify getApiKey was called with context
 			expect(storageManager.getApiKey).toHaveBeenCalledWith(context);
@@ -370,6 +461,58 @@ describe("StorageManager", () => {
 			const secondCall = mockChrome.storage.sync.set.mock.calls[1][0];
 			expect(secondCall).toHaveProperty("userPrompts");
 			expect(secondCall.userPrompts).toEqual(config.userPrompts);
+		});
+
+		it("should save configuration with persona", async () => {
+			const config = {
+				userPersona: "I am a data scientist focused on machine learning",
+			};
+
+			mockChrome.storage.sync.set.mockResolvedValueOnce(undefined);
+
+			const context: AccessContext = {
+				source: "background",
+				action: "write",
+				timestamp: Date.now(),
+			};
+			await storageManager.saveConfig(config, context);
+
+			expect(mockChrome.storage.sync.set).toHaveBeenCalledWith({
+				userPersona: config.userPersona,
+			});
+		});
+
+		it("should save complete configuration with persona", async () => {
+			const config = {
+				geminiApiKey: "new-api-key",
+				userPrompts: [
+					{ id: "1", name: "Test", prompt: "Test prompt", isDefault: true },
+				],
+				userPersona: "I am a full-stack developer interested in AI tools",
+			};
+
+			mockChrome.storage.sync.set.mockResolvedValue(undefined);
+
+			const context: AccessContext = {
+				source: "background",
+				action: "write",
+				timestamp: Date.now(),
+			};
+			await storageManager.saveConfig(config, context);
+
+			expect(mockChrome.storage.sync.set).toHaveBeenCalledTimes(2); // Once for API key, once for prompts+persona
+
+			// Check that API key was saved encrypted
+			const firstCall = mockChrome.storage.sync.set.mock.calls[0][0];
+			expect(firstCall).toHaveProperty("geminiApiKey");
+			expect(firstCall.geminiApiKey).toHaveProperty("encrypted");
+
+			// Check that prompts and persona were saved together
+			const secondCall = mockChrome.storage.sync.set.mock.calls[1][0];
+			expect(secondCall).toHaveProperty("userPrompts");
+			expect(secondCall).toHaveProperty("userPersona");
+			expect(secondCall.userPrompts).toEqual(config.userPrompts);
+			expect(secondCall.userPersona).toEqual(config.userPersona);
 		});
 
 		it("should clear all storage", async () => {
