@@ -532,7 +532,6 @@ class FeedbackService:
                             {
                                 "type": example[5],  # final_type
                                 "content": example[0],  # nugget_content
-                                "synthesis": f"High-quality {example[5]} identified by user feedback",
                             }
                         ]
                     },
@@ -594,7 +593,6 @@ class FeedbackService:
                             {
                                 "type": example[1],  # suggested_type
                                 "content": example[0],  # content
-                                "synthesis": f"User-identified {example[1]} that was missed",
                             }
                         ]
                     },
