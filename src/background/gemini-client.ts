@@ -41,7 +41,6 @@ interface AnalysisProgressOptions {
 	source?: "popup" | "context-menu";
 	typeFilter?: TypeFilterOptions;
 	responseSchema?: ResponseSchema;
-	synthesisEnabled?: boolean; // For type filtering integration
 	onProgress?: (
 		progressType: AnalysisProgressMessage["type"],
 		step: 1 | 2 | 3 | 4,
@@ -132,12 +131,8 @@ export class GeminiClient {
 					(progressOptions?.typeFilter?.selectedTypes?.length
 						? TypeFilterService.generateDynamicSchema(
 								progressOptions.typeFilter.selectedTypes,
-								progressOptions?.synthesisEnabled ?? true,
 							)
-						: generateGoldenNuggetSchema(
-								[],
-								progressOptions?.synthesisEnabled ?? true,
-							));
+						: generateGoldenNuggetSchema([]));
 
 				const requestBody = {
 					system_instruction: {

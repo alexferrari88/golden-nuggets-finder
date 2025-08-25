@@ -74,7 +74,7 @@ Manages user-selected models for each provider:
 - **Model Selections**: User-selected models per provider with fallback defaults
 - **User Prompts**: Array of saved prompt objects with names, content, and default status
 - **Provider Configuration**: Selected provider and provider-specific settings
-- **Synthesis Preference**: User preference for synthesis vs raw extraction mode
+- **Type Filtering**: User preferences for nugget type filtering
 
 ### Storage Best Practices
 - Use local storage for user preferences and settings
@@ -286,12 +286,12 @@ Core configuration values and defaults:
 - **Storage Keys**: Centralized key definitions for Chrome storage (`STORAGE_KEYS`)
 - **Gemini Configuration**: API model selection and thinking budget settings (`GEMINI_CONFIG`)
 - **Default Prompts**: Complete default prompt system with sophisticated persona-based analysis
-- **Template Processing**: `processPromptTemplate()` function for synthesis-aware prompt handling
+- **Template Processing**: `processPromptTemplate()` function for dynamic prompt handling
 
 ### Default Prompt System
 The extension includes a comprehensive default prompt that implements:
 - **Diamond Miner Principle**: Ultra-high quality filtering with preference for zero results over mediocre ones  
-- **Persona-Based Analysis**: Tailored for "Pragmatic Synthesizer" with ADHD and INTP cognitive patterns
+- **Persona-Based Analysis**: Tailored for "Pragmatic Processor" with ADHD and INTP cognitive patterns
 - **Anti-Pattern Detection**: Sophisticated filtering to avoid meta-summaries and feature lists
 - **Five Extraction Categories**: Tools, Media, Explanations, Analogies, and Mental Models
 - **Quality Control**: Multiple validation layers with strict signal-to-noise requirements
@@ -446,53 +446,22 @@ Validation with mandatory configuration requirement:
 const provider = await requireConfiguredProvider(); // Throws if not configured
 ```
 
-## Synthesis Feature System
+## Type Filtering System
 
-### Synthesis Preference Storage
-User-configurable synthesis feature with persistent storage:
-
-#### Storage Integration (`storage.ts`)
-Synthesis preference management in Chrome storage:
-- **Storage Key**: `STORAGE_KEYS.SYNTHESIS_ENABLED` for consistent naming
-- **Default Value**: `true` for backwards compatibility with existing prompts
-- **Cache Integration**: Automatic cache clearing when synthesis preference changes
-- **Error Handling**: Graceful fallback to default value on storage errors
+### Type Filter Integration
+User-configurable nugget type filtering with persistent storage:
 
 #### Provider Interface Integration (`types/providers.ts`)
-Synthesis parameter in provider analysis calls:
-- **Optional Parameter**: `synthesisEnabled?: boolean` in LLMProvider.analyzeContent()
-- **Backwards Compatibility**: Defaults to `true` when not specified
+Type filtering parameter in provider analysis calls:
+- **Optional Parameter**: `typeFilter?: TypeFilterOptions` in analysis requests
+- **Backwards Compatibility**: Defaults to all types when not specified
 - **Provider Agnostic**: Supported across all AI providers (Gemini, Claude, OpenAI, OpenRouter)
 
-### Prompt Template Processing
-
-#### processPromptTemplate() Function (`constants.ts`)
-Dynamic prompt template processing based on synthesis preference:
-- **Conditional Blocks**: Processes `{{#if synthesisEnabled}}...{{else}}...{{/if}}` syntax
-- **Flexible Parsing**: Handles whitespace variations in template syntax
-- **Content Switching**: Returns appropriate prompt section based on user preference
-- **Template Validation**: Safely handles malformed or missing conditional blocks
-
-```typescript
-const processedPrompt = processPromptTemplate(template, synthesisEnabled);
-```
-
-#### Template Syntax
-Handlebars-style conditional syntax for synthesis-aware prompts:
-```
-{{#if synthesisEnabled}}
-For each nugget, explain why this is valuable...
-{{else}}
-Extract only raw content without explanations...
-{{/if}}
-```
-
-### Synthesis Feature Benefits
-- **User Control**: Users can toggle between synthesis and raw extraction modes
+### Type Filter Benefits
+- **User Control**: Users can focus on specific nugget types of interest
 - **Backward Compatibility**: Existing prompts work without modification
 - **Provider Independence**: Works consistently across all AI providers
-- **Performance Optimization**: Shorter prompts when synthesis disabled
-- **Context Awareness**: Synthesis content tailored to user persona and needs
+- **Performance Optimization**: More focused analysis when types are filtered
 
 ## Utility Functions
 

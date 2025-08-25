@@ -47,7 +47,6 @@ describe("Highlighter Case Sensitivity Tests", () => {
 				type: "explanation",
 				startContent: "my distractibility", // lowercase in search
 				endContent: "an impediment", // page has uppercase 'My' and mixed case
-				synthesis: "Test synthesis",
 			};
 
 			const success = highlighter.highlightNugget(nugget);
@@ -60,7 +59,6 @@ describe("Highlighter Case Sensitivity Tests", () => {
 				type: "explanation",
 				startContent: "MY DISTRACTIBILITY", // all uppercase
 				endContent: "ALL KINDS OF AUDIENCES", // all uppercase
-				synthesis: "Test synthesis",
 			};
 
 			const success = highlighter.highlightNugget(nugget);
@@ -73,7 +71,6 @@ describe("Highlighter Case Sensitivity Tests", () => {
 				type: "explanation",
 				startContent: "the quick", // lowercase search term
 				endContent: "lazy dog", // lowercase search term
-				synthesis: "Test synthesis",
 			};
 
 			const success = highlighter.highlightNugget(nugget);
@@ -88,7 +85,6 @@ describe("Highlighter Case Sensitivity Tests", () => {
 				type: "explanation",
 				startContent: "Some TEXT with", // mixed case
 				endContent: "scattered THROUGHOUT", // mixed case
-				synthesis: "Test synthesis",
 			};
 
 			const success = highlighter.highlightNugget(nugget);
@@ -101,7 +97,6 @@ describe("Highlighter Case Sensitivity Tests", () => {
 				type: "explanation",
 				startContent: "An Unhealthy Attachment", // title case
 				endContent: "Career-Limiting Hangup", // title case with hyphen
-				synthesis: "Test synthesis",
 			};
 
 			const success = highlighter.highlightNugget(nugget);
@@ -117,7 +112,6 @@ describe("Highlighter Case Sensitivity Tests", () => {
 				type: "explanation",
 				startContent: "My distractibility as an impediment", // capital M
 				endContent: "all kinds of audiences", // exactly as reported
-				synthesis: "Test synthesis",
 			};
 
 			const success = highlighter.highlightNugget(nugget);
@@ -136,7 +130,6 @@ describe("Highlighter Case Sensitivity Tests", () => {
 				type: "explanation",
 				startContent: "My distractibility as an impediment", // capital M but page has lowercase
 				endContent: "all kinds of audiences",
-				synthesis: "Test synthesis",
 			};
 
 			const success = highlighter.highlightNugget(nugget);
@@ -155,7 +148,6 @@ describe("Highlighter Case Sensitivity Tests", () => {
 				type: "explanation",
 				startContent: "ceo of the company", // lowercase version of CEO
 				endContent: "ai and ml technologies", // lowercase version of AI and ML
-				synthesis: "Test synthesis",
 			};
 
 			const success = highlighter.highlightNugget(nugget);
@@ -170,7 +162,6 @@ describe("Highlighter Case Sensitivity Tests", () => {
 				type: "explanation",
 				startContent: "my distractibility",
 				endContent: "an impediment",
-				synthesis: "Test synthesis",
 			};
 
 			highlighter.highlightNugget(nugget);
@@ -185,7 +176,6 @@ describe("Highlighter Case Sensitivity Tests", () => {
 				type: "explanation",
 				startContent: "nonexistent text",
 				endContent: "that is not there",
-				synthesis: "Test synthesis",
 			};
 
 			const success = highlighter.highlightNugget(nugget);
@@ -201,13 +191,11 @@ describe("Highlighter Case Sensitivity Tests", () => {
 					type: "explanation",
 					startContent: "my distractibility", // lowercase
 					endContent: "an impediment",
-					synthesis: "Test synthesis 1",
 				},
 				{
 					type: "explanation",
 					startContent: "THE QUICK", // uppercase
 					endContent: "lazy dog",
-					synthesis: "Test synthesis 2",
 				},
 			];
 
@@ -228,14 +216,12 @@ describe("Highlighter Case Sensitivity Tests", () => {
 				type: "explanation",
 				startContent: "my distractibility",
 				endContent: "an impediment",
-				synthesis: "Test synthesis 1",
 			};
 
 			const nugget2: GoldenNugget = {
 				type: "explanation",
 				startContent: "MY DISTRACTIBILITY", // same text, different case
 				endContent: "AN IMPEDIMENT",
-				synthesis: "Test synthesis 2",
 			};
 
 			const success1 = highlighter.highlightNugget(nugget1);
@@ -254,13 +240,11 @@ describe("Highlighter Case Sensitivity Tests", () => {
 					type: "explanation",
 					startContent: "my distractibility",
 					endContent: "an impediment",
-					synthesis: "Test synthesis 1",
 				},
 				{
 					type: "explanation",
 					startContent: "THE QUICK",
 					endContent: "lazy dog",
-					synthesis: "Test synthesis 2",
 				},
 			];
 

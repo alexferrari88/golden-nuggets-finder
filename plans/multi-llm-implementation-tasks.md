@@ -107,7 +107,8 @@ export interface GoldenNuggetsResponse {
   golden_nuggets: Array<{
     type: 'tool' | 'media' | 'explanation' | 'analogy' | 'model';
     content: string;
-    synthesis: string;
+    startContent: string;
+    endContent: string;
   }>;
 }
 
@@ -370,7 +371,8 @@ const GoldenNuggetsSchema = z.object({
   golden_nuggets: z.array(z.object({
     type: z.enum(['tool', 'media', 'explanation', 'analogy', 'model']),
     content: z.string(),
-    synthesis: z.string()
+    startContent: z.string(),
+    endContent: z.string()
   }))
 });
 
@@ -460,7 +462,8 @@ const GoldenNuggetsSchema = z.object({
   golden_nuggets: z.array(z.object({
     type: z.enum(['tool', 'media', 'explanation', 'analogy', 'model']),
     content: z.string(),
-    synthesis: z.string()
+    startContent: z.string(),
+    endContent: z.string()
   }))
 });
 
@@ -547,7 +550,8 @@ const GoldenNuggetsSchema = z.object({
   golden_nuggets: z.array(z.object({
     type: z.enum(['tool', 'media', 'explanation', 'analogy', 'model']),
     content: z.string(),
-    synthesis: z.string()
+    startContent: z.string(),
+    endContent: z.string()
   }))
 });
 
@@ -639,7 +643,8 @@ const GoldenNuggetsSchema = z.object({
   golden_nuggets: z.array(z.object({
     type: z.enum(['tool', 'media', 'explanation', 'analogy', 'model']),
     content: z.string(),
-    synthesis: z.string()
+    startContent: z.string(),
+    endContent: z.string()
   }))
 });
 
@@ -649,13 +654,14 @@ export class ResponseNormalizer {
       // Validate response structure
       const validated = GoldenNuggetsSchema.parse(response);
       
-      // Ensure content and synthesis are strings and non-empty
+      // Ensure content parts are strings and non-empty
       const normalized = {
         golden_nuggets: validated.golden_nuggets.map(nugget => ({
           type: nugget.type,
           content: String(nugget.content).trim(),
-          synthesis: String(nugget.synthesis).trim()
-        })).filter(nugget => nugget.content && nugget.synthesis)
+          startContent: String(nugget.startContent).trim(),
+          endContent: String(nugget.endContent).trim()
+        })).filter(nugget => nugget.content && nugget.startContent && nugget.endContent)
       };
 
       return normalized;

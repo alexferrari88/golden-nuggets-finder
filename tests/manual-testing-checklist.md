@@ -25,8 +25,8 @@ This checklist covers workflows that cannot be automated due to Playwright + Chr
    - [ ] Wait for analysis completion (5-10 seconds)
    - [ ] Verify sidebar appears on right side of page
    - [ ] Verify nuggets are highlighted in golden yellow
-   - [ ] Click on highlighted text to see synthesis popup
-   - [ ] Verify synthesis popup shows nugget details and close button
+   - [ ] Click on highlighted text to see nugget details
+   - [ ] Verify details popup shows nugget information and close button
 
 2. **Via Right-Click Context Menu**
    - [ ] Navigate to Reddit thread
@@ -51,7 +51,7 @@ This checklist covers workflows that cannot be automated due to Playwright + Chr
    - [ ] Trigger analysis via popup (any prompt)
    - [ ] Verify content extraction works for HN format
    - [ ] Verify highlighting and sidebar display correctly
-   - [ ] Verify synthesis popups work
+   - [ ] Verify details popups work
 
 ### Generic Blog Post Analysis
 
@@ -137,8 +137,8 @@ This checklist covers workflows that cannot be automated due to Playwright + Chr
 
 2. **Click Interactions**
    - [ ] Click on highlighted text
-   - [ ] Verify synthesis popup appears
-   - [ ] Verify popup content matches nugget details
+   - [ ] Verify details popup appears
+   - [ ] Verify popup content shows nugget information
    - [ ] Click close button to dismiss popup
    - [ ] Click outside popup to dismiss
    - [ ] Verify popup doesn't interfere with page functionality
@@ -234,7 +234,7 @@ After any significant changes, re-test:
 1. **Primary Workflow**
    - [ ] Reddit analysis via popup
    - [ ] Sidebar display and highlighting
-   - [ ] Synthesis popup interactions
+   - [ ] Details popup interactions
 
 2. **Configuration Workflow**
    - [ ] API key setup

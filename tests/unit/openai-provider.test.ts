@@ -16,7 +16,6 @@ vi.mock("@langchain/openai", () => ({
 						type: "tool",
 						startContent: "Test content",
 						endContent: "Test content",
-						synthesis: "Test synthesis",
 					},
 				],
 			}),
@@ -68,7 +67,6 @@ describe("LangChainOpenAIProvider", () => {
 					type: "tool",
 					startContent: "Test content",
 					endContent: "Test content",
-					synthesis: "Test synthesis",
 				},
 			],
 		});

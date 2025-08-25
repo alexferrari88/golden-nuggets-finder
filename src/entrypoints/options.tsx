@@ -376,9 +376,6 @@ function OptionsPage() {
 	// Debug logging state
 	const [debugLoggingEnabled, setDebugLoggingEnabled] = useState(false);
 
-	// Synthesis preference state
-	const [synthesisEnabled, setSynthesisEnabledState] = useState(false);
-
 	const loadData = useCallback(async () => {
 		try {
 			setLoading(true);
@@ -393,9 +390,6 @@ function OptionsPage() {
 			setDebugLoggingEnabled(
 				storageData.extensionConfig?.enableDebugLogging || false,
 			);
-
-			// Load synthesis preference
-			setSynthesisEnabledState(await storage.getSynthesisEnabled());
 
 			// Load API keys for all providers
 			const providers: ProviderId[] = [
@@ -834,35 +828,6 @@ function OptionsPage() {
 				title: "Update Failed",
 				message: "Failed to update debug logging setting. Please try again.",
 			});
-		}
-	};
-
-	// Synthesis toggle handler
-	const handleSynthesisToggle = async (enabled: boolean) => {
-		try {
-			setSynthesisEnabledState(enabled);
-			await storage.setSynthesisEnabled(enabled);
-
-			setApiKeyStatus({
-				type: "success",
-				title: "Synthesis Setting Updated",
-				message: `Synthesis explanations have been ${enabled ? "enabled" : "disabled"}. ${enabled ? "Each nugget will now include an explanation of why it's relevant, which may increase API costs." : "Analysis will now focus only on extracting content without explanations."}`,
-			});
-
-			setTimeout(() => setApiKeyStatus(null), 5000);
-		} catch (error) {
-			console.error("Failed to update synthesis setting:", error);
-
-			// Revert state on error
-			setSynthesisEnabledState(!enabled);
-
-			setApiKeyStatus({
-				type: "error",
-				title: "Update Failed",
-				message: "Failed to update synthesis setting. Please try again.",
-			});
-
-			setTimeout(() => setApiKeyStatus(null), 5000);
 		}
 	};
 
@@ -2116,137 +2081,6 @@ function OptionsPage() {
 										}}
 									/>
 									Enable Debug Logging
-								</label>
-							</div>
-						</div>
-					</div>
-				</div>
-
-				{/* Synthesis Settings Section */}
-				<div
-					style={{
-						marginBottom: spacing["3xl"],
-						backgroundColor: colors.background.primary,
-						padding: spacing["3xl"],
-						borderRadius: borderRadius.xl,
-						boxShadow: shadows.md,
-						border: `1px solid ${colors.border.light}`,
-					}}
-				>
-					<div
-						style={{
-							display: "flex",
-							alignItems: "center",
-							gap: spacing.md,
-							marginBottom: spacing["2xl"],
-						}}
-					>
-						<div style={{ color: colors.text.accent }}>
-							<Sparkles size={20} />
-						</div>
-						<h2
-							style={{
-								margin: 0,
-								fontSize: typography.fontSize.xl,
-								fontWeight: typography.fontWeight.semibold,
-								color: colors.text.primary,
-							}}
-						>
-							Analysis Settings
-						</h2>
-					</div>
-
-					<div
-						style={{
-							padding: spacing.lg,
-							backgroundColor: colors.background.secondary,
-							borderRadius: borderRadius.lg,
-							border: `1px solid ${colors.border.light}`,
-						}}
-					>
-						<div
-							style={{
-								display: "flex",
-								alignItems: "flex-start",
-								justifyContent: "space-between",
-								gap: spacing.lg,
-							}}
-						>
-							<div style={{ flex: 1 }}>
-								<div
-									style={{
-										display: "flex",
-										alignItems: "center",
-										gap: spacing.sm,
-										marginBottom: spacing.sm,
-									}}
-								>
-									<h3
-										style={{
-											margin: 0,
-											fontSize: typography.fontSize.lg,
-											fontWeight: typography.fontWeight.semibold,
-											color: colors.text.primary,
-										}}
-									>
-										Generate synthesis explanations
-									</h3>
-									{synthesisEnabled && (
-										<div style={{ color: colors.success }}>
-											<CircleCheck size={16} />
-										</div>
-									)}
-								</div>
-								<p
-									style={{
-										margin: 0,
-										fontSize: typography.fontSize.sm,
-										color: colors.text.secondary,
-										lineHeight: typography.lineHeight.normal,
-									}}
-								>
-									Explains why each nugget is relevant to your persona and
-									goals. This provides valuable context but increases API costs
-									due to additional processing.
-									{synthesisEnabled && (
-										<>
-											<br />
-											<strong style={{ color: colors.text.accent }}>
-												Synthesis is enabled - each nugget will include
-												relevance explanations.
-											</strong>
-										</>
-									)}
-								</p>
-							</div>
-							<div
-								style={{
-									display: "flex",
-									alignItems: "center",
-									gap: spacing.sm,
-								}}
-							>
-								<label
-									style={{
-										display: "flex",
-										alignItems: "center",
-										cursor: "pointer",
-										fontSize: typography.fontSize.sm,
-										fontWeight: typography.fontWeight.medium,
-										color: colors.text.primary,
-									}}
-								>
-									<input
-										type="checkbox"
-										checked={synthesisEnabled}
-										onChange={(e) => handleSynthesisToggle(e.target.checked)}
-										style={{
-											marginRight: spacing.sm,
-											cursor: "pointer",
-											transform: "scale(1.2)",
-										}}
-									/>
-									Generate synthesis explanations
 								</label>
 							</div>
 						</div>

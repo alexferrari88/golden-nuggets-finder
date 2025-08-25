@@ -8,28 +8,16 @@ import type {
 	ProviderConfig,
 } from "../types/providers";
 
-// Conditional schema generation function
-const createGoldenNuggetsSchema = (synthesisEnabled: boolean) => {
-	const baseSchema = z.object({
-		type: z.string(), // Accept any string, normalize later
-		startContent: z.string(),
-		endContent: z.string(),
-	});
-
-	if (synthesisEnabled) {
-		return z.object({
-			golden_nuggets: z.array(
-				baseSchema.extend({
-					synthesis: z.string(),
-				}),
-			),
-		});
-	} else {
-		return z.object({
-			golden_nuggets: z.array(baseSchema),
-		});
-	}
-};
+// Schema definition for golden nuggets (synthesis removed)
+const GoldenNuggetsSchema = z.object({
+	golden_nuggets: z.array(
+		z.object({
+			type: z.string(), // Accept any string, normalize later
+			startContent: z.string(),
+			endContent: z.string(),
+		}),
+	),
+});
 
 export class LangChainOpenRouterProvider implements LLMProvider {
 	readonly providerId = "openrouter" as const;
@@ -180,7 +168,6 @@ export class LangChainOpenRouterProvider implements LLMProvider {
 	async extractGoldenNuggets(
 		content: string,
 		prompt: string,
-		synthesisEnabled: boolean = true, // Default true for backwards compatibility
 	): Promise<GoldenNuggetsResponse> {
 		// Log the request
 		debugLogger.logLLMRequest(
@@ -197,11 +184,8 @@ export class LangChainOpenRouterProvider implements LLMProvider {
 
 		try {
 			const response = await this.executeWithRetry(async () => {
-				const FlexibleGoldenNuggetsSchema =
-					createGoldenNuggetsSchema(synthesisEnabled);
-
 				const structuredModel = this.model.withStructuredOutput(
-					FlexibleGoldenNuggetsSchema,
+					GoldenNuggetsSchema,
 					{
 						name: "extract_golden_nuggets",
 						method: "functionCalling",

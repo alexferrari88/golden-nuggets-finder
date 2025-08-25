@@ -123,11 +123,6 @@ The extension follows a standard Chrome extension architecture with three main c
 
 #### Key Features
 - **Multi-Provider AI Support**: Seamlessly switch between Gemini, OpenAI, Anthropic, and OpenRouter
-- **Synthesis Optional**: Toggle synthesis generation on/off to reduce API costs and processing time
-  - Configurable in Options page with global setting
-  - Default: disabled for new users to minimize costs
-  - Affects all AI providers and export functionality
-  - Clear cost implications messaging in UI
 - **Type Filtering**: Filter analysis by nugget types (tool, media, explanation, analogy, model)
 - **Dynamic Content Injection**: Content scripts injected only when needed, not on all pages
 - **Secure Storage**: API keys encrypted with device-specific fingerprinting
@@ -211,8 +206,8 @@ All AI providers (Gemini, Claude, OpenAI, OpenRouter) are normalized to this sta
   "golden_nuggets": [
     {
       "type": "tool|media|explanation|analogy|model",
-      "content": "Original text verbatim",
-      "synthesis": "Why this is relevant to the user persona"
+      "startContent": "First few words of original text",
+      "endContent": "Last few words of original text"
     }
   ]
 }
@@ -255,7 +250,7 @@ The project consists of three integrated components working together:
 - **Location**: Root directory (`src/`, `tests/`, etc.)
 - **Purpose**: Browser extension for content analysis and golden nugget extraction
 - **Technologies**: WXT, TypeScript, React, Biome
-- **Key Features**: Multi-provider AI, synthesis optional, dynamic injection
+- **Key Features**: Multi-provider AI, type filtering, dynamic injection
 
 ### 2. Backend API (Supporting Component)
 - **Location**: `backend/` directory

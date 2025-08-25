@@ -2,13 +2,13 @@
 
 > ⚠️ **Active Development Notice**: This project is in active development and may experience breaking changes. Features and APIs are subject to change without notice. Use at your own discretion.
 >
-> **Latest Update**: Synthesis explanations are now optional (v1.1.0). This feature can be toggled in Options to reduce API costs and improve performance. The feature is disabled by default for new installations.
+> **Latest Update**: Enhanced type filtering system allows users to focus on specific nugget categories (v1.1.0).
 
 An intelligent Chrome extension with backend infrastructure that extracts high-signal, actionable insights ("Golden Nuggets") from any webpage using multiple AI providers, with specialized functionality for discussion threads and comprehensive feedback optimization.
 
 ## Overview
 
-Golden Nugget Finder is designed for the "Pragmatic Synthesizer" persona - someone with ADHD who needs to quickly extract valuable insights from articles, blog posts, and long comment threads while bypassing low-value content. The system supports multiple AI providers (Google Gemini, Anthropic Claude, OpenAI, OpenRouter) and includes a sophisticated backend for prompt optimization using DSPy framework.
+Golden Nugget Finder is designed for the "Pragmatic Processor" persona - someone with ADHD who needs to quickly extract valuable insights from articles, blog posts, and long comment threads while bypassing low-value content. The system supports multiple AI providers (Google Gemini, Anthropic Claude, OpenAI, OpenRouter) and includes a sophisticated backend for prompt optimization using DSPy framework.
 
 ### Key Features
 
@@ -18,7 +18,7 @@ Golden Nugget Finder is designed for the "Pragmatic Synthesizer" persona - someo
 - **Multi-Prompt Management**: Create and save custom prompts for different types of analysis
 - **On-Page Highlighting**: Highlights golden nuggets directly on the webpage
 - **Results Sidebar**: Displays a complete master list of all found nuggets
-- **Optional Synthesis**: Toggle explanations for why nuggets are relevant (affects API costs)
+- **Type Filtering**: Focus analysis on specific nugget types (tool, media, explanation, analogy, model)
 - **Discussion Thread Support**: Specialized scrapers for Hacker News and Reddit
 - **Universal Compatibility**: Works on any website using content extraction
 - **Feedback System**: Collect user feedback for prompt optimization
@@ -87,7 +87,7 @@ pnpm build
    - Enter your API key for the chosen provider
    - Create and manage your custom prompts
    - Set a default prompt
-   - Configure synthesis explanations (optional, affects API costs)
+   - Configure type filtering preferences
    - Configure provider-specific settings
 
 ### Analyzing Content
@@ -106,20 +106,20 @@ pnpm build
 
 After analysis, you'll see:
 - **Highlighted text**: Golden nuggets highlighted on the page with a golden background
-- **Interactive elements**: Clickable tags/icons that show detailed synthesis (if enabled)
-- **Results sidebar**: Complete list of all found nuggets with their categories and explanations (synthesis optional)
+- **Interactive elements**: Clickable tags/icons that show nugget details
+- **Results sidebar**: Complete list of all found nuggets with their categories
 
-### Synthesis Feature
+### Type Filtering
 
-The extension includes an optional **synthesis feature** that provides explanations for why each nugget is relevant:
+The extension includes **type filtering** to focus analysis on specific nugget categories:
 
-- **Toggle Location**: Options page → "Generate synthesis explanations" checkbox
-- **Default Setting**: Disabled for new installations (reduces API costs)
-- **Cost Impact**: Enabling synthesis increases API usage and costs across all providers
-- **UI Behavior**: When disabled, synthesis sections are completely hidden from the interface
-- **Export Impact**: Synthesis data is excluded from JSON/Markdown exports when disabled
+- **Configuration**: Options page → Select nugget types of interest
+- **Available Types**: Tool, Media, Explanation, Analogy, Model
+- **Performance**: Filtering reduces processing time and API costs
+- **UI Behavior**: Results sidebar shows only selected types
+- **Export Impact**: Only filtered types are included in JSON/Markdown exports
 
-**Recommendation**: Start with synthesis disabled to minimize costs, then enable it if you find the explanations valuable for your workflow.
+**Recommendation**: Start with all types enabled, then filter to your areas of interest to optimize performance.
 
 ### Golden Nugget Categories
 
@@ -342,14 +342,11 @@ All AI providers (Gemini, Claude, OpenAI, OpenRouter) return responses in this s
   "golden_nuggets": [
     {
       "type": "tool|media|explanation|analogy|model",
-      "content": "Original text verbatim",
-      "synthesis": "Why this is relevant to the user persona [OPTIONAL]"
+      "startContent": "First few words of original text",
+      "endContent": "Last few words of original text"
     }
   ]
 }
-```
-
-**Note**: The `synthesis` field is optional and only included when the synthesis feature is enabled in Options. This reduces API costs and response times when disabled.
 ```
 
 ### Backend API Endpoints
@@ -398,7 +395,7 @@ All AI providers (Gemini, Claude, OpenAI, OpenRouter) return responses in this s
 
 **Default Prompt** (Diamond Miner Principle):
 ```
-Find golden nuggets that would interest a pragmatic synthesizer with ADHD who loves:
+Find golden nuggets that would interest a pragmatic processor with ADHD who loves:
 - How things work (science/tech)
 - How people think (cognition/philosophy)  
 - How we got here (history/evolution)
@@ -421,7 +418,7 @@ Use ultra-high quality filtering - prefer zero results over mediocre ones.
 - **DOM-dependent**: Only analyzes content visible when activated
 - **Site-specific**: Specialized scrapers may break if sites change their HTML structure
 - **Provider limits**: Each AI provider has different rate limits and costs
-- **Synthesis overhead**: When enabled, synthesis explanations increase API costs and response times
+- **Type filtering efficiency**: More types selected means longer processing times
 
 ### Backend Infrastructure
 - **DSPy dependency**: Optimization requires DSPy framework and sufficient feedback data
@@ -494,7 +491,7 @@ ISC License - see [LICENSE](LICENSE) file for details.
 2. Get an API key from your preferred AI provider
 3. Configure the extension in Options page:
    - Add your API key
-   - Choose whether to enable synthesis explanations (optional, affects costs)
+   - Configure type filtering preferences
    - Set up custom prompts if desired
 4. Start analyzing web content!
 
@@ -516,4 +513,4 @@ ISC License - see [LICENSE](LICENSE) file for details.
 
 ---
 
-*Built for the pragmatic synthesizer who values signal over noise.*
+*Built for the pragmatic processor who values signal over noise.*

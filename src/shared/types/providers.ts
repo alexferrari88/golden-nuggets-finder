@@ -12,7 +12,6 @@ export interface LLMProvider {
 	extractGoldenNuggets(
 		content: string,
 		prompt: string,
-		synthesisEnabled?: boolean, // Default: true for backwards compatibility
 	): Promise<GoldenNuggetsResponse>;
 	validateApiKey(): Promise<boolean>;
 }
@@ -22,7 +21,6 @@ export interface GoldenNuggetsResponse {
 		type: "tool" | "media" | "explanation" | "analogy" | "model";
 		startContent: string;
 		endContent: string;
-		synthesis?: string; // Optional - only present when synthesis enabled and generated
 	}>;
 }
 

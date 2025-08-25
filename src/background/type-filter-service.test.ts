@@ -151,7 +151,7 @@ Continue with analysis...`;
 
 		it("should maintain schema structure consistency with base schema", () => {
 			const result = generateDynamicSchema(["tool"]);
-			const _baseSchema = generateGoldenNuggetSchema(["tool"], true); // Default synthesis enabled
+			const _baseSchema = generateGoldenNuggetSchema(["tool"]); // Synthesis removed
 
 			expect(result.type).toBe("object");
 			expect(result.required).toEqual(["golden_nuggets"]);
@@ -160,7 +160,6 @@ Continue with analysis...`;
 				"type",
 				"startContent",
 				"endContent",
-				"synthesis",
 			]);
 		});
 	});

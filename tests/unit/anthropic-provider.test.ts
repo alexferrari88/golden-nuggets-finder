@@ -16,7 +16,6 @@ vi.mock("@langchain/anthropic", () => ({
 						type: "tool",
 						startContent: "Test content for",
 						endContent: "Anthropic provider",
-						synthesis: "Test synthesis for Anthropic provider",
 					},
 				],
 			}),
@@ -79,7 +78,6 @@ describe("LangChainAnthropicProvider", () => {
 					type: "tool",
 					startContent: "Test content for",
 					endContent: "Anthropic provider",
-					synthesis: "Test synthesis for Anthropic provider",
 				},
 			],
 		});

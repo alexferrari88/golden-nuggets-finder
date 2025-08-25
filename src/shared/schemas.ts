@@ -38,14 +38,9 @@ export const GOLDEN_NUGGET_SCHEMA = {
 						description:
 							"The last few words (max 5) of the original content verbatim, without any changes to wording or symbols.",
 					},
-					synthesis: {
-						type: "string",
-						description:
-							"A concise explanation of why this is relevant to the persona, connecting it to their core interests or cognitive profile.",
-					},
 				},
 				required: ["type", "startContent", "endContent"],
-				propertyOrdering: ["type", "startContent", "endContent", "synthesis"],
+				propertyOrdering: ["type", "startContent", "endContent"],
 			},
 		},
 	},
@@ -53,10 +48,7 @@ export const GOLDEN_NUGGET_SCHEMA = {
 	propertyOrdering: ["golden_nuggets"],
 } as const;
 
-export function generateGoldenNuggetSchema(
-	selectedTypes: GoldenNuggetType[],
-	includeSynthesis: boolean = true, // Default true for backwards compatibility
-) {
+export function generateGoldenNuggetSchema(selectedTypes: GoldenNuggetType[]) {
 	const properties: Record<string, any> = {
 		type: {
 			type: "string",
@@ -77,16 +69,6 @@ export function generateGoldenNuggetSchema(
 
 	const required = ["type", "startContent", "endContent"];
 	const propertyOrdering = ["type", "startContent", "endContent"];
-
-	if (includeSynthesis) {
-		properties.synthesis = {
-			type: "string",
-			description:
-				"A concise explanation of why this is relevant to the persona, connecting it to their core interests or cognitive profile.",
-		};
-		required.push("synthesis");
-		propertyOrdering.push("synthesis");
-	}
 
 	return {
 		type: "object",
