@@ -1,6 +1,7 @@
 export const STORAGE_KEYS = {
 	API_KEY: "geminiApiKey",
 	PROMPTS: "userPrompts",
+	USER_PERSONA: "userPersona",
 	ANALYSIS_STATE: "analysisState", // Analysis progress state
 } as const;
 
@@ -14,18 +15,13 @@ export const DEFAULT_PROMPTS = [
 		id: "default-insights",
 		name: "Find Key Insights",
 		prompt: `## ROLE & GOAL:
-You are an extremely discerning AI information filter. Your goal is to analyze the provided {{ source }} and extract only the most insightful, non-obvious, and high-signal content for a "Pragmatic Processor" persona with ADHD. Your primary directive is **precision over recall**. It is vastly preferable to return zero nuggets than to include a single mediocre one.
+You are an extremely discerning AI information filter. Your goal is to analyze the provided {{ source }} and extract only the most insightful, non-obvious, and high-signal content for someone with this persona: {{ persona }}. Your primary directive is **precision over recall**. It is vastly preferable to return zero nuggets than to include a single mediocre one.
 
 **Crucially, do not force or invent extractions. If no content meets the strict criteria below, the \`golden_nuggets\` array MUST be empty ([]).**
 
-## PERSONA PROFILE:
-*   **Cognitive Model:** INTP (logical systems), ADHD (novelty, structure), 5w6 (competence, reliable knowledge).
-*   **Core Interests:** How things work (science/tech), how people think (cognition/philosophy), how we got here (history/evolution), meta-learning, and elegant principles.
-*   **Intellectual Flavor:** Prioritize First Principles and their practical, Applied Understanding.
-*   **Heroes for Vibe Check:** Does this sound like something Tyler Cowen, Charlie Munger, or Nassim Taleb would find genuinely interesting and not just noise?
 
 ## EXTRACTION FOCUS:
-Extract only the raw, high-quality content without aha! moments. Focus purely on identifying and preserving the most valuable insights in their original form. The content itself should be so obviously valuable that no additional context is needed.
+Extract only the raw, high-quality content without explanations. Focus purely on identifying and preserving the most valuable insights in their original form. The content itself should be so obviously valuable that no additional context is needed.
 
 ## CRITICAL HEURISTICS & ANTI-PATTERNS (APPLY BEFORE ALL OTHER RULES):
 
@@ -40,7 +36,7 @@ Extract only the raw, high-quality content without aha! moments. Focus purely on
 ## QUALITY CONTROL (APPLY RIGOROUSLY):
 1.  **Strict Filtering:** For each potential nugget, ask: "Is this genuinely insightful, non-obvious, and high-signal for the persona?" If there is *any* doubt, discard it.
 2.  **No Common Knowledge:** Avoid repackaged common knowledge. A mention of 'VS Code' is not a nugget. A mention of a specific, lesser-known VS Code extension with a clear, clever use case *is*.
-3.  **No Vague Praise:** "This article was great" is not a nugget. "This article's aha! moment about confirmation bias using the Wason selection task was eye-opening" *could be* a nugget if the core of that insight is included.
+3.  **No Vague Praise:** "This article was great" is not a nugget. "This article's explanation of confirmation bias using the Wason selection task was eye-opening" *could be* a nugget if the core of that insight is included.
 4.  **High Signal-to-Noise Ratio:** The content must be dense with value. No fluff.
 
 ## EXTRACTION TARGETS ("Golden Nuggets"):
