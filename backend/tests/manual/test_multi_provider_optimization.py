@@ -58,7 +58,7 @@ async def create_sample_feedback(
         await db.execute(
             """
             INSERT INTO nugget_feedback (
-                id, nugget_content, original_type, corrected_type, rating, 
+                id, nugget_content, original_type, corrected_type, rating,
                 url, context, model_provider, model_name, client_timestamp
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
@@ -83,7 +83,7 @@ async def create_sample_feedback(
             await db.execute(
                 """
                 INSERT INTO missing_content_feedback (
-                    id, content, suggested_type, url, context, 
+                    id, content, suggested_type, url, context,
                     model_provider, model_name, client_timestamp
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 """,

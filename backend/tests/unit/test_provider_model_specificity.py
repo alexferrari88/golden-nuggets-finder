@@ -6,11 +6,9 @@ down to the specific model level (e.g., "gemini + gemini-2.5-flash")
 rather than just the provider level.
 """
 
-from datetime import datetime, timezone
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, patch
 
 import pytest
-from unittest.mock import patch
 
 from app.services.dspy_multi_model_manager import DSPyMultiModelManager
 from app.services.feedback_service import FeedbackService
@@ -44,13 +42,53 @@ class TestProviderModelSpecificFeedback:
         # Mock feedback data with different provider+model combinations
         mock_feedback_data = [
             # Gemini with gemini-2.5-flash
-            ("content1", "tool", None, "positive", "context1", "url1", "gemini", "gemini-2.5-flash", "2025-01-31T12:00:00Z"),
+            (
+                "content1",
+                "tool",
+                None,
+                "positive",
+                "context1",
+                "url1",
+                "gemini",
+                "gemini-2.5-flash",
+                "2025-01-31T12:00:00Z",
+            ),
             # Gemini with gemini-1.5-pro
-            ("content2", "media", None, "negative", "context2", "url2", "gemini", "gemini-1.5-pro", "2025-01-31T12:05:00Z"),
+            (
+                "content2",
+                "media",
+                None,
+                "negative",
+                "context2",
+                "url2",
+                "gemini",
+                "gemini-1.5-pro",
+                "2025-01-31T12:05:00Z",
+            ),
             # OpenAI with gpt-4o-mini
-            ("content3", "explanation", None, "positive", "context3", "url3", "openai", "gpt-4o-mini", "2025-01-31T12:10:00Z"),
+            (
+                "content3",
+                "explanation",
+                None,
+                "positive",
+                "context3",
+                "url3",
+                "openai",
+                "gpt-4o-mini",
+                "2025-01-31T12:10:00Z",
+            ),
             # OpenAI with gpt-4o
-            ("content4", "analogy", None, "negative", "context4", "url4", "openai", "gpt-4o", "2025-01-31T12:15:00Z"),
+            (
+                "content4",
+                "analogy",
+                None,
+                "negative",
+                "context4",
+                "url4",
+                "openai",
+                "gpt-4o",
+                "2025-01-31T12:15:00Z",
+            ),
         ]
 
         # Mock the cursor and its fetchall method
@@ -67,7 +105,7 @@ class TestProviderModelSpecificFeedback:
         mock_db.execute.assert_called()
         # Should have called fetchall on the cursor
         mock_cursor.fetchall.assert_called()
-        
+
         # The method should return the processed feedback data
         assert isinstance(gemini_flash_feedback, list)
 
@@ -95,18 +133,47 @@ class TestProviderModelSpecificFeedback:
         """Test that optimization targets specific provider+model combinations"""
         # Mock that we have feedback for multiple models under one provider
         mock_user_models = ["gemini-2.5-flash", "gemini-1.5-pro"]
-        
+
         # Mock the user models detection
-        with patch.object(manager, '_get_user_models_for_provider', return_value=mock_user_models):
+        with patch.object(
+            manager, "_get_user_models_for_provider", return_value=mock_user_models
+        ):
             # Mock feedback data for each model
             mock_feedback_responses = [
                 # Feedback for gemini-2.5-flash
-                [("content1", "tool", None, "positive", "context1", "url1", "gemini", "gemini-2.5-flash", "2025-01-31T12:00:00Z")] * 10,
-                # Feedback for gemini-1.5-pro  
-                [("content2", "media", None, "negative", "context2", "url2", "gemini", "gemini-1.5-pro", "2025-01-31T12:05:00Z")] * 10,
+                [
+                    (
+                        "content1",
+                        "tool",
+                        None,
+                        "positive",
+                        "context1",
+                        "url1",
+                        "gemini",
+                        "gemini-2.5-flash",
+                        "2025-01-31T12:00:00Z",
+                    )
+                ]
+                * 10,
+                # Feedback for gemini-1.5-pro
+                [
+                    (
+                        "content2",
+                        "media",
+                        None,
+                        "negative",
+                        "context2",
+                        "url2",
+                        "gemini",
+                        "gemini-1.5-pro",
+                        "2025-01-31T12:05:00Z",
+                    )
+                ]
+                * 10,
             ]
-            
+
             call_count = 0
+
             def mock_fetchall(*args, **kwargs):
                 nonlocal call_count
                 if call_count < len(mock_feedback_responses):
@@ -114,18 +181,23 @@ class TestProviderModelSpecificFeedback:
                     call_count += 1
                     return result
                 return []
-            
+
             mock_db.fetchall.side_effect = mock_fetchall
 
             # Mock successful optimization
-            with patch.object(manager, '_optimize_provider_model') as mock_optimize:
-                mock_optimize.return_value = {"success": True, "optimized_prompt": "test prompt"}
-                
-                result = await manager.optimize_for_provider(mock_db, "gemini", "cheap", auto_trigger=False)
+            with patch.object(manager, "_optimize_provider_model") as mock_optimize:
+                mock_optimize.return_value = {
+                    "success": True,
+                    "optimized_prompt": "test prompt",
+                }
+
+                await manager.optimize_for_provider(
+                    mock_db, "gemini", "cheap", auto_trigger=False
+                )
 
                 # Should have called optimization for each model separately
                 assert mock_optimize.call_count >= 1
-                
+
                 # Verify that each call was for a specific provider+model combination
                 for call_args in mock_optimize.call_args_list:
                     args, kwargs = call_args
@@ -137,10 +209,13 @@ class TestProviderModelSpecificFeedback:
         # Test that the prompt generation includes provider+model specificity
         baseline_prompt_gemini = manager._get_baseline_prompt("Google Gemini")
         baseline_prompt_openai = manager._get_baseline_prompt("OpenAI GPT")
-        
+
         # Each provider should have distinct prompts
         assert baseline_prompt_gemini != baseline_prompt_openai
-        assert "Google Gemini" in baseline_prompt_gemini or "Gemini" in baseline_prompt_gemini
+        assert (
+            "Google Gemini" in baseline_prompt_gemini
+            or "Gemini" in baseline_prompt_gemini
+        )
         assert "OpenAI" in baseline_prompt_openai or "GPT" in baseline_prompt_openai
 
     def test_model_name_validation(self, manager):
@@ -177,7 +252,9 @@ class TestProviderModelFeedbackRequirements:
         mock_db.commit = AsyncMock()
         return mock_db
 
-    async def test_nugget_feedback_requires_model_fields(self, feedback_service, mock_db):
+    async def test_nugget_feedback_requires_model_fields(
+        self, feedback_service, mock_db
+    ):
         """Test that nugget feedback requires modelProvider and modelName fields"""
         # Valid feedback with all required fields
         valid_feedback = [
@@ -203,7 +280,9 @@ class TestProviderModelFeedbackRequirements:
         assert feedback_item["modelProvider"] == "gemini"
         assert feedback_item["modelName"] == "gemini-2.5-flash"
 
-    async def test_missing_content_feedback_requires_model_fields(self, feedback_service, mock_db):
+    async def test_missing_content_feedback_requires_model_fields(
+        self, feedback_service, mock_db
+    ):
         """Test that missing content feedback requires modelProvider and modelName fields"""
         # Valid missing content feedback with all required fields
         valid_feedback = [
@@ -250,7 +329,9 @@ class TestProviderModelFallbackBehavior:
         # Mock that no feedback exists for the specific model
         mock_db.fetchall.return_value = []
 
-        feedback = await manager._get_provider_model_feedback(mock_db, "gemini", "new-model-name")
+        feedback = await manager._get_provider_model_feedback(
+            mock_db, "gemini", "new-model-name"
+        )
 
         # Should return empty list but not crash
         assert feedback == []
@@ -274,7 +355,7 @@ class TestProviderModelFallbackBehavior:
             # Should have a baseline prompt for each provider
             assert provider in manager.baseline_prompts
             prompt = manager.baseline_prompts[provider]
-            
+
             # Prompt should be non-empty and contain expected content
             assert len(prompt) > 0
             assert "golden nuggets" in prompt.lower()

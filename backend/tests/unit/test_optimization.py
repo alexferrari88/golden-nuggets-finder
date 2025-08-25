@@ -330,24 +330,27 @@ class TestProviderModelOptimizationRetrieval:
 
         async with get_db() as db:
             # Insert a provider-specific optimized prompt
-            await db.execute("""
-                INSERT INTO optimized_prompts 
-                (id, version, prompt, created_at, feedback_count, positive_rate, 
+            await db.execute(
+                """
+                INSERT INTO optimized_prompts
+                (id, version, prompt, created_at, feedback_count, positive_rate,
                  model_provider, model_name, is_current, optimization_mode, optimization_run_id)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-                "test-openai-gpt4o-v1",
-                1,
-                "Provider-specific optimized prompt for OpenAI GPT-4o",
-                "2025-01-31T12:00:00Z",
-                15,
-                0.85,
-                "openai",
-                "gpt-4o",
-                True,
-                "cheap",
-                "baseline-run-001"
-            ))
+            """,
+                (
+                    "test-openai-gpt4o-v1",
+                    1,
+                    "Provider-specific optimized prompt for OpenAI GPT-4o",
+                    "2025-01-31T12:00:00Z",
+                    15,
+                    0.85,
+                    "openai",
+                    "gpt-4o",
+                    True,
+                    "cheap",
+                    "baseline-run-001",
+                ),
+            )
             await db.commit()
 
             # Test retrieval of provider-specific prompt
@@ -357,7 +360,10 @@ class TestProviderModelOptimizationRetrieval:
 
             assert result is not None
             assert result["version"] == 1
-            assert result["prompt"] == "Provider-specific optimized prompt for OpenAI GPT-4o"
+            assert (
+                result["prompt"]
+                == "Provider-specific optimized prompt for OpenAI GPT-4o"
+            )
             assert result["providerSpecific"] is True
             assert result["modelProvider"] == "openai"
             assert result["modelName"] == "gpt-4o"
@@ -372,24 +378,27 @@ class TestProviderModelOptimizationRetrieval:
 
         async with get_db() as db:
             # Insert only a generic optimized prompt (no provider/model)
-            await db.execute("""
-                INSERT INTO optimized_prompts 
-                (id, version, prompt, created_at, feedback_count, positive_rate, 
+            await db.execute(
+                """
+                INSERT INTO optimized_prompts
+                (id, version, prompt, created_at, feedback_count, positive_rate,
                  model_provider, model_name, is_current, optimization_mode, optimization_run_id)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-                "test-generic-v2",
-                2,
-                "Generic optimized prompt for all providers",
-                "2025-01-31T12:00:00Z",
-                25,
-                0.75,
-                None,  # No provider specified
-                None,  # No model specified
-                True,
-                "cheap",
-                "baseline-run-001"
-            ))
+            """,
+                (
+                    "test-generic-v2",
+                    2,
+                    "Generic optimized prompt for all providers",
+                    "2025-01-31T12:00:00Z",
+                    25,
+                    0.75,
+                    None,  # No provider specified
+                    None,  # No model specified
+                    True,
+                    "cheap",
+                    "baseline-run-001",
+                ),
+            )
             await db.commit()
 
             # Test retrieval falls back to generic prompt
@@ -408,7 +417,9 @@ class TestProviderModelOptimizationRetrieval:
             assert "modelName" not in result
 
     @pytest.mark.asyncio
-    async def test_provider_specific_takes_precedence_over_generic(self, clean_database):
+    async def test_provider_specific_takes_precedence_over_generic(
+        self, clean_database
+    ):
         """Test that provider-specific prompt takes precedence over generic"""
         optimization_service = OptimizationService()
 
@@ -416,45 +427,51 @@ class TestProviderModelOptimizationRetrieval:
             # Clear existing current prompts first
             await db.execute("UPDATE optimized_prompts SET is_current = FALSE")
             await db.commit()
-            
-            # Insert both generic and provider-specific prompts
-            await db.execute("""
-                INSERT INTO optimized_prompts 
-                (id, version, prompt, created_at, feedback_count, positive_rate, 
-                 model_provider, model_name, is_current, optimization_mode, optimization_run_id)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-                "test-generic-v1",
-                1,
-                "Generic optimized prompt",
-                "2025-01-31T11:00:00Z",
-                20,
-                0.70,
-                None,
-                None,
-                True,
-                "cheap",
-                "baseline-run-001"
-            ))
 
-            await db.execute("""
-                INSERT INTO optimized_prompts 
-                (id, version, prompt, created_at, feedback_count, positive_rate, 
+            # Insert both generic and provider-specific prompts
+            await db.execute(
+                """
+                INSERT INTO optimized_prompts
+                (id, version, prompt, created_at, feedback_count, positive_rate,
                  model_provider, model_name, is_current, optimization_mode, optimization_run_id)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-                "test-gemini-flash-v1",
-                1,
-                "Gemini 2.5-flash specific optimized prompt",
-                "2025-01-31T12:00:00Z",
-                12,
-                0.90,
-                "gemini",
-                "gemini-2.5-flash",
-                True,
-                "expensive",
-                "baseline-run-001"
-            ))
+            """,
+                (
+                    "test-generic-v1",
+                    1,
+                    "Generic optimized prompt",
+                    "2025-01-31T11:00:00Z",
+                    20,
+                    0.70,
+                    None,
+                    None,
+                    True,
+                    "cheap",
+                    "baseline-run-001",
+                ),
+            )
+
+            await db.execute(
+                """
+                INSERT INTO optimized_prompts
+                (id, version, prompt, created_at, feedback_count, positive_rate,
+                 model_provider, model_name, is_current, optimization_mode, optimization_run_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+                (
+                    "test-gemini-flash-v1",
+                    1,
+                    "Gemini 2.5-flash specific optimized prompt",
+                    "2025-01-31T12:00:00Z",
+                    12,
+                    0.90,
+                    "gemini",
+                    "gemini-2.5-flash",
+                    True,
+                    "expensive",
+                    "baseline-run-001",
+                ),
+            )
             await db.commit()
 
             # Test that provider-specific prompt is returned
@@ -489,24 +506,27 @@ class TestProviderModelOptimizationRetrieval:
 
         async with get_db() as db:
             # Insert an optimization that is not current
-            await db.execute("""
-                INSERT INTO optimized_prompts 
-                (id, version, prompt, created_at, feedback_count, positive_rate, 
+            await db.execute(
+                """
+                INSERT INTO optimized_prompts
+                (id, version, prompt, created_at, feedback_count, positive_rate,
                  model_provider, model_name, is_current, optimization_mode, optimization_run_id)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-                "test-old-v1",
-                1,
-                "Old optimization prompt",
-                "2025-01-30T12:00:00Z",
-                10,
-                0.60,
-                "anthropic",
-                "claude-3-5-sonnet-20241022",
-                False,  # Not current
-                "cheap",
-                "baseline-run-001"
-            ))
+            """,
+                (
+                    "test-old-v1",
+                    1,
+                    "Old optimization prompt",
+                    "2025-01-30T12:00:00Z",
+                    10,
+                    0.60,
+                    "anthropic",
+                    "claude-3-5-sonnet-20241022",
+                    False,  # Not current
+                    "cheap",
+                    "baseline-run-001",
+                ),
+            )
             await db.commit()
 
             # Should return None since no current optimization exists
@@ -524,24 +544,27 @@ class TestProviderModelOptimizationRetrieval:
         async with get_db() as db:
             # Insert multiple versions for the same provider+model
             for version in [1, 2, 3]:
-                await db.execute("""
-                    INSERT INTO optimized_prompts 
-                    (id, version, prompt, created_at, feedback_count, positive_rate, 
+                await db.execute(
+                    """
+                    INSERT INTO optimized_prompts
+                    (id, version, prompt, created_at, feedback_count, positive_rate,
                      model_provider, model_name, is_current, optimization_mode, optimization_run_id)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """, (
-                    f"test-openai-v{version}",
-                    version,
-                    f"OpenAI optimization v{version}",
-                    f"2025-01-31T12:0{version}:00Z",
-                    10 + version,
-                    0.7 + (version * 0.05),
-                    "openai",
-                    "gpt-4o-mini",
-                    True,  # All marked as current for this test
-                    "cheap",
-                    "baseline-run-001"
-                ))
+                """,
+                    (
+                        f"test-openai-v{version}",
+                        version,
+                        f"OpenAI optimization v{version}",
+                        f"2025-01-31T12:0{version}:00Z",
+                        10 + version,
+                        0.7 + (version * 0.05),
+                        "openai",
+                        "gpt-4o-mini",
+                        True,  # All marked as current for this test
+                        "cheap",
+                        "baseline-run-001",
+                    ),
+                )
             await db.commit()
 
             # Should return the latest version (v3)
@@ -564,26 +587,29 @@ class TestProviderModelOptimizationRetrieval:
             # Clear existing current prompts first
             await db.execute("UPDATE optimized_prompts SET is_current = FALSE")
             await db.commit()
-            
+
             # Insert prompt with empty string provider/model (should be treated as generic)
-            await db.execute("""
-                INSERT INTO optimized_prompts 
-                (id, version, prompt, created_at, feedback_count, positive_rate, 
+            await db.execute(
+                """
+                INSERT INTO optimized_prompts
+                (id, version, prompt, created_at, feedback_count, positive_rate,
                  model_provider, model_name, is_current, optimization_mode, optimization_run_id)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-                "test-empty-string",
-                1,
-                "Prompt with empty string provider",
-                "2025-01-31T12:00:00Z",
-                18,
-                0.80,
-                "",  # Empty string provider
-                "",  # Empty string model
-                True,
-                "cheap",
-                "baseline-run-001"
-            ))
+            """,
+                (
+                    "test-empty-string",
+                    1,
+                    "Prompt with empty string provider",
+                    "2025-01-31T12:00:00Z",
+                    18,
+                    0.80,
+                    "",  # Empty string provider
+                    "",  # Empty string model
+                    True,
+                    "cheap",
+                    "baseline-run-001",
+                ),
+            )
             await db.commit()
 
             # Should find this as a generic fallback
@@ -604,24 +630,27 @@ class TestProviderModelOptimizationRetrieval:
 
         async with get_db() as db:
             # Insert prompt with specific case
-            await db.execute("""
-                INSERT INTO optimized_prompts 
-                (id, version, prompt, created_at, feedback_count, positive_rate, 
+            await db.execute(
+                """
+                INSERT INTO optimized_prompts
+                (id, version, prompt, created_at, feedback_count, positive_rate,
                  model_provider, model_name, is_current, optimization_mode, optimization_run_id)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-                "test-case-sensitive",
-                1,
-                "Case sensitive prompt",
-                "2025-01-31T12:00:00Z",
-                10,
-                0.75,
-                "openai",  # lowercase
-                "gpt-4o-mini",  # lowercase with dashes
-                True,
-                "cheap",
-                "baseline-run-001"
-            ))
+            """,
+                (
+                    "test-case-sensitive",
+                    1,
+                    "Case sensitive prompt",
+                    "2025-01-31T12:00:00Z",
+                    10,
+                    0.75,
+                    "openai",  # lowercase
+                    "gpt-4o-mini",  # lowercase with dashes
+                    True,
+                    "cheap",
+                    "baseline-run-001",
+                ),
+            )
             await db.commit()
 
             # Should match exact case
@@ -633,6 +662,8 @@ class TestProviderModelOptimizationRetrieval:
 
             # Should not match different case
             result = await optimization_service.get_current_prompt_for_provider_model(
-                db, "OpenAI", "GPT-4o-mini"  # Different case
+                db,
+                "OpenAI",
+                "GPT-4o-mini",  # Different case
             )
             assert result is None

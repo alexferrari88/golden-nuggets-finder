@@ -609,7 +609,7 @@ Return valid JSON with the exact structure: {{"golden_nuggets": [...]}}"""
     ) -> Optional[dict]:
         """
         Get the current optimized prompt for a specific provider+model combination.
-        
+
         Falls back to generic optimized prompt if no provider-specific optimization exists.
         Returns None if no optimizations are available (extension will use baseline).
         """
@@ -618,19 +618,22 @@ Return valid JSON with the exact structure: {{"golden_nuggets": [...]}}"""
             extra={
                 "provider_id": provider_id,
                 "model_name": model_name,
-                "operation": "get_provider_specific_prompt"
-            }
+                "operation": "get_provider_specific_prompt",
+            },
         )
-        
+
         # First try: Get provider+model specific prompt
-        cursor = await db.execute("""
-            SELECT id, version, prompt, created_at, feedback_count, positive_rate, 
+        cursor = await db.execute(
+            """
+            SELECT id, version, prompt, created_at, feedback_count, positive_rate,
                    model_provider, model_name
             FROM optimized_prompts
             WHERE model_provider = ? AND model_name = ? AND is_current = TRUE
             ORDER BY version DESC
             LIMIT 1
-        """, (provider_id, model_name))
+        """,
+            (provider_id, model_name),
+        )
         result = await cursor.fetchone()
 
         if result:
@@ -640,8 +643,8 @@ Return valid JSON with the exact structure: {{"golden_nuggets": [...]}}"""
                     "provider_id": provider_id,
                     "model_name": model_name,
                     "prompt_version": result[1],
-                    "optimization_type": "provider_specific"
-                }
+                    "optimization_type": "provider_specific",
+                },
             )
             return {
                 "id": result[0],
@@ -660,10 +663,10 @@ Return valid JSON with the exact structure: {{"golden_nuggets": [...]}}"""
             extra={
                 "provider_id": provider_id,
                 "model_name": model_name,
-                "fallback_step": "generic_prompt"
-            }
+                "fallback_step": "generic_prompt",
+            },
         )
-        
+
         cursor = await db.execute("""
             SELECT id, version, prompt, created_at, feedback_count, positive_rate
             FROM optimized_prompts
@@ -680,8 +683,8 @@ Return valid JSON with the exact structure: {{"golden_nuggets": [...]}}"""
                     "provider_id": provider_id,
                     "model_name": model_name,
                     "prompt_version": result[1],
-                    "optimization_type": "generic_fallback"
-                }
+                    "optimization_type": "generic_fallback",
+                },
             )
             return {
                 "id": result[0],
@@ -699,8 +702,8 @@ Return valid JSON with the exact structure: {{"golden_nuggets": [...]}}"""
             extra={
                 "provider_id": provider_id,
                 "model_name": model_name,
-                "optimization_type": "none_available"
-            }
+                "optimization_type": "none_available",
+            },
         )
         return None
 

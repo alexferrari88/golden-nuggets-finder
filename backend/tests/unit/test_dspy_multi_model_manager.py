@@ -50,11 +50,14 @@ class TestDSPyMultiModelManager:
             assert "json" in prompt.lower()
             # Check that provider is mentioned in some form in the prompt
             provider_mentioned = (
-                provider_id.lower() in prompt.lower() or
-                provider_id.replace("_", " ").title() in prompt or
-                provider_id.replace("_", "").upper() in prompt  # For OpenAI -> OPENAI
+                provider_id.lower() in prompt.lower()
+                or provider_id.replace("_", " ").title() in prompt
+                or provider_id.replace("_", "").upper()
+                in prompt  # For OpenAI -> OPENAI
             )
-            assert provider_mentioned, f"Provider {provider_id} not mentioned in prompt: {prompt[:100]}..."
+            assert provider_mentioned, (
+                f"Provider {provider_id} not mentioned in prompt: {prompt[:100]}..."
+            )
 
     def test_baseline_prompt_generation(self, manager):
         """Test that baseline prompts are generated correctly for each provider"""
