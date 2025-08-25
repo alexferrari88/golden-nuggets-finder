@@ -46,14 +46,22 @@ class ImprovedCostTrackingService:
         total_tokens = 0
         input_tokens = 0
         output_tokens = 0
-        
+
         for entry in lm.history:
-            if "usage" in entry and entry["usage"]:
+            if entry.get("usage"):
                 usage = entry["usage"]
                 # Try different possible field names for token counts
                 total_tokens += usage.get("total_tokens", 0) or usage.get("total", 0)
-                input_tokens += usage.get("prompt_tokens", 0) or usage.get("input_tokens", 0) or usage.get("prompt", 0)
-                output_tokens += usage.get("completion_tokens", 0) or usage.get("output_tokens", 0) or usage.get("completion", 0)
+                input_tokens += (
+                    usage.get("prompt_tokens", 0)
+                    or usage.get("input_tokens", 0)
+                    or usage.get("prompt", 0)
+                )
+                output_tokens += (
+                    usage.get("completion_tokens", 0)
+                    or usage.get("output_tokens", 0)
+                    or usage.get("completion", 0)
+                )
         api_calls = len(lm.history)
 
         # Get model information (from first history entry)
@@ -375,19 +383,27 @@ class ImprovedCostTrackingService:
             }
 
         total_cost = sum([x["cost"] for x in lm.history if x["cost"] is not None])
-        
+
         # Get token usage with fallback for different DSPy versions
         total_tokens = 0
         input_tokens = 0
         output_tokens = 0
-        
+
         for entry in lm.history:
-            if "usage" in entry and entry["usage"]:
+            if entry.get("usage"):
                 usage = entry["usage"]
                 total_tokens += usage.get("total_tokens", 0) or usage.get("total", 0)
-                input_tokens += usage.get("prompt_tokens", 0) or usage.get("input_tokens", 0) or usage.get("prompt", 0)
-                output_tokens += usage.get("completion_tokens", 0) or usage.get("output_tokens", 0) or usage.get("completion", 0)
-        
+                input_tokens += (
+                    usage.get("prompt_tokens", 0)
+                    or usage.get("input_tokens", 0)
+                    or usage.get("prompt", 0)
+                )
+                output_tokens += (
+                    usage.get("completion_tokens", 0)
+                    or usage.get("output_tokens", 0)
+                    or usage.get("completion", 0)
+                )
+
         api_calls = len(lm.history)
 
         return {

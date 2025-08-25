@@ -68,7 +68,7 @@ Your task is to find the most valuable insights that would be useful for a softw
 1. **Tools and Resources**: Specific tools, libraries, services, or resources mentioned
 2. **Media and References**: Books, articles, videos, podcasts, or other content worth consuming
 3. **Explanations**: Clear explanations of complex concepts, processes, or phenomena
-4. **Analogies and Models**: Mental models, analogies, or frameworks for understanding  
+4. **Analogies and Models**: Mental models, analogies, or frameworks for understanding
 5. **Models and Frameworks**: Structured approaches, methodologies, or systematic thinking tools
 
 For each golden nugget, provide:
@@ -83,34 +83,36 @@ The JSON structure must be: {{"golden_nuggets": [...]}}
         """Get default model for provider as fallback when no user data exists"""
         defaults = {
             "gemini": "gemini-2.5-flash",
-            "openai": "gpt-4o-mini", 
+            "openai": "gpt-4o-mini",
             "anthropic": "claude-3-5-sonnet-20241022",
             "openrouter": "openai/gpt-3.5-turbo",
         }
         return defaults.get(provider_id, "unknown")
 
-    async def _get_user_models_for_provider(self, db: aiosqlite.Connection, provider_id: str) -> list[str]:
+    async def _get_user_models_for_provider(
+        self, db: aiosqlite.Connection, provider_id: str
+    ) -> list[str]:
         """Get list of models actually used by users for this provider based on feedback data"""
         cursor = await db.execute(
             """
-            SELECT DISTINCT model_name 
-            FROM nugget_feedback 
+            SELECT DISTINCT model_name
+            FROM nugget_feedback
             WHERE model_provider = ? AND model_name IS NOT NULL
             """,
-            (provider_id,)
+            (provider_id,),
         )
         nugget_results = await cursor.fetchall()
-        
+
         cursor = await db.execute(
             """
-            SELECT DISTINCT model_name 
-            FROM missing_content_feedback 
+            SELECT DISTINCT model_name
+            FROM missing_content_feedback
             WHERE model_provider = ? AND model_name IS NOT NULL
             """,
-            (provider_id,)
+            (provider_id,),
         )
         missing_results = await cursor.fetchall()
-        
+
         # Combine and deduplicate model names
         user_models = set()
         for row in nugget_results:
@@ -119,7 +121,7 @@ The JSON structure must be: {{"golden_nuggets": [...]}}
         for row in missing_results:
             if row[0]:
                 user_models.add(row[0])
-        
+
         # Return actual user models or fallback to default
         if user_models:
             return list(user_models)
@@ -130,17 +132,19 @@ The JSON structure must be: {{"golden_nuggets": [...]}}
         """Create DSPy LM instance for specific provider+model combination"""
         if not DSPY_AVAILABLE:
             return None
-            
+
         try:
             import dspy
-            
+
             if provider_id == "openrouter":
                 return dspy.LM(model_name, api_base="https://openrouter.ai/api/v1")
             else:
                 return dspy.LM(f"{provider_id}/{model_name}")
-                
+
         except Exception as e:
-            logger.error(f"Failed to create DSPy LM for {provider_id}/{model_name}: {e}")
+            logger.error(
+                f"Failed to create DSPy LM for {provider_id}/{model_name}: {e}"
+            )
             return None
 
     async def optimize_for_provider(
@@ -169,7 +173,7 @@ The JSON structure must be: {{"golden_nuggets": [...]}}
 
         # Get actual models that users are using for this provider
         user_models = await self._get_user_models_for_provider(db, provider_id)
-        
+
         logger.info(
             f"Found {len(user_models)} models in use for {provider_id}: {user_models}",
             extra={
@@ -182,9 +186,11 @@ The JSON structure must be: {{"golden_nuggets": [...]}}
 
         # Optimize each provider+model combination separately
         optimization_results = []
-        
+
         for model_name in user_models:
-            result = await self._optimize_provider_model(db, provider_id, model_name, mode, auto_trigger)
+            result = await self._optimize_provider_model(
+                db, provider_id, model_name, mode, auto_trigger
+            )
             if result:
                 optimization_results.append(result)
 
@@ -212,7 +218,9 @@ The JSON structure must be: {{"golden_nuggets": [...]}}
         This is the core optimization logic that was previously in optimize_for_provider.
         """
         # Get feedback for this specific provider+model combination
-        provider_model_feedback = await self._get_provider_model_feedback(db, provider_id, model_name)
+        provider_model_feedback = await self._get_provider_model_feedback(
+            db, provider_id, model_name
+        )
 
         if len(provider_model_feedback) < self.min_feedback_threshold:
             logger.warning(
@@ -239,7 +247,7 @@ The JSON structure must be: {{"golden_nuggets": [...]}}
         await db.execute(
             """
             INSERT INTO optimization_runs (
-                id, mode, trigger_type, started_at, status, feedback_count, 
+                id, mode, trigger_type, started_at, status, feedback_count,
                 model_provider, model_name
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """,
@@ -353,7 +361,12 @@ The JSON structure must be: {{"golden_nuggets": [...]}}
             raise Exception(f"Optimization failed for {provider_id}+{model_name}: {e}")
 
     def _run_provider_model_optimization(
-        self, feedback_data: list[dict], provider_id: str, model_name: str, mode: str, run_id: str
+        self,
+        feedback_data: list[dict],
+        provider_id: str,
+        model_name: str,
+        mode: str,
+        run_id: str,
     ) -> dict:
         """Run DSPy optimization for a specific provider+model combination (executed in thread pool)"""
         if not DSPY_AVAILABLE:
@@ -373,7 +386,9 @@ The JSON structure must be: {{"golden_nuggets": [...]}}
             # Create DSPy LM for this specific provider+model combination
             lm = self._create_dspy_lm_for_model(provider_id, model_name)
             if not lm:
-                raise Exception(f"Failed to create DSPy LM for {provider_id}/{model_name}")
+                raise Exception(
+                    f"Failed to create DSPy LM for {provider_id}/{model_name}"
+                )
 
             # Configure DSPy with the actual user model
             dspy.settings.configure(lm=lm)
@@ -517,7 +532,7 @@ The JSON structure must be: {{"golden_nuggets": [...]}}
 
 # Enhanced with {provider_id} feedback analysis
 Based on {len(feedback_data)} user feedback examples, focus on:
-- High-quality content that users find valuable  
+- High-quality content that users find valuable
 - Avoiding content that received negative feedback
 - Including user-identified missing golden nuggets
 
@@ -597,7 +612,7 @@ This prompt is optimized for {provider_id} based on user feedback patterns.
         cursor = await db.execute(
             """
             SELECT content, suggested_type, context, url, model_provider, model_name, created_at
-            FROM missing_content_feedback  
+            FROM missing_content_feedback
             WHERE model_provider = ? AND model_name = ?
             ORDER BY created_at DESC
             LIMIT 200
@@ -666,7 +681,7 @@ This prompt is optimized for {provider_id} based on user feedback patterns.
         cursor = await db.execute(
             """
             SELECT content, suggested_type, context, url, model_provider, model_name, created_at
-            FROM missing_content_feedback  
+            FROM missing_content_feedback
             WHERE model_provider = ?
             ORDER BY created_at DESC
             LIMIT 200
@@ -724,8 +739,8 @@ This prompt is optimized for {provider_id} based on user feedback patterns.
         # Get next version number for this provider
         cursor = await db.execute(
             """
-            SELECT COALESCE(MAX(version), 0) + 1 
-            FROM optimized_prompts 
+            SELECT COALESCE(MAX(version), 0) + 1
+            FROM optimized_prompts
             WHERE model_provider = ?
             """,
             (provider_id,),
@@ -782,8 +797,8 @@ This prompt is optimized for {provider_id} based on user feedback patterns.
         # Get next version number for this provider+model combination
         cursor = await db.execute(
             """
-            SELECT COALESCE(MAX(version), 0) + 1 
-            FROM optimized_prompts 
+            SELECT COALESCE(MAX(version), 0) + 1
+            FROM optimized_prompts
             WHERE model_provider = ? AND model_name = ?
             """,
             (provider_id, model_name),
@@ -796,8 +811,8 @@ This prompt is optimized for {provider_id} based on user feedback patterns.
         # Mark all previous prompts for this provider+model as not current
         await db.execute(
             """
-            UPDATE optimized_prompts 
-            SET is_current = FALSE 
+            UPDATE optimized_prompts
+            SET is_current = FALSE
             WHERE model_provider = ? AND model_name = ?
             """,
             (provider_id, model_name),
@@ -937,9 +952,11 @@ This prompt is optimized for {provider_id} based on user feedback patterns.
                 "provider_id": provider_id,
                 "model_name": result[6],
             }
-        
+
         # Fallback to any prompt for this provider if no specific model prompt exists
-        logger.info(f"No optimized prompt found for {provider_id}+{model_name}, falling back to any {provider_id} prompt")
+        logger.info(
+            f"No optimized prompt found for {provider_id}+{model_name}, falling back to any {provider_id} prompt"
+        )
         return await self.get_provider_current_prompt(db, provider_id)
 
     def get_provider_run_progress(
