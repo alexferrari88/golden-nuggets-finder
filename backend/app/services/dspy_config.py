@@ -118,8 +118,7 @@ if DSPY_AVAILABLE:
             desc="Web content to analyze for valuable insights and golden nuggets"
         )
         golden_nuggets = dspy.OutputField(
-            desc="JSON object containing extracted golden nuggets with type,\n"
-            "content, and synthesis"
+            desc="JSON object containing extracted golden nuggets with type and content"
         )
 
     class GoldenNuggetExtractor(dspy.Module):
@@ -344,11 +343,6 @@ def generate_mock_feedback_data(count: int = 50) -> list:
                     {
                         "type": random.choice(nugget_types),
                         "content": f"Mock nugget content {i}_{j} with valuable insight",
-                        "synthesis": (
-                            f"This is valuable because it provides "
-                            f"{random.choice(['practical', 'theoretical', 'actionable'])} "
-                            f"guidance"
-                        ),
                     }
                 )
 
