@@ -12,7 +12,7 @@ export const mockGoldenNuggets: GoldenNugget[] = [
 		endContent: "regular expressions",
 	},
 	{
-		type: "explanation",
+		type: "aha! moments",
 		startContent: "React hooks follow the principle",
 		endContent: "modular and reusable",
 	},
@@ -42,14 +42,14 @@ export const mockSavedPrompts: SavedPrompt[] = [
 		id: "default-insights",
 		name: "Find Key Insights",
 		prompt:
-			"Extract golden nuggets that would be valuable for a pragmatic synthesizer with ADHD. Focus on actionable insights, elegant principles, tools, analogies, and explanations that connect to first principles thinking.",
+			"Extract golden nuggets that would be valuable for a pragmatic synthesizer with ADHD. Focus on actionable insights, elegant principles, tools, analogies, and aha! momentss that connect to first principles thinking.",
 		isDefault: true,
 	},
 	{
 		id: "technical-focus",
 		name: "Technical Deep Dive",
 		prompt:
-			"Focus on technical explanations, code examples, and development tools that would be useful for a software engineer.",
+			"Focus on technical aha! momentss, code examples, and development tools that would be useful for a software engineer.",
 		isDefault: false,
 	},
 	{

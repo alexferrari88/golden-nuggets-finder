@@ -16,9 +16,9 @@ from pydantic import BaseModel, Field
 class NuggetFeedback(BaseModel):
     id: str
     nuggetContent: str = Field(..., description="Full golden nugget content")
-    originalType: Literal["tool", "media", "explanation", "analogy", "model"]
+    originalType: Literal["tool", "media", "aha! moments", "analogy", "model"]
     correctedType: Optional[
-        Literal["tool", "media", "explanation", "analogy", "model"]
+        Literal["tool", "media", "aha! moments", "analogy", "model"]
     ] = None
     rating: Literal["positive", "negative"]
     timestamp: int
@@ -36,7 +36,7 @@ class NuggetFeedback(BaseModel):
 class MissingContentFeedback(BaseModel):
     id: str
     content: str
-    suggestedType: Literal["tool", "media", "explanation", "analogy", "model"]
+    suggestedType: Literal["tool", "media", "aha! moments", "analogy", "model"]
     timestamp: int
     url: str
     context: str = Field(..., description="Page context")
@@ -60,10 +60,10 @@ class UpdateFeedbackRequest(BaseModel):
     content: Optional[str] = None
     rating: Optional[Literal["positive", "negative"]] = None
     corrected_type: Optional[
-        Literal["tool", "media", "explanation", "analogy", "model"]
+        Literal["tool", "media", "aha! moments", "analogy", "model"]
     ] = None
     suggested_type: Optional[
-        Literal["tool", "media", "explanation", "analogy", "model"]
+        Literal["tool", "media", "aha! moments", "analogy", "model"]
     ] = None
 
 
@@ -273,13 +273,13 @@ class FeedbackWithDeduplication(BaseModel):
     url: str
     rating: Optional[Literal["positive", "negative"]] = None
     suggested_type: Optional[
-        Literal["tool", "media", "explanation", "analogy", "model"]
+        Literal["tool", "media", "aha! moments", "analogy", "model"]
     ] = None
     original_type: Optional[
-        Literal["tool", "media", "explanation", "analogy", "model"]
+        Literal["tool", "media", "aha! moments", "analogy", "model"]
     ] = None
     corrected_type: Optional[
-        Literal["tool", "media", "explanation", "analogy", "model"]
+        Literal["tool", "media", "aha! moments", "analogy", "model"]
     ] = None
     created_at: str
     deduplication: DeduplicationInfo

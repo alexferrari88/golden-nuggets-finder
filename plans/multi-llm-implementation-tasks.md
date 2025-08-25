@@ -105,7 +105,7 @@ export interface LLMProvider {
 
 export interface GoldenNuggetsResponse {
   golden_nuggets: Array<{
-    type: 'tool' | 'media' | 'explanation' | 'analogy' | 'model';
+    type: 'tool' | 'media' | 'aha! moments' | 'analogy' | 'model';
     content: string;
     startContent: string;
     endContent: string;
@@ -369,7 +369,7 @@ import { LLMProvider, ProviderConfig, GoldenNuggetsResponse } from '../types/pro
 // Zod schema for golden nuggets (matches existing format)
 const GoldenNuggetsSchema = z.object({
   golden_nuggets: z.array(z.object({
-    type: z.enum(['tool', 'media', 'explanation', 'analogy', 'model']),
+    type: z.enum(['tool', 'media', 'aha! moments', 'analogy', 'model']),
     content: z.string(),
     startContent: z.string(),
     endContent: z.string()
@@ -460,7 +460,7 @@ import { LLMProvider, ProviderConfig, GoldenNuggetsResponse } from '../types/pro
 
 const GoldenNuggetsSchema = z.object({
   golden_nuggets: z.array(z.object({
-    type: z.enum(['tool', 'media', 'explanation', 'analogy', 'model']),
+    type: z.enum(['tool', 'media', 'aha! moments', 'analogy', 'model']),
     content: z.string(),
     startContent: z.string(),
     endContent: z.string()
@@ -548,7 +548,7 @@ import { LLMProvider, ProviderConfig, GoldenNuggetsResponse } from '../types/pro
 
 const GoldenNuggetsSchema = z.object({
   golden_nuggets: z.array(z.object({
-    type: z.enum(['tool', 'media', 'explanation', 'analogy', 'model']),
+    type: z.enum(['tool', 'media', 'aha! moments', 'analogy', 'model']),
     content: z.string(),
     startContent: z.string(),
     endContent: z.string()
@@ -641,7 +641,7 @@ import { z } from 'zod';
 
 const GoldenNuggetsSchema = z.object({
   golden_nuggets: z.array(z.object({
-    type: z.enum(['tool', 'media', 'explanation', 'analogy', 'model']),
+    type: z.enum(['tool', 'media', 'aha! moments', 'analogy', 'model']),
     content: z.string(),
     startContent: z.string(),
     endContent: z.string()

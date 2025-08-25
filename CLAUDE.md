@@ -123,7 +123,7 @@ The extension follows a standard Chrome extension architecture with three main c
 
 #### Key Features
 - **Multi-Provider AI Support**: Seamlessly switch between Gemini, OpenAI, Anthropic, and OpenRouter
-- **Type Filtering**: Filter analysis by nugget types (tool, media, explanation, analogy, model)
+- **Type Filtering**: Filter analysis by nugget types (tool, media, aha! moments, analogy, model)
 - **Dynamic Content Injection**: Content scripts injected only when needed, not on all pages
 - **Secure Storage**: API keys encrypted with device-specific fingerprinting
 
@@ -205,7 +205,7 @@ All AI providers (Gemini, Claude, OpenAI, OpenRouter) are normalized to this sta
 {
   "golden_nuggets": [
     {
-      "type": "tool|media|explanation|analogy|model",
+      "type": "tool|media|aha! moments|analogy|model",
       "startContent": "First few words of original text",
       "endContent": "Last few words of original text"
     }

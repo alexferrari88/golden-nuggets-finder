@@ -68,7 +68,7 @@ describe("GeminiDirectProvider", () => {
 						endContent: "for the system",
 					},
 					{
-						type: "explanation" as const,
+						type: "aha! moments" as const,
 						startContent: "Complex concepts",
 						endContent: "are simplified here",
 					},
@@ -91,7 +91,7 @@ describe("GeminiDirectProvider", () => {
 						endContent: "for the system",
 					},
 					{
-						type: "explanation",
+						type: "aha! moments",
 						startContent: "Complex concepts",
 						endContent: "are simplified here",
 					},

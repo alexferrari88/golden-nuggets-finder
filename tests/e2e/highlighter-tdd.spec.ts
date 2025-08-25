@@ -17,12 +17,12 @@ const GOLDEN_NUGGETS: GoldenNugget[] = [
 		endContent: "guess almost anything.",
 	},
 	{
-		type: "explanation",
+		type: "aha! moments",
 		startContent: "One perspective on AI",
 		endContent: "the source coding theorem.)",
 	},
 	{
-		type: "explanation",
+		type: "aha! moments",
 		startContent: "Generalization only begins when",
 		endContent: "generalization occurs.",
 	},
@@ -395,7 +395,7 @@ test.describe("Highlighter TDD", () => {
 			// Use an existing nugget but add extra punctuation to test our fallback logic
 			// This simulates the scenario where the API returns text with extra punctuation
 			const testNugget = {
-				type: "explanation",
+				type: "aha! moments",
 				startContent: "Generalization only begins when",
 				endContent: "generalization occurs...", // Extra dots compared to actual content
 			};

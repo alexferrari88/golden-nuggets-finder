@@ -312,7 +312,7 @@ function IndexPopup() {
 	const [selectedTypes, setSelectedTypes] = useState<GoldenNuggetType[]>([
 		"tool",
 		"media",
-		"explanation",
+		"aha! moments",
 		"analogy",
 		"model",
 	]);
@@ -333,7 +333,7 @@ function IndexPopup() {
 			isQuick: false, // Step 3 is the long wait
 			timeEstimate: "Usually takes 15-30 seconds",
 			tips: [
-				"💎 Looking for 5 types: Tools, Media, Explanations, Analogies, Mental Models",
+				"💎 Looking for 5 types: Tools, Media, Aha! Moments, Analogies, Mental Models",
 				"🔍 Analyzing context and relevance to your interests",
 				"⚡ Processing hundreds of words per second",
 				"🎯 Filtering for the most valuable insights",

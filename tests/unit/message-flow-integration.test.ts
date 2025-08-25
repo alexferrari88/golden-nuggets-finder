@@ -92,7 +92,7 @@ describe("Message Flow Integration Tests", () => {
 			const selectionRequest = {
 				type: MESSAGE_TYPES.ENTER_SELECTION_MODE,
 				promptId: "selection-prompt",
-				typeFilter: { selectedTypes: ["media", "explanation"] },
+				typeFilter: { selectedTypes: ["media", "aha! moments"] },
 			};
 
 			// Mock content script handler
@@ -101,7 +101,7 @@ describe("Message Flow Integration Tests", () => {
 				expect(request.promptId).toBe("selection-prompt");
 				expect(request.typeFilter.selectedTypes).toEqual([
 					"media",
-					"explanation",
+					"aha! moments",
 				]);
 				sendResponse({ success: true, selectionModeEnabled: true });
 			});

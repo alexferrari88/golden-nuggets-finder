@@ -56,7 +56,7 @@ describe("GOLDEN_NUGGET_SCHEMA", () => {
 			expect(typeProperty.enum).toEqual([
 				"tool",
 				"media",
-				"explanation",
+				"aha! moments",
 				"analogy",
 				"model",
 			]);
@@ -68,7 +68,7 @@ describe("GOLDEN_NUGGET_SCHEMA", () => {
 
 			expect(typeProperty.enum).toContain("tool");
 			expect(typeProperty.enum).toContain("media");
-			expect(typeProperty.enum).toContain("explanation");
+			expect(typeProperty.enum).toContain("aha! moments");
 			expect(typeProperty.enum).toContain("analogy");
 			expect(typeProperty.enum).toContain("model");
 			expect(typeProperty.enum).toHaveLength(5);
@@ -141,7 +141,7 @@ describe("GOLDEN_NUGGET_SCHEMA", () => {
 						endContent: "content",
 					},
 					{
-						type: "explanation",
+						type: "aha! moments",
 						startContent: "Explanation",
 						endContent: "content",
 					},
@@ -191,7 +191,7 @@ describe("GOLDEN_NUGGET_SCHEMA", () => {
 			expect(typeEnum).toEqual([
 				"tool",
 				"media",
-				"explanation",
+				"aha! moments",
 				"analogy",
 				"model",
 			]);

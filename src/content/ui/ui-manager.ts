@@ -535,7 +535,7 @@ export class UIManager {
 			{ value: "", label: "Select type..." },
 			{ value: "tool", label: "🛠️ Tool" },
 			{ value: "media", label: "📺 Media" },
-			{ value: "explanation", label: "💡 Explanation" },
+			{ value: "aha! moments", label: "💡 Aha! Moments" },
 			{ value: "analogy", label: "🔄 Analogy" },
 			{ value: "model", label: "📊 Model" },
 		];
@@ -1622,8 +1622,8 @@ export class UIManager {
 			typeSelect.appendChild(option);
 		});
 
-		// Default to 'explanation' as it's most common
-		typeSelect.value = "explanation";
+		// Default to 'aha! moments' as it's most common
+		typeSelect.value = "aha! moments";
 
 		typeSection.appendChild(typeLabel);
 		typeSection.appendChild(typeSelect);

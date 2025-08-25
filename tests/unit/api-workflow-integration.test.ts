@@ -124,7 +124,7 @@ describe("API Workflow Integration Tests", () => {
 ## EXTRACTION TARGETS ("Golden Nuggets"):
 1. **Actionable Tools:** Tool definition
 2. **High-Signal Media:** Media definition  
-3. **Deep Explanations:** Explanation definition
+3. **Deep Aha! Moments:** Aha! moments definition
 4. **Powerful Analogies:** Analogy definition
 5. **Mental Models:** Model definition`,
 				isDefault: true,
@@ -302,9 +302,9 @@ describe("API Workflow Integration Tests", () => {
 			const mockResult = {
 				golden_nuggets: [
 					{
-						type: "explanation",
-						startContent: "Optimized explanation",
-						endContent: "End explanation",
+						type: "aha! moments",
+						startContent: "Optimized aha! moments",
+						endContent: "End aha! moments",
 					},
 				],
 			};

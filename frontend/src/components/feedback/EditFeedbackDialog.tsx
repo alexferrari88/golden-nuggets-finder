@@ -31,7 +31,7 @@ interface EditFeedbackDialogProps {
 const NUGGET_TYPES: { value: NuggetType; label: string }[] = [
   { value: "tool", label: "Tool" },
   { value: "media", label: "Media" },
-  { value: "explanation", label: "Explanation" },
+  { value: "aha! moments", label: "Aha! Moments" },
   { value: "analogy", label: "Analogy" },
   { value: "model", label: "Model" },
 ]

@@ -32,7 +32,7 @@ console.log("Using undici fetch for real HTTP calls");
 const GoldenNuggetsResponseSchema = z.object({
 	golden_nuggets: z.array(
 		z.object({
-			type: z.enum(["tool", "media", "explanation", "analogy", "model"]),
+			type: z.enum(["tool", "media", "aha! moments", "analogy", "model"]),
 			startContent: z.string(),
 			endContent: z.string(),
 		}),
@@ -89,7 +89,7 @@ describe("Multi-Provider Schema Validation Integration Tests", () => {
 
 	const testPrompt = `Extract valuable insights from this content. Focus on:
 - Tools and techniques mentioned
-- Explanations of concepts
+- Aha! moments of concepts
 - Mental models or analogies
 - Recommendations for media/resources
 - Useful models or frameworks
@@ -171,7 +171,7 @@ Return only the most valuable insights that would be genuinely useful to a softw
 								expect([
 									"tool",
 									"media",
-									"explanation",
+									"aha! moments",
 									"analogy",
 									"model",
 								]).toContain(nugget.type);
@@ -211,7 +211,7 @@ Return only the most valuable insights that would be genuinely useful to a softw
 						endContent: "like useState",
 					},
 					{
-						type: "explanation" as const,
+						type: "aha! moments" as const,
 						startContent: "Components are functions",
 						endContent: "return JSX",
 					},

@@ -8,12 +8,12 @@ const TEST_URL =
 // Golden nuggets from the Substack article - these are the test cases
 const GOLDEN_NUGGETS: GoldenNugget[] = [
 	{
-		type: "explanation",
+		type: "aha! moments",
 		startContent: "I think vision is",
 		endContent: "and to ourselves.",
 	},
 	{
-		type: "explanation",
+		type: "aha! moments",
 		startContent: "having to articulate a",
 		endContent: "could be possible.",
 	},
@@ -23,7 +23,7 @@ const GOLDEN_NUGGETS: GoldenNugget[] = [
 		endContent: "to do that thing.",
 	},
 	{
-		type: "explanation",
+		type: "aha! moments",
 		startContent: "At the collective level,",
 		endContent: "manifest that future.",
 	},
@@ -58,7 +58,7 @@ const GOLDEN_NUGGETS: GoldenNugget[] = [
 		endContent: "manifest that future.",
 	},
 	{
-		type: "explanation",
+		type: "aha! moments",
 		startContent: "Why is it in such",
 		endContent: "resolve and practice.",
 	},

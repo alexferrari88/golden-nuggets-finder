@@ -12,7 +12,7 @@ import type {
 const GoldenNuggetsSchema = z.object({
 	golden_nuggets: z.array(
 		z.object({
-			type: z.enum(["tool", "media", "explanation", "analogy", "model"]),
+			type: z.enum(["tool", "media", "aha! moments", "analogy", "model"]),
 			startContent: z.string(),
 			endContent: z.string(),
 		}),

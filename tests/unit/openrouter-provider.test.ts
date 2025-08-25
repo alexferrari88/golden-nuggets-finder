@@ -363,7 +363,7 @@ describe("LangChainOpenRouterProvider", () => {
 			expect(nugget).toHaveProperty("type");
 			expect(nugget).toHaveProperty("startContent");
 			expect(nugget).toHaveProperty("endContent");
-			expect(["tool", "media", "explanation", "analogy", "model"]).toContain(
+			expect(["tool", "media", "aha! moments", "analogy", "model"]).toContain(
 				nugget.type,
 			);
 			expect(typeof nugget.startContent).toBe("string");

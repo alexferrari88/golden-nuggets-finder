@@ -375,7 +375,7 @@ describe("Content Script Functions", () => {
 					{
 						type: "comment",
 						textContent:
-							"Great explanation! I wish I had learned this earlier in my career.",
+							"Great aha! moments! I wish I had learned this earlier in my career.",
 					},
 					{
 						type: "comment",
@@ -389,7 +389,7 @@ describe("Content Script Functions", () => {
 
 			expect(result).toContain("TIL about JavaScript async/await");
 			expect(result).toContain("[POST] I just learned that async/await");
-			expect(result).toContain("[COMMENT] Great explanation!");
+			expect(result).toContain("[COMMENT] Great aha! moments!");
 			expect(result).toContain(
 				"[COMMENT] Here's a great resource: MDN Async/Await Guide",
 			);

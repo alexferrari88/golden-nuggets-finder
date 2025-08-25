@@ -67,7 +67,7 @@ Your task is to find the most valuable insights that would be useful for a softw
 
 1. **Tools and Resources**: Specific tools, libraries, services, or resources mentioned
 2. **Media and References**: Books, articles, videos, podcasts, or other content worth consuming
-3. **Explanations**: Clear explanations of complex concepts, processes, or phenomena
+3. **Aha! Moments**: Clear aha! moments of complex concepts, processes, or phenomena
 4. **Analogies and Models**: Mental models, analogies, or frameworks for understanding
 5. **Models and Frameworks**: Structured approaches, methodologies, or systematic thinking tools
 
@@ -75,7 +75,7 @@ For each golden nugget, provide:
 - The exact original text (verbatim quote)
 - Why it's valuable for the target persona
 
-Return your response as valid JSON only, with no additional text or explanation.
+Return your response as valid JSON only, with no additional text or aha! moments.
 The JSON structure must be: {{"golden_nuggets": [...]}}
 """
 

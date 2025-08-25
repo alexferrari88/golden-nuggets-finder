@@ -1,14 +1,14 @@
 export type GoldenNuggetType =
 	| "tool"
 	| "media"
-	| "explanation"
+	| "aha! moments"
 	| "analogy"
 	| "model";
 
 export const ALL_NUGGET_TYPES: GoldenNuggetType[] = [
 	"tool",
 	"media",
-	"explanation",
+	"aha! moments",
 	"analogy",
 	"model",
 ];
@@ -26,7 +26,7 @@ export const GOLDEN_NUGGET_SCHEMA = {
 					type: {
 						type: "string",
 						description: "The category of the extracted golden nugget.",
-						enum: ["tool", "media", "explanation", "analogy", "model"],
+						enum: ["tool", "media", "aha! moments", "analogy", "model"],
 					},
 					startContent: {
 						type: "string",

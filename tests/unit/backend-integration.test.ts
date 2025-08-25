@@ -173,10 +173,10 @@ describe("Backend Integration Tests", () => {
 				id: "fallback_feedback_101",
 				nuggetId: "nugget_789",
 				isHelpful: true,
-				reason: "Excellent explanation",
+				reason: "Excellent aha! moments",
 				timestamp: Date.now(),
 				url: "https://reddit.com/r/test",
-				nuggetType: "explanation",
+				nuggetType: "aha! moments",
 			};
 
 			// Mock backend failure
@@ -223,7 +223,7 @@ describe("Backend Integration Tests", () => {
 				{
 					id: "missing_123",
 					selectedText: "This important concept was missed",
-					suggestedType: "explanation",
+					suggestedType: "aha! moments",
 					url: "https://example.com/deep-article",
 					timestamp: Date.now(),
 					context: "Analysis failed to identify this key insight",
@@ -587,7 +587,7 @@ describe("Backend Integration Tests", () => {
 				nuggetTypeBreakdown: {
 					tool: { positive: 78, negative: 12 },
 					media: { positive: 45, negative: 18 },
-					explanation: { positive: 34, negative: 15 },
+					"aha! moments": { positive: 34, negative: 15 },
 					analogy: { positive: 20, negative: 7 },
 					model: { positive: 12, negative: 4 },
 				},

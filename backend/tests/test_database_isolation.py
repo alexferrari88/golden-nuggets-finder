@@ -129,7 +129,7 @@ def test_concurrent_tests_dont_interfere_2(clean_database):
             {
                 "id": "concurrent-test-2",
                 "nuggetContent": "Concurrent test 2 content",
-                "originalType": "explanation",
+                "originalType": "aha! moments",
                 "rating": "negative",
                 "timestamp": 1642780800000,
                 "url": "https://example.com/concurrent2",

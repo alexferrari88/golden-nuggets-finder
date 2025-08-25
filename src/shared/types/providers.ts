@@ -18,7 +18,7 @@ export interface LLMProvider {
 
 export interface GoldenNuggetsResponse {
 	golden_nuggets: Array<{
-		type: "tool" | "media" | "explanation" | "analogy" | "model";
+		type: "tool" | "media" | "aha! moments" | "analogy" | "model";
 		startContent: string;
 		endContent: string;
 	}>;

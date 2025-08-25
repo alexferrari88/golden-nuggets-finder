@@ -13,7 +13,7 @@ const TYPE_DEFINITIONS: Record<GoldenNuggetType, string> = {
     *   **Bad:** "Check out the NFL podcast."
     *   **Good:** "The episode of the Tim Ferriss podcast with guest Derek Sivers has a brilliant segment on the idea of 'hell yeah or no' for decision-making."`,
 
-	explanation: `3. **Deep Explanations:** A concise, insightful explanation of a complex concept that goes beyond a surface-level definition. It should feel like a mini-lesson.
+	"aha! moments": `3. **Deep Aha! Moments:** A concise, insightful explanation of a complex concept that goes beyond a surface-level definition. It should feel like a mini-lesson.
     *   **Bad:** "The mitochondria is the powerhouse of the cell."
     *   **Good:** "The reason async/await in Javascript is so powerful is that it's syntactic sugar over Promises, allowing you to write asynchronous code that reads like synchronous code, avoiding 'callback hell'."`,
 
@@ -29,7 +29,7 @@ const TYPE_DEFINITIONS: Record<GoldenNuggetType, string> = {
 export const TYPE_CONFIGURATIONS: TypeConfiguration[] = [
 	{ type: "tool", label: "Tools", emoji: "🛠️" },
 	{ type: "media", label: "Media", emoji: "📚" },
-	{ type: "explanation", label: "Explanations", emoji: "💡" },
+	{ type: "aha! moments", label: "Aha! Moments", emoji: "💡" },
 	{ type: "analogy", label: "Analogies", emoji: "🌉" },
 	{ type: "model", label: "Mental Models", emoji: "🧠" },
 ];
@@ -41,7 +41,7 @@ export const CONTEXT_MENU_OPTIONS = [
 		types: [
 			"tool",
 			"media",
-			"explanation",
+			"aha! moments",
 			"analogy",
 			"model",
 		] as GoldenNuggetType[],
@@ -57,9 +57,9 @@ export const CONTEXT_MENU_OPTIONS = [
 		types: ["media"] as GoldenNuggetType[],
 	},
 	{
-		id: "explanation",
-		title: "💡 Explanations Only",
-		types: ["explanation"] as GoldenNuggetType[],
+		id: "aha-moments",
+		title: "💡 Aha! Moments Only",
+		types: ["aha! moments"] as GoldenNuggetType[],
 	},
 	{
 		id: "analogy",
@@ -115,7 +115,7 @@ export function generateDynamicSchema(selectedTypes: GoldenNuggetType[]) {
 export function validateSelectedTypes(
 	selectedTypes: GoldenNuggetType[],
 ): boolean {
-	const validTypes = ["tool", "media", "explanation", "analogy", "model"];
+	const validTypes = ["tool", "media", "aha! moments", "analogy", "model"];
 	return selectedTypes.every((type) => validTypes.includes(type));
 }
 
@@ -140,7 +140,7 @@ export function getContextMenuOption(id: string) {
  */
 export function createDefaultTypeFilter(): TypeFilterOptions {
 	return {
-		selectedTypes: ["tool", "media", "explanation", "analogy", "model"],
+		selectedTypes: ["tool", "media", "aha! moments", "analogy", "model"],
 		analysisMode: "combination",
 	};
 }

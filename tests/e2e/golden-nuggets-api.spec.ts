@@ -162,7 +162,7 @@ test.describe("Golden Nuggets API Integration", () => {
 		const schemaTest = await testPage.evaluate(() => {
 			// Define interfaces for validation
 			interface GoldenNugget {
-				type: "tool" | "media" | "explanation" | "analogy" | "model";
+				type: "tool" | "media" | "aha! moments" | "analogy" | "model";
 				startContent: string;
 				endContent: string;
 			}
@@ -177,7 +177,13 @@ test.describe("Golden Nuggets API Integration", () => {
 					return false;
 				}
 
-				const validTypes = ["tool", "media", "explanation", "analogy", "model"];
+				const validTypes = [
+					"tool",
+					"media",
+					"aha! moments",
+					"analogy",
+					"model",
+				];
 
 				return response.golden_nuggets.every(
 					(nugget: GoldenNugget) =>
@@ -197,7 +203,7 @@ test.describe("Golden Nuggets API Integration", () => {
 						endContent: "testing regular expressions",
 					},
 					{
-						type: "explanation",
+						type: "aha! moments",
 						startContent: "React hooks follow",
 						endContent: "composition over inheritance",
 					},

@@ -44,7 +44,7 @@ describe("Highlighter Case Sensitivity Tests", () => {
 	describe("Basic Case Insensitive Matching", () => {
 		test("should highlight when search term case differs from page content", () => {
 			const nugget: GoldenNugget = {
-				type: "explanation",
+				type: "aha! moments",
 				startContent: "my distractibility", // lowercase in search
 				endContent: "an impediment", // page has uppercase 'My' and mixed case
 			};
@@ -56,7 +56,7 @@ describe("Highlighter Case Sensitivity Tests", () => {
 
 		test("should highlight when search terms are uppercase", () => {
 			const nugget: GoldenNugget = {
-				type: "explanation",
+				type: "aha! moments",
 				startContent: "MY DISTRACTIBILITY", // all uppercase
 				endContent: "ALL KINDS OF AUDIENCES", // all uppercase
 			};
@@ -68,7 +68,7 @@ describe("Highlighter Case Sensitivity Tests", () => {
 
 		test("should highlight when page content is uppercase but search is lowercase", () => {
 			const nugget: GoldenNugget = {
-				type: "explanation",
+				type: "aha! moments",
 				startContent: "the quick", // lowercase search term
 				endContent: "lazy dog", // lowercase search term
 			};
@@ -82,7 +82,7 @@ describe("Highlighter Case Sensitivity Tests", () => {
 	describe("Mixed Case Scenarios", () => {
 		test("should handle mixed case in both search terms and content", () => {
 			const nugget: GoldenNugget = {
-				type: "explanation",
+				type: "aha! moments",
 				startContent: "Some TEXT with", // mixed case
 				endContent: "scattered THROUGHOUT", // mixed case
 			};
@@ -94,7 +94,7 @@ describe("Highlighter Case Sensitivity Tests", () => {
 
 		test("should work with title case search on mixed content", () => {
 			const nugget: GoldenNugget = {
-				type: "explanation",
+				type: "aha! moments",
 				startContent: "An Unhealthy Attachment", // title case
 				endContent: "Career-Limiting Hangup", // title case with hyphen
 			};
@@ -109,7 +109,7 @@ describe("Highlighter Case Sensitivity Tests", () => {
 		test("should highlight the original HackerNews failing case (My vs my)", () => {
 			// This test specifically reproduces the original bug report
 			const nugget: GoldenNugget = {
-				type: "explanation",
+				type: "aha! moments",
 				startContent: "My distractibility as an impediment", // capital M
 				endContent: "all kinds of audiences", // exactly as reported
 			};
@@ -127,7 +127,7 @@ describe("Highlighter Case Sensitivity Tests", () => {
       `;
 
 			const nugget: GoldenNugget = {
-				type: "explanation",
+				type: "aha! moments",
 				startContent: "My distractibility as an impediment", // capital M but page has lowercase
 				endContent: "all kinds of audiences",
 			};
@@ -145,7 +145,7 @@ describe("Highlighter Case Sensitivity Tests", () => {
       `;
 
 			const nugget: GoldenNugget = {
-				type: "explanation",
+				type: "aha! moments",
 				startContent: "ceo of the company", // lowercase version of CEO
 				endContent: "ai and ml technologies", // lowercase version of AI and ML
 			};
@@ -159,7 +159,7 @@ describe("Highlighter Case Sensitivity Tests", () => {
 			const originalContent = document.body.textContent;
 
 			const nugget: GoldenNugget = {
-				type: "explanation",
+				type: "aha! moments",
 				startContent: "my distractibility",
 				endContent: "an impediment",
 			};
@@ -173,7 +173,7 @@ describe("Highlighter Case Sensitivity Tests", () => {
 
 		test("should not highlight when text doesn't exist regardless of case", () => {
 			const nugget: GoldenNugget = {
-				type: "explanation",
+				type: "aha! moments",
 				startContent: "nonexistent text",
 				endContent: "that is not there",
 			};
@@ -188,12 +188,12 @@ describe("Highlighter Case Sensitivity Tests", () => {
 		test("should handle multiple highlights with different case patterns", () => {
 			const nuggets: GoldenNugget[] = [
 				{
-					type: "explanation",
+					type: "aha! moments",
 					startContent: "my distractibility", // lowercase
 					endContent: "an impediment",
 				},
 				{
-					type: "explanation",
+					type: "aha! moments",
 					startContent: "THE QUICK", // uppercase
 					endContent: "lazy dog",
 				},
@@ -213,13 +213,13 @@ describe("Highlighter Case Sensitivity Tests", () => {
 		test("should not create duplicate highlights for same text with different cases", () => {
 			// Highlight the same text twice with different cases
 			const nugget1: GoldenNugget = {
-				type: "explanation",
+				type: "aha! moments",
 				startContent: "my distractibility",
 				endContent: "an impediment",
 			};
 
 			const nugget2: GoldenNugget = {
-				type: "explanation",
+				type: "aha! moments",
 				startContent: "MY DISTRACTIBILITY", // same text, different case
 				endContent: "AN IMPEDIMENT",
 			};
@@ -237,12 +237,12 @@ describe("Highlighter Case Sensitivity Tests", () => {
 		test("should clear all highlights regardless of case used for creation", () => {
 			const nuggets: GoldenNugget[] = [
 				{
-					type: "explanation",
+					type: "aha! moments",
 					startContent: "my distractibility",
 					endContent: "an impediment",
 				},
 				{
-					type: "explanation",
+					type: "aha! moments",
 					startContent: "THE QUICK",
 					endContent: "lazy dog",
 				},

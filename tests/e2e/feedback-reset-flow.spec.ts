@@ -19,7 +19,7 @@ test.describe("Feedback Reset Flow", () => {
 					endContent: "for productivity",
 				},
 				{
-					type: "explanation",
+					type: "aha! moments",
 					startContent: "Complex concepts explained",
 					endContent: "in simple terms",
 				},

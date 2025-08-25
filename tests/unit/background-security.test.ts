@@ -404,7 +404,7 @@ describe("Background Script Security - Core Logic Tests", () => {
 				"all",
 				"tool",
 				"media",
-				"explanation",
+				"aha! moments",
 				"analogy",
 				"model",
 			];
@@ -443,7 +443,7 @@ describe("Background Script Security - Core Logic Tests", () => {
 			expect(validateTypeId("all")).toBe(true);
 			expect(validateTypeId("tool")).toBe(true);
 			expect(validateTypeId("media")).toBe(true);
-			expect(validateTypeId("explanation")).toBe(true);
+			expect(validateTypeId("aha! moments")).toBe(true);
 			expect(validateTypeId("analogy")).toBe(true);
 			expect(validateTypeId("model")).toBe(true);
 
