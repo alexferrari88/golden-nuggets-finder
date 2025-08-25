@@ -72,7 +72,7 @@ describe("Content Reconstruction - Error Handling", () => {
 
 		it("should handle undefined pageContent gracefully", () => {
 			const nugget: GoldenNugget = {
-				type: "explanation",
+				type: "aha! moments",
 				startContent: "start",
 				endContent: "end",
 			};
@@ -83,7 +83,7 @@ describe("Content Reconstruction - Error Handling", () => {
 
 		it("should handle null pageContent gracefully", () => {
 			const nugget: GoldenNugget = {
-				type: "explanation",
+				type: "aha! moments",
 				startContent: "start",
 				endContent: "end",
 			};
@@ -94,7 +94,7 @@ describe("Content Reconstruction - Error Handling", () => {
 
 		it("should handle empty pageContent gracefully", () => {
 			const nugget: GoldenNugget = {
-				type: "explanation",
+				type: "aha! moments",
 				startContent: "start",
 				endContent: "end",
 			};
@@ -103,7 +103,7 @@ describe("Content Reconstruction - Error Handling", () => {
 
 		it("should work with valid inputs", () => {
 			const nugget: GoldenNugget = {
-				type: "explanation",
+				type: "aha! moments",
 				startContent: "This is",
 				endContent: "a test",
 			};
@@ -125,7 +125,7 @@ describe("Content Reconstruction - Error Handling", () => {
 
 		it("should handle nugget with missing startContent", () => {
 			const nugget = {
-				type: "explanation",
+				type: "aha! moments",
 				endContent: "end",
 			} as Partial<GoldenNugget> as GoldenNugget;
 			expect(getDisplayContent(nugget)).toBe("");
@@ -133,7 +133,7 @@ describe("Content Reconstruction - Error Handling", () => {
 
 		it("should handle nugget with missing endContent", () => {
 			const nugget = {
-				type: "explanation",
+				type: "aha! moments",
 				startContent: "start",
 			} as Partial<GoldenNugget> as GoldenNugget;
 			expect(getDisplayContent(nugget)).toBe("");
@@ -141,7 +141,7 @@ describe("Content Reconstruction - Error Handling", () => {
 
 		it("should handle undefined pageContent gracefully", () => {
 			const nugget: GoldenNugget = {
-				type: "explanation",
+				type: "aha! moments",
 				startContent: "start",
 				endContent: "end",
 			};
@@ -150,7 +150,7 @@ describe("Content Reconstruction - Error Handling", () => {
 
 		it("should handle non-string pageContent gracefully", () => {
 			const nugget: GoldenNugget = {
-				type: "explanation",
+				type: "aha! moments",
 				startContent: "start",
 				endContent: "end",
 			};
@@ -164,7 +164,7 @@ describe("Content Reconstruction - Error Handling", () => {
 
 		it("should work with valid inputs", () => {
 			const nugget: GoldenNugget = {
-				type: "explanation",
+				type: "aha! moments",
 				startContent: "start",
 				endContent: "end",
 			};
@@ -246,14 +246,14 @@ describe("Content Reconstruction - Error Handling", () => {
 
 		it("should handle nugget with missing content", () => {
 			const nugget = {
-				type: "explanation",
+				type: "aha! moments",
 			} as Partial<GoldenNugget> as GoldenNugget;
 			expect(improvedStartEndTextMatching(nugget, "search text")).toBe(false);
 		});
 
 		it("should handle undefined searchText gracefully", () => {
 			const nugget: GoldenNugget = {
-				type: "explanation",
+				type: "aha! moments",
 				startContent: "start",
 				endContent: "end",
 			};
@@ -264,7 +264,7 @@ describe("Content Reconstruction - Error Handling", () => {
 
 		it("should handle null searchText gracefully", () => {
 			const nugget: GoldenNugget = {
-				type: "explanation",
+				type: "aha! moments",
 				startContent: "start",
 				endContent: "end",
 			};
@@ -275,7 +275,7 @@ describe("Content Reconstruction - Error Handling", () => {
 
 		it("should work with valid inputs", () => {
 			const nugget: GoldenNugget = {
-				type: "explanation",
+				type: "aha! moments",
 				startContent: "This is",
 				endContent: "a test",
 			};
@@ -350,7 +350,7 @@ describe("Content Reconstruction - LLM Hallucinated EndContent", () => {
 			const pageContent =
 				"This is a sample text that contains some important information for testing.";
 			const nuggetWithHallucinatedEnd: GoldenNugget = {
-				type: "explanation",
+				type: "aha! moments",
 				startContent: "This is a sample",
 				endContent: "information for testing.", // Hallucinated period
 			};
@@ -466,7 +466,7 @@ describe("Content Reconstruction - OpenRouter Error Integration", () => {
 	it("should handle partial API response gracefully", () => {
 		// Simulate partial response from API
 		const partialNugget = {
-			type: "explanation",
+			type: "aha! moments",
 			startContent: "valid start",
 			endContent: undefined,
 		} as Partial<GoldenNugget> as GoldenNugget;
@@ -483,7 +483,7 @@ describe("Content Reconstruction - OpenRouter Error Integration", () => {
 
 	it("should handle edge case where text processing fails", () => {
 		const nugget: GoldenNugget = {
-			type: "explanation",
+			type: "aha! moments",
 			startContent: "start",
 			endContent: "end",
 		};

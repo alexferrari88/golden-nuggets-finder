@@ -19,7 +19,7 @@ describe("Response Normalizer Functions", () => {
 						endContent: "Test content 1",
 					},
 					{
-						type: "explanation" as const,
+						type: "aha! moments" as const,
 						startContent: "Test content 2",
 						endContent: "Test content 2",
 					},
@@ -36,7 +36,7 @@ describe("Response Normalizer Functions", () => {
 						endContent: "Test content 1",
 					},
 					{
-						type: "explanation",
+						type: "aha! moments",
 						startContent: "Test content 2",
 						endContent: "Test content 2",
 					},
@@ -70,7 +70,7 @@ describe("Response Normalizer Functions", () => {
 						endContent: "Valid end",
 					},
 					{
-						type: "explanation" as const,
+						type: "aha! moments" as const,
 						startContent: "",
 						endContent: "Has end but no start",
 					},
@@ -160,7 +160,7 @@ describe("Response Normalizer Functions", () => {
 						// endContent field missing
 					},
 					{
-						type: "explanation" as const,
+						type: "aha! moments" as const,
 						// startContent field missing
 						endContent: "Has end content",
 					},
@@ -189,7 +189,7 @@ describe("Response Normalizer Functions", () => {
 						endContent: "Media end",
 					},
 					{
-						type: "explanation" as const,
+						type: "aha! moments" as const,
 						startContent: "Explanation start",
 						endContent: "Explanation end",
 					},
@@ -212,7 +212,7 @@ describe("Response Normalizer Functions", () => {
 			expect(result.golden_nuggets.map((n) => n.type)).toEqual([
 				"tool",
 				"media",
-				"explanation",
+				"aha! moments",
 				"analogy",
 				"model",
 			]);

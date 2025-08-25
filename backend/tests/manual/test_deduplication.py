@@ -85,7 +85,7 @@ async def test_deduplication():
                 {
                     "id": str(uuid.uuid4()),
                     "nuggetContent": "This is a test nugget for deduplication testing",
-                    "originalType": "explanation",
+                    "originalType": "aha! moments",
                     "correctedType": None,
                     "rating": "positive",
                     "timestamp": int(time.time() * 1000),
@@ -225,11 +225,11 @@ async def test_edge_cases():
 
         # Different type
         nugget_base["nuggetFeedback"][0]["id"] = str(uuid.uuid4())
-        nugget_base["nuggetFeedback"][0]["originalType"] = "explanation"
+        nugget_base["nuggetFeedback"][0]["originalType"] = "aha! moments"
         async with session.post(f"{BASE_URL}/feedback", json=nugget_base) as response:
             result2 = await response.json()
             print(
-                f"   Type 'explanation': {result2.get('deduplication', {}).get('nugget_duplicates', 0)} duplicates"
+                f"   Type 'aha! moments': {result2.get('deduplication', {}).get('nugget_duplicates', 0)} duplicates"
             )
 
 

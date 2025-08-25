@@ -118,7 +118,7 @@ This checklist covers workflows that cannot be automated due to Playwright + Chr
    - [ ] Verify sidebar doesn't interfere with page scrolling
    - [ ] Verify sidebar content is readable and well-formatted
    - [ ] Verify nugget count is accurate
-   - [ ] Verify nugget types (tool, analogy, explanation) display correctly
+   - [ ] Verify nugget types (tool, analogy, aha! moments) display correctly
 
 2. **Sidebar Persistence**
    - [ ] Complete analysis

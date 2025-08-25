@@ -76,7 +76,7 @@ All AI providers are normalized to return responses in this standardized format:
 {
   "golden_nuggets": [
     {
-      "type": "tool|media|explanation|analogy|model",
+      "type": "tool|media|aha! moments|analogy|model",
       "startContent": "Original text verbatim (start)",
       "endContent": "Original text verbatim (end)"
     }
@@ -157,7 +157,7 @@ await chrome.scripting.executeScript({
 
 ### TypeFilterService (`type-filter-service.ts`)
 Manages nugget type filtering and customization:
-- **Type Definitions**: Maintains definitions for all 5 nugget types (tool, media, explanation, analogy, model)
+- **Type Definitions**: Maintains definitions for all 5 nugget types (tool, media, aha! moments, analogy, model)
 - **Context Menu Integration**: Provides type-specific menu options with emojis
 - **Dynamic Prompt Generation**: Filters base prompts to focus on selected types
 - **Schema Generation**: Creates dynamic response schemas for filtered analyses
@@ -166,7 +166,7 @@ Manages nugget type filtering and customization:
 ### Supported Nugget Types
 1. **🛠️ Tools**: Actionable software, techniques, or methods
 2. **📚 Media**: High-quality books, articles, videos, podcasts with clear value
-3. **💡 Explanations**: Deep, insightful explanations of complex concepts
+3. **💡 Aha! Moments**: Deep, insightful explanations of complex concepts
 4. **🌉 Analogies**: Powerful analogies that simplify complex topics
 5. **🧠 Mental Models**: Named cognitive frameworks and thinking principles
 

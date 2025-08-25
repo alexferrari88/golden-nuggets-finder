@@ -92,7 +92,7 @@ class TestDSPyMultiModelManager:
             (
                 "content1",
                 "tool",
-                "explanation",
+                "aha! moments",
                 "positive",
                 "context1",
                 "url1",

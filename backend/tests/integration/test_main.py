@@ -62,7 +62,7 @@ def test_feedback_submission_valid(clean_database):
             {
                 "id": "missing-1",
                 "content": "This content should have been identified as a golden nugget",
-                "suggestedType": "explanation",
+                "suggestedType": "aha! moments",
                 "timestamp": 1642780800000,
                 "url": "https://example.com/test",
                 "context": "Test page context for missing content identification",
@@ -329,7 +329,7 @@ def test_delete_feedback_item(clean_database):
             {
                 "id": test_id,
                 "content": "Content to be deleted",
-                "suggestedType": "explanation",
+                "suggestedType": "aha! moments",
                 "timestamp": 1642780800000,
                 "url": "https://example.com/delete-test",
                 "context": "Context for deletion testing",
@@ -405,7 +405,7 @@ def test_feedback_update_scenario(clean_database):
                 "id": f"correction-{uuid.uuid4()}",  # Different ID (represents new submission)
                 "nuggetContent": "Use pytest for comprehensive testing in Python projects",  # Same content
                 "originalType": "tool",  # Same original type
-                "correctedType": "explanation",  # User corrects the type
+                "correctedType": "aha! moments",  # User corrects the type
                 "rating": "positive",  # Still positive
                 "timestamp": 1642780800000,
                 "url": "https://example.com/testing-guide",  # Same URL
@@ -525,7 +525,7 @@ def test_mixed_update_duplicate_scenario(clean_database):
             {
                 "id": "update-id",
                 **original_data,
-                "correctedType": "explanation",  # Only difference
+                "correctedType": "aha! moments",  # Only difference
             }
         ]
     }
@@ -575,7 +575,7 @@ def test_api_response_messages(clean_database):
                 "id": f"{base_id}-update",
                 "nuggetContent": "Test duplicate message",  # Same content
                 "originalType": "tool",
-                "correctedType": "explanation",  # Different type (update)
+                "correctedType": "aha! moments",  # Different type (update)
                 "rating": "positive",
                 "timestamp": 1642780800000,
                 "url": "https://example.com/test",

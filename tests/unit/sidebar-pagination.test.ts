@@ -117,7 +117,7 @@ vi.mock("../../src/shared/content-reconstruction", () => ({
 function createMockNuggetItems(count: number): SidebarNuggetItem[] {
 	return Array.from({ length: count }, (_, i) => ({
 		nugget: {
-			type: "explanation" as const,
+			type: "aha! moments" as const,
 			startContent: `Start content ${i + 1}`,
 			endContent: `End content ${i + 1}`,
 		} as GoldenNugget,

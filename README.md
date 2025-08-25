@@ -18,7 +18,7 @@ Golden Nugget Finder is designed for the "Pragmatic Processor" persona - someone
 - **Multi-Prompt Management**: Create and save custom prompts for different types of analysis
 - **On-Page Highlighting**: Highlights golden nuggets directly on the webpage
 - **Results Sidebar**: Displays a complete master list of all found nuggets
-- **Type Filtering**: Focus analysis on specific nugget types (tool, media, explanation, analogy, model)
+- **Type Filtering**: Focus analysis on specific nugget types (tool, media, aha! moments, analogy, model)
 - **Discussion Thread Support**: Specialized scrapers for Hacker News and Reddit
 - **Universal Compatibility**: Works on any website using content extraction
 - **Feedback System**: Collect user feedback for prompt optimization
@@ -125,7 +125,7 @@ The extension includes **type filtering** to focus analysis on specific nugget c
 
 - **Tool**: Useful software, services, or resources
 - **Media**: Books, articles, videos, or other content recommendations
-- **Explanation**: Clear explanations of complex concepts
+- **Aha! Moments**: Clear explanations of complex concepts that provide sudden insights
 - **Analogy**: Helpful analogies that clarify ideas
 - **Model**: Mental models or frameworks for thinking
 
@@ -341,7 +341,7 @@ All AI providers (Gemini, Claude, OpenAI, OpenRouter) return responses in this s
 {
   "golden_nuggets": [
     {
-      "type": "tool|media|explanation|analogy|model",
+      "type": "tool|media|aha! moments|analogy|model",
       "startContent": "First few words of original text",
       "endContent": "Last few words of original text"
     }
@@ -407,7 +407,7 @@ Use ultra-high quality filtering - prefer zero results over mediocre ones.
 **Custom Prompts**:
 - "Find Analogies": Focus on helpful analogies and mental models
 - "Find Tools": Identify useful software, services, and resources
-- "Find Explanations": Extract clear explanations of complex concepts
+- "Find Aha! Moments": Extract clear explanations of complex concepts that provide sudden insights
 - "Find Models": Extract mental frameworks and thinking patterns
 
 ## Limitations

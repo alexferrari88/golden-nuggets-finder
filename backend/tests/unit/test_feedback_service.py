@@ -245,7 +245,7 @@ class TestFeedbackService:
         comparison_cursor = AsyncMock()
         comparison_cursor.fetchone.return_value = (
             sample_nugget_feedback.rating,
-            "explanation",  # Different corrected type
+            "aha! moments",  # Different corrected type
             sample_nugget_feedback.context,
         )
 
@@ -319,7 +319,7 @@ class TestFeedbackService:
         comparison_cursor = AsyncMock()
         comparison_cursor.fetchone.return_value = (
             "negative",  # Different rating
-            "explanation",  # Different corrected type
+            "aha! moments",  # Different corrected type
             "Different context",  # Different context
         )
 
@@ -379,7 +379,7 @@ class TestFeedbackService:
 
         # Modify original type
         different_type_feedback = sample_nugget_feedback.model_copy()
-        different_type_feedback.originalType = "explanation"
+        different_type_feedback.originalType = "aha! moments"
 
         # Execute
         result = await feedback_service.store_nugget_feedback(
@@ -420,7 +420,7 @@ class TestFeedbackService:
 
         # Modify to have a corrected type
         corrected_feedback = sample_nugget_feedback.model_copy()
-        corrected_feedback.correctedType = "explanation"
+        corrected_feedback.correctedType = "aha! moments"
 
         # Execute
         result = await feedback_service.store_nugget_feedback(

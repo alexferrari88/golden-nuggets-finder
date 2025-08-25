@@ -68,7 +68,7 @@ class TestProviderModelSpecificFeedback:
             # OpenAI with gpt-4o-mini
             (
                 "content3",
-                "explanation",
+                "aha! moments",
                 None,
                 "positive",
                 "context3",
@@ -289,7 +289,7 @@ class TestProviderModelFeedbackRequirements:
             {
                 "id": "test-missing-1",
                 "content": "Missing content",
-                "suggestedType": "explanation",
+                "suggestedType": "aha! moments",
                 "timestamp": 1642780800000,
                 "url": "https://example.com",
                 "context": "Test context",

@@ -326,7 +326,7 @@ def generate_mock_feedback_data(count: int = 50) -> list:
     """Generate mock feedback data for testing DSPy optimization"""
     import random
 
-    nugget_types = ["tool", "media", "explanation", "analogy", "model"]
+    nugget_types = ["tool", "media", "aha! moments", "analogy", "model"]
 
     mock_data = []
 

@@ -27,7 +27,7 @@ const TYPE_DEFINITIONS = {
     *   **Bad:** "Check out the NFL podcast."
     *   **Good:** "The episode of the Tim Ferriss podcast with guest Derek Sivers has a brilliant segment on the idea of 'hell yeah or no' for decision-making."`,
 
-	explanation: `3. **Deep Explanations:** A concise, insightful explanation of a complex concept that goes beyond a surface-level definition. It should feel like a mini-lesson.
+	"aha! moments": `3. **Deep Aha! Moments:** A concise, insightful explanation of a complex concept that goes beyond a surface-level definition. It should feel like a mini-lesson.
     *   **Bad:** "The mitochondria is the powerhouse of the cell."
     *   **Good:** "The reason async/await in Javascript is so powerful is that it's syntactic sugar over Promises, allowing you to write asynchronous code that reads like synchronous code, avoiding 'callback hell'."`,
 
@@ -47,7 +47,7 @@ describe("TypeFilterService", () => {
 ## EXTRACTION TARGETS ("Golden Nuggets"):
 1. **Actionable Tools:** Original tool definition
 2. **High-Signal Media:** Original media definition  
-3. **Deep Explanations:** Original explanation definition
+3. **Deep Aha! Moments:** Original aha! moments definition
 4. **Powerful Analogies:** Original analogy definition
 5. **Mental Models:** Original model definition
 
@@ -100,7 +100,7 @@ Continue with analysis...`;
 			const allTypes: GoldenNuggetType[] = [
 				"tool",
 				"media",
-				"explanation",
+				"aha! moments",
 				"analogy",
 				"model",
 			];
@@ -108,7 +108,7 @@ Continue with analysis...`;
 
 			expect(result).toContain("1. **Actionable Tools:**");
 			expect(result).toContain("2. **High-Signal Media:**");
-			expect(result).toContain("3. **Deep Explanations:**");
+			expect(result).toContain("3. **Deep Aha! Moments:**");
 			expect(result).toContain("4. **Powerful Analogies:**");
 			expect(result).toContain("5. **Mental Models:**");
 		});
@@ -168,14 +168,14 @@ Continue with analysis...`;
 		it("should return true for valid single type", () => {
 			expect(validateSelectedTypes(["tool"])).toBe(true);
 			expect(validateSelectedTypes(["media"])).toBe(true);
-			expect(validateSelectedTypes(["explanation"])).toBe(true);
+			expect(validateSelectedTypes(["aha! moments"])).toBe(true);
 			expect(validateSelectedTypes(["analogy"])).toBe(true);
 			expect(validateSelectedTypes(["model"])).toBe(true);
 		});
 
 		it("should return true for valid multiple types", () => {
 			expect(validateSelectedTypes(["tool", "media"])).toBe(true);
-			expect(validateSelectedTypes(["explanation", "analogy", "model"])).toBe(
+			expect(validateSelectedTypes(["aha! moments", "analogy", "model"])).toBe(
 				true,
 			);
 		});
@@ -184,7 +184,7 @@ Continue with analysis...`;
 			const allTypes: GoldenNuggetType[] = [
 				"tool",
 				"media",
-				"explanation",
+				"aha! moments",
 				"analogy",
 				"model",
 			];
@@ -222,9 +222,9 @@ Continue with analysis...`;
 				emoji: "📚",
 			});
 
-			expect(getTypeConfiguration("explanation")).toEqual({
-				type: "explanation",
-				label: "Explanations",
+			expect(getTypeConfiguration("aha! moments")).toEqual({
+				type: "aha! moments",
+				label: "Aha! Moments",
 				emoji: "💡",
 			});
 
@@ -254,7 +254,7 @@ Continue with analysis...`;
 			expect(option).toEqual({
 				id: "all",
 				title: "🔍 All Types",
-				types: ["tool", "media", "explanation", "analogy", "model"],
+				types: ["tool", "media", "aha! moments", "analogy", "model"],
 			});
 		});
 
@@ -286,7 +286,7 @@ Continue with analysis...`;
 			const filter = createDefaultTypeFilter();
 
 			expect(filter).toEqual({
-				selectedTypes: ["tool", "media", "explanation", "analogy", "model"],
+				selectedTypes: ["tool", "media", "aha! moments", "analogy", "model"],
 				analysisMode: "combination",
 			});
 		});
@@ -314,7 +314,7 @@ Continue with analysis...`;
 			const types: GoldenNuggetType[] = [
 				"tool",
 				"media",
-				"explanation",
+				"aha! moments",
 				"analogy",
 				"model",
 			];
@@ -339,10 +339,10 @@ Continue with analysis...`;
 		});
 
 		it("should handle single type in combination mode", () => {
-			const filter = createCombinationTypeFilter(["explanation"]);
+			const filter = createCombinationTypeFilter(["aha! moments"]);
 
 			expect(filter).toEqual({
-				selectedTypes: ["explanation"],
+				selectedTypes: ["aha! moments"],
 				analysisMode: "combination",
 			});
 		});
@@ -369,7 +369,7 @@ Continue with analysis...`;
 			const types: GoldenNuggetType[] = [
 				"tool",
 				"media",
-				"explanation",
+				"aha! moments",
 				"analogy",
 				"model",
 			];
@@ -388,7 +388,7 @@ Continue with analysis...`;
 				"all",
 				"tool",
 				"media",
-				"explanation",
+				"aha-moments",
 				"analogy",
 				"model",
 			];
@@ -399,7 +399,9 @@ Continue with analysis...`;
 
 		it("should have consistent emoji usage with TYPE_CONFIGURATIONS", () => {
 			TYPE_CONFIGURATIONS.forEach((config) => {
-				const menuOption = getContextMenuOption(config.type);
+				const menuOption = CONTEXT_MENU_OPTIONS.find(
+					(option) => option.id !== "all" && option.types.includes(config.type),
+				);
 				expect(menuOption?.title).toContain(config.emoji);
 			});
 		});

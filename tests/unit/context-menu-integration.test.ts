@@ -615,11 +615,11 @@ describe("Context Menu Integration Tests", () => {
 					},
 				},
 				{
-					menuId: "select-content__test-prompt__explanation",
+					menuId: "select-content__test-prompt__aha! moments",
 					expected: {
 						type: "selection",
 						promptId: "test-prompt",
-						typeFilter: { selectedTypes: ["explanation"] },
+						typeFilter: { selectedTypes: ["aha! moments"] },
 					},
 				},
 				{

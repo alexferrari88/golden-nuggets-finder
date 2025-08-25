@@ -138,7 +138,7 @@ Tolerance-based content matching system:
 ### Schema Definitions (`schemas.ts`)
 JSON schema definitions for API validation:
 - **Golden Nugget Schema**: Complete schema for nugget validation and API responses
-- **Type System**: Enforced golden nugget types (tool, media, explanation, analogy, model)
+- **Type System**: Enforced golden nugget types (tool, media, aha! moments, analogy, model)
 - **Dynamic Schema Generation**: Configurable schemas based on selected nugget types
 - **Validation Support**: Integration with JSON schema validation libraries
 

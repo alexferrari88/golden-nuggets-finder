@@ -1261,7 +1261,7 @@ class FeedbackService:
                     (
                         str(uuid.uuid4()),
                         content[:100],  # Truncate for missing content
-                        "explanation",
+                        "aha! moments",
                         example.get("url", "https://example.com/test"),
                         content,
                         datetime.now(timezone.utc).timestamp() * 1000,

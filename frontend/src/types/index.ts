@@ -1,5 +1,5 @@
 // Golden nugget types
-export type NuggetType = "tool" | "media" | "explanation" | "analogy" | "model"
+export type NuggetType = "tool" | "media" | "aha! moments" | "analogy" | "model"
 
 // Provider types for multi-LLM support
 export type ProviderId = "gemini" | "openai" | "anthropic" | "openrouter"
@@ -33,7 +33,7 @@ export interface FeedbackItem {
   processed: boolean
   usage_count: number
   created_at: string
-  original_type?: string // Specific nugget type (tool, media, explanation, analogy, model)
+  original_type?: string // Specific nugget type (tool, media, aha! moments, analogy, model)
   corrected_type?: string // User-corrected type if different from original
   suggested_type?: string // Suggested type for missing content feedback
   // Provider/model tracking for multi-provider support

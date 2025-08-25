@@ -126,7 +126,7 @@ describe("Background Script Context Menu", () => {
 			{
 				id: "all",
 				title: "🔍 All Types",
-				types: ["tool", "media", "explanation", "analogy", "model"],
+				types: ["tool", "media", "aha! moments", "analogy", "model"],
 			},
 			{ id: "tools", title: "🛠️ Tools Only", types: ["tool"] },
 			{ id: "media", title: "📚 Media Only", types: ["media"] },

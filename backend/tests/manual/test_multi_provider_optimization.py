@@ -45,9 +45,9 @@ async def create_sample_feedback(
             },
             {
                 "content": f"The concept of microservices #{i} is well explained here",
-                "type": "explanation",
+                "type": "aha! moments",
                 "rating": "positive" if i % 5 != 0 else "negative",
-                "context": f"Technical explanation context {i}",
+                "context": f"Technical aha! moments context {i}",
                 "url": f"https://example.com/concepts/{i}",
             },
         ]
@@ -66,7 +66,7 @@ async def create_sample_feedback(
                 f"{provider_id}-feedback-{i}",
                 feedback_item["content"],
                 feedback_item["type"],
-                "explanation"
+                "aha! moments"
                 if feedback_item["rating"] == "negative" and i % 10 == 0
                 else None,
                 feedback_item["rating"],

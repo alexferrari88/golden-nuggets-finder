@@ -251,11 +251,11 @@ export class LangChainOpenRouterProvider implements LLMProvider {
 
 	private normalizeType(
 		type: string,
-	): "tool" | "media" | "explanation" | "analogy" | "model" {
+	): "tool" | "media" | "aha! moments" | "analogy" | "model" {
 		// Handle common variations that OpenRouter models might return
 		const typeMap: Record<
 			string,
-			"tool" | "media" | "explanation" | "analogy" | "model"
+			"tool" | "media" | "aha! moments" | "analogy" | "model"
 		> = {
 			"mental model": "model",
 			mental_model: "model",
@@ -265,7 +265,7 @@ export class LangChainOpenRouterProvider implements LLMProvider {
 			resource: "media",
 			book: "media",
 			article: "media",
-			concept: "explanation",
+			concept: "aha! moments",
 			comparison: "analogy",
 			metaphor: "analogy",
 		};
@@ -273,10 +273,10 @@ export class LangChainOpenRouterProvider implements LLMProvider {
 		const normalized = typeMap[type.toLowerCase()] || type;
 
 		// Validate against allowed types
-		const allowedTypes = ["tool", "media", "explanation", "analogy", "model"];
+		const allowedTypes = ["tool", "media", "aha! moments", "analogy", "model"];
 		return allowedTypes.includes(normalized)
-			? (normalized as "tool" | "media" | "explanation" | "analogy" | "model")
-			: "explanation";
+			? (normalized as "tool" | "media" | "aha! moments" | "analogy" | "model")
+			: "aha! moments";
 	}
 
 	async validateApiKey(): Promise<boolean> {

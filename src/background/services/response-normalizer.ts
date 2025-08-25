@@ -22,7 +22,7 @@ type RawApiResponse =
 const GoldenNuggetsSchema = z.object({
 	golden_nuggets: z.array(
 		z.object({
-			type: z.enum(["tool", "media", "explanation", "analogy", "model"]),
+			type: z.enum(["tool", "media", "aha! moments", "analogy", "model"]),
 			startContent: z.string(),
 			endContent: z.string(),
 		}),
@@ -105,11 +105,11 @@ function preprocessResponse(response: RawApiResponse): {
 
 function normalizeType(
 	type: string,
-): "tool" | "media" | "explanation" | "analogy" | "model" {
+): "tool" | "media" | "aha! moments" | "analogy" | "model" {
 	// Handle common variations that different models might return
 	const typeMap: Record<
 		string,
-		"tool" | "media" | "explanation" | "analogy" | "model"
+		"tool" | "media" | "aha! moments" | "analogy" | "model"
 	> = {
 		"mental model": "model",
 		mental_model: "model",
@@ -119,7 +119,7 @@ function normalizeType(
 		resource: "media",
 		book: "media",
 		article: "media",
-		concept: "explanation",
+		concept: "aha! moments",
 		comparison: "analogy",
 		metaphor: "analogy",
 	};
@@ -127,10 +127,10 @@ function normalizeType(
 	const normalized = typeMap[type.toLowerCase()] || type;
 
 	// Validate against allowed types
-	const allowedTypes = ["tool", "media", "explanation", "analogy", "model"];
+	const allowedTypes = ["tool", "media", "aha! moments", "analogy", "model"];
 	return allowedTypes.includes(normalized)
-		? (normalized as "tool" | "media" | "explanation" | "analogy" | "model")
-		: "explanation";
+		? (normalized as "tool" | "media" | "aha! moments" | "analogy" | "model")
+		: "aha! moments";
 }
 
 export function validate(response: RawApiResponse): boolean {
