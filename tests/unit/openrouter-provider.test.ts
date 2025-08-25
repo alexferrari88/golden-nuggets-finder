@@ -17,7 +17,6 @@ vi.mock("@langchain/openai", () => ({
 							type: "tool",
 							startContent: "Test start",
 							endContent: "Test end",
-							synthesis: "Test synthesis",
 						},
 					],
 				}),
@@ -78,7 +77,6 @@ describe("LangChainOpenRouterProvider", () => {
 					type: "tool",
 					startContent: "Test start",
 					endContent: "Test end",
-					synthesis: "Test synthesis",
 				},
 			],
 		});
@@ -257,8 +255,7 @@ describe("LangChainOpenRouterProvider", () => {
 						type: "tool",
 						startContent: "Test start",
 						endContent: "Test end",
-						synthesis: "Test synthesis",
-					},
+						},
 				],
 			};
 		});
@@ -283,7 +280,6 @@ describe("LangChainOpenRouterProvider", () => {
 					type: "tool",
 					startContent: "Test start",
 					endContent: "Test end",
-					synthesis: "Test synthesis",
 				},
 			],
 		});
@@ -367,13 +363,11 @@ describe("LangChainOpenRouterProvider", () => {
 			expect(nugget).toHaveProperty("type");
 			expect(nugget).toHaveProperty("startContent");
 			expect(nugget).toHaveProperty("endContent");
-			expect(nugget).toHaveProperty("synthesis");
 			expect(["tool", "media", "explanation", "analogy", "model"]).toContain(
 				nugget.type,
 			);
 			expect(typeof nugget.startContent).toBe("string");
 			expect(typeof nugget.endContent).toBe("string");
-			expect(typeof nugget.synthesis).toBe("string");
 		}
 	});
 

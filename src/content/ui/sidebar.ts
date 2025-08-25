@@ -13,7 +13,6 @@ import {
 	zIndex,
 } from "../../shared/design-system";
 import { ALL_NUGGET_TYPES, type GoldenNuggetType } from "../../shared/schemas";
-import { storage } from "../../shared/storage";
 import {
 	type FeedbackRating,
 	type GoldenNugget,
@@ -35,7 +34,6 @@ interface ExportNuggetData {
 	type: string;
 	startContent: string;
 	endContent: string;
-	synthesis?: string;
 }
 
 interface ExportData {
@@ -48,7 +46,6 @@ interface RestPayloadNugget {
 	type?: string;
 	startContent?: string;
 	endContent?: string;
-	synthesis?: string;
 }
 
 interface RestPayload {
@@ -87,7 +84,6 @@ export class Sidebar {
 		nuggetParts: {
 			type: true,
 			content: true,
-			synthesis: true,
 		},
 	};
 	private keyboardHandler: ((e: KeyboardEvent) => void) | null = null;
@@ -991,36 +987,12 @@ export class Sidebar {
 			contentPreview.textContent = contentInfo.fullContent;
 		}
 
-		// Synthesis - conditional display based on global preference
-		let synthesisElement: HTMLElement | null = null;
-		const synthesisEnabled = storage.getSynthesisEnabledSync();
-
-		if (item.nugget.synthesis && synthesisEnabled) {
-			synthesisElement = document.createElement("div");
-			synthesisElement.style.cssText = `
-      font-size: ${typography.fontSize.xs};
-      line-height: ${typography.lineHeight.normal};
-      color: ${colors.text.secondary};
-      padding: ${spacing.sm};
-      background: ${colors.background.tertiary};
-      border-radius: ${borderRadius.sm};
-      border-left: 2px solid ${colors.border.default};
-      margin-bottom: ${spacing.sm};
-    `;
-			synthesisElement.textContent = item.nugget.synthesis;
-		}
-
 		// Feedback Section
 		const feedbackSection = this.createFeedbackSection(item, globalIndex);
 
 		// Assemble the content
 		contentContainer.appendChild(headerDiv);
 		contentContainer.appendChild(contentPreview);
-
-		// Only append synthesis if it was created (synthesis enabled and content exists)
-		if (synthesisElement) {
-			contentContainer.appendChild(synthesisElement);
-		}
 
 		contentContainer.appendChild(feedbackSection);
 
@@ -1743,7 +1715,6 @@ export class Sidebar {
 		format: "markdown" | "json",
 	): Promise<void> {
 		const url = window.location.href;
-		const synthesisEnabled = await storage.getSynthesisEnabled();
 
 		const exportData = {
 			url,
@@ -1753,11 +1724,6 @@ export class Sidebar {
 					startContent: item.nugget.startContent,
 					endContent: item.nugget.endContent,
 				};
-
-				// Only include synthesis if globally enabled AND present in nugget
-				if (synthesisEnabled && item.nugget.synthesis) {
-					nugget.synthesis = item.nugget.synthesis;
-				}
 
 				return nugget;
 			}),
@@ -1790,7 +1756,7 @@ ${data.nuggets
 **Content:**
 ${nugget.startContent}...${nugget.endContent}
 
-${nugget.synthesis ? `**Synthesis:**\n${nugget.synthesis}\n` : ""}---
+---
 `,
 	)
 	.join("\n")}`;
@@ -2225,37 +2191,8 @@ ${nugget.synthesis ? `**Synthesis:**\n${nugget.synthesis}\n` : ""}---
 			).checked;
 		});
 
-		const synthesisCheckbox = this.createCheckbox(
-			"nuggetSynthesis",
-			"Synthesis (relevance note)",
-			this.restEndpointConfig.nuggetParts.synthesis,
-		);
-
-		// Add help text to clarify that REST controls are for API exports only
-		const helpText = document.createElement("small");
-		helpText.textContent =
-			"Controls REST API exports only (independent of analysis generation)";
-		helpText.style.cssText = `
-			color: ${colors.text.tertiary};
-			font-size: ${typography.fontSize.xs};
-			margin-left: ${spacing.lg};
-			display: block;
-			margin-top: ${spacing.xs};
-		`;
-		synthesisCheckbox.appendChild(helpText);
-
-		const synthesisCheckboxInput = synthesisCheckbox.querySelector(
-			"input",
-		) as HTMLInputElement;
-		synthesisCheckboxInput.addEventListener("change", (e) => {
-			this.restEndpointConfig.nuggetParts.synthesis = (
-				e.target as HTMLInputElement
-			).checked;
-		});
-
 		nuggetSubOptions.appendChild(typeCheckbox);
 		nuggetSubOptions.appendChild(contentCheckbox);
-		nuggetSubOptions.appendChild(synthesisCheckbox);
 
 		nuggetContainer.appendChild(nuggetCheckbox);
 		nuggetContainer.appendChild(nuggetSubOptions);
@@ -2377,15 +2314,6 @@ ${nugget.synthesis ? `**Synthesis:**\n${nugget.synthesis}\n` : ""}---
 				if (this.restEndpointConfig.nuggetParts.content) {
 					nugget.startContent = item.nugget.startContent;
 					nugget.endContent = item.nugget.endContent;
-				}
-
-				// REST endpoint synthesis control is independent of global setting
-				// This allows API consumers to get synthesis data even if user has it disabled
-				if (
-					this.restEndpointConfig.nuggetParts.synthesis &&
-					item.nugget.synthesis
-				) {
-					nugget.synthesis = item.nugget.synthesis;
 				}
 
 				return nugget;

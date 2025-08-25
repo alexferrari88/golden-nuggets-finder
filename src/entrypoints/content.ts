@@ -86,7 +86,6 @@ import {
 	measureDOMOperation,
 	performanceMonitor,
 } from "../shared/performance";
-import { storage } from "../shared/storage";
 
 export default defineContentScript({
 	matches: ["https://example.com/*"], // Restrictive match to prevent auto-injection
@@ -511,9 +510,6 @@ export default defineContentScript({
 					return;
 				}
 
-				// Get synthesis preference from storage
-				const synthesisEnabled = await storage.getSynthesisEnabled();
-
 				// Send analysis request to background script with progress tracking info
 				const analysisRequest: AnalysisRequest = {
 					content: content,
@@ -522,7 +518,6 @@ export default defineContentScript({
 					analysisId: analysisId,
 					source: source as "popup" | "context-menu",
 					typeFilter: typeFilter,
-					synthesisEnabled: synthesisEnabled,
 				};
 
 				performanceMonitor.startTimer("api_request");

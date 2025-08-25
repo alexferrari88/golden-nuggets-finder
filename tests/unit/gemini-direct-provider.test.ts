@@ -66,13 +66,11 @@ describe("GeminiDirectProvider", () => {
 						type: "tool" as const,
 						startContent: "This is a test",
 						endContent: "for the system",
-						synthesis: "This is a useful tool for testing",
 					},
 					{
 						type: "explanation" as const,
 						startContent: "Complex concepts",
 						endContent: "are simplified here",
-						synthesis: "Great explanation of complexity",
 					},
 				],
 			};
@@ -82,7 +80,6 @@ describe("GeminiDirectProvider", () => {
 			const result = await provider.extractGoldenNuggets(
 				"test content",
 				"test prompt",
-				true, // synthesisEnabled
 			);
 
 			// Verify the transformation to GoldenNuggetsResponse format
@@ -92,13 +89,11 @@ describe("GeminiDirectProvider", () => {
 						type: "tool",
 						startContent: "This is a test",
 						endContent: "for the system",
-						synthesis: "This is a useful tool for testing",
 					},
 					{
 						type: "explanation",
 						startContent: "Complex concepts",
 						endContent: "are simplified here",
-						synthesis: "Great explanation of complexity",
 					},
 				],
 			});
@@ -107,7 +102,7 @@ describe("GeminiDirectProvider", () => {
 			expect(mockGeminiClient.analyzeContent).toHaveBeenCalledWith(
 				"test content",
 				"test prompt",
-				{ synthesisEnabled: true },
+				{ synthesisEnabled: false },
 			);
 		});
 
@@ -119,7 +114,6 @@ describe("GeminiDirectProvider", () => {
 			const result = await provider.extractGoldenNuggets(
 				"test content",
 				"test prompt",
-				true, // synthesisEnabled
 			);
 
 			expect(result).toEqual({
@@ -132,7 +126,7 @@ describe("GeminiDirectProvider", () => {
 			mockGeminiClient.analyzeContent.mockRejectedValue(testError);
 
 			await expect(
-				provider.extractGoldenNuggets("test content", "test prompt", true),
+				provider.extractGoldenNuggets("test content", "test prompt"),
 			).rejects.toThrow("Gemini API error");
 		});
 	});

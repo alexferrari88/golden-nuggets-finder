@@ -40,7 +40,6 @@ describe("GOLDEN_NUGGET_SCHEMA", () => {
 				"type",
 				"startContent",
 				"endContent",
-				"synthesis",
 			]);
 		});
 	});
@@ -98,17 +97,6 @@ describe("GOLDEN_NUGGET_SCHEMA", () => {
 		});
 	});
 
-	describe("Synthesis Property", () => {
-		it("should have correct synthesis property structure", () => {
-			const itemsSchema = GOLDEN_NUGGET_SCHEMA.properties.golden_nuggets.items;
-			const synthesisProperty = itemsSchema.properties.synthesis;
-
-			expect(synthesisProperty.type).toBe("string");
-			expect(synthesisProperty.description).toBe(
-				"A concise explanation of why this is relevant to the persona, connecting it to their core interests or cognitive profile.",
-			);
-		});
-	});
 
 	describe("Schema Validation", () => {
 		it("should validate a correct golden nugget structure", () => {
@@ -116,8 +104,6 @@ describe("GOLDEN_NUGGET_SCHEMA", () => {
 				type: "tool",
 				startContent: "Use this amazing tool",
 				endContent: "for productivity",
-				synthesis:
-					"This tool aligns with the user's preference for efficient workflows",
 			};
 
 			const _validResponse = {
@@ -137,10 +123,6 @@ describe("GOLDEN_NUGGET_SCHEMA", () => {
 				GOLDEN_NUGGET_SCHEMA.properties.golden_nuggets.items.properties
 					.endContent.type,
 			).toBe("string");
-			expect(
-				GOLDEN_NUGGET_SCHEMA.properties.golden_nuggets.items.properties
-					.synthesis.type,
-			).toBe("string");
 		});
 
 		it("should support empty golden nuggets array", () => {
@@ -158,19 +140,16 @@ describe("GOLDEN_NUGGET_SCHEMA", () => {
 						type: "tool",
 						startContent: "Tool",
 						endContent: "content",
-						synthesis: "Tool synthesis",
 					},
 					{
 						type: "explanation",
 						startContent: "Explanation",
 						endContent: "content",
-						synthesis: "Explanation synthesis",
 					},
 					{
 						type: "analogy",
 						startContent: "Analogy",
 						endContent: "content",
-						synthesis: "Analogy synthesis",
 					},
 				],
 			};
@@ -187,7 +166,7 @@ describe("GOLDEN_NUGGET_SCHEMA", () => {
 			expect(itemsSchema.required).toContain("type");
 			expect(itemsSchema.required).toContain("startContent");
 			expect(itemsSchema.required).toContain("endContent");
-			expect(itemsSchema.required).not.toContain("synthesis"); // synthesis is now optional
+			// synthesis field has been removed completely
 		});
 	});
 
@@ -247,7 +226,7 @@ describe("GOLDEN_NUGGET_SCHEMA", () => {
 			expect(itemsSchema.properties).toHaveProperty("type");
 			expect(itemsSchema.properties).toHaveProperty("startContent");
 			expect(itemsSchema.properties).toHaveProperty("endContent");
-			expect(itemsSchema.properties).toHaveProperty("synthesis");
+			// synthesis property no longer exists
 		});
 
 		it("should have meaningful descriptions for all properties", () => {
@@ -259,7 +238,7 @@ describe("GOLDEN_NUGGET_SCHEMA", () => {
 			expect(itemsSchema.properties.type.description).toBeTruthy();
 			expect(itemsSchema.properties.startContent.description).toBeTruthy();
 			expect(itemsSchema.properties.endContent.description).toBeTruthy();
-			expect(itemsSchema.properties.synthesis.description).toBeTruthy();
+			// synthesis property no longer exists
 		});
 	});
 });

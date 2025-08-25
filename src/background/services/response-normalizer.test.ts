@@ -15,13 +15,13 @@ describe("Response Normalizer Functions", () => {
 				golden_nuggets: [
 					{
 						type: "tool" as const,
-						content: "Test content 1",
-						synthesis: "Test synthesis 1",
+						startContent: "Test content 1",
+						endContent: "Test content 1",
 					},
 					{
 						type: "explanation" as const,
-						content: "Test content 2",
-						synthesis: "Test synthesis 2",
+						startContent: "Test content 2",
+						endContent: "Test content 2",
 					},
 				],
 			};
@@ -34,25 +34,23 @@ describe("Response Normalizer Functions", () => {
 						type: "tool",
 						startContent: "Test content 1",
 						endContent: "Test content 1",
-						synthesis: "Test synthesis 1",
 					},
 					{
 						type: "explanation",
 						startContent: "Test content 2",
 						endContent: "Test content 2",
-						synthesis: "Test synthesis 2",
 					},
 				],
 			});
 		});
 
-		it("should trim whitespace from content and synthesis", () => {
+		it("should trim whitespace from content", () => {
 			const responseWithWhitespace = {
 				golden_nuggets: [
 					{
 						type: "tool" as const,
-						content: "  Test content with spaces  ",
-						synthesis: "\n  Test synthesis with newlines  \n",
+						startContent: "  Test start content  ",
+						endContent: "  Test end content  ",
 					},
 				],
 			};
@@ -60,38 +58,35 @@ describe("Response Normalizer Functions", () => {
 			const result = normalize(responseWithWhitespace, "anthropic");
 
 			expect(result.golden_nuggets[0].startContent).toBe(
-				"Test content with spaces",
+				"Test start content",
 			);
 			expect(result.golden_nuggets[0].endContent).toBe(
-				"Test content with spaces",
-			);
-			expect(result.golden_nuggets[0].synthesis).toBe(
-				"Test synthesis with newlines",
+				"Test end content",
 			);
 		});
 
-		it("should filter out nuggets with empty content or synthesis", () => {
+		it("should filter out nuggets with empty content", () => {
 			const responseWithEmpty = {
 				golden_nuggets: [
 					{
 						type: "tool" as const,
-						content: "Valid content",
-						synthesis: "Valid synthesis",
+						startContent: "Valid start",
+						endContent: "Valid end",
 					},
 					{
 						type: "explanation" as const,
-						content: "",
-						synthesis: "Has synthesis but no content",
+						startContent: "",
+						endContent: "Has end but no start",
 					},
 					{
 						type: "analogy" as const,
-						content: "Has content but no synthesis",
-						synthesis: "",
+						startContent: "Has start but no end",
+						endContent: "",
 					},
 					{
 						type: "media" as const,
-						content: "   ",
-						synthesis: "Content is just whitespace",
+						startContent: "   ",
+						endContent: "Content is just whitespace",
 					},
 				],
 			};
@@ -101,19 +96,18 @@ describe("Response Normalizer Functions", () => {
 			expect(result.golden_nuggets).toHaveLength(1);
 			expect(result.golden_nuggets[0]).toEqual({
 				type: "tool",
-				startContent: "Valid content",
-				endContent: "Valid content",
-				synthesis: "Valid synthesis",
+				startContent: "Valid start",
+				endContent: "Valid end",
 			});
 		});
 
-		it("should convert non-string content and synthesis to strings", () => {
+		it("should convert non-string content to strings", () => {
 			const responseWithNonStrings = {
 				golden_nuggets: [
 					{
 						type: "model" as const,
-						content: 123,
-						synthesis: true,
+						startContent: 123,
+						endContent: true,
 					},
 				],
 			};
@@ -121,8 +115,7 @@ describe("Response Normalizer Functions", () => {
 			const result = normalize(responseWithNonStrings, "openrouter");
 
 			expect(result.golden_nuggets[0].startContent).toBe("123");
-			expect(result.golden_nuggets[0].endContent).toBe("123");
-			expect(result.golden_nuggets[0].synthesis).toBe("true");
+			expect(result.golden_nuggets[0].endContent).toBe("true");
 		});
 
 		it("should return empty array for invalid response structure", () => {
@@ -167,13 +160,13 @@ describe("Response Normalizer Functions", () => {
 				golden_nuggets: [
 					{
 						type: "tool" as const,
-						content: "Missing synthesis",
-						// synthesis field missing
+						startContent: "Has start content",
+						// endContent field missing
 					},
 					{
 						type: "explanation" as const,
-						// content field missing
-						synthesis: "Missing content",
+						// startContent field missing
+						endContent: "Has end content",
 					},
 				],
 			};
@@ -191,28 +184,28 @@ describe("Response Normalizer Functions", () => {
 				golden_nuggets: [
 					{
 						type: "tool" as const,
-						content: "Tool content",
-						synthesis: "Tool synthesis",
+						startContent: "Tool start",
+						endContent: "Tool end",
 					},
 					{
 						type: "media" as const,
-						content: "Media content",
-						synthesis: "Media synthesis",
+						startContent: "Media start",
+						endContent: "Media end",
 					},
 					{
 						type: "explanation" as const,
-						content: "Explanation content",
-						synthesis: "Explanation synthesis",
+						startContent: "Explanation start",
+						endContent: "Explanation end",
 					},
 					{
 						type: "analogy" as const,
-						content: "Analogy content",
-						synthesis: "Analogy synthesis",
+						startContent: "Analogy start",
+						endContent: "Analogy end",
 					},
 					{
 						type: "model" as const,
-						content: "Model content",
-						synthesis: "Model synthesis",
+						startContent: "Model start",
+						endContent: "Model end",
 					},
 				],
 			};
@@ -236,9 +229,8 @@ describe("Response Normalizer Functions", () => {
 				golden_nuggets: [
 					{
 						type: "tool" as const,
-						startContent: "Test content",
-						endContent: "Test content",
-						synthesis: "Test synthesis",
+						startContent: "Test start content",
+						endContent: "Test end content",
 					},
 				],
 			};
@@ -259,9 +251,8 @@ describe("Response Normalizer Functions", () => {
 				golden_nuggets: [
 					{
 						type: "invalid_type",
-						startContent: "Test content",
-						endContent: "Test content",
-						synthesis: "Test synthesis",
+						startContent: "Test start content",
+						endContent: "Test end content",
 					},
 				],
 			};
@@ -269,19 +260,18 @@ describe("Response Normalizer Functions", () => {
 			expect(validate(responseWithInvalidType)).toBe(false);
 		});
 
-		it("should return false for response with missing fields", () => {
-			const responseWithMissingFields = {
+		it("should return true for response with all required fields", () => {
+			const responseWithAllFields = {
 				golden_nuggets: [
 					{
 						type: "tool" as const,
-						startContent: "Missing synthesis",
-						endContent: "Missing synthesis",
-						// synthesis field missing
+						startContent: "Has start content",
+						endContent: "Has end content",
 					},
 				],
 			};
 
-			expect(validate(responseWithMissingFields)).toBe(false);
+			expect(validate(responseWithAllFields)).toBe(true);
 		});
 
 		it("should return false for null or undefined", () => {

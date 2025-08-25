@@ -105,11 +105,8 @@ ${filteredSections}`;
 /**
  * Generates a dynamic schema based on selected types
  */
-export function generateDynamicSchema(
-	selectedTypes: GoldenNuggetType[],
-	includeSynthesis: boolean = true, // NEW: Add parameter
-) {
-	return generateGoldenNuggetSchema(selectedTypes, includeSynthesis);
+export function generateDynamicSchema(selectedTypes: GoldenNuggetType[]) {
+	return generateGoldenNuggetSchema(selectedTypes);
 }
 
 /**

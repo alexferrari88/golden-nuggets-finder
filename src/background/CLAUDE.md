@@ -78,8 +78,7 @@ All AI providers are normalized to return responses in this standardized format:
     {
       "type": "tool|media|explanation|analogy|model",
       "startContent": "Original text verbatim (start)",
-      "endContent": "Original text verbatim (end)",
-      "synthesis": "Why this is relevant to the user persona"
+      "endContent": "Original text verbatim (end)"
     }
   ]
 }

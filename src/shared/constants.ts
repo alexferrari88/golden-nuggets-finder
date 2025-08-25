@@ -1,7 +1,6 @@
 export const STORAGE_KEYS = {
 	API_KEY: "geminiApiKey",
 	PROMPTS: "userPrompts",
-	SYNTHESIS_ENABLED: "synthesisEnabled", // New - consistent naming
 	ANALYSIS_STATE: "analysisState", // Analysis progress state
 } as const;
 
@@ -10,54 +9,23 @@ export const GEMINI_CONFIG = {
 	THINKING_BUDGET: -1,
 } as const;
 
-/**
- * Process prompt template with conditional synthesis blocks
- * @param template - Template string with {{#if synthesisEnabled}} blocks
- * @param synthesisEnabled - Boolean to determine which block to use
- * @returns Processed prompt string
- */
-export function processPromptTemplate(
-	template: string,
-	synthesisEnabled: boolean,
-): string {
-	// Find all conditional blocks using regex with flexible whitespace
-	const conditionalRegex =
-		/\{\{\s*#if\s+synthesisEnabled\s*\}\}([\s\S]*?)\{\{\s*else\s*\}\}([\s\S]*?)\{\{\s*\/if\s*\}\}/g;
-
-	return template.replace(conditionalRegex, (_match, ifBlock, elseBlock) => {
-		// Return the appropriate block based on synthesisEnabled
-		return synthesisEnabled ? ifBlock.trim() : elseBlock.trim();
-	});
-}
-
 export const DEFAULT_PROMPTS = [
 	{
 		id: "default-insights",
 		name: "Find Key Insights",
 		prompt: `## ROLE & GOAL:
-You are an extremely discerning AI information filter. Your goal is to analyze the provided {{ source }} and extract only the most insightful, non-obvious, and high-signal content for a "Pragmatic Synthesizer" persona with ADHD. Your primary directive is **precision over recall**. It is vastly preferable to return zero nuggets than to include a single mediocre one.
+You are an extremely discerning AI information filter. Your goal is to analyze the provided {{ source }} and extract only the most insightful, non-obvious, and high-signal content for a "Pragmatic Processor" persona with ADHD. Your primary directive is **precision over recall**. It is vastly preferable to return zero nuggets than to include a single mediocre one.
 
 **Crucially, do not force or invent extractions. If no content meets the strict criteria below, the \`golden_nuggets\` array MUST be empty ([]).**
 
 ## PERSONA PROFILE:
 *   **Cognitive Model:** INTP (logical systems), ADHD (novelty, structure), 5w6 (competence, reliable knowledge).
 *   **Core Interests:** How things work (science/tech), how people think (cognition/philosophy), how we got here (history/evolution), meta-learning, and elegant principles.
-*   **Intellectual Flavor:** Prioritize First Principles and their practical, Applied Synthesis.
+*   **Intellectual Flavor:** Prioritize First Principles and their practical, Applied Understanding.
 *   **Heroes for Vibe Check:** Does this sound like something Tyler Cowen, Charlie Munger, or Nassim Taleb would find genuinely interesting and not just noise?
 
-{{#if synthesisEnabled}}
-## SYNTHESIS REQUIREMENT:
-For each extracted nugget, provide a "synthesis" field explaining why this specific content is valuable to the user persona. Focus on:
-- How this insight connects to the user's interests (systems thinking, meta-learning, etc.)
-- What makes this actionable or applicable to their workflow
-- Why this stands out as genuinely non-obvious or high-signal
-- How this might compound with other knowledge areas
-
-The synthesis should feel like a knowledgeable friend explaining why they saved this particular insight for you.
-{{else}}
 ## EXTRACTION FOCUS:
 Extract only the raw, high-quality content without explanations. Focus purely on identifying and preserving the most valuable insights in their original form. The content itself should be so obviously valuable that no additional context is needed.
-{{/if}}
 
 ## CRITICAL HEURISTICS & ANTI-PATTERNS (APPLY BEFORE ALL OTHER RULES):
 

@@ -18,26 +18,20 @@ export class GeminiDirectProvider implements LLMProvider {
 	async extractGoldenNuggets(
 		content: string,
 		prompt: string,
-		synthesisEnabled: boolean = true, // Default true for backwards compatibility
 	): Promise<GoldenNuggetsResponse> {
 		// Use existing GeminiClient implementation
-		// Pass synthesisEnabled to geminiClient for schema generation
 		const geminiResponse = await this.geminiClient.analyzeContent(
 			content,
 			prompt,
-			{ synthesisEnabled }, // Pass synthesisEnabled option
+			{ synthesisEnabled: false }, // Synthesis disabled
 		);
 
-		// Pass through the correct GeminiResponse format
-		// Conditionally include synthesis based on synthesisEnabled flag and nugget content
+		// Pass through the correct GeminiResponse format without synthesis
 		return {
 			golden_nuggets: geminiResponse.golden_nuggets.map((nugget) => ({
 				type: nugget.type,
 				startContent: nugget.startContent,
 				endContent: nugget.endContent,
-				...(synthesisEnabled && nugget.synthesis
-					? { synthesis: nugget.synthesis }
-					: {}),
 			})),
 		};
 	}

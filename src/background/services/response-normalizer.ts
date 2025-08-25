@@ -9,7 +9,6 @@ type RawGoldenNugget = {
 	type: string;
 	startContent?: unknown;
 	endContent?: unknown;
-	synthesis: unknown;
 	[key: string]: unknown;
 };
 
@@ -26,7 +25,6 @@ const GoldenNuggetsSchema = z.object({
 			type: z.enum(["tool", "media", "explanation", "analogy", "model"]),
 			startContent: z.string(),
 			endContent: z.string(),
-			synthesis: z.string(),
 		}),
 	),
 });
@@ -34,7 +32,6 @@ const GoldenNuggetsSchema = z.object({
 export function normalize(
 	response: RawApiResponse,
 	providerId: ProviderId,
-	synthesisEnabled: boolean = true,
 ): GoldenNuggetsResponse {
 	try {
 		// Pre-process response to convert non-string values before validation
@@ -43,23 +40,17 @@ export function normalize(
 		// Validate response structure
 		const validated = GoldenNuggetsSchema.parse(preprocessed);
 
-		// Ensure startContent, endContent and synthesis are strings and non-empty
+		// Ensure startContent and endContent are strings and non-empty
 		const normalized = {
 			golden_nuggets: validated.golden_nuggets
 				.map((nugget) => ({
 					type: normalizeType(nugget.type),
 					startContent: String(nugget.startContent).trim(),
 					endContent: String(nugget.endContent).trim(),
-					synthesis: String(nugget.synthesis).trim(),
 				}))
 				.filter((nugget) => {
-					// Always require startContent and endContent
-					const hasRequiredContent = nugget.startContent && nugget.endContent;
-
-					// Only require synthesis if it's enabled
-					const hasSynthesis = synthesisEnabled ? nugget.synthesis : true;
-
-					return hasRequiredContent && hasSynthesis;
+					// Require startContent and endContent
+					return nugget.startContent && nugget.endContent;
 				}),
 		};
 
@@ -107,7 +98,6 @@ function preprocessResponse(response: RawApiResponse): {
 				type: String(nuggetObj?.type || ""),
 				startContent,
 				endContent,
-				synthesis: String(nuggetObj?.synthesis || ""),
 			};
 		}),
 	};

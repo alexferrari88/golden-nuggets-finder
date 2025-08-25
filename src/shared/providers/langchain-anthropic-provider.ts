@@ -8,28 +8,16 @@ import type {
 	ProviderConfig,
 } from "../types/providers";
 
-// Conditional schema generation function
-const createGoldenNuggetsSchema = (synthesisEnabled: boolean) => {
-	const baseSchema = z.object({
-		type: z.enum(["tool", "media", "explanation", "analogy", "model"]),
-		startContent: z.string(),
-		endContent: z.string(),
-	});
-
-	if (synthesisEnabled) {
-		return z.object({
-			golden_nuggets: z.array(
-				baseSchema.extend({
-					synthesis: z.string(),
-				}),
-			),
-		});
-	} else {
-		return z.object({
-			golden_nuggets: z.array(baseSchema),
-		});
-	}
-};
+// Schema definition for golden nuggets (synthesis removed)
+const GoldenNuggetsSchema = z.object({
+	golden_nuggets: z.array(
+		z.object({
+			type: z.enum(["tool", "media", "explanation", "analogy", "model"]),
+			startContent: z.string(),
+			endContent: z.string(),
+		}),
+	),
+});
 
 export class LangChainAnthropicProvider implements LLMProvider {
 	readonly providerId = "anthropic" as const;
@@ -48,7 +36,6 @@ export class LangChainAnthropicProvider implements LLMProvider {
 	async extractGoldenNuggets(
 		content: string,
 		prompt: string,
-		synthesisEnabled: boolean = true, // Default true for backwards compatibility
 	): Promise<GoldenNuggetsResponse> {
 		try {
 			// Log the request
@@ -63,8 +50,6 @@ export class LangChainAnthropicProvider implements LLMProvider {
 					provider: "anthropic",
 				},
 			);
-
-			const GoldenNuggetsSchema = createGoldenNuggetsSchema(synthesisEnabled);
 
 			const structuredModel = this.model.withStructuredOutput(
 				GoldenNuggetsSchema,

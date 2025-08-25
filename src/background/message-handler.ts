@@ -1,4 +1,4 @@
-import { processPromptTemplate } from "../shared/constants";
+// processPromptTemplate removed - no longer needed without synthesis
 import { debugLogger } from "../shared/debug";
 import { storage } from "../shared/storage";
 import { getApiKey } from "../shared/storage/api-key-storage";
@@ -74,7 +74,6 @@ interface AnalyzeSelectedContentRequest extends BaseRequest {
 	url: string;
 	analysisId?: string;
 	typeFilter?: TypeFilterOptions;
-	synthesisEnabled?: boolean;
 }
 
 interface GetPromptsRequest extends BaseRequest {
@@ -548,7 +547,6 @@ export class MessageHandler {
 		prompt: string,
 		analysisId?: string,
 		tabId?: number,
-		synthesisEnabled: boolean = true, // Default true for backwards compatibility
 	): Promise<GoldenNuggetsResponse> {
 		let currentProviderId: ProviderId | null = null;
 		let attempts = 0;
@@ -586,7 +584,6 @@ export class MessageHandler {
 					const rawResponse = await provider.extractGoldenNuggets(
 						content,
 						prompt,
-						synthesisEnabled,
 					);
 					const responseTime = performance.now() - startTime;
 
@@ -594,7 +591,6 @@ export class MessageHandler {
 					const normalizedResponse = normalizeResponse(
 						rawResponse,
 						providerConfig.providerId,
-						synthesisEnabled,
 					);
 
 					// Store provider metadata for feedback
@@ -903,13 +899,8 @@ export class MessageHandler {
 				// Continue with default prompt
 			}
 
-			// Get synthesis preference and process template
-			const synthesisEnabled =
-				request.synthesisEnabled ?? (await storage.getSynthesisEnabled());
-			processedPrompt = processPromptTemplate(
-				processedPrompt,
-				synthesisEnabled,
-			);
+			// Process template (synthesis removed - use prompt directly)
+			// processedPrompt is already processed
 
 			// Apply type filtering if specified
 			if (request.typeFilter && request.typeFilter.selectedTypes.length > 0) {
@@ -954,7 +945,6 @@ export class MessageHandler {
 				processedPrompt,
 				analysisId,
 				sender.tab?.id,
-				synthesisEnabled,
 			);
 
 			// Send step 4 progress: processing results
@@ -1061,12 +1051,8 @@ export class MessageHandler {
 				// Continue with default prompt
 			}
 
-			// Get synthesis preference and process template
-			const synthesisEnabled = await storage.getSynthesisEnabled();
-			processedPrompt = processPromptTemplate(
-				processedPrompt,
-				synthesisEnabled,
-			);
+			// Process template (synthesis removed - use prompt directly)
+			// processedPrompt is already processed
 
 			// Apply type filtering if specified
 			if (request.typeFilter && request.typeFilter.selectedTypes.length > 0) {
@@ -1111,7 +1097,6 @@ export class MessageHandler {
 				processedPrompt,
 				analysisId,
 				sender.tab?.id,
-				synthesisEnabled,
 			);
 
 			// Send step 4 progress: processing results
