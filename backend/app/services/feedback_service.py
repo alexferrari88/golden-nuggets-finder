@@ -18,6 +18,63 @@ from ..models import MissingContentFeedback, NuggetFeedback
 logger = logging.getLogger(__name__)
 
 
+def extract_first_words(text: str, max_words: int = 5) -> str:
+    """
+    Extract the first few words from text for startContent format.
+    
+    Args:
+        text: The text to extract words from
+        max_words: Maximum number of words to extract (default: 5)
+        
+    Returns:
+        String containing the first words, up to max_words
+    """
+    if not text or not text.strip():
+        return ""
+    
+    words = text.strip().split()
+    return ' '.join(words[:max_words])
+
+
+def extract_last_words(text: str, max_words: int = 5) -> str:
+    """
+    Extract the last few words from text for endContent format.
+    
+    Args:
+        text: The text to extract words from
+        max_words: Maximum number of words to extract (default: 5)
+        
+    Returns:
+        String containing the last words, up to max_words
+    """
+    if not text or not text.strip():
+        return ""
+    
+    words = text.strip().split()
+    return ' '.join(words[-max_words:])
+
+
+def validate_content_markers(start_content: str, end_content: str, max_words: int = 5) -> bool:
+    """
+    Validate that content markers don't exceed word limits.
+    
+    Args:
+        start_content: The startContent string to validate
+        end_content: The endContent string to validate
+        max_words: Maximum allowed words per marker (default: 5)
+        
+    Returns:
+        True if both markers are within limits, False otherwise
+    """
+    if not start_content or not end_content:
+        return False
+    
+    start_word_count = len(start_content.strip().split())
+    end_word_count = len(end_content.strip().split())
+    
+    return start_word_count <= max_words and end_word_count <= max_words
+
+
 class FeedbackService:
     """Service for managing feedback data and statistics"""
 
@@ -527,6 +584,14 @@ class FeedbackService:
         positive_examples = await cursor.fetchall()
 
         for example in positive_examples:
+            nugget_content = example[0]  # nugget_content
+            start_content = extract_first_words(nugget_content)
+            end_content = extract_last_words(nugget_content)
+            
+            # Skip examples with invalid content markers
+            if not validate_content_markers(start_content, end_content):
+                continue
+                
             training_examples.append(
                 {
                     "id": str(uuid.uuid4()),
@@ -535,7 +600,8 @@ class FeedbackService:
                         "golden_nuggets": [
                             {
                                 "type": example[5],  # final_type
-                                "content": example[0],  # nugget_content
+                                "startContent": start_content,
+                                "endContent": end_content,
                             }
                         ]
                     },
@@ -588,6 +654,14 @@ class FeedbackService:
         missing_examples = await cursor.fetchall()
 
         for example in missing_examples:
+            missing_content = example[0]  # content
+            start_content = extract_first_words(missing_content)
+            end_content = extract_last_words(missing_content)
+            
+            # Skip examples with invalid content markers
+            if not validate_content_markers(start_content, end_content):
+                continue
+                
             training_examples.append(
                 {
                     "id": str(uuid.uuid4()),
@@ -596,7 +670,8 @@ class FeedbackService:
                         "golden_nuggets": [
                             {
                                 "type": example[1],  # suggested_type
-                                "content": example[0],  # content
+                                "startContent": start_content,
+                                "endContent": end_content,
                             }
                         ]
                     },
@@ -655,6 +730,14 @@ class FeedbackService:
         positive_examples = await cursor.fetchall()
 
         for example in positive_examples:
+            nugget_content = example[0]  # nugget_content
+            start_content = extract_first_words(nugget_content)
+            end_content = extract_last_words(nugget_content)
+            
+            # Skip examples with invalid content markers
+            if not validate_content_markers(start_content, end_content):
+                continue
+                
             training_examples.append(
                 {
                     "id": str(uuid.uuid4()),
@@ -663,7 +746,8 @@ class FeedbackService:
                         "golden_nuggets": [
                             {
                                 "type": example[5],  # final_type
-                                "content": example[0],  # nugget_content
+                                "startContent": start_content,
+                                "endContent": end_content,
                             }
                         ]
                     },
@@ -729,6 +813,14 @@ class FeedbackService:
         missing_examples = await cursor.fetchall()
 
         for example in missing_examples:
+            missing_content = example[0]  # content
+            start_content = extract_first_words(missing_content)
+            end_content = extract_last_words(missing_content)
+            
+            # Skip examples with invalid content markers
+            if not validate_content_markers(start_content, end_content):
+                continue
+                
             training_examples.append(
                 {
                     "id": str(uuid.uuid4()),
@@ -737,7 +829,8 @@ class FeedbackService:
                         "golden_nuggets": [
                             {
                                 "type": example[1],  # suggested_type
-                                "content": example[0],  # content
+                                "startContent": start_content,
+                                "endContent": end_content,
                             }
                         ]
                     },

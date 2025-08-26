@@ -118,7 +118,7 @@ if DSPY_AVAILABLE:
             desc="Web content to analyze for valuable insights and golden nuggets"
         )
         golden_nuggets = dspy.OutputField(
-            desc="JSON object containing extracted golden nuggets with type and content"
+            desc="JSON object containing extracted golden nuggets with type, startContent, and endContent fields. Each nugget should have startContent (first few words) and endContent (last few words) for precise location marking, limited to 5 words each."
         )
 
     class GoldenNuggetExtractor(dspy.Module):
@@ -203,12 +203,14 @@ class OptimizationMetrics:
             type_union = len(expected_types.union(predicted_types))
             type_score = type_intersection / type_union if type_union > 0 else 0.0
 
-            # Calculate content relevance (basic keyword overlap)
+            # Calculate content relevance (basic keyword overlap using startContent and endContent)
             expected_content = " ".join(
-                nugget.get("content", "") for nugget in expected_nuggets
+                f"{nugget.get('startContent', '')} {nugget.get('endContent', '')}" 
+                for nugget in expected_nuggets
             ).lower()
             predicted_content = " ".join(
-                nugget.get("content", "") for nugget in pred_nuggets
+                f"{nugget.get('startContent', '')} {nugget.get('endContent', '')}" 
+                for nugget in pred_nuggets
             ).lower()
 
             expected_words = set(expected_content.split())
