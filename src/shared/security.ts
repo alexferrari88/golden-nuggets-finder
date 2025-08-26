@@ -20,7 +20,7 @@ const SECURITY_CONFIG = {
 	RATE_LIMIT_BY_SOURCE: {
 		background: 50, // Background script needs more for analysis workflows
 		popup: 30, // User interaction context needs moderate limit
-		options: 30, // Configuration context needs moderate limit  
+		options: 30, // Configuration context needs moderate limit
 		content: 20, // Content scripts need conservative limit
 	},
 	// Fallback for unknown sources
@@ -347,8 +347,10 @@ export class SecurityManager {
 			// Check rate limiting
 			if (!this.checkRateLimit(context.source)) {
 				// Get source-specific rate limit for error message
-				const sourceLimit = SECURITY_CONFIG.RATE_LIMIT_BY_SOURCE[context.source as keyof typeof SECURITY_CONFIG.RATE_LIMIT_BY_SOURCE] 
-					|| SECURITY_CONFIG.RATE_LIMIT_DEFAULT;
+				const sourceLimit =
+					SECURITY_CONFIG.RATE_LIMIT_BY_SOURCE[
+						context.source as keyof typeof SECURITY_CONFIG.RATE_LIMIT_BY_SOURCE
+					] || SECURITY_CONFIG.RATE_LIMIT_DEFAULT;
 				const errorMsg = `Rate limit exceeded for source '${context.source}' (max ${sourceLimit} requests per ${SECURITY_CONFIG.RATE_LIMIT_WINDOW / 1000}s)`;
 				this.logAccess(context, false, errorMsg);
 				if (isDevMode()) {
@@ -412,8 +414,10 @@ export class SecurityManager {
 		}
 
 		// Get source-specific rate limit with fallback for unknown sources
-		const sourceLimit = SECURITY_CONFIG.RATE_LIMIT_BY_SOURCE[source as keyof typeof SECURITY_CONFIG.RATE_LIMIT_BY_SOURCE] 
-			|| SECURITY_CONFIG.RATE_LIMIT_DEFAULT;
+		const sourceLimit =
+			SECURITY_CONFIG.RATE_LIMIT_BY_SOURCE[
+				source as keyof typeof SECURITY_CONFIG.RATE_LIMIT_BY_SOURCE
+			] || SECURITY_CONFIG.RATE_LIMIT_DEFAULT;
 
 		if (entry.count >= sourceLimit) {
 			return false;

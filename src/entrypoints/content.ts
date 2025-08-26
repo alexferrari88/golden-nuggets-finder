@@ -437,12 +437,13 @@ export default defineContentScript({
 						sendResponse({ success: true });
 						break;
 
-					case MESSAGE_TYPES.SHOW_API_KEY_ERROR:
+					case MESSAGE_TYPES.SHOW_API_KEY_ERROR: {
 						// No need to initialize for error display
 						const errorType = (request as any).errorType || "missing_key";
 						uiManager.showApiKeyErrorBanner(errorType);
 						sendResponse({ success: true });
 						break;
+					}
 
 					case MESSAGE_TYPES.DEBUG_LOG:
 						// Handle debug log forwarding to page console (development mode only)

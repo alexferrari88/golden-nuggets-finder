@@ -393,7 +393,7 @@ All AI providers (Gemini, Claude, OpenAI, OpenRouter) return responses in this s
 
 ### Prompt Examples
 
-**Default Prompt** (Diamond Miner Principle):
+**Default Prompt** (Precision Over Recall):
 ```
 Find golden nuggets that would interest a pragmatic processor with ADHD who loves:
 - How things work (science/tech)

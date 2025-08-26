@@ -3,7 +3,7 @@ Integration tests for Chrome extension prompt optimization.
 
 Tests that the sophisticated Chrome extension DEFAULT_PROMPTS are properly
 optimized while preserving their sophisticated engineering features like:
-- Diamond Miner Principle
+- Precision over recall approach
 - Anti-patterns and heuristics
 - Quality control mechanisms
 - Precision over recall philosophy
@@ -110,7 +110,7 @@ Extract only the raw, high-quality content without explanations. Focus purely on
 
 ## CRITICAL HEURISTICS & ANTI-PATTERNS (APPLY BEFORE ALL OTHER RULES):
 
-1.  **The Diamond Miner Principle (Your Core Heuristic):** Think of yourself as a diamond miner sifting through tons of rock. Your job is to find the rare, flawless diamonds, not just interesting-looking rocks. **Most of the time, you will find nothing. This is the correct outcome.** Do not lower your standards to find something.
+1.  **Precision Over Recall:** Your primary directive is precision over recall. It is vastly preferable to return zero nuggets than to include a single mediocre one. **Most of the time, you will find nothing. This is the correct outcome.** Do not lower your standards to find something.
 
 2.  **Anti-Pattern: Meta-Summaries & Feature Lists:** Your most critical task is to distinguish between the *content* and the *container*.
     *   **WRONG:** If the source is an article *about* a productivity app, do NOT extract the app's features (e.g., "The app has a results sidebar"). This is describing the container.
@@ -238,7 +238,7 @@ Your primary task is to find content matching one or more of the following categ
 
             # Should detect quality loss
             assert validation["quality_preserved"] is False
-            assert not validation["details"]["preserved_diamond_miner_principle"]
+            assert not validation["details"]["preserved_precision_over_recall"]
             assert not validation["details"]["preserved_anti_patterns"]
             assert not validation["details"]["preserved_quality_control"]
 
@@ -316,7 +316,7 @@ Your primary task is to find content matching one or more of the following categ
         analysis = optimization_service._log_prompt_analysis(prompt, "test_run")
 
         # Verify all sophisticated features are detected
-        assert analysis["has_diamond_miner_principle"] is True
+        assert analysis["has_precision_over_recall"] is True
         assert analysis["has_anti_patterns"] is True
         assert analysis["has_quality_control"] is True
         assert analysis["has_extraction_targets"] is True
@@ -456,10 +456,10 @@ Your primary task is to find content matching one or more of the following categ
         assert len(baseline_prompt.split("\n")) < len(chrome_prompt.split("\n")) / 2
 
     @pytest.mark.asyncio
-    async def test_optimization_preserves_diamond_miner_principle(
+    async def test_optimization_preserves_precision_over_recall_principle(
         self, optimization_service, mock_db_with_feedback
     ):
-        """Specifically test that the Diamond Miner Principle is preserved through optimization"""
+        """Specifically test that the precision over recall principle is preserved through optimization"""
 
         with patch.object(optimization_service, "_run_dspy_optimization") as mock_dspy:
             # Mock an optimization that should preserve the principle
@@ -468,7 +468,7 @@ Your primary task is to find content matching one or more of the following categ
                 + """
 
 # DSPy Optimized Version
-Enhanced to focus on the Diamond Miner Principle: finding rare, flawless insights while most of the time finding nothing.
+Enhanced to focus on precision over recall: finding rare, high-quality insights while most of the time finding nothing.
 """
             )
 
@@ -497,4 +497,4 @@ Enhanced to focus on the Diamond Miner Principle: finding rare, flawless insight
             )
 
             assert validation["quality_preserved"] is True
-            assert validation["details"]["preserved_diamond_miner_principle"] is True
+            assert validation["details"]["preserved_precision_over_recall"] is True

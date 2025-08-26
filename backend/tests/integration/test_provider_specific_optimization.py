@@ -265,7 +265,7 @@ class TestProviderSpecificOptimization:
                 mock_prompt = {
                     "id": f"prompt_{provider_id}",
                     "version": 2,
-                    "prompt": f"## ROLE & GOAL:\nProvider-optimized prompt for {provider_id} with Diamond Miner Principle...",
+                    "prompt": f"## ROLE & GOAL:\nProvider-optimized prompt for {provider_id} with precision over recall approach...",
                     "optimizationDate": "2024-01-10T00:00:00Z",
                     "performance": {"feedbackCount": 25, "positiveRate": 0.85},
                     "providerSpecific": True,
@@ -282,7 +282,7 @@ class TestProviderSpecificOptimization:
                 assert result["id"] == f"prompt_{provider_id}"
                 assert result["providerSpecific"] is True
                 assert result["modelProvider"] == provider_id
-                assert "Diamond Miner Principle" in result["prompt"]
+                assert "precision over recall" in result["prompt"]
 
                 mock_get_prompt.assert_called_once_with(mock_db, provider_id)
 
@@ -326,7 +326,7 @@ class TestProviderSpecificOptimization:
             # Verify sophisticated features are preserved in the result
             if "optimized_prompt" in result:
                 optimized = result["optimized_prompt"]
-                assert "Diamond Miner Principle" in optimized
+                assert "precision over recall" in optimized
                 assert "Anti-Pattern" in optimized
                 assert "QUALITY CONTROL" in optimized
 
@@ -456,7 +456,7 @@ class TestProviderSpecificOptimization:
             mock_prompt = {
                 "id": f"prompt_{provider_id}_{model_name.replace('/', '_')}",
                 "version": 3,
-                "prompt": f"## ROLE & GOAL:\nOptimized for {provider_id} {model_name} with Diamond Miner Principle...",
+                "prompt": f"## ROLE & GOAL:\nOptimized for {provider_id} {model_name} with precision over recall approach...",
                 "optimizationDate": "2024-01-12T00:00:00Z",
                 "performance": {"feedbackCount": 35, "positiveRate": 0.89},
                 "providerSpecific": True,
@@ -473,7 +473,7 @@ class TestProviderSpecificOptimization:
             assert result["modelProvider"] == provider_id
             assert result["modelName"] == model_name
             assert result["providerSpecific"] is True
-            assert "Diamond Miner Principle" in result["prompt"]
+            assert "precision over recall" in result["prompt"]
 
     @pytest.mark.asyncio
     async def test_provider_optimization_modes(

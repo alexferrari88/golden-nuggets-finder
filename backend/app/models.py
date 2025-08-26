@@ -27,8 +27,12 @@ class UpdateFeedbackRequest(BaseModel):
 
     content: str | None = None
     rating: Literal["positive", "negative"] | None = None
-    corrected_type: Literal["tool", "media", "aha! moments", "analogy", "model"] | None = None
-    suggested_type: Literal["tool", "media", "aha! moments", "analogy", "model"] | None = None
+    corrected_type: (
+        Literal["tool", "media", "aha! moments", "analogy", "model"] | None
+    ) = None
+    suggested_type: (
+        Literal["tool", "media", "aha! moments", "analogy", "model"] | None
+    ) = None
 
 
 # Stats and optimization models
@@ -269,7 +273,9 @@ class NuggetFeedback(BaseModel):
     id: str
     nuggetContent: str = Field(..., description="Full golden nugget content")
     originalType: Literal["tool", "media", "aha! moments", "analogy", "model"]
-    correctedType: Literal["tool", "media", "aha! moments", "analogy", "model"] | None = None
+    correctedType: (
+        Literal["tool", "media", "aha! moments", "analogy", "model"] | None
+    ) = None
     rating: Literal["positive", "negative"]
     timestamp: int
     url: str
@@ -402,8 +408,14 @@ class FeedbackWithDeduplication(BaseModel):
     feedback_type: Literal["nugget", "missing_content"]
     url: str
     rating: Literal["positive", "negative"] | None = None
-    suggested_type: Literal["tool", "media", "aha! moments", "analogy", "model"] | None = None
-    original_type: Literal["tool", "media", "aha! moments", "analogy", "model"] | None = None
-    corrected_type: Literal["tool", "media", "aha! moments", "analogy", "model"] | None = None
+    suggested_type: (
+        Literal["tool", "media", "aha! moments", "analogy", "model"] | None
+    ) = None
+    original_type: (
+        Literal["tool", "media", "aha! moments", "analogy", "model"] | None
+    ) = None
+    corrected_type: (
+        Literal["tool", "media", "aha! moments", "analogy", "model"] | None
+    ) = None
     created_at: str
     deduplication: DeduplicationInfo

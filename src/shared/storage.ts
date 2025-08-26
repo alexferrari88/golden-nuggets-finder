@@ -37,22 +37,32 @@ export class StorageManager {
 		// Basic security validation (without rate limiting) for all requests
 		const validSources = ["background", "popup", "options", "content"];
 		if (!validSources.includes(context.source)) {
-			throw new Error(`Invalid access source '${context.source}'. Valid sources: ${validSources.join(", ")}`);
+			throw new Error(
+				`Invalid access source '${context.source}'. Valid sources: ${validSources.join(", ")}`,
+			);
 		}
 
 		// Additional validation for sensitive operations
 		if (context.action === "write" && context.source === "content") {
-			throw new Error("Content script cannot write API keys - security policy violation");
+			throw new Error(
+				"Content script cannot write API keys - security policy violation",
+			);
 		}
 
 		// Check cache BEFORE rate limiting to avoid unnecessary rate limit hits
 		const cached = this.getFromCache(STORAGE_KEYS.API_KEY);
 		if (cached !== null) {
 			if (isDevMode()) {
-				console.log("[Storage] Returning cached API key (bypassing rate limit)");
+				console.log(
+					"[Storage] Returning cached API key (bypassing rate limit)",
+				);
 			}
 			// Log the access for audit trail (successful cache access)
-			securityManager.logAccess(context, true, "Cache hit - bypassed rate limiting");
+			securityManager.logAccess(
+				context,
+				true,
+				"Cache hit - bypassed rate limiting",
+			);
 			return cached;
 		}
 

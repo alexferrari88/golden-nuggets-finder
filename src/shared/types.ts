@@ -153,9 +153,9 @@ export interface AnalysisResponse {
  *   - Role definition for AI information filter
  *   - Persona-based analysis directive ({{ persona }} template)
  *   - Source-type awareness ({{ source }} template)
- *   - 5 categories: tools, media, aha! moments, analogies, mental models
+ *   - Categories: tools, media, aha! moments, analogies, mental models
  *   - Strict quality control heuristics
- *   - "Diamond Miner Principle" - precision over recall
+ *   - Precision over recall approach - vastly preferable to return zero nuggets than mediocre ones
  *   - Anti-patterns and quality filters
  *
  * Backend Optimization Context:
