@@ -153,7 +153,7 @@ export class LangChainOpenRouterProvider implements LLMProvider {
 		this.model = new ChatOpenAI({
 			apiKey: config.apiKey,
 			model: this.modelName,
-			temperature: 0,
+			temperature: 0.2,
 			maxRetries: 0, // Disable ChatOpenAI's built-in retry logic - we handle retries ourselves
 			configuration: {
 				baseURL: "https://openrouter.ai/api/v1",

@@ -29,7 +29,7 @@ export class LangChainOpenAIProvider implements LLMProvider {
 		this.model = new ChatOpenAI({
 			apiKey: config.apiKey,
 			model: this.modelName,
-			temperature: 0, // Consistent output
+			temperature: 0.2, // Consistent output
 		});
 	}
 
