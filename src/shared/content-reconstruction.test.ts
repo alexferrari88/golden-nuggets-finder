@@ -343,6 +343,92 @@ describe("Content Reconstruction - LLM Hallucinated EndContent", () => {
 			expect(sanitizeEndContent("!")).toBe("");
 			expect(sanitizeEndContent("...")).toBe("");
 		});
+
+		it("should fix filename spacing issues", () => {
+			// Common document formats
+			expect(sanitizeEndContent("Naur. pdf")).toBe("Naur.pdf");
+			expect(sanitizeEndContent("document. docx")).toBe("document.docx");
+			expect(sanitizeEndContent("spreadsheet. xlsx")).toBe("spreadsheet.xlsx");
+			expect(sanitizeEndContent("presentation. pptx")).toBe(
+				"presentation.pptx",
+			);
+			expect(sanitizeEndContent("notes. txt")).toBe("notes.txt");
+
+			// Image formats
+			expect(sanitizeEndContent("image. jpg")).toBe("image.jpg");
+			expect(sanitizeEndContent("photo. png")).toBe("photo.png");
+			expect(sanitizeEndContent("animation. gif")).toBe("animation.gif");
+
+			// Video and other formats
+			expect(sanitizeEndContent("video. mp4")).toBe("video.mp4");
+			expect(sanitizeEndContent("archive. zip")).toBe("archive.zip");
+			expect(sanitizeEndContent("data. json")).toBe("data.json");
+		});
+
+		it("should handle multiple spaces before file extension", () => {
+			expect(sanitizeEndContent("document.  pdf")).toBe("document.pdf");
+			expect(sanitizeEndContent("file.   docx")).toBe("file.docx");
+			expect(sanitizeEndContent("test.\t\tpng")).toBe("test.png");
+			expect(sanitizeEndContent("data.\n\njson")).toBe("data.json");
+		});
+
+		it("should handle complex filenames with spaces", () => {
+			expect(sanitizeEndContent("Peter Naur Programming. pdf")).toBe(
+				"Peter Naur Programming.pdf",
+			);
+			expect(sanitizeEndContent("My Important Document. docx")).toBe(
+				"My Important Document.docx",
+			);
+			expect(sanitizeEndContent("2023 Annual Report. xlsx")).toBe(
+				"2023 Annual Report.xlsx",
+			);
+		});
+
+		it("should not affect non-filename content with periods", () => {
+			// These should use existing punctuation removal logic
+			expect(sanitizeEndContent("This is a sentence.")).toBe(
+				"This is a sentence",
+			);
+			expect(sanitizeEndContent("Mr. Smith said hello.")).toBe(
+				"Mr. Smith said hello",
+			);
+			expect(sanitizeEndContent("Test content with U.S.A.")).toBe(
+				"Test content with U.S.A",
+			);
+		});
+
+		it("should handle edge cases for filename patterns", () => {
+			// Common single character extensions
+			expect(sanitizeEndContent("file. c")).toBe("file.c");
+			expect(sanitizeEndContent("script. r")).toBe("script.r");
+			expect(sanitizeEndContent("header. h")).toBe("header.h");
+
+			// Uncommon extensions (not in whitelist - remains unchanged)
+			expect(sanitizeEndContent("file. xyz")).toBe("file. xyz");
+			expect(sanitizeEndContent("test. uncommon")).toBe("test. uncommon");
+
+			// Extensions with numbers
+			expect(sanitizeEndContent("backup. bak2")).toBe("backup.bak2");
+			expect(sanitizeEndContent("file. mp3")).toBe("file.mp3");
+
+			// Programming language extensions
+			expect(sanitizeEndContent("script. py")).toBe("script.py");
+			expect(sanitizeEndContent("component. ts")).toBe("component.ts");
+			expect(sanitizeEndContent("style. css")).toBe("style.css");
+		});
+
+		it("should preserve existing behavior for ambiguous cases", () => {
+			// When it's unclear if it's a filename or sentence,
+			// our pattern should only match clear filename cases
+			// These cases don't have recognized file extensions, so they remain unchanged
+			expect(sanitizeEndContent("End of sentence. The")).toBe(
+				"End of sentence. The",
+			);
+			expect(sanitizeEndContent("Chapter 1. Introduction")).toBe(
+				"Chapter 1. Introduction",
+			);
+			expect(sanitizeEndContent("Version 2. Final")).toBe("Version 2. Final");
+		});
 	});
 
 	describe("reconstructFullContent with sanitized endContent", () => {

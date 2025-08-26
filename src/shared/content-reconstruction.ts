@@ -18,7 +18,20 @@ export function sanitizeEndContent(endContent: string): string {
 		return "";
 	}
 
-	// Remove trailing punctuation and whitespace using regex
+	// First check if this looks like a filename with space before extension
+	// Pattern: "<filename>. <extension>" -> "<filename>.<extension>"
+	// Use common file extensions to avoid false positives
+	const commonExtensions =
+		/^(.+)\.\s+(pdf|doc|docx|xls|xlsx|ppt|pptx|txt|jpg|jpeg|png|gif|bmp|svg|mp4|avi|mov|mp3|wav|zip|rar|tar|gz|json|xml|csv|html|css|js|ts|py|java|cpp|c|h|r|sql|md|yaml|yml|log|cfg|ini|bak|tmp|backup|bak2)$/i;
+	const filenameMatch = endContent.match(commonExtensions);
+
+	if (filenameMatch) {
+		// Fix filename by removing space between dot and extension
+		const [, filename, extension] = filenameMatch;
+		return `${filename}.${extension}`;
+	}
+
+	// If not a filename pattern, apply existing trailing punctuation removal
 	// This matches any combination of punctuation (.,!;:?) and whitespace at the end
 	const sanitized = endContent.replace(/[.,!;:?\s]+$/, "").trim();
 
