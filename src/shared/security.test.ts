@@ -180,12 +180,12 @@ describe("SecurityManager", () => {
 				timestamp: Date.now(),
 			};
 
-			// Make multiple requests quickly
-			for (let i = 0; i < 20; i++) {
+			// Make multiple requests quickly (background limit is now 50)
+			for (let i = 0; i < 50; i++) {
 				securityManager.validateAccess(context as AccessContext);
 			}
 
-			// The 21st request should be rate limited
+			// The 51st request should be rate limited
 			const result = securityManager.validateAccess(context as AccessContext);
 			expect(result).toBe(false);
 		});

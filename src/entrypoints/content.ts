@@ -439,7 +439,8 @@ export default defineContentScript({
 
 					case MESSAGE_TYPES.SHOW_API_KEY_ERROR:
 						// No need to initialize for error display
-						uiManager.showApiKeyErrorBanner();
+						const errorType = (request as any).errorType || "missing_key";
+						uiManager.showApiKeyErrorBanner(errorType);
 						sendResponse({ success: true });
 						break;
 
