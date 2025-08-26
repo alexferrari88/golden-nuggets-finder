@@ -899,7 +899,9 @@ export class MessageHandler {
 				const optimizedPromptResponse =
 					await this.getOptimizedPromptIfAvailable(prompt.id);
 				if (optimizedPromptResponse?.prompt) {
-					console.log(`Using optimized prompt for ${prompt.id} from backend DSPy system`);
+					console.log(
+						`Using optimized prompt for ${prompt.id} from backend DSPy system`,
+					);
 					processedPrompt = this.replaceSourcePlaceholder(
 						optimizedPromptResponse.prompt,
 						request.url,
@@ -962,11 +964,14 @@ export class MessageHandler {
 				id: prompt.id,
 				version: prompt.isOptimized ? "optimized" : "original",
 				content: processedPrompt,
-				type: (prompt.isOptimized ? "optimized" : "default") as "default" | "optimized" | "custom",
+				type: (prompt.isOptimized ? "optimized" : "default") as
+					| "default"
+					| "optimized"
+					| "custom",
 				name: prompt.name,
 				isOptimized: prompt.isOptimized || false,
 				optimizationDate: prompt.optimizationDate,
-				performance: prompt.performance
+				performance: prompt.performance,
 			};
 
 			await chrome.storage.local.set({
@@ -1147,11 +1152,14 @@ export class MessageHandler {
 				id: prompt.id,
 				version: prompt.isOptimized ? "optimized" : "original",
 				content: processedPrompt,
-				type: (prompt.isOptimized ? "optimized" : "default") as "default" | "optimized" | "custom",
+				type: (prompt.isOptimized ? "optimized" : "default") as
+					| "default"
+					| "optimized"
+					| "custom",
 				name: prompt.name,
 				isOptimized: prompt.isOptimized || false,
 				optimizationDate: prompt.optimizationDate,
-				performance: prompt.performance
+				performance: prompt.performance,
 			};
 
 			await chrome.storage.local.set({
@@ -1218,10 +1226,13 @@ export class MessageHandler {
 			// For each prompt, check if there's an optimized version available
 			for (const prompt of prompts) {
 				try {
-					const optimizedPromptResponse = 
+					const optimizedPromptResponse =
 						await this.getOptimizedPromptIfAvailable(prompt.id);
-					
-					if (optimizedPromptResponse?.prompt && optimizedPromptResponse.version > 0) {
+
+					if (
+						optimizedPromptResponse?.prompt &&
+						optimizedPromptResponse.version > 0
+					) {
 						// Create an optimized version of this prompt
 						const optimizedPromptItem: SavedPrompt = {
 							id: `${prompt.id}-optimized-v${optimizedPromptResponse.version}`,
@@ -1387,7 +1398,10 @@ export class MessageHandler {
 			}
 
 			// Add provider and prompt metadata from last used provider and prompt
-			const providerInfo = await chrome.storage.local.get(["lastUsedProvider", "lastUsedPrompt"]);
+			const providerInfo = await chrome.storage.local.get([
+				"lastUsedProvider",
+				"lastUsedPrompt",
+			]);
 			const feedbackWithProviderAndPrompt = {
 				...feedback,
 				modelProvider: providerInfo.lastUsedProvider?.providerId || "gemini",
@@ -1398,8 +1412,8 @@ export class MessageHandler {
 					version: "original",
 					content: "",
 					type: "default" as const,
-					name: "Unknown prompt"
-				}
+					name: "Unknown prompt",
+				},
 			};
 
 			// Store feedback locally as backup
@@ -1508,7 +1522,10 @@ export class MessageHandler {
 			}
 
 			// Add provider and prompt metadata to all missing content feedback from last used provider and prompt
-			const providerInfo = await chrome.storage.local.get(["lastUsedProvider", "lastUsedPrompt"]);
+			const providerInfo = await chrome.storage.local.get([
+				"lastUsedProvider",
+				"lastUsedPrompt",
+			]);
 			const missingContentWithProviderAndPrompt = missingContentFeedback.map(
 				(feedback) => ({
 					...feedback,
@@ -1520,8 +1537,8 @@ export class MessageHandler {
 						version: "original",
 						content: "",
 						type: "default" as const,
-						name: "Unknown prompt"
-					}
+						name: "Unknown prompt",
+					},
 				}),
 			);
 
@@ -1801,7 +1818,9 @@ export class MessageHandler {
 	}
 
 	// Helper method to get optimized prompt if available (used during analysis)
-	private async getOptimizedPromptIfAvailable(promptId?: string): Promise<OptimizedPrompt | null> {
+	private async getOptimizedPromptIfAvailable(
+		promptId?: string,
+	): Promise<OptimizedPrompt | null> {
 		const controller = new AbortController();
 		const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout for prompt fetch
 
@@ -1812,7 +1831,7 @@ export class MessageHandler {
 
 			// Build query parameters
 			const params = new URLSearchParams();
-			
+
 			// Add promptId if provided for prompt-specific optimization
 			if (promptId) {
 				params.set("promptId", promptId);
@@ -1832,7 +1851,9 @@ export class MessageHandler {
 					);
 				}
 			} else {
-				console.log(`Requesting optimized prompt for prompt=${promptId || "default"} (generic)`);
+				console.log(
+					`Requesting optimized prompt for prompt=${promptId || "default"} (generic)`,
+				);
 			}
 
 			// Add query parameters if any exist

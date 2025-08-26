@@ -6,12 +6,16 @@ nugget ratings/corrections and missing content submissions.
 """
 
 from datetime import datetime, timezone
+import logging
 from typing import Literal, Optional
 import uuid
 
 import aiosqlite
 
 from ..models import MissingContentFeedback, NuggetFeedback
+
+# Setup logger
+logger = logging.getLogger(__name__)
 
 
 class FeedbackService:
@@ -601,6 +605,165 @@ class FeedbackService:
                     "timestamp": example[4],
                 }
             )
+
+        return training_examples
+
+    async def get_training_examples_for_prompt(
+        self,
+        db: aiosqlite.Connection,
+        prompt_id: str,
+        provider: Optional[str] = None,
+        model: Optional[str] = None,
+        limit: int = 100,
+    ) -> list[dict]:
+        """
+        Generate training examples for DSPy optimization from feedback data specific to a Chrome extension prompt.
+
+        This method enables prompt-specific optimization by filtering feedback that was generated
+        using a specific Chrome extension prompt, provider, and model combination.
+        """
+        training_examples = []
+
+        # Build query conditions
+        prompt_conditions = ["nf.prompt_id = ?"]
+        params = [prompt_id]
+
+        if provider:
+            prompt_conditions.append("nf.model_provider = ?")
+            params.append(provider)
+
+        if model:
+            prompt_conditions.append("nf.model_name = ?")
+            params.append(model)
+
+        prompt_where_clause = " AND ".join(prompt_conditions)
+
+        # Get positive nugget examples for this specific prompt
+        cursor = await db.execute(
+            f"""
+            SELECT nf.nugget_content, nf.original_type, nf.url, nf.context, nf.created_at,
+                   CASE WHEN nf.corrected_type IS NOT NULL THEN nf.corrected_type ELSE nf.original_type END as final_type,
+                   nf.prompt_id, nf.model_provider, nf.model_name, nf.full_prompt_content
+            FROM nugget_feedback nf
+            WHERE nf.rating = 'positive' AND {prompt_where_clause}
+            ORDER BY nf.created_at DESC
+            LIMIT ?
+            """,
+            (*params, limit // 2),
+        )
+
+        positive_examples = await cursor.fetchall()
+
+        for example in positive_examples:
+            training_examples.append(
+                {
+                    "id": str(uuid.uuid4()),
+                    "input_content": example[3],  # context
+                    "expected_output": {
+                        "golden_nuggets": [
+                            {
+                                "type": example[5],  # final_type
+                                "content": example[0],  # nugget_content
+                            }
+                        ]
+                    },
+                    "feedback_score": 1.0,  # Positive feedback
+                    "url": example[2],
+                    "timestamp": example[4],
+                    # Chrome extension prompt context
+                    "prompt_id": example[6],
+                    "model_provider": example[7],
+                    "model_name": example[8],
+                    "full_prompt_content": example[9],
+                }
+            )
+
+        # Get negative nugget examples for this specific prompt (what NOT to extract)
+        cursor = await db.execute(
+            f"""
+            SELECT nf.nugget_content, nf.original_type, nf.url, nf.context, nf.created_at,
+                   CASE WHEN nf.corrected_type IS NOT NULL THEN nf.corrected_type ELSE nf.original_type END as final_type,
+                   nf.prompt_id, nf.model_provider, nf.model_name, nf.full_prompt_content
+            FROM nugget_feedback nf
+            WHERE nf.rating = 'negative' AND {prompt_where_clause}
+            ORDER BY nf.created_at DESC
+            LIMIT ?
+            """,
+            (*params, limit // 4),
+        )
+
+        negative_examples = await cursor.fetchall()
+
+        for example in negative_examples:
+            training_examples.append(
+                {
+                    "id": str(uuid.uuid4()),
+                    "input_content": example[3],  # context
+                    "expected_output": {
+                        "golden_nuggets": []
+                    },  # Empty - should not extract
+                    "feedback_score": 0.0,  # Negative feedback
+                    "url": example[2],
+                    "timestamp": example[4],
+                    # Chrome extension prompt context
+                    "prompt_id": example[6],
+                    "model_provider": example[7],
+                    "model_name": example[8],
+                    "full_prompt_content": example[9],
+                }
+            )
+
+        # Get missing content examples for this specific prompt (what SHOULD have been extracted)
+        cursor = await db.execute(
+            f"""
+            SELECT mcf.content, mcf.suggested_type, mcf.url, mcf.context, mcf.created_at,
+                   mcf.prompt_id, mcf.model_provider, mcf.model_name, mcf.full_prompt_content
+            FROM missing_content_feedback mcf
+            WHERE {prompt_where_clause}
+            ORDER BY mcf.created_at DESC
+            LIMIT ?
+            """,
+            (*params, limit // 4),
+        )
+
+        missing_examples = await cursor.fetchall()
+
+        for example in missing_examples:
+            training_examples.append(
+                {
+                    "id": str(uuid.uuid4()),
+                    "input_content": example[3],  # context
+                    "expected_output": {
+                        "golden_nuggets": [
+                            {
+                                "type": example[1],  # suggested_type
+                                "content": example[0],  # content
+                            }
+                        ]
+                    },
+                    "feedback_score": 0.8,  # High quality - user identified as valuable
+                    "url": example[2],
+                    "timestamp": example[4],
+                    # Chrome extension prompt context
+                    "prompt_id": example[5],
+                    "model_provider": example[6],
+                    "model_name": example[7],
+                    "full_prompt_content": example[8],
+                }
+            )
+
+        logger.info(
+            f"Generated {len(training_examples)} prompt-specific training examples for {prompt_id}",
+            extra={
+                "prompt_id": prompt_id,
+                "provider": provider,
+                "model": model,
+                "positive_examples": len(positive_examples),
+                "negative_examples": len(negative_examples),
+                "missing_examples": len(missing_examples),
+                "total_examples": len(training_examples),
+            },
+        )
 
         return training_examples
 
