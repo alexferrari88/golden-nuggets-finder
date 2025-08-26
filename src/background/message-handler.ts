@@ -275,6 +275,10 @@ interface BackendFeedbackResponse {
 	deduplication?: {
 		user_message?: string;
 	};
+	id_mappings?: {
+		nugget_feedback?: Record<string, string>;
+		missing_content_feedback?: Record<string, string>;
+	};
 }
 
 interface BackendErrorInfo {
@@ -1384,6 +1388,42 @@ export class MessageHandler {
 
 	// Feedback System Handlers
 
+	/**
+	 * Update local feedback storage with corrected IDs from backend response
+	 */
+	private async updateLocalFeedbackIds(
+		feedbackType: "nugget" | "missing",
+		idMappings: Record<string, string>,
+	): Promise<void> {
+		try {
+			const key = feedbackType === "nugget" ? "nugget_feedback" : "missing_feedback";
+			const existingData = await chrome.storage.local.get([key]);
+			const feedbackArray = existingData[key] || [];
+
+			// Update IDs in local storage
+			let updatedCount = 0;
+			for (const feedback of feedbackArray) {
+				const originalId = feedback.id;
+				if (originalId && idMappings[originalId]) {
+					const newId = idMappings[originalId];
+					if (newId !== originalId) {
+						feedback.id = newId;
+						updatedCount++;
+						console.log(`Updated ${feedbackType} feedback ID: ${originalId} -> ${newId}`);
+					}
+				}
+			}
+
+			if (updatedCount > 0) {
+				await chrome.storage.local.set({ [key]: feedbackArray });
+				console.log(`Updated ${updatedCount} ${feedbackType} feedback IDs in local storage`);
+			}
+		} catch (error) {
+			console.error(`Failed to update local ${feedbackType} feedback IDs:`, error);
+			// Don't throw - this is not critical for user experience
+		}
+	}
+
 	private async handleSubmitNuggetFeedback(
 		request: SubmitNuggetFeedbackRequest,
 		sender: chrome.runtime.MessageSender,
@@ -1417,14 +1457,21 @@ export class MessageHandler {
 			};
 
 			// Store feedback locally as backup
+			console.log(`Storing nugget feedback locally with ID: ${feedbackWithProviderAndPrompt.id}`);
 			await this.storeFeedbackLocally("nugget", feedbackWithProviderAndPrompt);
 
 			// Send to backend API
 			try {
+				console.log(`Sending nugget feedback to backend with original ID: ${feedbackWithProviderAndPrompt.id}`);
 				const result = await this.sendFeedbackToBackend({
 					nuggetFeedback: [feedbackWithProviderAndPrompt],
 				});
 				console.log("Nugget feedback sent to backend:", result);
+
+				// Log ID mappings if present
+				if (result.id_mappings?.nugget_feedback) {
+					console.log("Backend returned nugget feedback ID mappings:", result.id_mappings.nugget_feedback);
+				}
 
 				// Check for deduplication information and notify user if needed
 				if (result.deduplication?.user_message) {
@@ -1432,6 +1479,11 @@ export class MessageHandler {
 						sender.tab?.id,
 						result.deduplication.user_message,
 					);
+				}
+
+				// Update local storage with corrected IDs from backend
+				if (result.id_mappings?.nugget_feedback) {
+					await this.updateLocalFeedbackIds("nugget", result.id_mappings.nugget_feedback);
 				}
 
 				sendResponse({
@@ -1472,11 +1524,15 @@ export class MessageHandler {
 				return;
 			}
 
+			console.log(`Attempting to delete nugget feedback with ID: ${feedbackId}`);
+
 			// Remove from local storage backup
+			console.log(`Removing nugget feedback from local storage with ID: ${feedbackId}`);
 			await this.removeFeedbackLocally("nugget", feedbackId);
 
 			// Send delete request to backend API
 			try {
+				console.log(`Sending DELETE request to backend for feedback ID: ${feedbackId}`);
 				const result = await this.deleteFeedbackFromBackend(feedbackId);
 				console.log("Nugget feedback deleted from backend:", result);
 
@@ -1544,15 +1600,23 @@ export class MessageHandler {
 
 			// Store feedback locally as backup
 			for (const feedback of missingContentWithProviderAndPrompt) {
+				console.log(`Storing missing content feedback locally with ID: ${feedback.id}`);
 				await this.storeFeedbackLocally("missing", feedback);
 			}
 
 			// Send to backend API
 			try {
+				const originalIds = missingContentWithProviderAndPrompt.map(f => f.id);
+				console.log(`Sending missing content feedback to backend with original IDs: ${originalIds.join(', ')}`);
 				const result = await this.sendFeedbackToBackend({
 					missingContentFeedback: missingContentWithProviderAndPrompt,
 				});
 				console.log("Missing content feedback sent to backend:", result);
+
+				// Log ID mappings if present
+				if (result.id_mappings?.missing_content_feedback) {
+					console.log("Backend returned missing content feedback ID mappings:", result.id_mappings.missing_content_feedback);
+				}
 
 				// Check for deduplication information and notify user if needed
 				if (result.deduplication?.user_message) {
@@ -1560,6 +1624,11 @@ export class MessageHandler {
 						sender.tab?.id,
 						result.deduplication.user_message,
 					);
+				}
+
+				// Update local storage with corrected IDs from backend
+				if (result.id_mappings?.missing_content_feedback) {
+					await this.updateLocalFeedbackIds("missing", result.id_mappings.missing_content_feedback);
 				}
 
 				sendResponse({

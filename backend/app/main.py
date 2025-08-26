@@ -103,10 +103,16 @@ async def submit_feedback(feedback_data: FeedbackSubmissionRequest):
         deduplication_results = DeduplicationInfo(total_submitted=0)
 
         async with get_db() as db:
+            # Track ID mappings for synchronization
+            stored_nugget_ids = {}  # {original_id: stored_id}
+            stored_missing_content_ids = {}  # {original_id: stored_id}
+            
             # Store nugget feedback with enhanced status tracking
             if feedback_data.nuggetFeedback:
                 for feedback in feedback_data.nuggetFeedback:
+                    original_id = feedback.id
                     status = await feedback_service.store_nugget_feedback(db, feedback)
+                    stored_nugget_ids[original_id] = feedback.id
 
                     # Count by status type
                     if status == "duplicate":
@@ -135,9 +141,11 @@ async def submit_feedback(feedback_data: FeedbackSubmissionRequest):
             # Store missing content feedback with enhanced status tracking
             if feedback_data.missingContentFeedback:
                 for missing_feedback in feedback_data.missingContentFeedback:
+                    original_id = missing_feedback.id
                     status = await feedback_service.store_missing_content_feedback(
                         db, missing_feedback
                     )
+                    stored_missing_content_ids[original_id] = missing_feedback.id
 
                     # Count by status type
                     if status == "duplicate":
@@ -234,6 +242,10 @@ async def submit_feedback(feedback_data: FeedbackSubmissionRequest):
                         "stats": stats,
                         "deduplication": deduplication_results.model_dump(),
                         "optimization_triggered": True,
+                        "id_mappings": {
+                            "nugget_feedback": stored_nugget_ids,
+                            "missing_content_feedback": stored_missing_content_ids,
+                        },
                     },
                     background=background_tasks,
                 )
@@ -244,6 +256,10 @@ async def submit_feedback(feedback_data: FeedbackSubmissionRequest):
                 "stats": stats,
                 "deduplication": deduplication_results.model_dump(),
                 "optimization_triggered": False,
+                "id_mappings": {
+                    "nugget_feedback": stored_nugget_ids,
+                    "missing_content_feedback": stored_missing_content_ids,
+                },
             }
 
     except Exception as e:
