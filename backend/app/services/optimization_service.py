@@ -1808,7 +1808,7 @@ Based on {len(training_examples)} user feedback examples, focus on:
 - Avoiding content that received negative feedback
 - Including user-identified missing golden nuggets
 
-Remember to preserve the Diamond Miner Principle and all sophisticated heuristics above.
+Remember to preserve the precision over recall approach and all sophisticated heuristics above.
 Return valid JSON with the exact structure: {{"golden_nuggets": [...]}}"""
 
             return {
@@ -1830,7 +1830,7 @@ Return valid JSON with the exact structure: {{"golden_nuggets": [...]}}"""
         """
         Extract the optimized prompt from DSPy module while preserving Chrome extension prompt structure.
 
-        This ensures that sophisticated prompt engineering (Diamond Miner Principle, anti-patterns, etc.)
+        This ensures that sophisticated prompt engineering (precision over recall approach, anti-patterns, etc.)
         is preserved through the optimization process.
         """
         try:
