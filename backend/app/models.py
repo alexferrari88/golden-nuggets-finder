@@ -5,32 +5,30 @@ These models match the TypeScript interfaces from the Chrome extension
 to ensure type safety across the entire feedback system.
 """
 
-from datetime import datetime
-from typing import Literal, Optional
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Literal
 
 from pydantic import BaseModel, Field
+
+if TYPE_CHECKING:
+    from datetime import datetime
 
 # Feedback data models (matching Chrome extension types)
 
 
-
-
 class FeedbackSubmissionRequest(BaseModel):
-    nuggetFeedback: Optional[list[NuggetFeedback]] = None
-    missingContentFeedback: Optional[list[MissingContentFeedback]] = None
+    nuggetFeedback: list[NuggetFeedback] | None = None
+    missingContentFeedback: list[MissingContentFeedback] | None = None
 
 
 class UpdateFeedbackRequest(BaseModel):
     """Request model for updating feedback items"""
 
-    content: Optional[str] = None
-    rating: Optional[Literal["positive", "negative"]] = None
-    corrected_type: Optional[
-        Literal["tool", "media", "aha! moments", "analogy", "model"]
-    ] = None
-    suggested_type: Optional[
-        Literal["tool", "media", "aha! moments", "analogy", "model"]
-    ] = None
+    content: str | None = None
+    rating: Literal["positive", "negative"] | None = None
+    corrected_type: Literal["tool", "media", "aha! moments", "analogy", "model"] | None = None
+    suggested_type: Literal["tool", "media", "aha! moments", "analogy", "model"] | None = None
 
 
 # Stats and optimization models
@@ -40,7 +38,7 @@ class FeedbackStatsResponse(BaseModel):
     totalFeedback: int
     positiveCount: int
     negativeCount: int
-    lastOptimizationDate: Optional[str] = None
+    lastOptimizationDate: str | None = None
     daysSinceLastOptimization: int
     recentNegativeRate: float = Field(..., description="Negative rate in last 20 items")
     shouldOptimize: bool
@@ -52,7 +50,7 @@ class OptimizationRequest(BaseModel):
         ...,
         description="MIPROv2 (expensive) vs BootstrapFewShotWithRandomSearch (cheap)",
     )
-    manualTrigger: Optional[bool] = False
+    manualTrigger: bool | None = False
 
 
 class OptimizedPromptResponse(BaseModel):
@@ -64,10 +62,10 @@ class OptimizedPromptResponse(BaseModel):
         ..., description="Contains feedbackCount and positiveRate"
     )
     # NEW: Chrome extension prompt context
-    chromePromptId: Optional[str] = None
-    chromePromptVersion: Optional[int] = None
-    modelProvider: Optional[str] = None
-    modelName: Optional[str] = None
+    chromePromptId: str | None = None
+    chromePromptVersion: int | None = None
+    modelProvider: str | None = None
+    modelName: str | None = None
 
 
 # Enhanced deduplication models
@@ -83,7 +81,7 @@ class DeduplicationInfo(BaseModel):
     nugget_updates: int = 0
     missing_content_updates: int = 0
     total_submitted: int = 0
-    user_message: Optional[str] = None
+    user_message: str | None = None
     duplicate_details: list[dict] = Field(default_factory=list)
 
 
@@ -94,19 +92,19 @@ class FeedbackWithStatus(BaseModel):
     id: str
     content: str
     status: FeedbackStatus
-    rating: Optional[str] = None
-    original_type: Optional[str] = None
-    corrected_type: Optional[str] = None
-    suggested_type: Optional[str] = None
+    rating: str | None = None
+    original_type: str | None = None
+    corrected_type: str | None = None
+    suggested_type: str | None = None
     url: str
     processed: bool = False
-    last_used_at: Optional[str] = None
+    last_used_at: str | None = None
     usage_count: int = 0
     created_at: str
     client_timestamp: int
     # NEW: Model tracking fields for multi-provider support
-    model_provider: Optional[str] = None
-    model_name: Optional[str] = None
+    model_provider: str | None = None
+    model_name: str | None = None
 
 
 class EnhancedFeedbackResponse(BaseModel):
@@ -115,13 +113,11 @@ class EnhancedFeedbackResponse(BaseModel):
     success: bool = True
     message: str = "Feedback processed successfully"
     deduplication: DeduplicationInfo
-    stats: Optional[dict] = None
+    stats: dict | None = None
     optimization_triggered: bool = False
 
 
 # Database models for internal use
-
-
 
 
 # DSPy optimization models
@@ -136,8 +132,8 @@ class TrainingExample(BaseModel):
     url: str
     timestamp: datetime
     # NEW: Link to specific Chrome extension prompt
-    chrome_prompt_id: Optional[str] = None
-    chrome_prompt_version: Optional[int] = None
+    chrome_prompt_id: str | None = None
+    chrome_prompt_version: int | None = None
     model_provider: str
     model_name: str
 
@@ -150,10 +146,10 @@ class PromptOptimizationResult(BaseModel):
     training_examples_count: int
     optimization_mode: str
     execution_time: float
-    improvement_over_baseline: Optional[float] = None
+    improvement_over_baseline: float | None = None
     # NEW: Chrome extension prompt context
-    chrome_prompt_id: Optional[str] = None
-    chrome_prompt_version: Optional[int] = None
+    chrome_prompt_id: str | None = None
+    chrome_prompt_version: int | None = None
     model_provider: str
     model_name: str
 
@@ -196,17 +192,19 @@ class MonitoringResponse(BaseModel):
 
 class PromptOptimizationRequest(BaseModel):
     """Request to optimize a specific Chrome extension prompt"""
+
     prompt_id: str
     prompt_content: str
     mode: Literal["expensive", "cheap"] = Field(
         default="cheap",
-        description="MIPROv2 (expensive) vs BootstrapFewShotWithRandomSearch (cheap)"
+        description="MIPROv2 (expensive) vs BootstrapFewShotWithRandomSearch (cheap)",
     )
-    manualTrigger: Optional[bool] = False
+    manualTrigger: bool | None = False
 
 
 class OptimizedChromePromptResponse(BaseModel):
     """Response containing an optimized Chrome extension prompt"""
+
     id: str
     original_prompt_id: str
     version: int
@@ -217,8 +215,8 @@ class OptimizedChromePromptResponse(BaseModel):
         ..., description="Contains feedbackCount and positiveRate"
     )
     providerSpecific: bool = False
-    modelProvider: Optional[str] = None
-    modelName: Optional[str] = None
+    modelProvider: str | None = None
+    modelName: str | None = None
 
 
 class ChromeExtensionPrompt(BaseModel):
@@ -228,9 +226,9 @@ class ChromeExtensionPrompt(BaseModel):
     name: str
     prompt: str
     is_default: bool = Field(alias="isDefault")
-    is_optimized: Optional[bool] = Field(default=None, alias="isOptimized")
-    optimization_date: Optional[str] = Field(default=None, alias="optimizationDate")
-    performance: Optional[dict] = None  # {feedbackCount: int, positiveRate: float}
+    is_optimized: bool | None = Field(default=None, alias="isOptimized")
+    optimization_date: str | None = Field(default=None, alias="optimizationDate")
+    performance: dict | None = None  # {feedbackCount: int, positiveRate: float}
 
     class Config:
         allow_population_by_field_name = True
@@ -271,9 +269,7 @@ class NuggetFeedback(BaseModel):
     id: str
     nuggetContent: str = Field(..., description="Full golden nugget content")
     originalType: Literal["tool", "media", "aha! moments", "analogy", "model"]
-    correctedType: Optional[
-        Literal["tool", "media", "aha! moments", "analogy", "model"]
-    ] = None
+    correctedType: Literal["tool", "media", "aha! moments", "analogy", "model"] | None = None
     rating: Literal["positive", "negative"]
     timestamp: int
     url: str
@@ -286,13 +282,13 @@ class NuggetFeedback(BaseModel):
         ..., description="Specific model used (e.g., gemini-2.5-flash, gpt-4o-mini)"
     )
     # NEW: Chrome extension prompt context
-    promptId: Optional[str] = Field(
+    promptId: str | None = Field(
         default=None, description="Chrome extension prompt ID used for this analysis"
     )
-    promptVersion: Optional[int] = Field(
+    promptVersion: int | None = Field(
         default=None, description="Version of the prompt used"
     )
-    fullPromptContent: Optional[str] = Field(
+    fullPromptContent: str | None = Field(
         default=None, description="Full prompt content used (for optimization context)"
     )
 
@@ -312,13 +308,13 @@ class MissingContentFeedback(BaseModel):
         ..., description="Specific model used (e.g., gemini-2.5-flash, gpt-4o-mini)"
     )
     # NEW: Chrome extension prompt context
-    promptId: Optional[str] = Field(
+    promptId: str | None = Field(
         default=None, description="Chrome extension prompt ID used for this analysis"
     )
-    promptVersion: Optional[int] = Field(
+    promptVersion: int | None = Field(
         default=None, description="Version of the prompt used"
     )
-    fullPromptContent: Optional[str] = Field(
+    fullPromptContent: str | None = Field(
         default=None, description="Full prompt content used (for optimization context)"
     )
 
@@ -332,7 +328,7 @@ class StoredNuggetFeedback(BaseModel):
     id: str
     nugget_content: str
     original_type: str
-    corrected_type: Optional[str] = None
+    corrected_type: str | None = None
     rating: str
     timestamp: datetime
     url: str
@@ -345,9 +341,9 @@ class StoredNuggetFeedback(BaseModel):
     model_provider: str
     model_name: str
     # NEW: Chrome extension prompt context
-    prompt_id: Optional[str] = None
-    prompt_version: Optional[int] = None
-    full_prompt_content: Optional[str] = None
+    prompt_id: str | None = None
+    prompt_version: int | None = None
+    full_prompt_content: str | None = None
 
 
 class StoredMissingContentFeedback(BaseModel):
@@ -367,9 +363,9 @@ class StoredMissingContentFeedback(BaseModel):
     model_provider: str
     model_name: str
     # NEW: Chrome extension prompt context
-    prompt_id: Optional[str] = None
-    prompt_version: Optional[int] = None
-    full_prompt_content: Optional[str] = None
+    prompt_id: str | None = None
+    prompt_version: int | None = None
+    full_prompt_content: str | None = None
 
 
 # Updated optimization models for prompt-specific optimization
@@ -382,17 +378,17 @@ class OptimizationRun(BaseModel):
     mode: str
     trigger_type: str  # 'auto' or 'manual'
     started_at: datetime
-    completed_at: Optional[datetime] = None
+    completed_at: datetime | None = None
     status: str  # 'running', 'completed', 'failed'
-    result_prompt: Optional[str] = None
-    performance_improvement: Optional[float] = None
+    result_prompt: str | None = None
+    performance_improvement: float | None = None
     feedback_count: int
-    error_message: Optional[str] = None
+    error_message: str | None = None
     # NEW: Chrome extension prompt context
-    chrome_prompt_id: Optional[str] = None  # Which Chrome prompt was optimized
-    chrome_prompt_version: Optional[int] = None
-    model_provider: Optional[str] = None  # Which provider this optimization is for
-    model_name: Optional[str] = None
+    chrome_prompt_id: str | None = None  # Which Chrome prompt was optimized
+    chrome_prompt_version: int | None = None
+    model_provider: str | None = None  # Which provider this optimization is for
+    model_name: str | None = None
 
 
 # Deduplication models
@@ -405,15 +401,9 @@ class FeedbackWithDeduplication(BaseModel):
     content: str
     feedback_type: Literal["nugget", "missing_content"]
     url: str
-    rating: Optional[Literal["positive", "negative"]] = None
-    suggested_type: Optional[
-        Literal["tool", "media", "aha! moments", "analogy", "model"]
-    ] = None
-    original_type: Optional[
-        Literal["tool", "media", "aha! moments", "analogy", "model"]
-    ] = None
-    corrected_type: Optional[
-        Literal["tool", "media", "aha! moments", "analogy", "model"]
-    ] = None
+    rating: Literal["positive", "negative"] | None = None
+    suggested_type: Literal["tool", "media", "aha! moments", "analogy", "model"] | None = None
+    original_type: Literal["tool", "media", "aha! moments", "analogy", "model"] | None = None
+    corrected_type: Literal["tool", "media", "aha! moments", "analogy", "model"] | None = None
     created_at: str
     deduplication: DeduplicationInfo
