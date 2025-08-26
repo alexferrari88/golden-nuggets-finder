@@ -22,13 +22,16 @@ import uvicorn
 
 from .database import get_db, init_database
 from .models import (
+    ChromeExtensionPrompt,
     DeduplicationInfo,
     FeedbackStatsResponse,
     FeedbackSubmissionRequest,
     MonitoringResponse,
     OptimizationProgress,
     OptimizationRequest,
+    OptimizedChromePromptResponse,
     OptimizedPromptResponse,
+    PromptOptimizationRequest,
     SystemHealthResponse,
     UpdateFeedbackRequest,
 )
@@ -367,6 +370,130 @@ async def get_current_optimized_prompt(
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Failed to get current prompt: {e!s}"
+        ) from e
+
+
+# Chrome Extension Prompt Optimization Endpoints
+
+
+@app.post("/optimize/chrome-prompt")
+async def optimize_chrome_extension_prompt(
+    optimization_request: PromptOptimizationRequest, background_tasks: BackgroundTasks
+):
+    """
+    Optimize a specific Chrome extension prompt.
+    
+    This replaces the baseline_prompt approach with actual Chrome extension prompt optimization.
+    """
+    try:
+        # Add optimization task to background
+        background_tasks.add_task(
+            run_chrome_prompt_optimization,
+            optimization_request.prompt_id,
+            optimization_request.prompt_content,
+            optimization_request.mode,
+            optimization_request.manualTrigger or False,
+        )
+
+        return {
+            "success": True,
+            "message": f"Chrome extension prompt optimization started in {optimization_request.mode} mode",
+            "prompt_id": optimization_request.prompt_id,
+            "estimatedTime": (
+                "5-15 minutes"
+                if optimization_request.mode == "expensive"
+                else "1-3 minutes"
+            ),
+        }
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Failed to start Chrome prompt optimization: {e!s}"
+        ) from e
+
+
+@app.get("/optimize/chrome-prompt/{prompt_id}")
+async def get_optimized_chrome_prompt(
+    prompt_id: str,
+    provider: Optional[str] = None,
+    model: Optional[str] = None
+):
+    """
+    Get the optimized version of a specific Chrome extension prompt.
+    
+    Args:
+        prompt_id: Chrome extension prompt ID
+        provider: Optional provider ID for provider-specific optimization
+        model: Optional model name for model-specific optimization
+    """
+    try:
+        async with get_db() as db:
+            optimized_prompt = await optimization_service.get_optimized_chrome_prompt(
+                db, prompt_id, provider, model
+            )
+            
+            if optimized_prompt:
+                return OptimizedChromePromptResponse(**optimized_prompt)
+            else:
+                raise HTTPException(
+                    status_code=404, 
+                    detail=f"No optimized version found for Chrome prompt {prompt_id}"
+                )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Failed to get optimized Chrome prompt: {e!s}"
+        ) from e
+
+
+@app.post("/chrome-prompts")
+async def register_chrome_extension_prompts(prompts: list[ChromeExtensionPrompt]):
+    """
+    Register or update Chrome extension prompts in the backend.
+    
+    This allows the backend to know about current Chrome extension prompts for optimization.
+    """
+    try:
+        async with get_db() as db:
+            registered_count = 0
+            
+            for prompt in prompts:
+                success = await optimization_service.register_chrome_prompt(db, prompt)
+                if success:
+                    registered_count += 1
+            
+            return {
+                "success": True,
+                "message": f"Registered {registered_count} Chrome extension prompts",
+                "registered_count": registered_count,
+                "total_submitted": len(prompts)
+            }
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Failed to register Chrome prompts: {e!s}"
+        ) from e
+
+
+@app.get("/chrome-prompts")
+async def list_chrome_extension_prompts():
+    """
+    List all registered Chrome extension prompts with their optimization status.
+    """
+    try:
+        async with get_db() as db:
+            prompts = await optimization_service.list_chrome_prompts(db)
+            return {
+                "success": True,
+                "prompts": prompts,
+                "count": len(prompts)
+            }
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Failed to list Chrome prompts: {e!s}"
         ) from e
 
 
@@ -858,6 +985,21 @@ async def run_optimization(mode: str, manual_trigger: bool = False):
 
     except Exception as e:
         print(f"Optimization failed: {e}")
+
+
+async def run_chrome_prompt_optimization(
+    prompt_id: str, prompt_content: str, mode: str, manual_trigger: bool = False
+):
+    """Background task to run Chrome extension prompt optimization"""
+    try:
+        async with get_db() as db:
+            result = await optimization_service.run_chrome_prompt_optimization(
+                db, prompt_id, prompt_content, mode, auto_trigger=not manual_trigger
+            )
+            print(f"Chrome prompt optimization completed: {result}")
+
+    except Exception as e:
+        print(f"Chrome prompt optimization failed: {e}")
 
 
 if __name__ == "__main__":

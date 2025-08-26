@@ -897,9 +897,9 @@ export class MessageHandler {
 			// Check if we should use optimized prompt from backend
 			try {
 				const optimizedPromptResponse =
-					await this.getOptimizedPromptIfAvailable();
+					await this.getOptimizedPromptIfAvailable(prompt.id);
 				if (optimizedPromptResponse?.prompt) {
-					console.log("Using optimized prompt from backend DSPy system");
+					console.log(`Using optimized prompt for ${prompt.id} from backend DSPy system`);
 					processedPrompt = this.replaceSourcePlaceholder(
 						optimizedPromptResponse.prompt,
 						request.url,
@@ -910,7 +910,7 @@ export class MessageHandler {
 				}
 			} catch (error) {
 				console.log(
-					"No optimized prompt available, using default:",
+					`No optimized prompt available for ${prompt.id}, using default:`,
 					(error as Error).message,
 				);
 				// Continue with default prompt
@@ -956,6 +956,22 @@ export class MessageHandler {
 				source,
 				sender.tab?.id,
 			);
+
+			// Store prompt metadata for feedback tracking
+			const promptMetadata = {
+				id: prompt.id,
+				version: prompt.isOptimized ? "optimized" : "original",
+				content: processedPrompt,
+				type: (prompt.isOptimized ? "optimized" : "default") as "default" | "optimized" | "custom",
+				name: prompt.name,
+				isOptimized: prompt.isOptimized || false,
+				optimizationDate: prompt.optimizationDate,
+				performance: prompt.performance
+			};
+
+			await chrome.storage.local.set({
+				lastUsedPrompt: promptMetadata,
+			});
 
 			const result = await MessageHandler.handleExtractGoldenNuggets(
 				request.content,
@@ -1064,10 +1080,10 @@ export class MessageHandler {
 			// Check if we should use optimized prompt from backend
 			try {
 				const optimizedPromptResponse =
-					await this.getOptimizedPromptIfAvailable();
+					await this.getOptimizedPromptIfAvailable(prompt.id);
 				if (optimizedPromptResponse?.prompt) {
 					console.log(
-						"Using optimized prompt from backend DSPy system for selected content",
+						`Using optimized prompt for ${prompt.id} from backend DSPy system for selected content`,
 					);
 					processedPrompt = this.replaceSourcePlaceholder(
 						optimizedPromptResponse.prompt,
@@ -1079,7 +1095,7 @@ export class MessageHandler {
 				}
 			} catch (error) {
 				console.log(
-					"No optimized prompt available for selected content, using default:",
+					`No optimized prompt available for ${prompt.id} for selected content, using default:`,
 					(error as Error).message,
 				);
 				// Continue with default prompt
@@ -1125,6 +1141,22 @@ export class MessageHandler {
 				source,
 				sender.tab?.id,
 			);
+
+			// Store prompt metadata for feedback tracking
+			const promptMetadata = {
+				id: prompt.id,
+				version: prompt.isOptimized ? "optimized" : "original",
+				content: processedPrompt,
+				type: (prompt.isOptimized ? "optimized" : "default") as "default" | "optimized" | "custom",
+				name: prompt.name,
+				isOptimized: prompt.isOptimized || false,
+				optimizationDate: prompt.optimizationDate,
+				performance: prompt.performance
+			};
+
+			await chrome.storage.local.set({
+				lastUsedPrompt: promptMetadata,
+			});
 
 			const result = await MessageHandler.handleExtractGoldenNuggets(
 				request.content,
@@ -1181,40 +1213,45 @@ export class MessageHandler {
 	): Promise<void> {
 		try {
 			const prompts = await storage.getPrompts();
+			const enrichedPrompts: SavedPrompt[] = [];
 
-			// Try to add current optimized prompt if available
-			try {
-				const optimizedPromptResponse =
-					await this.getOptimizedPromptIfAvailable();
-				if (
-					optimizedPromptResponse?.prompt &&
-					optimizedPromptResponse.version > 0
-				) {
-					const optimizedPromptItem = {
-						id: `optimized-v${optimizedPromptResponse.version}`,
-						name: `🚀 Optimized Prompt v${optimizedPromptResponse.version} (DSPy)`,
-						prompt: optimizedPromptResponse.prompt,
-						isDefault: false,
-						isOptimized: true,
-						optimizationDate: optimizedPromptResponse.optimizationDate,
-						performance: optimizedPromptResponse.performance,
-					};
+			// For each prompt, check if there's an optimized version available
+			for (const prompt of prompts) {
+				try {
+					const optimizedPromptResponse = 
+						await this.getOptimizedPromptIfAvailable(prompt.id);
+					
+					if (optimizedPromptResponse?.prompt && optimizedPromptResponse.version > 0) {
+						// Create an optimized version of this prompt
+						const optimizedPromptItem: SavedPrompt = {
+							id: `${prompt.id}-optimized-v${optimizedPromptResponse.version}`,
+							name: `🚀 ${prompt.name} (Optimized v${optimizedPromptResponse.version})`,
+							prompt: optimizedPromptResponse.prompt,
+							isDefault: prompt.isDefault, // Preserve default status
+							isOptimized: true,
+							optimizationDate: optimizedPromptResponse.optimizationDate,
+							performance: optimizedPromptResponse.performance,
+						};
 
-					// Add optimized prompt at the beginning of the list
-					const promptsWithOptimized = [optimizedPromptItem, ...prompts];
-					console.log("Added optimized prompt to prompts list");
-					sendResponse({ success: true, data: promptsWithOptimized });
-					return;
+						// Add both the original and optimized version
+						enrichedPrompts.push(prompt);
+						enrichedPrompts.push(optimizedPromptItem);
+						console.log(`Added optimized version for prompt: ${prompt.name}`);
+					} else {
+						// No optimized version available, just add the original
+						enrichedPrompts.push(prompt);
+					}
+				} catch (error) {
+					// If optimization check fails, just add the original prompt
+					console.log(
+						`No optimized version available for ${prompt.name}:`,
+						(error as Error).message,
+					);
+					enrichedPrompts.push(prompt);
 				}
-			} catch (error) {
-				console.log(
-					"No optimized prompt available for prompts list:",
-					(error as Error).message,
-				);
-				// Continue with regular prompts
 			}
 
-			sendResponse({ success: true, data: prompts });
+			sendResponse({ success: true, data: enrichedPrompts });
 		} catch (error) {
 			sendResponse({ success: false, error: (error as Error).message });
 		}
@@ -1349,22 +1386,29 @@ export class MessageHandler {
 				return;
 			}
 
-			// Add provider metadata from last used provider
-			const providerInfo = await chrome.storage.local.get(["lastUsedProvider"]);
-			const feedbackWithProvider = {
+			// Add provider and prompt metadata from last used provider and prompt
+			const providerInfo = await chrome.storage.local.get(["lastUsedProvider", "lastUsedPrompt"]);
+			const feedbackWithProviderAndPrompt = {
 				...feedback,
 				modelProvider: providerInfo.lastUsedProvider?.providerId || "gemini",
 				modelName:
 					providerInfo.lastUsedProvider?.modelName || "gemini-2.5-flash",
+				prompt: providerInfo.lastUsedPrompt || {
+					id: "unknown",
+					version: "original",
+					content: "",
+					type: "default" as const,
+					name: "Unknown prompt"
+				}
 			};
 
 			// Store feedback locally as backup
-			await this.storeFeedbackLocally("nugget", feedbackWithProvider);
+			await this.storeFeedbackLocally("nugget", feedbackWithProviderAndPrompt);
 
 			// Send to backend API
 			try {
 				const result = await this.sendFeedbackToBackend({
-					nuggetFeedback: [feedbackWithProvider],
+					nuggetFeedback: [feedbackWithProviderAndPrompt],
 				});
 				console.log("Nugget feedback sent to backend:", result);
 
@@ -1463,26 +1507,33 @@ export class MessageHandler {
 				return;
 			}
 
-			// Add provider metadata to all missing content feedback from last used provider
-			const providerInfo = await chrome.storage.local.get(["lastUsedProvider"]);
-			const missingContentWithProvider = missingContentFeedback.map(
+			// Add provider and prompt metadata to all missing content feedback from last used provider and prompt
+			const providerInfo = await chrome.storage.local.get(["lastUsedProvider", "lastUsedPrompt"]);
+			const missingContentWithProviderAndPrompt = missingContentFeedback.map(
 				(feedback) => ({
 					...feedback,
 					modelProvider: providerInfo.lastUsedProvider?.providerId || "gemini",
 					modelName:
 						providerInfo.lastUsedProvider?.modelName || "gemini-2.5-flash",
+					prompt: providerInfo.lastUsedPrompt || {
+						id: "unknown",
+						version: "original",
+						content: "",
+						type: "default" as const,
+						name: "Unknown prompt"
+					}
 				}),
 			);
 
 			// Store feedback locally as backup
-			for (const feedback of missingContentWithProvider) {
+			for (const feedback of missingContentWithProviderAndPrompt) {
 				await this.storeFeedbackLocally("missing", feedback);
 			}
 
 			// Send to backend API
 			try {
 				const result = await this.sendFeedbackToBackend({
-					missingContentFeedback: missingContentWithProvider,
+					missingContentFeedback: missingContentWithProviderAndPrompt,
 				});
 				console.log("Missing content feedback sent to backend:", result);
 
@@ -1694,21 +1745,18 @@ export class MessageHandler {
 		sendResponse: (response: GetCurrentOptimizedPromptResponse) => void,
 	): Promise<void> {
 		try {
-			// Get current optimized prompt from backend
-			const response = await fetch("http://localhost:7532/optimize/current", {
-				method: "GET",
-				headers: { "Content-Type": "application/json" },
-			});
-
-			if (!response.ok) {
-				throw new Error(
-					`Get optimized prompt failed: ${response.status} ${response.statusText}`,
-				);
+			// Use the helper method which includes provider/model context and prompt-specific support
+			const optimizedPrompt = await this.getOptimizedPromptIfAvailable();
+			if (optimizedPrompt) {
+				console.log("Current optimized prompt retrieved:", optimizedPrompt);
+				sendResponse({ success: true, data: optimizedPrompt });
+			} else {
+				sendResponse({
+					success: false,
+					error: "No optimized prompt available",
+					fallback: "Using default prompt - no optimized prompt available",
+				});
 			}
-
-			const optimizedPrompt = await response.json();
-			console.log("Current optimized prompt retrieved:", optimizedPrompt);
-			sendResponse({ success: true, data: optimizedPrompt });
 		} catch (error) {
 			console.error("Failed to get current optimized prompt:", error);
 			sendResponse({
@@ -1753,7 +1801,7 @@ export class MessageHandler {
 	}
 
 	// Helper method to get optimized prompt if available (used during analysis)
-	private async getOptimizedPromptIfAvailable(): Promise<OptimizedPrompt | null> {
+	private async getOptimizedPromptIfAvailable(promptId?: string): Promise<OptimizedPrompt | null> {
 		const controller = new AbortController();
 		const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout for prompt fetch
 
@@ -1762,26 +1810,34 @@ export class MessageHandler {
 			const currentProvider = await getCurrentProvider();
 			let requestUrl = "http://localhost:7532/optimize/current";
 
+			// Build query parameters
+			const params = new URLSearchParams();
+			
+			// Add promptId if provided for prompt-specific optimization
+			if (promptId) {
+				params.set("promptId", promptId);
+			}
+
 			if (currentProvider) {
 				const currentModel = await getSelectedModel(currentProvider);
+				params.set("provider", currentProvider);
 				if (currentModel) {
-					// Add provider and model as query parameters
-					const params = new URLSearchParams({
-						provider: currentProvider,
-						model: currentModel,
-					});
-					requestUrl += `?${params.toString()}`;
-
+					params.set("model", currentModel);
 					console.log(
-						`Requesting optimized prompt for ${currentProvider}+${currentModel}`,
+						`Requesting optimized prompt for prompt=${promptId || "default"}, ${currentProvider}+${currentModel}`,
 					);
 				} else {
 					console.log(
-						`No model selected for ${currentProvider}, using generic optimization`,
+						`Requesting optimized prompt for prompt=${promptId || "default"}, ${currentProvider} (no model)`,
 					);
 				}
 			} else {
-				console.log("No current provider found, using generic optimization");
+				console.log(`Requesting optimized prompt for prompt=${promptId || "default"} (generic)`);
+			}
+
+			// Add query parameters if any exist
+			if (params.toString()) {
+				requestUrl += `?${params.toString()}`;
 			}
 
 			const response = await fetch(requestUrl, {

@@ -27,6 +27,13 @@ describe("Backend Integration Tests", () => {
 							providerId: "gemini",
 							modelName: "gemini-2.5-flash",
 						},
+						lastUsedPrompt: {
+							id: "test-prompt",
+							version: "original",
+							content: "Test prompt content",
+							type: "default",
+							name: "Test Prompt",
+						},
 					}),
 					set: vi.fn().mockResolvedValue(undefined),
 				},
@@ -80,11 +87,18 @@ describe("Backend Integration Tests", () => {
 
 			await messageHandler.handleMessage(request, sender, sendResponse);
 
-			// Verify backend API was called with provider metadata
+			// Verify backend API was called with provider and prompt metadata
 			const expectedFeedbackWithProvider = {
 				...feedbackData,
 				modelProvider: "gemini",
 				modelName: "gemini-2.5-flash",
+				prompt: {
+					id: "test-prompt",
+					version: "original",
+					content: "Test prompt content",
+					type: "default",
+					name: "Test Prompt",
+				},
 			};
 			expect(mockFetch).toHaveBeenCalledWith(
 				"http://localhost:7532/feedback",
@@ -263,12 +277,19 @@ describe("Backend Integration Tests", () => {
 
 			await messageHandler.handleMessage(request, sender, sendResponse);
 
-			// Verify backend API was called with multiple feedback items including provider metadata
+			// Verify backend API was called with multiple feedback items including provider and prompt metadata
 			const expectedMissingContentWithProvider = missingContentFeedback.map(
 				(feedback) => ({
 					...feedback,
 					modelProvider: "gemini",
 					modelName: "gemini-2.5-flash",
+					prompt: {
+						id: "test-prompt",
+						version: "original",
+						content: "Test prompt content",
+						type: "default",
+						name: "Test Prompt",
+					},
 				}),
 			);
 			expect(mockFetch).toHaveBeenCalledWith(
@@ -531,9 +552,9 @@ describe("Backend Integration Tests", () => {
 				sendResponse,
 			);
 
-			// Verify API was called
+			// Verify API was called with provider and model parameters
 			expect(mockFetch).toHaveBeenCalledWith(
-				"http://localhost:7532/optimize/current",
+				"http://localhost:7532/optimize/current?provider=gemini&model=gemini-2.5-flash",
 				expect.objectContaining({
 					method: "GET",
 					headers: { "Content-Type": "application/json" },
@@ -567,7 +588,7 @@ describe("Backend Integration Tests", () => {
 
 			expect(sendResponse).toHaveBeenCalledWith({
 				success: false,
-				error: "Get optimized prompt failed: 404 Not Found",
+				error: "Failed to get optimized prompt: 404 Not Found",
 				fallback: "Using default prompt - no optimized prompt available",
 			});
 		});

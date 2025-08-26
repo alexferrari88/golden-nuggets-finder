@@ -803,7 +803,7 @@ describe("MessageHandler", () => {
 
 			// Verify the correct URL was requested with query parameters
 			expect(mockFetch).toHaveBeenCalledWith(
-				"http://localhost:7532/optimize/current?provider=openai&model=gpt-4o-mini",
+				"http://localhost:7532/optimize/current?promptId=test-prompt&provider=openai&model=gpt-4o-mini",
 				{
 					method: "GET",
 					headers: { "Content-Type": "application/json" },
@@ -866,9 +866,9 @@ describe("MessageHandler", () => {
 				mockSendResponse,
 			);
 
-			// Verify generic URL was requested (no query parameters)
+			// Verify URL was requested with prompt ID and provider (but no model)
 			expect(mockFetch).toHaveBeenCalledWith(
-				"http://localhost:7532/optimize/current",
+				"http://localhost:7532/optimize/current?promptId=test-prompt&provider=anthropic",
 				{
 					method: "GET",
 					headers: { "Content-Type": "application/json" },
@@ -928,9 +928,9 @@ describe("MessageHandler", () => {
 				mockSendResponse,
 			);
 
-			// Verify generic URL was requested
+			// Verify URL was requested with prompt ID only (no provider)
 			expect(mockFetch).toHaveBeenCalledWith(
-				"http://localhost:7532/optimize/current",
+				"http://localhost:7532/optimize/current?promptId=test-prompt",
 				{
 					method: "GET",
 					headers: { "Content-Type": "application/json" },
