@@ -17,7 +17,8 @@ export const DEFAULT_PROMPTS = [
 		prompt: `
 You are an AI assistant tasked with analyzing content and extracting valuable insights, which we call "golden nuggets."
 These golden nuggets should be tailored to a specific persona and categorized into specific types.
-Your goal is to analyze the provided content and extract only the most insightful, non-obvious, and high-signal content for someone with this persona: {{ persona }}.
+Your goal is to analyze the provided content and extract only the most insightful, non-obvious, and high-signal content for someone with this persona:
+{{ persona }}
 It is vastly preferable to return zero nuggets than to include a single mediocre one.
 
 **Crucially, do not force or invent extractions. If no content meets the strict criteria below, the \`golden_nuggets\` array MUST be empty ([]).**

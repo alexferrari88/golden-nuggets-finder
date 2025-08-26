@@ -149,14 +149,6 @@ export interface AnalysisResponse {
  * - Name: "Find Key Insights"
  * - Type: "default"
  * - Version: "v1.0"
- * - Content: ~3000+ character sophisticated prompt with:
- *   - Role definition for AI information filter
- *   - Persona-based analysis directive ({{ persona }} template)
- *   - Source-type awareness ({{ source }} template)
- *   - Categories: tools, media, aha! moments, analogies, mental models
- *   - Strict quality control heuristics
- *   - Precision over recall approach - vastly preferable to return zero nuggets than mediocre ones
- *   - Anti-patterns and quality filters
  *
  * Backend Optimization Context:
  * - Each feedback submission must include full prompt content
