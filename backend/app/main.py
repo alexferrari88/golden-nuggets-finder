@@ -106,7 +106,7 @@ async def submit_feedback(feedback_data: FeedbackSubmissionRequest):
             # Track ID mappings for synchronization
             stored_nugget_ids = {}  # {original_id: stored_id}
             stored_missing_content_ids = {}  # {original_id: stored_id}
-            
+
             # Store nugget feedback with enhanced status tracking
             if feedback_data.nuggetFeedback:
                 for feedback in feedback_data.nuggetFeedback:

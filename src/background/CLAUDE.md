@@ -157,7 +157,7 @@ await chrome.scripting.executeScript({
 
 ### TypeFilterService (`type-filter-service.ts`)
 Manages nugget type filtering and customization:
-- **Type Definitions**: Maintains definitions for all 5 nugget types (tool, media, aha! moments, analogy, model)
+- **Type Definitions**: Maintains definitions for all nugget types (tool, media, aha! moments, analogy, model)
 - **Context Menu Integration**: Provides type-specific menu options with emojis
 - **Dynamic Prompt Generation**: Filters base prompts to focus on selected types
 - **Schema Generation**: Creates dynamic response schemas for filtered analyses

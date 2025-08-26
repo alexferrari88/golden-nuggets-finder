@@ -195,7 +195,9 @@ describe("NotificationManager", () => {
 			const banner = document.querySelector(".nugget-notification-banner");
 			expect(banner).toBeTruthy();
 			expect(banner?.textContent).toContain("Extension is busy processing");
-			expect(banner?.textContent).toContain("Please wait a moment and try again");
+			expect(banner?.textContent).toContain(
+				"Please wait a moment and try again",
+			);
 
 			const link = banner?.querySelector("a");
 			expect(link).toBeTruthy();

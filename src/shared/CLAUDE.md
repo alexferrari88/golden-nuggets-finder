@@ -290,10 +290,10 @@ Core configuration values and defaults:
 
 ### Default Prompt System
 The extension includes a comprehensive default prompt that implements:
-- **Diamond Miner Principle**: Ultra-high quality filtering with preference for zero results over mediocre ones  
+- **Precision Over Recall**: Ultra-high quality filtering with preference for zero results over mediocre ones  
 - **Persona-Based Analysis**: Tailored for "Pragmatic Processor" with ADHD and INTP cognitive patterns
 - **Anti-Pattern Detection**: Sophisticated filtering to avoid meta-summaries and feature lists
-- **Five Extraction Categories**: Tools, Media, Explanations, Analogies, and Mental Models
+- **Extraction Categories**: Tools, Media, Explanations, Analogies, and Mental Models
 - **Quality Control**: Multiple validation layers with strict signal-to-noise requirements
 
 ### Configuration Features

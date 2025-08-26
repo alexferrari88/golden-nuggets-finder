@@ -110,12 +110,12 @@ export async function isProviderConfigured(
 			return !!apiKey;
 		} catch (error) {
 			const errorMessage = (error as Error).message;
-			
+
 			// Handle rate limit errors with retry logic
 			if (errorMessage.includes("Rate limit exceeded")) {
 				try {
 					// Wait briefly and retry once for rate limit errors
-					await new Promise(resolve => setTimeout(resolve, 1000));
+					await new Promise((resolve) => setTimeout(resolve, 1000));
 					const apiKey = await storage.getApiKey({
 						source: "background",
 						action: "read",
@@ -141,7 +141,7 @@ export async function isProviderConfigured(
 					}
 				}
 			}
-			
+
 			// Handle non-rate-limit errors (decryption, storage corruption, etc.)
 			try {
 				const rawData = await chrome.storage.sync.get("geminiApiKey");
@@ -157,7 +157,7 @@ export async function isProviderConfigured(
 		try {
 			const apiKey = await getApiKey(providerId);
 			return !!apiKey;
-		} catch (error) {
+		} catch (_error) {
 			// For other providers, if getApiKey fails, they're not configured
 			// (Other providers use simple base64 encoding, less likely to have decryption issues)
 			return false;

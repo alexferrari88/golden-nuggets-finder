@@ -205,11 +205,11 @@ class OptimizationMetrics:
 
             # Calculate content relevance (basic keyword overlap using startContent and endContent)
             expected_content = " ".join(
-                f"{nugget.get('startContent', '')} {nugget.get('endContent', '')}" 
+                f"{nugget.get('startContent', '')} {nugget.get('endContent', '')}"
                 for nugget in expected_nuggets
             ).lower()
             predicted_content = " ".join(
-                f"{nugget.get('startContent', '')} {nugget.get('endContent', '')}" 
+                f"{nugget.get('startContent', '')} {nugget.get('endContent', '')}"
                 for nugget in pred_nuggets
             ).lower()
 

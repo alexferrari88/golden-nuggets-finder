@@ -25,6 +25,11 @@ if not DSPY_AVAILABLE:
 from .dspy_multi_model_manager import dspy_multi_model_manager
 from .feedback_service import FeedbackService
 
+# Import models for type hints
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from ..models import ChromeExtensionPrompt
 
 # Configure environment-aware structured logging
 def _setup_logger():
@@ -80,13 +85,13 @@ class OptimizationService:
         # Chrome Extension DEFAULT_PROMPTS (sophisticated, engineered prompt)
         # This is the actual prompt from the Chrome extension that should be optimized,
         # not a baseline placeholder. It contains sophisticated engineering:
-        # - Diamond Miner Principle
+        # - Precision over recall approach
         # - Anti-patterns and heuristics
         # - Quality control mechanisms
         # - Precise type definitions
         self.chrome_extension_default_prompt = """
 You are an AI assistant tasked with analyzing content and extracting valuable insights, which we call "golden nuggets."
-These golden nuggets should be tailored to a specific persona and categorized into five types.
+These golden nuggets should be tailored to a specific persona and categorized into specific types.
 Your goal is to analyze the provided content and extract only the most insightful, non-obvious, and high-signal content for someone with this persona: {{ persona }}.
 Your primary directive is **precision over recall**. It is vastly preferable to return zero nuggets than to include a single mediocre one.
 
@@ -95,25 +100,39 @@ Your primary directive is **precision over recall**. It is vastly preferable to 
 
 Golden nugget types and their characteristics:
 
-1. Mental Models & Frameworks: Conceptual structures or approaches for understanding complex systems or making decisions.
-2. Powerful Analogies: Comparisons that effectively explain or illustrate a concept by relating it to something more familiar.
-3. Media: Recommendations for books, articles, podcasts, magazines, or YouTube videos/playlists that provide valuable information or insights.
-4. Tools: Specific software, techniques, or methodologies that can be applied to improve productivity, solve problems, or enhance understanding.
-5. "Aha!" Moments: Key insights or realizations that provide a new perspective or understanding of a topic.
+1. **Actionable Tools:** A specific, tool/software/technique. Must include its specific, valuable application.
+    *   **Bad:** "You should use a calendar."
+    *   **Good:** "I use Trello's calendar power-up to visualize my content pipeline, which helps me manage deadlines when my ADHD makes time-planning difficult."
+
+2. **High-Signal Media:** A high-quality book, article, video, or podcast. Must include *why* it's valuable.
+    *   **Bad:** "Check out the NFL podcast."
+    *   **Good:** "The episode of the Tim Ferriss podcast with guest Derek Sivers has a brilliant segment on the idea of 'hell yeah or no' for decision-making."
+
+3. **Deep Aha! Moments:** A concise, insightful explanation of a complex concept that goes beyond a surface-level definition. It should feel like a mini-lesson.
+    *   **Bad:** "The mitochondria is the powerhouse of the cell."
+    *   **Good:** "The reason async/await in Javascript is so powerful is that it's syntactic sugar over Promises, allowing you to write asynchronous code that reads like synchronous code, avoiding 'callback hell'."
+
+4. **Powerful Analogies:** An analogy that makes a complex topic surprisingly simple and clear.
+    *   **Bad:** "It's like learning to ride a bike."
+    *   **Good:** "Thinking about technical debt as being like a financial debt is useful. You can take it on purposefully to ship faster, but you have to pay interest (slower development) until you pay it down (refactor)."
+
+5. **Mental Models:** A named cognitive framework, productivity technique, or principle for thinking. The simple mention of a specific model is valuable as a hook for further research.
+    *   **Bad:** "You should think about the problem differently." (Too generic)
+    *   **Good:** "I apply the 'Inversion' mental model by asking 'What would guarantee failure?' before starting a new project. This helps me identify and mitigate risks proactively instead of just planning for success."
 
 Instructions for extracting and formatting golden nuggets:
 
 1. Carefully read and analyze the provided content.
-2. Identify potential golden nuggets that align with the five categories and are relevant to the specified persona.
+2. Identify potential golden nuggets that align with the categories above and are relevant to the specified persona.
 3. For each category, select the most impactful and relevant golden nugget. If no suitable nugget is found for a category, omit it from the results.
 4. For each selected golden nugget, identify the exact start and end of the relevant content in the original text.
 
 Additional instructions and constraints:
 
-1. Extract a maximum of one golden nugget per category.
+1. Extract a maximum of one golden nugget per type.
 2. Ensure that the startContent and endContent fields contain the exact words from the original text, up to a maximum of 5 words each.
 3. Do not modify or paraphrase the original text in the startContent and endContent fields.
-4. If no golden nuggets are found for any category, return an empty array for the golden_nuggets field.
+4. If no golden nuggets are found for any type, return an empty array for the golden_nuggets field.
 5. Focus on extracting the most valuable and relevant information for the specified persona.
 6. Ensure that the extracted golden nuggets are concise and impactful.
 7. Do not include any explanations or additional commentary outside of the JSON structure.
@@ -220,7 +239,7 @@ Your task is to analyze the given content, extract the most relevant golden nugg
                     "prompt_type": prompt_type,
                     "uses_chrome_extension_default": prompt_type
                     == "chrome_extension_sophisticated",
-                    "has_diamond_miner_principle": "Diamond Miner Principle"
+                    "has_precision_over_recall": "precision over recall"
                     in self.chrome_extension_default_prompt,
                     "has_anti_patterns": "Anti-Pattern"
                     in self.chrome_extension_default_prompt,
@@ -238,10 +257,10 @@ Your task is to analyze the given content, extract the most relevant golden nugg
                     "training_examples": len(training_examples),
                     "optimizing_chrome_prompt": True,
                     "prompt_engineering_features": {
-                        "diamond_miner_principle": True,
+                        "precision_over_recall": True,
                         "anti_patterns": True,
                         "quality_control": True,
-                        "precision_over_recall": True,
+                        "high_precision_filtering": True,
                     },
                 },
             )
@@ -519,7 +538,7 @@ Your task is to analyze the given content, extract the most relevant golden nugg
 # - High-quality content that users find valuable
 # - Avoiding content that received negative feedback
 # - Including user-identified missing golden nuggets
-# - Maintaining Diamond Miner Principle and quality control heuristics
+# - Maintaining precision over recall approach and quality control heuristics
 
 Return valid JSON with the exact structure: {{"golden_nuggets": [...]}}"""
 
@@ -529,7 +548,7 @@ Return valid JSON with the exact structure: {{"golden_nuggets": [...]}}"""
                     "run_id": run_id,
                     "preserves_sophisticated_engineering": True,
                     "enhanced_with_feedback": len(training_examples),
-                    "maintains_diamond_miner_principle": True,
+                    "maintains_precision_over_recall": True,
                 },
             )
 
@@ -582,7 +601,7 @@ Return valid JSON with the exact structure: {{"golden_nuggets": [...]}}"""
             "🔄 Using Chrome extension prompt as optimization fallback",
             extra={
                 "preserves_sophistication": True,
-                "diamond_miner_principle": True,
+                "precision_over_recall": True,
                 "anti_patterns": True,
             },
         )
@@ -668,7 +687,7 @@ Return valid JSON with the exact structure: {{"golden_nuggets": [...]}}"""
         """Analyze and log characteristics of the prompt being optimized"""
         analysis = {
             "length_chars": len(prompt),
-            "has_diamond_miner_principle": "Diamond Miner Principle" in prompt,
+            "has_precision_over_recall": "precision over recall" in prompt,
             "has_anti_patterns": "Anti-Pattern" in prompt,
             "has_quality_control": "QUALITY CONTROL" in prompt,
             "has_extraction_targets": "EXTRACTION TARGETS" in prompt,
@@ -703,11 +722,12 @@ Return valid JSON with the exact structure: {{"golden_nuggets": [...]}}"""
         )
 
         quality_preservation = {
-            "preserved_diamond_miner_principle": (
-                original_analysis["has_diamond_miner_principle"]
+            "preserved_precision_over_recall": (
+                original_analysis["has_precision_over_recall"]
                 and (
-                    optimized_analysis["has_diamond_miner_principle"]
-                    or "diamond miner" in optimized_prompt.lower()
+                    optimized_analysis["has_precision_over_recall"]
+                    or "precision over recall" in optimized_prompt.lower()
+                    or "precision" in optimized_prompt.lower()
                 )
             ),
             "preserved_anti_patterns": (
@@ -1939,7 +1959,7 @@ Extract only the raw, high-quality content without explanations. Focus purely on
 
 ## CRITICAL HEURISTICS & ANTI-PATTERNS (APPLY BEFORE ALL OTHER RULES):
 
-1.  **The Diamond Miner Principle (Your Core Heuristic):** Think of yourself as a diamond miner sifting through tons of rock. Your job is to find the rare, flawless diamonds, not just interesting-looking rocks. **Most of the time, you will find nothing. This is the correct outcome.** Do not lower your standards to find something.
+1.  **Precision Over Recall:** Your primary directive is precision over recall. It is vastly preferable to return zero nuggets than to include a single mediocre one. **Most of the time, you will find nothing. This is the correct outcome.** Do not lower your standards to find something.
 
 2.  **Anti-Pattern: Meta-Summaries & Feature Lists:** Your most critical task is to distinguish between the *content* and the *container*.
     *   **WRONG:** If the source is an article *about* a productivity app, do NOT extract the app's features (e.g., "The app has a results sidebar"). This is describing the container.
