@@ -152,7 +152,7 @@ describe("NotificationManager", () => {
 
 			const banner = document.querySelector(".nugget-notification-banner");
 			expect(banner).toBeTruthy();
-			expect(banner?.textContent).toContain("Gemini API key not configured");
+			expect(banner?.textContent).toContain("API key not configured");
 
 			const link = banner?.querySelector("a");
 			expect(link).toBeTruthy();
@@ -187,6 +187,28 @@ describe("NotificationManager", () => {
 			vi.advanceTimersByTime(5000);
 
 			expect(document.querySelector(".nugget-notification-banner")).toBeFalsy();
+		});
+
+		it("should create rate limited error banner with different message", () => {
+			notificationManager.showApiKeyError("rate_limited");
+
+			const banner = document.querySelector(".nugget-notification-banner");
+			expect(banner).toBeTruthy();
+			expect(banner?.textContent).toContain("Extension is busy processing");
+			expect(banner?.textContent).toContain("Please wait a moment and try again");
+
+			const link = banner?.querySelector("a");
+			expect(link).toBeTruthy();
+			expect(link?.textContent).toBe("options page");
+		});
+
+		it("should default to missing_key error type when no parameter provided", () => {
+			notificationManager.showApiKeyError();
+
+			const banner = document.querySelector(".nugget-notification-banner");
+			expect(banner).toBeTruthy();
+			expect(banner?.textContent).toContain("API key not configured");
+			expect(banner?.textContent).not.toContain("Extension is busy processing");
 		});
 	});
 

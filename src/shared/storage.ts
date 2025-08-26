@@ -34,21 +34,35 @@ export class StorageManager {
 			console.log(`[Storage] getApiKey called from: ${context.source}`);
 		}
 
-		// Validate access
+		// Basic security validation (without rate limiting) for all requests
+		const validSources = ["background", "popup", "options", "content"];
+		if (!validSources.includes(context.source)) {
+			throw new Error(`Invalid access source '${context.source}'. Valid sources: ${validSources.join(", ")}`);
+		}
+
+		// Additional validation for sensitive operations
+		if (context.action === "write" && context.source === "content") {
+			throw new Error("Content script cannot write API keys - security policy violation");
+		}
+
+		// Check cache BEFORE rate limiting to avoid unnecessary rate limit hits
+		const cached = this.getFromCache(STORAGE_KEYS.API_KEY);
+		if (cached !== null) {
+			if (isDevMode()) {
+				console.log("[Storage] Returning cached API key (bypassing rate limit)");
+			}
+			// Log the access for audit trail (successful cache access)
+			securityManager.logAccess(context, true, "Cache hit - bypassed rate limiting");
+			return cached;
+		}
+
+		// Only do full security validation (including rate limiting) for cache misses
 		if (!securityManager.validateAccess(context)) {
 			// Get the latest audit log entry for more specific error details
 			const auditLogs = securityManager.getAuditLogs();
 			const latestEntry = auditLogs[auditLogs.length - 1];
 			const specificError = latestEntry?.error || "Invalid access context";
 			throw new Error(`Access denied: ${specificError}`);
-		}
-
-		const cached = this.getFromCache(STORAGE_KEYS.API_KEY);
-		if (cached !== null) {
-			if (isDevMode()) {
-				console.log("[Storage] Returning cached API key");
-			}
-			return cached;
 		}
 
 		const result = await chrome.storage.sync.get(STORAGE_KEYS.API_KEY);

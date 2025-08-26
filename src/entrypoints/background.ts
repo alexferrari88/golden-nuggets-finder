@@ -253,17 +253,29 @@ export default defineBackground(() => {
 
 			// Check if current provider is configured before proceeding
 			const currentProvider = await getCurrentProvider();
-			const isConfigured = await isProviderConfigured(currentProvider);
+			let isConfigured = false;
+			let errorType = "missing_key"; // default assumption
+
+			try {
+				isConfigured = await isProviderConfigured(currentProvider);
+			} catch (error) {
+				// If isProviderConfigured throws, try to determine the error type
+				const errorMessage = (error as Error).message;
+				if (errorMessage.includes("Rate limit exceeded")) {
+					errorType = "rate_limited";
+				}
+			}
 
 			if (!isConfigured) {
 				console.log(
-					`[Background] Provider ${currentProvider} not configured - showing error message`,
+					`[Background] Provider ${currentProvider} not configured - showing error message (${errorType})`,
 				);
 				// Show API key error message with link to options page
 				// Add a small delay to ensure content script is ready
 				await new Promise((resolve) => setTimeout(resolve, 100));
 				await chrome.tabs.sendMessage(tab.id, {
 					type: MESSAGE_TYPES.SHOW_API_KEY_ERROR,
+					errorType: errorType,
 				});
 				return;
 			}
@@ -313,15 +325,27 @@ export default defineBackground(() => {
 
 			// Check if current provider is configured before proceeding
 			const currentProvider = await getCurrentProvider();
-			const isConfigured = await isProviderConfigured(currentProvider);
+			let isConfigured = false;
+			let errorType = "missing_key"; // default assumption
+
+			try {
+				isConfigured = await isProviderConfigured(currentProvider);
+			} catch (error) {
+				// If isProviderConfigured throws, try to determine the error type
+				const errorMessage = (error as Error).message;
+				if (errorMessage.includes("Rate limit exceeded")) {
+					errorType = "rate_limited";
+				}
+			}
 
 			if (!isConfigured) {
 				console.log(
-					`[Background] Provider ${currentProvider} not configured - showing error message`,
+					`[Background] Provider ${currentProvider} not configured - showing error message (${errorType})`,
 				);
 				await new Promise((resolve) => setTimeout(resolve, 100));
 				await chrome.tabs.sendMessage(tab.id, {
 					type: MESSAGE_TYPES.SHOW_API_KEY_ERROR,
+					errorType: errorType,
 				});
 				return;
 			}

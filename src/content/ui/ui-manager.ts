@@ -85,8 +85,8 @@ export class UIManager {
 		this.notifications.showInfo(message);
 	}
 
-	showApiKeyErrorBanner(): void {
-		this.notifications.showApiKeyError();
+	showApiKeyErrorBanner(errorType: "missing_key" | "rate_limited" = "missing_key"): void {
+		this.notifications.showApiKeyError(errorType);
 	}
 
 	showNoResultsBanner(): void {

@@ -11,14 +11,28 @@ interface MockChromeRuntimeAPI {
 	sendMessage: ReturnType<typeof vi.fn>;
 }
 
+interface MockChromeStorageAPI {
+	local: {
+		get: ReturnType<typeof vi.fn>;
+		set: ReturnType<typeof vi.fn>;
+	};
+}
+
 interface MockChromeAPI {
 	runtime: MockChromeRuntimeAPI;
+	storage: MockChromeStorageAPI;
 }
 
 // Mock chrome API
 const mockChrome: MockChromeAPI = {
 	runtime: {
 		sendMessage: vi.fn(),
+	},
+	storage: {
+		local: {
+			get: vi.fn().mockResolvedValue({}),
+			set: vi.fn().mockResolvedValue(undefined),
+		},
 	},
 };
 

@@ -93,7 +93,7 @@ describe("StorageManager", () => {
 				timestamp: Date.now(),
 			};
 			await expect(storageManager.getApiKey(invalidContext)).rejects.toThrow(
-				"Access denied",
+				"Content script cannot write API keys - security policy violation",
 			);
 		});
 

@@ -108,13 +108,60 @@ export async function isProviderConfigured(
 				timestamp: Date.now(),
 			});
 			return !!apiKey;
-		} catch (_error) {
-			// If there's an error accessing the API key, treat as not configured
-			return false;
+		} catch (error) {
+			const errorMessage = (error as Error).message;
+			
+			// Handle rate limit errors with retry logic
+			if (errorMessage.includes("Rate limit exceeded")) {
+				try {
+					// Wait briefly and retry once for rate limit errors
+					await new Promise(resolve => setTimeout(resolve, 1000));
+					const apiKey = await storage.getApiKey({
+						source: "background",
+						action: "read",
+						timestamp: Date.now(),
+					});
+					return !!apiKey;
+				} catch (retryError) {
+					// If retry also fails with rate limiting, check raw storage as fallback
+					// This indicates heavy usage but key might still exist
+					const retryErrorMessage = (retryError as Error).message;
+					if (retryErrorMessage.includes("Rate limit exceeded")) {
+						try {
+							const rawData = await chrome.storage.sync.get("geminiApiKey");
+							// For rate limit errors, assume key exists if raw data exists
+							// User can retry later when rate limit resets
+							return !!rawData.geminiApiKey;
+						} catch {
+							return false;
+						}
+					} else {
+						// Non-rate-limit error on retry, re-throw
+						throw retryError;
+					}
+				}
+			}
+			
+			// Handle non-rate-limit errors (decryption, storage corruption, etc.)
+			try {
+				const rawData = await chrome.storage.sync.get("geminiApiKey");
+				// For non-rate-limit errors, only assume key exists if we can't decrypt but data exists
+				// This handles device changes, key rotation, etc.
+				return !!rawData.geminiApiKey;
+			} catch {
+				// If we can't even check for raw data, treat as not configured
+				return false;
+			}
 		}
 	} else {
-		const apiKey = await getApiKey(providerId);
-		return !!apiKey;
+		try {
+			const apiKey = await getApiKey(providerId);
+			return !!apiKey;
+		} catch (error) {
+			// For other providers, if getApiKey fails, they're not configured
+			// (Other providers use simple base64 encoding, less likely to have decryption issues)
+			return false;
+		}
 	}
 }
 
