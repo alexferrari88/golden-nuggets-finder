@@ -29,7 +29,7 @@ export class LangChainAnthropicProvider implements LLMProvider {
 		this.model = new ChatAnthropic({
 			apiKey: config.apiKey,
 			model: this.modelName,
-			temperature: 0,
+			temperature: 0.2,
 		});
 	}
 
