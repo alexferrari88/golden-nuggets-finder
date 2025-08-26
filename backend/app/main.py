@@ -382,6 +382,8 @@ async def get_current_optimized_prompt(
                     prompt=fallback_message,
                     optimizationDate="",
                     performance={"feedbackCount": 0, "positiveRate": 0.0},
+                    modelProvider=provider,
+                    modelName=model,
                 )
 
     except Exception as e:

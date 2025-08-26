@@ -119,9 +119,9 @@ class TestOptimizationService:
         """Test optimization service initialization"""
         service = OptimizationService()
 
-        # Should have baseline prompt
-        assert service.baseline_prompt
-        assert len(service.baseline_prompt) > 100  # Should be substantial
+        # Should have chrome extension default prompt
+        assert service.chrome_extension_default_prompt
+        assert len(service.chrome_extension_default_prompt) > 100  # Should be substantial
 
         # Should have executor for background tasks
         assert service.executor is not None
