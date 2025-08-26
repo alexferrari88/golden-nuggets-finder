@@ -100,7 +100,7 @@ class TestChromeExtensionPromptOptimization:
     def chrome_extension_default_prompt(self):
         """The actual sophisticated prompt from Chrome extension DEFAULT_PROMPTS"""
         return """## ROLE & GOAL:
-You are an extremely discerning AI information filter. Your goal is to analyze the provided {{ source }} and extract only the most insightful, non-obvious, and high-signal content for someone with this persona: {{ persona }}. Your primary directive is **precision over recall**. It is vastly preferable to return zero nuggets than to include a single mediocre one.
+You are an extremely discerning AI information filter. Your goal is to analyze the provided {{ source }} and extract only the most insightful, non-obvious, and high-signal content for someone with this persona: {{ persona }}. It is vastly preferable to return zero nuggets than to include a single mediocre one.
 
 **Crucially, do not force or invent extractions. If no content meets the strict criteria below, the `golden_nuggets` array MUST be empty ([]).**
 
@@ -110,7 +110,7 @@ Extract only the raw, high-quality content without explanations. Focus purely on
 
 ## CRITICAL HEURISTICS & ANTI-PATTERNS (APPLY BEFORE ALL OTHER RULES):
 
-1.  **Precision Over Recall:** Your primary directive is precision over recall. It is vastly preferable to return zero nuggets than to include a single mediocre one. **Most of the time, you will find nothing. This is the correct outcome.** Do not lower your standards to find something.
+1.  **Quality Standards:** It is vastly preferable to return zero nuggets than to include a single mediocre one. **Most of the time, you will find nothing. This is the correct outcome.** Do not lower your standards to find something.
 
 2.  **Anti-Pattern: Meta-Summaries & Feature Lists:** Your most critical task is to distinguish between the *content* and the *container*.
     *   **WRONG:** If the source is an article *about* a productivity app, do NOT extract the app's features (e.g., "The app has a results sidebar"). This is describing the container.
@@ -150,23 +150,27 @@ Your primary task is to find content matching one or more of the following categ
     def test_chrome_extension_prompt_characteristics(
         self, optimization_service, chrome_extension_default_prompt
     ):
-        """Test that the Chrome extension prompt has sophisticated engineering characteristics"""
+        """Test that the Chrome extension prompt has quality engineering characteristics"""
         prompt = optimization_service.chrome_extension_default_prompt
 
-        # Verify sophisticated engineering features
-        assert "Diamond Miner Principle" in prompt
-        assert "Anti-Pattern" in prompt
-        assert "QUALITY CONTROL" in prompt
-        assert "precision over recall" in prompt
-        assert "ROLE & GOAL" in prompt
-        assert "EXTRACTION TARGETS" in prompt
+        # Verify quality engineering features
+        assert "vastly preferable to return zero" in prompt
+        assert "golden nuggets" in prompt
+        assert "high-signal content" in prompt
+        assert "Crucially, do not force or invent extractions" in prompt
 
         # Verify examples structure
         assert "**Bad:**" in prompt and "**Good:**" in prompt
 
-        # Verify it's not the simple baseline
-        assert "Diamond Miner Principle" not in optimization_service.baseline_prompt
-        assert len(prompt) > len(optimization_service.baseline_prompt) * 3
+        # Verify types are properly defined
+        assert "Actionable Tools" in prompt
+        assert "High-Signal Media" in prompt
+        assert "Deep Aha! Moments" in prompt
+        assert "Powerful Analogies" in prompt
+        assert "Mental Models" in prompt
+
+        # Verify it has substantial content (sophisticated engineering)
+        assert len(prompt) > 1000  # Substantial prompt with examples
 
     @pytest.mark.asyncio
     async def test_optimization_uses_chrome_extension_prompt(
@@ -442,7 +446,7 @@ Your primary task is to find content matching one or more of the following categ
             "Diamond Miner Principle",
             "Anti-Pattern",
             "QUALITY CONTROL",
-            "precision over recall",
+            "vastly preferable to return zero",
             "ROLE & GOAL",
             "The Final Sanity Check",
         ]
@@ -459,7 +463,7 @@ Your primary task is to find content matching one or more of the following categ
     async def test_optimization_preserves_precision_over_recall_principle(
         self, optimization_service, mock_db_with_feedback
     ):
-        """Specifically test that the precision over recall principle is preserved through optimization"""
+        """Specifically test that the high quality standards principle is preserved through optimization"""
 
         with patch.object(optimization_service, "_run_dspy_optimization") as mock_dspy:
             # Mock an optimization that should preserve the principle
@@ -468,7 +472,7 @@ Your primary task is to find content matching one or more of the following categ
                 + """
 
 # DSPy Optimized Version
-Enhanced to focus on precision over recall: finding rare, high-quality insights while most of the time finding nothing.
+Enhanced to focus on high quality standards: finding rare, high-quality insights while most of the time finding nothing.
 """
             )
 

@@ -22,11 +22,11 @@ DSPY_AVAILABLE = importlib.util.find_spec("dspy") is not None
 if not DSPY_AVAILABLE:
     print("Warning: DSPy not available. Optimization features will be limited.")
 
-from .dspy_multi_model_manager import dspy_multi_model_manager
-from .feedback_service import FeedbackService
-
 # Import models for type hints
 from typing import TYPE_CHECKING
+
+from .dspy_multi_model_manager import dspy_multi_model_manager
+from .feedback_service import FeedbackService
 
 if TYPE_CHECKING:
     from ..models import ChromeExtensionPrompt
@@ -85,7 +85,7 @@ class OptimizationService:
         # Chrome Extension DEFAULT_PROMPTS (sophisticated, engineered prompt)
         # This is the actual prompt from the Chrome extension that should be optimized,
         # not a baseline placeholder. It contains sophisticated engineering:
-        # - Precision over recall approach
+        # - High quality standards approach
         # - Anti-patterns and heuristics
         # - Quality control mechanisms
         # - Precise type definitions
@@ -93,7 +93,7 @@ class OptimizationService:
 You are an AI assistant tasked with analyzing content and extracting valuable insights, which we call "golden nuggets."
 These golden nuggets should be tailored to a specific persona and categorized into specific types.
 Your goal is to analyze the provided content and extract only the most insightful, non-obvious, and high-signal content for someone with this persona: {{ persona }}.
-Your primary directive is **precision over recall**. It is vastly preferable to return zero nuggets than to include a single mediocre one.
+It is vastly preferable to return zero nuggets than to include a single mediocre one.
 
 **Crucially, do not force or invent extractions. If no content meets the strict criteria below, the `golden_nuggets` array MUST be empty ([]).**
 
@@ -239,7 +239,7 @@ Your task is to analyze the given content, extract the most relevant golden nugg
                     "prompt_type": prompt_type,
                     "uses_chrome_extension_default": prompt_type
                     == "chrome_extension_sophisticated",
-                    "has_precision_over_recall": "precision over recall"
+                    "has_quality_standards": "vastly preferable to return zero"
                     in self.chrome_extension_default_prompt,
                     "has_anti_patterns": "Anti-Pattern"
                     in self.chrome_extension_default_prompt,
@@ -538,7 +538,7 @@ Your task is to analyze the given content, extract the most relevant golden nugg
 # - High-quality content that users find valuable
 # - Avoiding content that received negative feedback
 # - Including user-identified missing golden nuggets
-# - Maintaining precision over recall approach and quality control heuristics
+# - Maintaining high quality standards and quality control heuristics
 
 Return valid JSON with the exact structure: {{"golden_nuggets": [...]}}"""
 
@@ -687,12 +687,12 @@ Return valid JSON with the exact structure: {{"golden_nuggets": [...]}}"""
         """Analyze and log characteristics of the prompt being optimized"""
         analysis = {
             "length_chars": len(prompt),
-            "has_precision_over_recall": "precision over recall" in prompt,
+            "has_quality_standards": "vastly preferable to return zero" in prompt,
             "has_anti_patterns": "Anti-Pattern" in prompt,
             "has_quality_control": "QUALITY CONTROL" in prompt,
             "has_extraction_targets": "EXTRACTION TARGETS" in prompt,
             "has_role_and_goal": "ROLE & GOAL" in prompt,
-            "mentions_precision_over_recall": "precision over recall" in prompt,
+            "mentions_quality_standards": "vastly preferable to return zero" in prompt,
             "uses_examples": "**Bad:**" in prompt and "**Good:**" in prompt,
             "sophisticated_engineering": True,
         }
@@ -722,12 +722,12 @@ Return valid JSON with the exact structure: {{"golden_nuggets": [...]}}"""
         )
 
         quality_preservation = {
-            "preserved_precision_over_recall": (
-                original_analysis["has_precision_over_recall"]
+            "preserved_quality_standards": (
+                original_analysis["has_quality_standards"]
                 and (
-                    optimized_analysis["has_precision_over_recall"]
-                    or "precision over recall" in optimized_prompt.lower()
-                    or "precision" in optimized_prompt.lower()
+                    optimized_analysis["has_quality_standards"]
+                    or "vastly preferable to return zero" in optimized_prompt.lower()
+                    or "quality" in optimized_prompt.lower()
                 )
             ),
             "preserved_anti_patterns": (
@@ -1808,7 +1808,7 @@ Based on {len(training_examples)} user feedback examples, focus on:
 - Avoiding content that received negative feedback
 - Including user-identified missing golden nuggets
 
-Remember to preserve the precision over recall approach and all sophisticated heuristics above.
+Remember to preserve the high quality standards and all sophisticated heuristics above.
 Return valid JSON with the exact structure: {{"golden_nuggets": [...]}}"""
 
             return {
@@ -1830,7 +1830,7 @@ Return valid JSON with the exact structure: {{"golden_nuggets": [...]}}"""
         """
         Extract the optimized prompt from DSPy module while preserving Chrome extension prompt structure.
 
-        This ensures that sophisticated prompt engineering (precision over recall approach, anti-patterns, etc.)
+        This ensures that sophisticated prompt engineering (high quality standards, anti-patterns, etc.)
         is preserved through the optimization process.
         """
         try:
@@ -1949,7 +1949,7 @@ Return valid JSON with the exact structure: {{"golden_nuggets": [...]}}"""
         This returns the actual default Chrome extension prompt instead of the old baseline_prompt.
         """
         return """## ROLE & GOAL:
-You are an extremely discerning AI information filter. Your goal is to analyze the provided {{ source }} and extract only the most insightful, non-obvious, and high-signal content for someone with this persona: {{ persona }}. Your primary directive is **precision over recall**. It is vastly preferable to return zero nuggets than to include a single mediocre one.
+You are an extremely discerning AI information filter. Your goal is to analyze the provided {{ source }} and extract only the most insightful, non-obvious, and high-signal content for someone with this persona: {{ persona }}. It is vastly preferable to return zero nuggets than to include a single mediocre one.
 
 **Crucially, do not force or invent extractions. If no content meets the strict criteria below, the `golden_nuggets` array MUST be empty ([]).**
 
@@ -1959,7 +1959,7 @@ Extract only the raw, high-quality content without explanations. Focus purely on
 
 ## CRITICAL HEURISTICS & ANTI-PATTERNS (APPLY BEFORE ALL OTHER RULES):
 
-1.  **Precision Over Recall:** Your primary directive is precision over recall. It is vastly preferable to return zero nuggets than to include a single mediocre one. **Most of the time, you will find nothing. This is the correct outcome.** Do not lower your standards to find something.
+1.  **Quality Standards:** It is vastly preferable to return zero nuggets than to include a single mediocre one. **Most of the time, you will find nothing. This is the correct outcome.** Do not lower your standards to find something.
 
 2.  **Anti-Pattern: Meta-Summaries & Feature Lists:** Your most critical task is to distinguish between the *content* and the *container*.
     *   **WRONG:** If the source is an article *about* a productivity app, do NOT extract the app's features (e.g., "The app has a results sidebar"). This is describing the container.
