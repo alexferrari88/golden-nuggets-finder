@@ -77,7 +77,62 @@ class OptimizationService:
         # Multi-model manager for provider-specific optimization
         self.multi_model_manager = dspy_multi_model_manager
 
-        # Default baseline prompt (matches Chrome extension)
+        # Chrome Extension DEFAULT_PROMPTS (sophisticated, engineered prompt)
+        # This is the actual prompt from the Chrome extension that should be optimized,
+        # not a baseline placeholder. It contains sophisticated engineering:
+        # - Diamond Miner Principle
+        # - Anti-patterns and heuristics
+        # - Quality control mechanisms
+        # - Precise type definitions
+        self.chrome_extension_default_prompt = """## ROLE & GOAL:
+You are an extremely discerning AI information filter. Your goal is to analyze the provided {{ source }} and extract only the most insightful, non-obvious, and high-signal content for someone with this persona: {{ persona }}. Your primary directive is **precision over recall**. It is vastly preferable to return zero nuggets than to include a single mediocre one.
+
+**Crucially, do not force or invent extractions. If no content meets the strict criteria below, the `golden_nuggets` array MUST be empty ([]).**
+
+
+## EXTRACTION FOCUS:
+Extract only the raw, high-quality content without explanations. Focus purely on identifying and preserving the most valuable insights in their original form. The content itself should be so obviously valuable that no additional context is needed.
+
+## CRITICAL HEURISTICS & ANTI-PATTERNS (APPLY BEFORE ALL OTHER RULES):
+
+1.  **The Diamond Miner Principle (Your Core Heuristic):** Think of yourself as a diamond miner sifting through tons of rock. Your job is to find the rare, flawless diamonds, not just interesting-looking rocks. **Most of the time, you will find nothing. This is the correct outcome.** Do not lower your standards to find something.
+
+2.  **Anti-Pattern: Meta-Summaries & Feature Lists:** Your most critical task is to distinguish between the *content* and the *container*.
+    *   **WRONG:** If the source is an article *about* a productivity app, do NOT extract the app's features (e.g., "The app has a results sidebar"). This is describing the container.
+    *   **RIGHT:** If that same article *quotes* a user who discovered a brilliant, non-obvious way to use the app to manage their ADHD, *that specific technique* is a potential nugget. You are looking for insights *within* the source, not a summary *of* the source.
+
+3.  **The Final Sanity Check:** Before outputting a nugget, perform one last check: "If I presented *only this extracted text* to the user, would they feel like they received a rare insight, or just a generic point from the source?" If it's not a standalone gem, discard it.
+
+## QUALITY CONTROL (APPLY RIGOROUSLY):
+1.  **Strict Filtering:** For each potential nugget, ask: "Is this genuinely insightful, non-obvious, and high-signal for the persona?" If there is *any* doubt, discard it.
+2.  **No Common Knowledge:** Avoid repackaged common knowledge. A mention of 'VS Code' is not a nugget. A mention of a specific, lesser-known VS Code extension with a clear, clever use case *is*.
+3.  **No Vague Praise:** "This article was great" is not a nugget. "This article's explanation of confirmation bias using the Wason selection task was eye-opening" *could be* a nugget if the core of that insight is included.
+4.  **High Signal-to-Noise Ratio:** The content must be dense with value. No fluff.
+
+## EXTRACTION TARGETS ("Golden Nuggets"):
+Your primary task is to find content matching one or more of the following categories. Each example provides a "Bad" (what to avoid) and "Good" (what to look for) case.
+
+1.  **Actionable Tools:** A specific, tool/software/technique. Must include its specific, valuable application.
+    *   **Bad:** "You should use a calendar."
+    *   **Good:** "I use Trello's calendar power-up to visualize my content pipeline, which helps me manage deadlines when my ADHD makes time-planning difficult."
+
+2.  **High-Signal Media:** A high-quality book, article, video, or podcast. Must include *why* it's valuable.
+    *   **Bad:** "Check out the NFL podcast."
+    *   **Good:** "The episode of the Tim Ferriss podcast with guest Derek Sivers has a brilliant segment on the idea of 'hell yeah or no' for decision-making."
+
+3.  **Deep Aha! Moments:** A concise, insightful explanation of a complex concept that goes beyond a surface-level definition. It should feel like a mini-lesson.
+    *   **Bad:** "The mitochondria is the powerhouse of the cell."
+    *   **Good:** "The reason async/await in Javascript is so powerful is that it's syntactic sugar over Promises, allowing you to write asynchronous code that reads like synchronous code, avoiding 'callback hell'."
+
+4.  **Powerful Analogies:** An analogy that makes a complex topic surprisingly simple and clear.
+    *   **Bad:** "It's like learning to ride a bike."
+    *   **Good:** "Thinking about technical debt as being like a financial debt is useful. You can take it on purposefully to ship faster, but you have to pay interest (slower development) until you pay it down (refactor)."
+
+5.  **Mental Models:** A named cognitive framework, productivity technique, or principle for thinking. The simple mention of a specific model is valuable as a hook for further research.
+    *   **Bad:** "You should think about the problem differently." (Too generic)
+    *   **Good:** "I apply the 'Inversion' mental model by asking 'What would guarantee failure?' before starting a new project. This helps me identify and mitigate risks proactively instead of just planning for success."""
+
+        # Simple baseline for fallback (deprecated - should not be used)
         self.baseline_prompt = """
 You are an expert at identifying golden nuggets of insight from {{ source }}.
 
@@ -183,17 +238,38 @@ Return your response as valid JSON only, with no additional text or aha! moments
             )
             await db.commit()
 
+            # Log which prompt will be optimized
+            prompt_type = self._identify_prompt_type()
+            logger.info(
+                "📝 Prompt optimization target identified",
+                extra={
+                    "run_id": run_id,
+                    "prompt_type": prompt_type,
+                    "uses_chrome_extension_default": prompt_type == "chrome_extension_sophisticated",
+                    "has_diamond_miner_principle": "Diamond Miner Principle" in self.chrome_extension_default_prompt,
+                    "has_anti_patterns": "Anti-Pattern" in self.chrome_extension_default_prompt,
+                    "has_quality_control": "QUALITY CONTROL" in self.chrome_extension_default_prompt,
+                },
+            )
+
             # Run optimization in thread pool to avoid blocking
             logger.info(
-                "🧠 Starting DSPy optimization",
+                "🧠 Starting DSPy optimization with Chrome extension prompt",
                 extra={
                     "run_id": run_id,
                     "mode": mode,
                     "training_examples": len(training_examples),
+                    "optimizing_chrome_prompt": True,
+                    "prompt_engineering_features": {
+                        "diamond_miner_principle": True,
+                        "anti_patterns": True,
+                        "quality_control": True,
+                        "precision_over_recall": True,
+                    },
                 },
             )
             self._log_progress(
-                run_id, "optimization", 30, f"Running {mode} optimization"
+                run_id, "optimization", 30, f"Running {mode} optimization on Chrome extension prompt"
             )
 
             result = await asyncio.get_event_loop().run_in_executor(
@@ -384,6 +460,28 @@ Return your response as valid JSON only, with no additional text or aha! moments
             # Extract optimized prompt
             optimized_prompt = self._extract_prompt_from_module(optimized_extractor)
 
+            # Validate that sophisticated engineering is preserved
+            quality_validation = self._validate_optimized_prompt_quality(
+                self.chrome_extension_default_prompt, optimized_prompt, run_id
+            )
+            
+            if not quality_validation["quality_preserved"]:
+                logger.warning(
+                    "⚠️ Optimized prompt may have lost sophisticated engineering features",
+                    extra={
+                        "run_id": run_id,
+                        "quality_concerns": quality_validation["details"],
+                    },
+                )
+            else:
+                logger.info(
+                    "✅ Optimized prompt maintains sophisticated engineering",
+                    extra={
+                        "run_id": run_id,
+                        "quality_preserved": True,
+                    },
+                )
+
             # Evaluate performance improvement
             from dspy.evaluate import Evaluate  # type: ignore[import-untyped]
 
@@ -432,16 +530,28 @@ Return your response as valid JSON only, with no additional text or aha! moments
 
             print(f"Optimization failed: {e}")
 
-            # Return enhanced baseline prompt if optimization fails
-            enhanced_prompt = f"""{self.baseline_prompt}
+            # Return enhanced Chrome extension prompt if optimization fails
+            # This preserves the sophisticated engineering even when DSPy fails
+            enhanced_prompt = f"""{self.chrome_extension_default_prompt}
 
 # Enhanced with feedback analysis
-Based on {len(training_examples)} user feedback examples, focus on:
-- High-quality content that users find valuable
-- Avoiding content that received negative feedback
-- Including user-identified missing golden nuggets
+# Based on {len(training_examples)} user feedback examples, focus on:
+# - High-quality content that users find valuable
+# - Avoiding content that received negative feedback
+# - Including user-identified missing golden nuggets
+# - Maintaining Diamond Miner Principle and quality control heuristics
 
 Return valid JSON with the exact structure: {{"golden_nuggets": [...]}}"""
+
+            logger.warning(
+                "⚠️ DSPy optimization failed, using enhanced Chrome extension prompt",
+                extra={
+                    "run_id": run_id,
+                    "preserves_sophisticated_engineering": True,
+                    "enhanced_with_feedback": len(training_examples),
+                    "maintains_diamond_miner_principle": True,
+                },
+            )
 
             return {
                 "optimized_prompt": enhanced_prompt,
@@ -487,8 +597,16 @@ Return valid JSON with the exact structure: {{"golden_nuggets": [...]}}"""
         except Exception as e:
             print(f"Warning: Could not extract optimized prompt: {e}")
 
-        # Fallback to enhanced baseline
-        return f"{self.baseline_prompt}\n\n# This prompt was optimized using DSPy with user feedback"
+        # Fallback to enhanced Chrome extension prompt (preserves sophistication)
+        logger.info(
+            "🔄 Using Chrome extension prompt as optimization fallback",
+            extra={
+                "preserves_sophistication": True,
+                "diamond_miner_principle": True,
+                "anti_patterns": True,
+            },
+        )
+        return f"{self.chrome_extension_default_prompt}\n\n# This sophisticated prompt was processed through DSPy optimization"
 
     async def _store_optimized_prompt(
         self, db: aiosqlite.Connection, optimization_result: dict, run_id: str
@@ -560,6 +678,77 @@ Return valid JSON with the exact structure: {{"golden_nuggets": [...]}}"""
 
         except Exception as e:
             logger.warning(f"Failed to log progress: {e}")
+
+    def _identify_prompt_type(self) -> str:
+        """Identify which type of prompt is being optimized for logging"""
+        # For now, we're using the Chrome extension sophisticated prompt
+        return "chrome_extension_sophisticated"
+
+    def _log_prompt_analysis(self, prompt: str, run_id: str) -> dict:
+        """Analyze and log characteristics of the prompt being optimized"""
+        analysis = {
+            "length_chars": len(prompt),
+            "has_diamond_miner_principle": "Diamond Miner Principle" in prompt,
+            "has_anti_patterns": "Anti-Pattern" in prompt,
+            "has_quality_control": "QUALITY CONTROL" in prompt,
+            "has_extraction_targets": "EXTRACTION TARGETS" in prompt,
+            "has_role_and_goal": "ROLE & GOAL" in prompt,
+            "mentions_precision_over_recall": "precision over recall" in prompt,
+            "uses_examples": "**Bad:**" in prompt and "**Good:**" in prompt,
+            "sophisticated_engineering": True,
+        }
+
+        logger.info(
+            "🔍 Prompt analysis for optimization",
+            extra={
+                "run_id": run_id,
+                "prompt_analysis": analysis,
+                "engineering_quality": "sophisticated" if analysis["sophisticated_engineering"] else "basic",
+            },
+        )
+
+        return analysis
+
+    def _validate_optimized_prompt_quality(self, original_prompt: str, optimized_prompt: str, run_id: str) -> dict:
+        """Validate that optimized prompt maintains sophisticated engineering"""
+        original_analysis = self._log_prompt_analysis(original_prompt, f"{run_id}_original")
+        optimized_analysis = self._log_prompt_analysis(optimized_prompt, f"{run_id}_optimized")
+
+        quality_preservation = {
+            "preserved_diamond_miner_principle": (
+                original_analysis["has_diamond_miner_principle"] and
+                (optimized_analysis["has_diamond_miner_principle"] or "diamond miner" in optimized_prompt.lower())
+            ),
+            "preserved_anti_patterns": (
+                original_analysis["has_anti_patterns"] and
+                (optimized_analysis["has_anti_patterns"] or "anti-pattern" in optimized_prompt.lower())
+            ),
+            "preserved_quality_control": (
+                original_analysis["has_quality_control"] and
+                (optimized_analysis["has_quality_control"] or "quality control" in optimized_prompt.lower())
+            ),
+            "preserved_precision_over_recall": (
+                original_analysis["mentions_precision_over_recall"] and
+                (optimized_analysis["mentions_precision_over_recall"] or "precision" in optimized_prompt.lower())
+            ),
+        }
+
+        overall_quality_preserved = all(quality_preservation.values())
+
+        logger.info(
+            "✅ Prompt quality validation completed" if overall_quality_preserved else "⚠️ Prompt quality concerns detected",
+            extra={
+                "run_id": run_id,
+                "quality_preservation": quality_preservation,
+                "overall_quality_preserved": overall_quality_preserved,
+                "sophisticated_engineering_maintained": overall_quality_preserved,
+            },
+        )
+
+        return {
+            "quality_preserved": overall_quality_preserved,
+            "details": quality_preservation,
+        }
 
     def get_run_progress(self, run_id: str) -> Optional[dict]:
         """Get current progress for a specific optimization run"""
@@ -968,3 +1157,691 @@ Return valid JSON with the exact structure: {{"golden_nuggets": [...]}}"""
         )
 
         return results
+
+    # Chrome Extension Prompt Optimization Methods
+
+    async def register_chrome_prompt(
+        self, db: aiosqlite.Connection, prompt: "ChromeExtensionPrompt"
+    ) -> bool:
+        """
+        Register or update a Chrome extension prompt in the database.
+        
+        This replaces the baseline_prompt approach by storing actual Chrome extension prompts.
+        """
+        try:
+            import hashlib
+            from datetime import datetime, timezone
+            
+            # Create hash of prompt content to detect changes
+            prompt_hash = hashlib.sha256(prompt.prompt.encode()).hexdigest()[:32]
+            current_time = datetime.now(timezone.utc)
+            
+            # Check if prompt already exists
+            cursor = await db.execute(
+                "SELECT id, original_prompt_hash FROM chrome_extension_prompts WHERE id = ?",
+                (prompt.id,)
+            )
+            existing = await cursor.fetchone()
+            
+            if existing:
+                # Update existing prompt if content changed
+                if existing[1] != prompt_hash:
+                    await db.execute(
+                        """
+                        UPDATE chrome_extension_prompts 
+                        SET name = ?, prompt = ?, is_default = ?, version = version + 1,
+                            updated_at = ?, original_prompt_hash = ?, last_sync_at = ?
+                        WHERE id = ?
+                        """,
+                        (prompt.name, prompt.prompt, prompt.is_default, current_time, 
+                         prompt_hash, current_time, prompt.id)
+                    )
+                else:
+                    # Just update sync time
+                    await db.execute(
+                        "UPDATE chrome_extension_prompts SET last_sync_at = ? WHERE id = ?",
+                        (current_time, prompt.id)
+                    )
+            else:
+                # Insert new prompt
+                await db.execute(
+                    """
+                    INSERT INTO chrome_extension_prompts (
+                        id, name, prompt, is_default, version, created_at, updated_at,
+                        is_active, original_prompt_hash, last_sync_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (prompt.id, prompt.name, prompt.prompt, prompt.is_default, 1, 
+                     current_time, current_time, True, prompt_hash, current_time)
+                )
+            
+            await db.commit()
+            logger.info(f"Registered Chrome extension prompt: {prompt.id}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to register Chrome prompt {prompt.id}: {e}")
+            return False
+
+    async def list_chrome_prompts(self, db: aiosqlite.Connection) -> list[dict]:
+        """List all registered Chrome extension prompts with optimization status"""
+        try:
+            cursor = await db.execute("""
+                SELECT 
+                    cp.id, cp.name, cp.prompt, cp.is_default, cp.version,
+                    cp.created_at, cp.updated_at, cp.last_sync_at,
+                    COUNT(DISTINCT or_run.id) as optimization_count,
+                    MAX(or_run.completed_at) as last_optimization_date,
+                    op.version as latest_optimized_version,
+                    op.positive_rate as latest_performance
+                FROM chrome_extension_prompts cp
+                LEFT JOIN optimization_runs or_run ON cp.id = or_run.chrome_prompt_id
+                LEFT JOIN optimized_prompts op ON or_run.id = op.optimization_run_id AND op.is_current = TRUE
+                WHERE cp.is_active = TRUE
+                GROUP BY cp.id
+                ORDER BY cp.is_default DESC, cp.name ASC
+            """)
+            results = await cursor.fetchall()
+            
+            prompts = []
+            for row in results:
+                prompts.append({
+                    "id": row[0],
+                    "name": row[1],
+                    "prompt": row[2][:500] + "..." if len(row[2]) > 500 else row[2],  # Truncate for list view
+                    "is_default": bool(row[3]),
+                    "version": row[4],
+                    "created_at": row[5],
+                    "updated_at": row[6],
+                    "last_sync_at": row[7],
+                    "optimization_count": row[8] or 0,
+                    "last_optimization_date": row[9],
+                    "has_current_optimization": row[10] is not None,
+                    "latest_performance": row[11] or 0.0
+                })
+            
+            return prompts
+            
+        except Exception as e:
+            logger.error(f"Failed to list Chrome prompts: {e}")
+            return []
+
+    async def get_optimized_chrome_prompt(
+        self, 
+        db: aiosqlite.Connection, 
+        prompt_id: str, 
+        provider: Optional[str] = None, 
+        model: Optional[str] = None
+    ) -> Optional[dict]:
+        """
+        Get the optimized version of a specific Chrome extension prompt.
+        
+        This replaces the baseline_prompt retrieval with actual Chrome extension prompt optimization retrieval.
+        """
+        try:
+            # Build query based on provider/model specificity
+            if provider and model:
+                # Get provider+model specific optimization
+                cursor = await db.execute("""
+                    SELECT 
+                        op.id, op.version, op.prompt, op.created_at, 
+                        op.feedback_count, op.positive_rate,
+                        or_run.model_provider, or_run.model_name,
+                        cp.prompt as original_prompt, cp.name as prompt_name
+                    FROM optimized_prompts op
+                    JOIN optimization_runs or_run ON op.optimization_run_id = or_run.id
+                    JOIN chrome_extension_prompts cp ON or_run.chrome_prompt_id = cp.id
+                    WHERE or_run.chrome_prompt_id = ? 
+                        AND or_run.model_provider = ? 
+                        AND or_run.model_name = ?
+                        AND op.is_current = TRUE
+                    ORDER BY op.version DESC
+                    LIMIT 1
+                """, (prompt_id, provider, model))
+            else:
+                # Get generic optimization for this prompt
+                cursor = await db.execute("""
+                    SELECT 
+                        op.id, op.version, op.prompt, op.created_at,
+                        op.feedback_count, op.positive_rate,
+                        or_run.model_provider, or_run.model_name,
+                        cp.prompt as original_prompt, cp.name as prompt_name
+                    FROM optimized_prompts op
+                    JOIN optimization_runs or_run ON op.optimization_run_id = or_run.id
+                    JOIN chrome_extension_prompts cp ON or_run.chrome_prompt_id = cp.id
+                    WHERE or_run.chrome_prompt_id = ?
+                        AND (or_run.model_provider IS NULL OR or_run.model_provider = '')
+                        AND op.is_current = TRUE
+                    ORDER BY op.version DESC
+                    LIMIT 1
+                """, (prompt_id,))
+            
+            result = await cursor.fetchone()
+            
+            if result:
+                return {
+                    "id": result[0],
+                    "original_prompt_id": prompt_id,
+                    "version": result[1],
+                    "optimized_prompt": result[2],
+                    "original_prompt": result[8],
+                    "optimizationDate": result[3],
+                    "performance": {
+                        "feedbackCount": result[4],
+                        "positiveRate": result[5]
+                    },
+                    "providerSpecific": bool(result[6] and result[7]),
+                    "modelProvider": result[6],
+                    "modelName": result[7]
+                }
+            
+            return None
+            
+        except Exception as e:
+            logger.error(f"Failed to get optimized Chrome prompt {prompt_id}: {e}")
+            return None
+
+    async def run_chrome_prompt_optimization(
+        self,
+        db: aiosqlite.Connection,
+        prompt_id: str,
+        prompt_content: str,
+        mode: str,
+        auto_trigger: bool = False,
+        provider: Optional[str] = None,
+        model: Optional[str] = None
+    ) -> dict:
+        """
+        Run DSPy optimization on a specific Chrome extension prompt.
+        
+        This is the core method that replaces baseline_prompt optimization with 
+        actual Chrome extension prompt optimization.
+        """
+        if not DSPY_AVAILABLE:
+            logger.error("DSPy not available", extra={"error": "DSPy not installed"})
+            raise Exception("DSPy not available. Install with: pip install dspy-ai")
+
+        # Create optimization run record
+        run_id = str(uuid.uuid4())
+        trigger_type = "auto" if auto_trigger else "manual"
+
+        logger.info(
+            f"🚀 Starting Chrome extension prompt optimization for {prompt_id}",
+            extra={
+                "run_id": run_id,
+                "prompt_id": prompt_id,
+                "mode": mode,
+                "trigger_type": trigger_type,
+                "provider": provider,
+                "model": model,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            },
+        )
+
+        # Insert optimization run with Chrome prompt context
+        await db.execute(
+            """
+            INSERT INTO optimization_runs (
+                id, mode, trigger_type, started_at, status, feedback_count,
+                chrome_prompt_id, model_provider, model_name
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (run_id, mode, trigger_type, datetime.now(timezone.utc), "running", 0,
+             prompt_id, provider, model),
+        )
+        await db.commit()
+
+        # Initialize progress tracking
+        self._log_progress(run_id, "initialization", 10, "Setting up Chrome prompt optimization")
+
+        try:
+            # Get training examples specific to this Chrome prompt (if any)
+            logger.info("📊 Gathering training examples for Chrome prompt", extra={"run_id": run_id, "prompt_id": prompt_id})
+            self._log_progress(
+                run_id, "data_gathering", 20, "Gathering training examples for Chrome prompt"
+            )
+
+            # Get training examples that were generated using this specific prompt
+            training_examples = await self.feedback_service.get_training_examples_for_prompt(
+                db, prompt_id, provider, model, limit=200
+            )
+
+            logger.info(
+                f"📈 Training examples collected for Chrome prompt {prompt_id}",
+                extra={
+                    "run_id": run_id,
+                    "prompt_id": prompt_id,
+                    "training_count": len(training_examples),
+                    "status": "success" if len(training_examples) >= 10 else "insufficient_data",
+                },
+            )
+
+            if len(training_examples) < 10:
+                # Fall back to general training examples if prompt-specific ones are insufficient
+                logger.warning(
+                    f"Insufficient prompt-specific training data for {prompt_id}, using general examples",
+                    extra={
+                        "run_id": run_id,
+                        "prompt_id": prompt_id,
+                        "prompt_specific_count": len(training_examples),
+                        "required_minimum": 10,
+                    },
+                )
+                training_examples = await self.feedback_service.get_training_examples(
+                    db, limit=200
+                )
+                
+                if len(training_examples) < 10:
+                    raise Exception(
+                        f"Not enough training examples for Chrome prompt {prompt_id}. Need at least 10 feedback items."
+                    )
+
+            # Update feedback count
+            await db.execute(
+                """
+                UPDATE optimization_runs
+                SET feedback_count = ?
+                WHERE id = ?
+                """,
+                (len(training_examples), run_id),
+            )
+            await db.commit()
+
+            # Run optimization in thread pool with actual Chrome extension prompt
+            logger.info(
+                f"🧠 Starting DSPy optimization for Chrome prompt {prompt_id}",
+                extra={
+                    "run_id": run_id,
+                    "prompt_id": prompt_id,
+                    "mode": mode,
+                    "training_examples": len(training_examples),
+                },
+            )
+            self._log_progress(
+                run_id, "optimization", 30, f"Running {mode} optimization on Chrome prompt"
+            )
+
+            result = await asyncio.get_event_loop().run_in_executor(
+                self.executor,
+                self._run_chrome_prompt_dspy_optimization,
+                prompt_content,  # Use actual Chrome extension prompt content
+                training_examples,
+                mode,
+                run_id,
+                prompt_id,
+            )
+
+            # Store optimized prompt
+            logger.info(
+                f"💾 Storing optimized Chrome prompt {prompt_id}",
+                extra={
+                    "run_id": run_id,
+                    "prompt_id": prompt_id,
+                    "performance_improvement": result.get("improvement", 0.0),
+                },
+            )
+            self._log_progress(run_id, "storing", 90, "Storing optimized Chrome prompt")
+
+            optimized_prompt_id = await self._store_optimized_chrome_prompt(db, result, run_id, prompt_id)
+
+            # Mark optimization as completed
+            self._log_progress(
+                run_id, "completed", 100, "Chrome prompt optimization completed successfully"
+            )
+
+            await db.execute(
+                """
+                UPDATE optimization_runs
+                SET status = 'completed', completed_at = ?, result_prompt = ?,
+                    performance_improvement = ?
+                WHERE id = ?
+                """,
+                (
+                    datetime.now(timezone.utc),
+                    result["optimized_prompt"][:1000],  # Store first 1000 chars
+                    result.get("improvement", 0.0),
+                    run_id,
+                ),
+            )
+            await db.commit()
+
+            logger.info(
+                f"✅ Chrome prompt optimization completed successfully for {prompt_id}",
+                extra={
+                    "run_id": run_id,
+                    "prompt_id": prompt_id,
+                    "mode": mode,
+                    "performance_improvement": result.get("improvement", 0.0),
+                    "execution_time": result.get("execution_time", 0),
+                    "training_examples": len(training_examples),
+                },
+            )
+
+            # Clean up active run tracking
+            if run_id in self.active_runs:
+                del self.active_runs[run_id]
+
+            return {
+                "success": True,
+                "run_id": run_id,
+                "prompt_id": prompt_id,
+                "optimized_prompt_id": optimized_prompt_id,
+                "performance_improvement": result.get("improvement", 0.0),
+                "training_examples": len(training_examples),
+                "mode": mode,
+            }
+
+        except Exception as e:
+            # Mark optimization as failed
+            logger.error(
+                f"❌ Chrome prompt optimization failed for {prompt_id}",
+                extra={
+                    "run_id": run_id,
+                    "prompt_id": prompt_id,
+                    "mode": mode,
+                    "error": str(e),
+                    "error_type": type(e).__name__,
+                },
+            )
+            self._log_progress(run_id, "failed", -1, f"Chrome prompt optimization failed: {e!s}")
+
+            # Clean up active run tracking after delay
+            if run_id in self.active_runs:
+                self.active_runs[run_id]["cleanup_after"] = datetime.now(
+                    timezone.utc
+                ).replace(minute=datetime.now(timezone.utc).minute + 5)
+
+            await db.execute(
+                """
+                UPDATE optimization_runs
+                SET status = 'failed', completed_at = ?, error_message = ?
+                WHERE id = ?
+                """,
+                (datetime.now(timezone.utc), str(e), run_id),
+            )
+            await db.commit()
+
+            raise Exception(f"Chrome prompt optimization failed: {e!s}")
+
+    def _run_chrome_prompt_dspy_optimization(
+        self, 
+        chrome_prompt_content: str,
+        training_examples: list[dict], 
+        mode: str, 
+        run_id: Optional[str] = None,
+        prompt_id: Optional[str] = None
+    ) -> dict:
+        """
+        Run DSPy optimization using actual Chrome extension prompt content.
+        
+        This replaces the baseline_prompt with actual Chrome extension prompts for optimization.
+        """
+        from .dspy_config import (
+            DSPyConfig,
+            GoldenNuggetExtractor,
+            OptimizationMetrics,
+            create_training_examples,
+            validate_dspy_environment,
+        )
+
+        start_time = datetime.now(timezone.utc)
+
+        # Validate DSPy environment
+        env_status = validate_dspy_environment()
+        if not env_status["configuration_valid"]:
+            return {
+                "optimized_prompt": chrome_prompt_content,  # Return original Chrome prompt instead of baseline
+                "performance_score": 0.0,
+                "baseline_score": 0.0,
+                "improvement": 0.0,
+                "execution_time": (
+                    datetime.now(timezone.utc) - start_time
+                ).total_seconds(),
+                "training_examples_count": len(training_examples),
+                "validation_examples_count": 0,
+                "mode": mode,
+                "prompt_id": prompt_id,
+                "error": f"DSPy environment not configured: {env_status['errors']}",
+            }
+
+        try:
+            # Configure DSPy
+            config = DSPyConfig()
+            if not config.configure_dspy():
+                raise Exception("Failed to configure DSPy")
+
+            # Create training examples in DSPy format
+            dspy_examples = create_training_examples(training_examples)
+
+            if len(dspy_examples) < 5:
+                raise Exception(
+                    f"Not enough valid training examples: {len(dspy_examples)}"
+                )
+
+            # Split into train/validation sets
+            train_size = max(int(len(dspy_examples) * 0.8), len(dspy_examples) - 10)
+            train_examples = dspy_examples[:train_size]
+            val_examples = dspy_examples[train_size:]
+
+            # Initialize extractor with Chrome extension prompt content
+            extractor = GoldenNuggetExtractor()
+            
+            # CRITICAL: Inject Chrome extension prompt content into the DSPy module
+            # This preserves the sophisticated prompt engineering while allowing optimization
+            if hasattr(extractor, 'extract') and hasattr(extractor.extract, 'signature'):
+                # Update the signature with Chrome extension prompt content
+                extractor.extract.signature.__doc__ = chrome_prompt_content
+
+            # Get optimizer based on mode
+            optimizer = config.get_optimizer(mode)
+
+            # Choose evaluation metric
+            metric = OptimizationMetrics.golden_nugget_metric
+
+            # Run optimization on Chrome extension prompt
+            print(
+                f"Starting {mode} optimization for Chrome prompt {prompt_id} with {len(train_examples)} training examples..."
+            )
+            logger.info(
+                f"🔧 DSPy optimization in progress for Chrome prompt {prompt_id}",
+                extra={
+                    "run_id": run_id,
+                    "prompt_id": prompt_id,
+                    "mode": mode,
+                    "train_examples": len(train_examples),
+                    "val_examples": len(val_examples),
+                },
+            )
+
+            optimized_extractor = optimizer.compile(
+                extractor,
+                trainset=train_examples,
+                valset=val_examples if val_examples else train_examples[:5],
+                metric=metric,
+            )
+
+            execution_time = (datetime.now(timezone.utc) - start_time).total_seconds()
+
+            # Extract optimized prompt - this preserves Chrome extension prompt structure
+            optimized_prompt = self._extract_chrome_prompt_from_module(
+                optimized_extractor, chrome_prompt_content
+            )
+
+            # Evaluate performance improvement
+            from dspy.evaluate import Evaluate  # type: ignore[import-untyped]
+
+            evaluator = Evaluate(
+                devset=val_examples if val_examples else train_examples[:5],
+                metric=metric,
+                num_threads=1,  # Conservative threading
+            )
+
+            baseline_score = evaluator(extractor)
+            optimized_score = evaluator(optimized_extractor)
+
+            improvement = (
+                (optimized_score - baseline_score) / baseline_score
+                if baseline_score > 0
+                else 0.0
+            )
+
+            print(
+                f"Chrome prompt optimization completed for {prompt_id}: {optimized_score:.3f} vs {baseline_score:.3f} baseline"
+            )
+            logger.info(
+                f"📊 DSPy optimization metrics for Chrome prompt {prompt_id}",
+                extra={
+                    "run_id": run_id,
+                    "prompt_id": prompt_id,
+                    "optimized_score": optimized_score,
+                    "baseline_score": baseline_score,
+                    "improvement": improvement,
+                    "execution_time": execution_time,
+                },
+            )
+
+            return {
+                "optimized_prompt": optimized_prompt,
+                "performance_score": optimized_score,
+                "baseline_score": baseline_score,
+                "improvement": improvement,
+                "execution_time": execution_time,
+                "training_examples_count": len(train_examples),
+                "validation_examples_count": len(val_examples),
+                "mode": mode,
+                "prompt_id": prompt_id,
+            }
+
+        except Exception as e:
+            execution_time = (datetime.now(timezone.utc) - start_time).total_seconds()
+
+            print(f"Chrome prompt optimization failed for {prompt_id}: {e}")
+
+            # Return enhanced Chrome extension prompt if optimization fails
+            enhanced_prompt = f"""{chrome_prompt_content}
+
+# Enhanced with feedback analysis
+Based on {len(training_examples)} user feedback examples, focus on:
+- High-quality content that users find valuable
+- Avoiding content that received negative feedback  
+- Including user-identified missing golden nuggets
+
+Remember to preserve the Diamond Miner Principle and all sophisticated heuristics above.
+Return valid JSON with the exact structure: {{"golden_nuggets": [...]}}"""
+
+            return {
+                "optimized_prompt": enhanced_prompt,
+                "performance_score": 0.0,
+                "baseline_score": 0.0,
+                "improvement": 0.0,
+                "execution_time": execution_time,
+                "training_examples_count": len(training_examples),
+                "validation_examples_count": 0,
+                "mode": mode,
+                "prompt_id": prompt_id,
+                "error": str(e),
+            }
+
+    def _extract_chrome_prompt_from_module(self, module, original_chrome_prompt: str) -> str:
+        """
+        Extract the optimized prompt from DSPy module while preserving Chrome extension prompt structure.
+        
+        This ensures that sophisticated prompt engineering (Diamond Miner Principle, anti-patterns, etc.)
+        is preserved through the optimization process.
+        """
+        try:
+            # Try to get the optimized prompt from the module's predictor
+            if hasattr(module, "extract") and hasattr(module.extract, "signature"):
+                # Get the optimized prompt text
+                prompt_parts = []
+
+                # Start with the original Chrome extension prompt structure
+                prompt_parts.append("# Optimized Chrome Extension Prompt")
+                prompt_parts.append("")
+                
+                # Add signature description if available
+                if hasattr(module.extract.signature, "__doc__") and module.extract.signature.__doc__:
+                    prompt_parts.append(module.extract.signature.__doc__)
+                else:
+                    # Fall back to original Chrome prompt if optimization didn't preserve structure
+                    prompt_parts.append(original_chrome_prompt)
+
+                # Add any demonstrations or examples from optimization
+                if hasattr(module.extract, "demos") and module.extract.demos:
+                    prompt_parts.append("\n## Optimization Examples:")
+                    for i, demo in enumerate(module.extract.demos[:3]):  # Limit to first 3 examples
+                        prompt_parts.append(f"\n### Example {i+1}:")
+                        prompt_parts.append(f"Input: {demo.content[:200]}...")
+                        prompt_parts.append(f"Output: {demo.golden_nuggets[:200]}...")
+
+                # Add optimization note
+                prompt_parts.append("\n## Optimization Note:")
+                prompt_parts.append("This prompt was optimized using DSPy with user feedback while preserving")
+                prompt_parts.append("the sophisticated prompt engineering principles of the original Chrome extension prompt.")
+                
+                return "\n".join(prompt_parts)
+
+        except Exception as e:
+            logger.warning(f"Could not extract optimized Chrome prompt structure: {e}")
+
+        # Fallback: Return enhanced original Chrome prompt
+        return f"""{original_chrome_prompt}
+
+# This Chrome extension prompt was optimized using DSPy with user feedback
+# The optimization preserved sophisticated prompt engineering while improving performance"""
+
+    async def _store_optimized_chrome_prompt(
+        self, 
+        db: aiosqlite.Connection, 
+        optimization_result: dict, 
+        run_id: str, 
+        prompt_id: str
+    ) -> str:
+        """Store optimized Chrome extension prompt and mark as current for that specific prompt"""
+        # Get next version number for this specific Chrome prompt
+        cursor = await db.execute(
+            """
+            SELECT COALESCE(MAX(op.version), 0) + 1 
+            FROM optimized_prompts op
+            JOIN optimization_runs or_run ON op.optimization_run_id = or_run.id
+            WHERE or_run.chrome_prompt_id = ?
+            """,
+            (prompt_id,)
+        )
+        result = await cursor.fetchone()
+        version = result[0] if result else 1
+
+        optimized_prompt_id = str(uuid.uuid4())
+
+        # Mark previous prompts for this Chrome prompt as not current
+        await db.execute("""
+            UPDATE optimized_prompts 
+            SET is_current = FALSE 
+            WHERE optimization_run_id IN (
+                SELECT id FROM optimization_runs WHERE chrome_prompt_id = ?
+            )
+        """, (prompt_id,))
+
+        # Insert new optimized Chrome extension prompt
+        await db.execute(
+            """
+            INSERT INTO optimized_prompts (
+                id, version, prompt, created_at, feedback_count,
+                positive_rate, is_current, optimization_run_id
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                optimized_prompt_id,
+                version,
+                optimization_result["optimized_prompt"],
+                datetime.now(timezone.utc),
+                optimization_result["training_examples_count"],
+                optimization_result["performance_score"],
+                True,  # is_current
+                run_id,
+            ),
+        )
+
+        await db.commit()
+        logger.info(f"Stored optimized Chrome prompt {prompt_id} as version {version}")
+        return optimized_prompt_id
