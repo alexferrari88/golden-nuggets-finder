@@ -604,7 +604,7 @@ export class MessageHandler {
 							provider,
 							{
 								runs: ensembleRuns,
-								temperature: 0.7,
+								temperature: 0.2,
 								parallelExecution: true,
 							},
 						);
