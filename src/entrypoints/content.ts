@@ -331,7 +331,9 @@ export default defineContentScript({
 				request.type === MESSAGE_TYPES.ANALYSIS_CONTENT_OPTIMIZED ||
 				request.type === MESSAGE_TYPES.ANALYSIS_API_REQUEST_START ||
 				request.type === MESSAGE_TYPES.ANALYSIS_API_RESPONSE_RECEIVED ||
-				request.type === MESSAGE_TYPES.ANALYSIS_PROCESSING_RESULTS
+				request.type === MESSAGE_TYPES.ANALYSIS_PROCESSING_RESULTS ||
+				request.type === MESSAGE_TYPES.ENSEMBLE_EXTRACTION_PROGRESS ||
+				request.type === MESSAGE_TYPES.ENSEMBLE_CONSENSUS_COMPLETE
 			) {
 				handleProgressMessage(request as AnalysisProgressMessage);
 				sendResponse({ success: true });
@@ -372,6 +374,18 @@ export default defineContentScript({
 							request.source,
 							request.analysisId,
 							request.typeFilter,
+						);
+						sendResponse({ success: true });
+						break;
+
+					case MESSAGE_TYPES.ANALYZE_CONTENT_ENSEMBLE:
+						initialize(); // Initialize when needed
+						await analyzeContentEnsemble(
+							request.promptId,
+							request.source,
+							request.analysisId,
+							request.typeFilter,
+							(request as any).ensembleOptions,
 						);
 						sendResponse({ success: true });
 						break;
@@ -588,6 +602,138 @@ export default defineContentScript({
 				performanceMonitor.logTimer(
 					"total_analysis",
 					"Complete analysis workflow",
+				);
+				performanceMonitor.measureMemory();
+			}
+		}
+
+		async function analyzeContentEnsemble(
+			promptId: string,
+			source?: string,
+			providedAnalysisId?: string,
+			typeFilter?: TypeFilterOptions,
+			ensembleOptions?: { runs: number; mode: string },
+		): Promise<void> {
+			try {
+				performanceMonitor.startTimer("total_ensemble_analysis");
+
+				// Use provided analysis ID or generate new one
+				const analysisId = providedAnalysisId || generateAnalysisId();
+
+				// Start real-time progress tracking in UI manager
+				uiManager.startRealTimeProgress(analysisId, source);
+
+				// Show ensemble-specific progress banner
+				if (source !== "popup") {
+					uiManager.showProgressBanner("🎯 Starting Ensemble Analysis...");
+				}
+
+				// Extract content from the page using the same logic as regular analysis
+				const structuredContent = await measureContentExtraction(
+					"ensemble_page_content",
+					async () => {
+						await contentScraper.run();
+						return contentScraper.getContent();
+					},
+				);
+
+				// Convert structured content to text for AI analysis
+				const content = convertContentToText(structuredContent);
+
+				// Store the extracted content for reconstruction purposes
+				extractedPageContent = content;
+
+				if (!content || content.trim().length === 0) {
+					if (source !== "popup") {
+						uiManager.hideProgressBanner();
+					}
+					uiManager.showErrorBanner("No content found on this page.");
+					return;
+				}
+
+				// Send ensemble analysis request to background script
+				const ensembleRequest = {
+					content: content,
+					promptId: promptId,
+					url: window.location.href,
+					analysisId: analysisId,
+					source: source as "popup" | "context-menu",
+					typeFilter: typeFilter,
+					ensembleOptions: ensembleOptions || { runs: 3, mode: "balanced" },
+				};
+
+				performanceMonitor.startTimer("ensemble_api_request");
+				const response = await sendMessageToBackground(
+					MESSAGE_TYPES.ANALYZE_CONTENT_ENSEMBLE,
+					ensembleRequest,
+				);
+				performanceMonitor.logTimer(
+					"ensemble_api_request",
+					"Ensemble Background API call",
+				);
+
+				if (response.success && response.data) {
+					await measureDOMOperation("display_ensemble_results", () =>
+						handleAnalysisResults(response.data as AnalysisResults, source),
+					);
+					// Notify popup and background script of successful completion
+					chrome.runtime.sendMessage({
+						type: MESSAGE_TYPES.ANALYSIS_COMPLETE,
+						fromContentScript: true,
+					});
+				} else {
+					if (source !== "popup") {
+						uiManager.hideProgressBanner();
+					}
+
+					// Enhanced error message for ensemble failures
+					const errorMessage =
+						response.error || "Ensemble analysis failed. Please try again.";
+					const isProviderError =
+						errorMessage.toLowerCase().includes("provider") ||
+						errorMessage.toLowerCase().includes("openrouter") ||
+						errorMessage.toLowerCase().includes("gemini") ||
+						errorMessage.toLowerCase().includes("anthropic");
+
+					const displayMessage = isProviderError
+						? `🔥 LLM Provider Error: ${errorMessage}`
+						: `🎯 Ensemble Error: ${errorMessage}`;
+
+					console.error(
+						"Ensemble analysis failed with provider error:",
+						errorMessage,
+					);
+					uiManager.showErrorBanner(displayMessage);
+
+					// Notify popup of error
+					chrome.runtime.sendMessage({
+						type: MESSAGE_TYPES.ANALYSIS_ERROR,
+						error: errorMessage,
+					});
+				}
+			} catch (error) {
+				console.error("Ensemble analysis failed with exception:", error);
+				if (source !== "popup") {
+					uiManager.hideProgressBanner();
+				}
+
+				const errorMessage =
+					error instanceof Error
+						? error.message
+						: "Ensemble analysis failed with an unexpected error.";
+				uiManager.showErrorBanner(
+					`🎯 Ensemble Analysis Error: ${errorMessage} Please try again.`,
+				);
+
+				// Notify popup of error
+				chrome.runtime.sendMessage({
+					type: MESSAGE_TYPES.ANALYSIS_ERROR,
+					error: errorMessage,
+				});
+			} finally {
+				performanceMonitor.logTimer(
+					"total_ensemble_analysis",
+					"Complete ensemble analysis workflow",
 				);
 				performanceMonitor.measureMemory();
 			}

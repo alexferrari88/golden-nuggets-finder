@@ -6,6 +6,8 @@ import {
 	type AnalysisProgressMessage,
 	type AnalysisRequest,
 	type AnalysisResponse,
+	type EnsembleAnalysisRequest,
+	type EnsembleAnalysisResponse,
 	type ExtensionConfig,
 	type FeedbackStats,
 	type FeedbackSubmission,
@@ -21,6 +23,7 @@ import type {
 	ProviderConfig,
 	ProviderId,
 } from "../shared/types/providers";
+import { EnsembleExtractor } from "./services/ensemble-extractor";
 import {
 	getUserFriendlyMessage,
 	handleProviderError,
@@ -232,6 +235,7 @@ interface DebugTestResponse extends BaseResponse {
 type MessageRequest =
 	| AbortAnalysisRequest
 	| AnalysisRequest
+	| EnsembleAnalysisRequest
 	| AnalyzeSelectedContentRequest
 	| GetPromptsRequest
 	| SavePromptRequest
@@ -255,6 +259,7 @@ type MessageRequest =
 type MessageResponse =
 	| AbortAnalysisResponse
 	| AnalysisResponse
+	| EnsembleAnalysisResponse
 	| GetPromptsResponse
 	| BaseResponse
 	| GetConfigResponse
@@ -295,6 +300,7 @@ function generateAnalysisId(): string {
 export class MessageHandler {
 	// Track ongoing analyses and their abort controllers
 	private static ongoingAnalyses = new Map<string, AbortController>();
+	private ensembleExtractor = new EnsembleExtractor();
 
 	// Helper to classify and enhance backend error messages for users
 	private enhanceBackendError(error: Error | unknown): BackendErrorInfo {
@@ -551,6 +557,8 @@ export class MessageHandler {
 		prompt: string,
 		analysisId?: string,
 		tabId?: number,
+		useEnsemble = false,
+		ensembleRuns = 3,
 	): Promise<GoldenNuggetsResponse> {
 		let currentProviderId: ProviderId | null = null;
 		let attempts = 0;
@@ -585,17 +593,54 @@ export class MessageHandler {
 
 					// Extract golden nuggets
 					const startTime = performance.now();
-					const rawResponse = await provider.extractGoldenNuggets(
-						content,
-						prompt,
-					);
-					const responseTime = performance.now() - startTime;
+					let normalizedResponse: GoldenNuggetsResponse;
 
-					// Normalize response
-					const normalizedResponse = normalizeResponse(
-						rawResponse,
-						providerConfig.providerId,
-					);
+					if (useEnsemble) {
+						// Use ensemble extraction
+						const ensembleExtractor = new EnsembleExtractor();
+						const ensembleResult = await ensembleExtractor.extractWithEnsemble(
+							content,
+							prompt,
+							provider,
+							{
+								runs: ensembleRuns,
+								temperature: 0.7,
+								parallelExecution: true,
+							},
+						);
+
+						// Convert ensemble result to standard response format
+						normalizedResponse = {
+							golden_nuggets: ensembleResult.golden_nuggets.map((nugget) => ({
+								type: nugget.type as
+									| "tool"
+									| "media"
+									| "aha! moments"
+									| "analogy"
+									| "model",
+								startContent: nugget.startContent,
+								endContent: nugget.endContent,
+							})),
+						};
+
+						console.log(
+							`Ensemble extraction completed: ${ensembleResult.metadata.consensusReached} nuggets with ${ensembleResult.metadata.duplicatesRemoved} duplicates removed`,
+						);
+					} else {
+						// Use single extraction (existing logic)
+						const rawResponse = await provider.extractGoldenNuggets(
+							content,
+							prompt,
+						);
+
+						// Normalize response
+						normalizedResponse = normalizeResponse(
+							rawResponse,
+							providerConfig.providerId,
+						);
+					}
+
+					const responseTime = performance.now() - startTime;
 
 					// Store provider metadata for feedback
 					await chrome.storage.local.set({
@@ -711,6 +756,14 @@ export class MessageHandler {
 					break;
 				case MESSAGE_TYPES.ANALYZE_CONTENT:
 					await this.handleAnalyzeContent(request, sender, sendResponse);
+					break;
+
+				case MESSAGE_TYPES.ANALYZE_CONTENT_ENSEMBLE:
+					await this.handleAnalyzeContentEnsemble(
+						request,
+						sender,
+						sendResponse,
+					);
 					break;
 
 				case MESSAGE_TYPES.ANALYZE_SELECTED_CONTENT:
@@ -861,7 +914,13 @@ export class MessageHandler {
 			const source = request.source || "context-menu";
 
 			const prompts = await storage.getPrompts();
-			const prompt = prompts.find((p) => p.id === request.promptId);
+			let prompt: SavedPrompt | undefined;
+
+			if (request.promptId === "default") {
+				prompt = (await storage.getDefaultPrompt()) || undefined;
+			} else {
+				prompt = prompts.find((p) => p.id === request.promptId);
+			}
 
 			if (!prompt) {
 				sendResponse({ success: false, error: "Prompt not found" });
@@ -1038,6 +1097,153 @@ export class MessageHandler {
 		}
 	}
 
+	private async handleAnalyzeContentEnsemble(
+		request: EnsembleAnalysisRequest,
+		sender: chrome.runtime.MessageSender,
+		sendResponse: (response: EnsembleAnalysisResponse) => void,
+	): Promise<void> {
+		try {
+			const analysisId = request.analysisId || generateAnalysisId();
+
+			// Get prompt and validate persona (same as existing)
+			const prompts = await storage.getPrompts();
+			let prompt: SavedPrompt | undefined;
+
+			if (request.promptId === "default") {
+				prompt = (await storage.getDefaultPrompt()) || undefined;
+			} else {
+				prompt = prompts.find((p) => p.id === request.promptId);
+			}
+
+			if (!prompt) {
+				sendResponse({ success: false, error: "Prompt not found" });
+				return;
+			}
+
+			// Validate persona is configured
+			const persona = await storage.getPersona();
+			if (!persona || persona.trim().length === 0) {
+				sendResponse({
+					success: false,
+					error:
+						"Please set a persona in extension options before analyzing content",
+				});
+				return;
+			}
+
+			// Send enhanced progress: ensemble extraction starting
+			this.sendProgressMessage(
+				MESSAGE_TYPES.ENSEMBLE_EXTRACTION_PROGRESS,
+				1,
+				`Starting ensemble extraction (${request.ensembleOptions?.runs || 3} runs)`,
+				analysisId,
+				request.source || "context-menu",
+				sender.tab?.id,
+			);
+
+			// Get provider configuration
+			const providerConfig = await MessageHandler.getSelectedProvider();
+			const provider = await createProvider(providerConfig);
+
+			// Process prompt (same as existing system)
+			let processedPrompt = this.replaceSourcePlaceholder(
+				prompt.prompt,
+				request.url,
+			);
+			processedPrompt = await this.replacePersonaPlaceholder(processedPrompt);
+
+			// Check if we should use optimized prompt from backend
+			try {
+				const optimizedPromptResponse =
+					await this.getOptimizedPromptIfAvailable(prompt.id);
+				if (optimizedPromptResponse?.prompt) {
+					console.log(
+						`Using optimized prompt for ${prompt.id} from backend DSPy system for ensemble`,
+					);
+					processedPrompt = this.replaceSourcePlaceholder(
+						optimizedPromptResponse.prompt,
+						request.url,
+					);
+					// Also replace persona placeholder for optimized prompt
+					processedPrompt =
+						await this.replacePersonaPlaceholder(processedPrompt);
+				}
+			} catch (error) {
+				console.log(
+					`No optimized prompt available for ${prompt.id} for ensemble, using default:`,
+					(error as Error).message,
+				);
+				// Continue with default prompt
+			}
+
+			// Apply type filtering if specified
+			if (request.typeFilter && request.typeFilter.selectedTypes.length > 0) {
+				processedPrompt = generateFilteredPrompt(
+					processedPrompt,
+					request.typeFilter.selectedTypes,
+				);
+			}
+
+			// Send progress: consensus building
+			this.sendProgressMessage(
+				MESSAGE_TYPES.ENSEMBLE_EXTRACTION_PROGRESS,
+				2,
+				"Building consensus across runs",
+				analysisId,
+				request.source || "context-menu",
+				sender.tab?.id,
+			);
+
+			// Execute ensemble extraction
+			const ensembleOptions = {
+				runs: request.ensembleOptions?.runs || 3,
+				temperature: 0.7,
+				parallelExecution: true,
+			};
+
+			const result = await this.ensembleExtractor.extractWithEnsemble(
+				request.content,
+				processedPrompt,
+				provider,
+				ensembleOptions,
+			);
+
+			// Send progress: processing results
+			this.sendProgressMessage(
+				MESSAGE_TYPES.ENSEMBLE_CONSENSUS_COMPLETE,
+				3,
+				"Processing ensemble results",
+				analysisId,
+				request.source || "context-menu",
+				sender.tab?.id,
+			);
+
+			// Add provider metadata
+			const resultWithMetadata = {
+				...result,
+				providerMetadata: {
+					providerId: provider.providerId,
+					modelName: provider.modelName,
+					ensembleRuns: ensembleOptions.runs,
+					consensusMethod: "majority-voting-v1",
+				},
+			};
+
+			// Send results to content script
+			if (sender.tab?.id) {
+				await chrome.tabs.sendMessage(sender.tab.id, {
+					type: MESSAGE_TYPES.ANALYSIS_COMPLETE,
+					data: resultWithMetadata,
+				});
+			}
+
+			sendResponse({ success: true, data: resultWithMetadata });
+		} catch (error) {
+			console.error("Ensemble analysis failed:", error);
+			sendResponse({ success: false, error: (error as Error).message });
+		}
+	}
+
 	private async handleAnalyzeSelectedContent(
 		request: AnalyzeSelectedContentRequest,
 		sender: chrome.runtime.MessageSender,
@@ -1049,7 +1255,13 @@ export class MessageHandler {
 			const source = "context-menu"; // Selected content is always from context menu
 
 			const prompts = await storage.getPrompts();
-			const prompt = prompts.find((p) => p.id === request.promptId);
+			let prompt: SavedPrompt | undefined;
+
+			if (request.promptId === "default") {
+				prompt = (await storage.getDefaultPrompt()) || undefined;
+			} else {
+				prompt = prompts.find((p) => p.id === request.promptId);
+			}
 
 			if (!prompt) {
 				sendResponse({ success: false, error: "Prompt not found" });

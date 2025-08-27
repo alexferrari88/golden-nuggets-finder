@@ -1,3 +1,4 @@
+import { TYPE_CONFIGURATIONS } from "../../background/type-filter-service";
 import {
 	getDisplayContent,
 	reconstructFullContent,
@@ -27,6 +28,10 @@ import type { Highlighter } from "./highlighter";
 interface EnhancedGoldenNugget extends GoldenNugget {
 	_fullContent?: string; // Enhanced content from UIManager
 	content?: string; // Legacy content field during transition
+	// Ensemble properties (optional)
+	confidence?: number;
+	runsSupportingThis?: number;
+	totalRuns?: number;
 }
 
 // Export data structure
@@ -87,6 +92,16 @@ export class Sidebar {
 		},
 	};
 	private keyboardHandler: ((e: KeyboardEvent) => void) | null = null;
+
+	/**
+	 * Get the emoji for a nugget type
+	 */
+	private getTypeEmoji(type: GoldenNuggetType): string {
+		const typeConfig = TYPE_CONFIGURATIONS.find(
+			(config) => config.type === type,
+		);
+		return typeConfig?.emoji || "";
+	}
 
 	/**
 	 * Get display content for a nugget in the sidebar
@@ -897,7 +912,10 @@ export class Sidebar {
 
 		// Type badge - more subtle
 		const typeBadge = document.createElement("span");
-		typeBadge.textContent = item.nugget.type;
+		const typeEmoji = this.getTypeEmoji(item.nugget.type);
+		typeBadge.textContent = typeEmoji
+			? `${typeEmoji} ${item.nugget.type}`
+			: item.nugget.type;
 		typeBadge.style.cssText = `
       background: ${colors.background.tertiary};
       color: ${colors.text.secondary};
@@ -911,6 +929,47 @@ export class Sidebar {
 
 		leftContainer.appendChild(checkbox);
 		leftContainer.appendChild(typeBadge);
+
+		// Confidence display for ensemble results
+		const ensembleNugget = item.nugget as EnhancedGoldenNugget;
+		if (
+			ensembleNugget.confidence !== undefined &&
+			ensembleNugget.runsSupportingThis !== undefined &&
+			ensembleNugget.totalRuns !== undefined
+		) {
+			const confidenceContainer = document.createElement("div");
+			confidenceContainer.style.cssText = `
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: ${spacing.xs};
+        margin-left: ${spacing.sm};
+      `;
+
+			// Confidence stars
+			const confidenceStars = document.createElement("div");
+			const starCount = Math.ceil(ensembleNugget.confidence * 5);
+			const starsText = "⭐".repeat(Math.max(1, Math.min(5, starCount)));
+			confidenceStars.textContent = starsText;
+			confidenceStars.style.cssText = `
+        font-size: ${typography.fontSize.xs};
+        line-height: 1;
+      `;
+
+			// Agreement text
+			const agreementText = document.createElement("div");
+			agreementText.textContent = `(${ensembleNugget.runsSupportingThis}/${ensembleNugget.totalRuns} runs agreed)`;
+			agreementText.style.cssText = `
+        font-size: ${typography.fontSize.xs};
+        color: ${colors.text.secondary};
+        font-style: italic;
+        line-height: 1;
+      `;
+
+			confidenceContainer.appendChild(confidenceStars);
+			confidenceContainer.appendChild(agreementText);
+			leftContainer.appendChild(confidenceContainer);
+		}
 
 		// Selection indicator and status
 		const statusContainer = document.createElement("div");

@@ -5,6 +5,14 @@ import {
 	ui,
 	zIndex,
 } from "../../shared/design-system";
+import { MESSAGE_TYPES } from "../../shared/types";
+
+// Add ensemble-specific progress messages
+const ENSEMBLE_PROGRESS_MESSAGES = {
+	1: (runs: number) => `🎯 Starting ensemble extraction (${runs} runs)`,
+	2: (runs: number) => `🧮 Building consensus across ${runs} runs`,
+	3: (consensus: number) => `✨ Processed ${consensus} consensus nuggets`,
+};
 
 /**
  * Truncates long error messages for better UX while preserving important information
@@ -148,6 +156,38 @@ export class NotificationManager {
 
 	hide(): void {
 		this.hideBanner();
+	}
+
+	// Update existing progress handler to support ensemble messages
+	updateEnsembleProgress(message: {
+		type: string;
+		step: number;
+		ensembleRuns?: number;
+		consensusNuggets?: number;
+	}): void {
+		if (message.type === MESSAGE_TYPES.ENSEMBLE_EXTRACTION_PROGRESS) {
+			let progressText = "";
+			switch (message.step) {
+				case 1:
+					progressText = ENSEMBLE_PROGRESS_MESSAGES[1](
+						message.ensembleRuns || 3,
+					);
+					break;
+				case 2:
+					progressText = ENSEMBLE_PROGRESS_MESSAGES[2](
+						message.ensembleRuns || 3,
+					);
+					break;
+				case 3:
+					progressText = ENSEMBLE_PROGRESS_MESSAGES[3](
+						message.consensusNuggets || 0,
+					);
+					break;
+				default:
+					progressText = `🎯 Ensemble analysis in progress...`;
+			}
+			this.showProgress(progressText);
+		}
 	}
 
 	private createBanner(

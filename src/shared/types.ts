@@ -93,6 +93,20 @@ export interface AnalysisRequest {
 	promptMetadata?: PromptMetadata; // Optional - will be resolved from promptId if not provided
 }
 
+// New ensemble analysis request
+export interface EnsembleAnalysisRequest {
+	content: string;
+	promptId: string;
+	url: string;
+	analysisId?: string;
+	source?: "popup" | "context-menu";
+	ensembleOptions?: {
+		runs: number;
+		mode: "fast" | "balanced" | "comprehensive";
+	};
+	typeFilter?: TypeFilterOptions;
+}
+
 export interface CommentSelectionRequest {
 	promptId: string;
 	url: string;
@@ -134,6 +148,20 @@ export interface AnalysisResponse {
 		providerId: ProviderId;
 		modelName: string;
 		responseTime: number;
+	};
+}
+
+// Enhanced response with ensemble data
+export interface EnsembleAnalysisResponse {
+	success: boolean;
+	error?: string;
+	data?: EnsembleExtractionResult & {
+		providerMetadata: {
+			providerId: ProviderId;
+			modelName: string;
+			ensembleRuns: number;
+			consensusMethod: string;
+		};
 	};
 }
 
@@ -347,6 +375,10 @@ export const MESSAGE_TYPES: MessageTypes = {
 	ANALYSIS_API_REQUEST_START: "ANALYSIS_API_REQUEST_START",
 	ANALYSIS_API_RESPONSE_RECEIVED: "ANALYSIS_API_RESPONSE_RECEIVED",
 	ANALYSIS_PROCESSING_RESULTS: "ANALYSIS_PROCESSING_RESULTS",
+	// New ensemble types
+	ANALYZE_CONTENT_ENSEMBLE: "analyze_content_ensemble",
+	ENSEMBLE_EXTRACTION_PROGRESS: "ensemble_extraction_progress",
+	ENSEMBLE_CONSENSUS_COMPLETE: "ensemble_consensus_complete",
 	SHOW_ERROR: "SHOW_ERROR",
 	SHOW_INFO: "SHOW_INFO",
 	SHOW_API_KEY_ERROR: "SHOW_API_KEY_ERROR",
