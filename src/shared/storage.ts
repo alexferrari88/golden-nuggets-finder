@@ -344,6 +344,44 @@ export class StorageManager {
 		await chrome.storage.sync.set({ [STORAGE_KEYS.USER_PERSONA]: persona });
 	}
 
+	async getEnsembleSettings(): Promise<{
+		defaultRuns: number;
+		defaultMode: "fast" | "balanced" | "comprehensive";
+		enabled: boolean;
+	}> {
+		const cached = this.getFromCache<{
+			defaultRuns: number;
+			defaultMode: "fast" | "balanced" | "comprehensive";
+			enabled: boolean;
+		}>(STORAGE_KEYS.ENSEMBLE_SETTINGS);
+		if (cached !== null && typeof cached === "object") {
+			return cached;
+		}
+
+		const result = await chrome.storage.sync.get(
+			STORAGE_KEYS.ENSEMBLE_SETTINGS,
+		);
+		const settings = result[STORAGE_KEYS.ENSEMBLE_SETTINGS] || {
+			defaultRuns: 3,
+			defaultMode: "balanced" as const,
+			enabled: true,
+		};
+
+		this.setCache(STORAGE_KEYS.ENSEMBLE_SETTINGS, settings);
+		return settings;
+	}
+
+	async saveEnsembleSettings(settings: {
+		defaultRuns: number;
+		defaultMode: "fast" | "balanced" | "comprehensive";
+		enabled: boolean;
+	}): Promise<void> {
+		this.setCache(STORAGE_KEYS.ENSEMBLE_SETTINGS, settings);
+		await chrome.storage.sync.set({
+			[STORAGE_KEYS.ENSEMBLE_SETTINGS]: settings,
+		});
+	}
+
 	// Analysis state management for popup persistence
 	async getAnalysisState(): Promise<PersistentAnalysisState | null> {
 		try {
@@ -496,16 +534,18 @@ export class StorageManager {
 			return cached;
 		}
 
-		const [apiKey, prompts, persona] = await Promise.all([
+		const [apiKey, prompts, persona, ensembleSettings] = await Promise.all([
 			this.getApiKey(context),
 			this.getPrompts(),
 			this.getPersona(),
+			this.getEnsembleSettings(),
 		]);
 
 		const config = {
 			geminiApiKey: apiKey,
 			userPrompts: prompts,
 			userPersona: persona,
+			ensembleSettings,
 		};
 
 		this.setCache(configKey, config);
@@ -534,6 +574,11 @@ export class StorageManager {
 		if (config.userPersona !== undefined) {
 			updates[STORAGE_KEYS.USER_PERSONA] = config.userPersona;
 			this.setCache(STORAGE_KEYS.USER_PERSONA, config.userPersona);
+		}
+
+		if (config.ensembleSettings !== undefined) {
+			updates[STORAGE_KEYS.ENSEMBLE_SETTINGS] = config.ensembleSettings;
+			this.setCache(STORAGE_KEYS.ENSEMBLE_SETTINGS, config.ensembleSettings);
 		}
 
 		// Clear full config cache

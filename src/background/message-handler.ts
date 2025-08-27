@@ -617,11 +617,23 @@ export class MessageHandler {
 		analysisId?: string,
 		tabId?: number,
 		useEnsemble = false,
-		ensembleRuns = 3,
+		ensembleRuns?: number,
 	): Promise<GoldenNuggetsResponse> {
 		let currentProviderId: ProviderId | null = null;
 		let attempts = 0;
 		const maxAttempts = 2; // Limit to 2 attempts to prevent infinite loops
+
+		// Get ensemble settings if not provided
+		let finalEnsembleRuns = ensembleRuns;
+		if (useEnsemble && finalEnsembleRuns === undefined) {
+			try {
+				const ensembleSettings = await storage.getEnsembleSettings();
+				finalEnsembleRuns = ensembleSettings.defaultRuns;
+			} catch (error) {
+				console.warn("Failed to get ensemble settings, using default:", error);
+				finalEnsembleRuns = 3; // Fallback to original default
+			}
+		}
 
 		// Create abort controller for this analysis
 		const abortController = new AbortController();
@@ -662,7 +674,7 @@ export class MessageHandler {
 							prompt,
 							provider,
 							{
-								runs: ensembleRuns,
+								runs: finalEnsembleRuns!,
 								temperature: 0.2,
 								parallelExecution: true,
 							},

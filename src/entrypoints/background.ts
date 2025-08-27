@@ -11,7 +11,11 @@ import {
 } from "../background/type-filter-service";
 import { injectContentScript } from "../shared/chrome-extension-utils";
 import { checkAndRunMigration, storage } from "../shared/storage";
-import { type FeedbackSubmission, MESSAGE_TYPES } from "../shared/types";
+import {
+	type EnsembleMode,
+	type FeedbackSubmission,
+	MESSAGE_TYPES,
+} from "../shared/types";
 
 export default defineBackground(() => {
 	const messageHandler = new MessageHandler();
@@ -474,11 +478,31 @@ export default defineBackground(() => {
 				`[Background] Provider ${currentProvider} configured - starting ensemble analysis`,
 			);
 
+			// Get ensemble settings for ensemble analysis
+			let ensembleOptions: { runs: number; mode: EnsembleMode } = {
+				runs: 3,
+				mode: "balanced",
+			};
+			try {
+				const ensembleSettings = await storage.getEnsembleSettings();
+				if (ensembleSettings.enabled) {
+					ensembleOptions = {
+						runs: ensembleSettings.defaultRuns,
+						mode: ensembleSettings.defaultMode,
+					};
+				}
+			} catch (error) {
+				console.warn(
+					"[Background] Failed to get ensemble settings, using defaults:",
+					error,
+				);
+			}
+
 			// Send message to content script to start ensemble analysis
 			await chrome.tabs.sendMessage(tab.id, {
 				type: MESSAGE_TYPES.ANALYZE_CONTENT_ENSEMBLE,
 				promptId: "default",
-				ensembleOptions: { runs: 3, mode: "balanced" },
+				ensembleOptions,
 			});
 		} catch (error) {
 			console.error(

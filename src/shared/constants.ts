@@ -3,6 +3,7 @@ export const STORAGE_KEYS = {
 	PROMPTS: "userPrompts",
 	USER_PERSONA: "userPersona",
 	ANALYSIS_STATE: "analysisState", // Analysis progress state
+	ENSEMBLE_SETTINGS: "ensembleSettings", // Ensemble configuration settings
 } as const;
 
 export const GEMINI_CONFIG = {

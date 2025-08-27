@@ -55,6 +55,22 @@ export interface ExtensionConfig {
 
 	// Debug settings
 	enableDebugLogging?: boolean;
+
+	// Ensemble settings
+	ensembleSettings?: {
+		defaultRuns: number;
+		defaultMode: "fast" | "balanced" | "comprehensive";
+		enabled: boolean;
+	};
+}
+
+// Separate type definitions for Ensemble
+export type EnsembleMode = "fast" | "balanced" | "comprehensive";
+
+export interface EnsembleSettings {
+	defaultRuns: number;
+	defaultMode: EnsembleMode;
+	enabled: boolean;
 }
 
 export interface NuggetDisplayState {
@@ -104,7 +120,7 @@ export interface EnsembleAnalysisRequest {
 	source?: "popup" | "context-menu";
 	ensembleOptions?: {
 		runs: number;
-		mode: "fast" | "balanced" | "comprehensive";
+		mode: EnsembleMode;
 	};
 	typeFilter?: TypeFilterOptions;
 }

@@ -393,7 +393,7 @@ export default defineContentScript({
 					case MESSAGE_TYPES.ANALYZE_CONTENT:
 						initialize(); // Initialize when needed
 						await analyzeContent(
-							request.promptId,
+							request.promptId || "",
 							request.source,
 							request.analysisId || "",
 							request.typeFilter,
@@ -404,7 +404,7 @@ export default defineContentScript({
 					case MESSAGE_TYPES.ANALYZE_CONTENT_ENSEMBLE:
 						initialize(); // Initialize when needed
 						await analyzeContentEnsemble(
-							request.promptId,
+							request.promptId || "",
 							request.source,
 							request.analysisId || "",
 							request.typeFilter,
@@ -674,6 +674,13 @@ export default defineContentScript({
 					return;
 				}
 
+				// Get ensemble options if not provided
+				let finalEnsembleOptions = ensembleOptions;
+				if (!finalEnsembleOptions) {
+					// Use hardcoded defaults since content scripts should receive options from callers
+					finalEnsembleOptions = { runs: 3, mode: "balanced" };
+				}
+
 				// Send ensemble analysis request to background script
 				const ensembleRequest = {
 					content: content,
@@ -682,7 +689,7 @@ export default defineContentScript({
 					analysisId: analysisId,
 					source: source as "popup" | "context-menu",
 					typeFilter: typeFilter,
-					ensembleOptions: ensembleOptions || { runs: 3, mode: "balanced" },
+					ensembleOptions: finalEnsembleOptions,
 				};
 
 				performanceMonitor.startTimer("ensemble_api_request");

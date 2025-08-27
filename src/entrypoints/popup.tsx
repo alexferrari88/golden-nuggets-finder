@@ -26,6 +26,7 @@ import type { GoldenNuggetType } from "../shared/schemas";
 import { storage } from "../shared/storage";
 import {
 	type AnalysisProgressMessage,
+	type EnsembleMode,
 	MESSAGE_TYPES,
 	type RateLimitedMessage,
 	type RetryingMessage,
@@ -214,7 +215,11 @@ const usePhaseProgression = (
 					setCurrentPhase(phaseIndex);
 					// Update persistent state
 					if (onStateUpdate) {
-						onStateUpdate(phaseIndex, completedPhases, aiStartTime);
+						onStateUpdate(
+							phaseIndex,
+							completedPhases,
+							aiStartTime || undefined,
+						);
 					}
 				}
 
@@ -228,7 +233,11 @@ const usePhaseProgression = (
 						// Update persistent state with new completed phases
 						if (onStateUpdate && newCompleted !== prev) {
 							const newCurrentPhase = phaseIndex < 2 ? -1 : phaseIndex;
-							onStateUpdate(newCurrentPhase, newCompleted, aiStartTime);
+							onStateUpdate(
+								newCurrentPhase,
+								newCompleted,
+								aiStartTime || undefined,
+							);
 						}
 
 						return newCompleted;
@@ -636,6 +645,7 @@ function IndexPopup() {
 			// Handle real-time progress messages (only for current analysis)
 			if (
 				currentAnalysisIdRef.current &&
+				"analysisId" in message &&
 				message.analysisId === currentAnalysisIdRef.current &&
 				(message.type === MESSAGE_TYPES.ANALYSIS_CONTENT_EXTRACTED ||
 					message.type === MESSAGE_TYPES.ANALYSIS_CONTENT_OPTIMIZED ||
@@ -732,6 +742,26 @@ function IndexPopup() {
 
 			// Send message to content script - route based on ensemble mode
 			if (ensembleMode) {
+				// Get ensemble settings for ensemble analysis
+				let ensembleOptions: { runs: number; mode: EnsembleMode } = {
+					runs: 3,
+					mode: "balanced",
+				};
+				try {
+					const ensembleSettings = await storage.getEnsembleSettings();
+					if (ensembleSettings.enabled) {
+						ensembleOptions = {
+							runs: ensembleSettings.defaultRuns,
+							mode: ensembleSettings.defaultMode,
+						};
+					}
+				} catch (error) {
+					console.warn(
+						"Failed to get ensemble settings from popup, using defaults:",
+						error,
+					);
+				}
+
 				// Send ensemble analysis message
 				await chrome.tabs.sendMessage(tab.id, {
 					type: MESSAGE_TYPES.ANALYZE_CONTENT_ENSEMBLE,
@@ -739,7 +769,7 @@ function IndexPopup() {
 					source: "popup",
 					analysisId: analysisId,
 					typeFilter: typeFilter,
-					ensembleOptions: { runs: 3, mode: "balanced" },
+					ensembleOptions,
 				});
 			} else {
 				// Send regular analysis message
@@ -1073,7 +1103,7 @@ function IndexPopup() {
 
 						if (!isVisible) return null;
 
-						let indicator = "○";
+						let indicator: string | React.ReactElement = "○";
 						let indicatorColor = colors.text.tertiary;
 						let textColor = colors.text.tertiary;
 						let indicatorAnimation = "none";
