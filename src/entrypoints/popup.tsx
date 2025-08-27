@@ -594,6 +594,44 @@ function IndexPopup() {
 		checkBackendStatus();
 		restoreAnalysisState();
 
+		// Defensive cleanup: Double-check for zombie analysis states after restoration
+		// This provides an additional safety net against persistent loading screens
+		const defensiveCleanupTimeout = setTimeout(async () => {
+			try {
+				const currentState = await storage.getActiveAnalysisState();
+				if (currentState) {
+					const ageInMinutes =
+						(Date.now() - currentState.startTime) / (1000 * 60);
+
+					// If state was restored but is clearly stale, force clear it
+					// This catches edge cases where validation didn't catch zombie states
+					if (
+						ageInMinutes > 2 ||
+						(currentState.currentPhase === 2 && ageInMinutes > 0.5) ||
+						(currentState.completedPhases.includes(2) && ageInMinutes > 0.25)
+					) {
+						console.warn(
+							"[Popup] Defensive cleanup: Clearing zombie analysis state",
+							{
+								analysisId: currentState.analysisId,
+								ageMinutes: ageInMinutes.toFixed(2),
+								currentPhase: currentState.currentPhase,
+								completedPhases: currentState.completedPhases,
+							},
+						);
+
+						// Clear both UI and persistent state
+						setAnalyzing(null);
+						setCurrentAnalysisId(null);
+						currentAnalysisIdRef.current = null;
+						await storage.clearAnalysisState();
+					}
+				}
+			} catch (error) {
+				console.warn("[Popup] Defensive cleanup failed:", error);
+			}
+		}, 500); // Run after 500ms to allow restoration to complete
+
 		// Helper function to clear analysis state reliably
 		const clearAnalysisStateImmediately = async (reason: string) => {
 			console.log(`[Popup] Clearing analysis state: ${reason}`);
@@ -663,6 +701,12 @@ function IndexPopup() {
 
 		return () => {
 			chrome.runtime.onMessage.removeListener(messageListener);
+
+			// Clear defensive cleanup timeout
+			if (defensiveCleanupTimeout) {
+				clearTimeout(defensiveCleanupTimeout);
+			}
+
 			if (cleanupTimeoutRef.current) {
 				clearTimeout(cleanupTimeoutRef.current);
 				cleanupTimeoutRef.current = null;

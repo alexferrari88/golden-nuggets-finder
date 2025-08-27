@@ -437,8 +437,9 @@ export class StorageManager {
 	isAnalysisStateActive(state: PersistentAnalysisState): boolean {
 		const ageInMinutes = (Date.now() - state.startTime) / (1000 * 60);
 
-		// Check if analysis is too old (more than 10 minutes)
-		if (ageInMinutes > 10) {
+		// Check if analysis is too old (more aggressive threshold: 3 minutes instead of 10)
+		// This helps catch "zombie" states that weren't cleaned up properly
+		if (ageInMinutes > 3) {
 			console.log("[Storage] Clearing stale analysis state:", {
 				analysisId: state.analysisId,
 				promptName: state.promptName,
@@ -463,13 +464,34 @@ export class StorageManager {
 			return false;
 		}
 
-		// Be conservative about clearing analysis states
-		// Previous logic was too aggressive and cleared legitimate "between phases" states
-		// Only clear states when we're very confident they're no longer active:
-		// 1. Age > 10 minutes (handled above)
-		// 2. All phases completed (handled above)
+		// Additional heuristic: Check for patterns indicating likely completion
+		// If we're in "finalize" phase (phase 2) and state is older than 30 seconds, likely a zombie
+		if (state.currentPhase === 2 && ageInMinutes > 0.5) {
+			console.log("[Storage] Clearing likely completed analysis state:", {
+				analysisId: state.analysisId,
+				promptName: state.promptName,
+				ageMinutes: ageInMinutes.toFixed(1),
+				currentPhase: state.currentPhase,
+				completedPhases: state.completedPhases,
+				reason: "finalize_phase_stale",
+			});
+			return false;
+		}
 
-		// Analysis appears to be genuinely active or between phases
+		// Additional heuristic: Check for states that have phase 2 completed but still marked as active
+		// This can happen when cleanup messages don't reach the popup
+		if (state.completedPhases.includes(2) && ageInMinutes > 0.25) {
+			console.log("[Storage] Clearing analysis with final phase completed:", {
+				analysisId: state.analysisId,
+				promptName: state.promptName,
+				ageMinutes: ageInMinutes.toFixed(1),
+				completedPhases: state.completedPhases,
+				reason: "final_phase_completed",
+			});
+			return false;
+		}
+
+		// Analysis appears to be genuinely active
 		console.log("[Storage] Preserving active analysis state:", {
 			analysisId: state.analysisId,
 			promptName: state.promptName,
