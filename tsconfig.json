@@ -12,5 +12,22 @@
     "moduleResolution": "bundler",
     "types": ["vitest/globals", "node", "@types/chrome"]
   },
-  "exclude": ["node_modules", "dist", "frontend", "backend"]
+  "include": [
+    "src/**/*",
+    "tests/unit/**/*",
+    "tests/integration/**/*",
+    "scripts/**/*",
+    "wxt.config.ts",
+    ".wxt/wxt.d.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist", 
+    "frontend", 
+    "backend",
+    "tests/e2e/**/*",
+    "playwright.config.ts",
+    "**/node_modules/**",
+    "**/.pnpm/**"
+  ]
 }
