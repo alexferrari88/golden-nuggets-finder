@@ -14,12 +14,18 @@ export interface EnsembleExtractionResult {
 		confidence: number;
 		runsSupportingThis: number;
 		totalRuns: number;
+		// Optional embedding metadata
+		similarityMethod?: "embedding" | "word_overlap" | "fallback";
 	}>;
 	metadata: {
 		totalRuns: number;
 		consensusReached: number;
 		duplicatesRemoved: number;
 		averageResponseTime: number;
+		// Optional embedding-related metadata
+		embeddingGenerationTime?: number;
+		embeddingCacheHits?: number;
+		similarityMethod?: "embedding" | "hybrid" | "word_overlap_only";
 	};
 }
 

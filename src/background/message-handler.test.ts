@@ -78,12 +78,12 @@ global.fetch = mockFetch;
 
 describe("MessageHandler", () => {
 	let messageHandler: MessageHandler;
-	let mockGeminiClient: MockGeminiClient;
+	let _mockGeminiClient: MockGeminiClient;
 	let mockSendResponse: ReturnType<typeof vi.fn>;
 	let mockProvider: MockProvider;
 
 	beforeEach(() => {
-		mockGeminiClient = {
+		_mockGeminiClient = {
 			analyzeContent: vi.fn().mockResolvedValue({ golden_nuggets: [] }),
 		};
 		mockSendResponse = vi.fn();

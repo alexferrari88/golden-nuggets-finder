@@ -1,17 +1,28 @@
 import type {
+	NuggetWithEmbedding,
+	SimilarityOptions,
+} from "../../shared/types/embedding-types";
+import type {
 	EnsembleExtractionResult,
 	GoldenNuggetsResponse,
 	LLMProvider,
 } from "../../shared/types/providers";
+import { HybridSimilarityMatcher } from "./hybrid-similarity";
 import { normalize } from "./response-normalizer";
 
 interface EnsembleExtractionOptions {
 	runs: number;
 	temperature: number;
 	parallelExecution: boolean;
+	similarityOptions?: Partial<SimilarityOptions>;
 }
 
 export class EnsembleExtractor {
+	private hybridSimilarityMatcher: HybridSimilarityMatcher;
+
+	constructor() {
+		this.hybridSimilarityMatcher = new HybridSimilarityMatcher();
+	}
 	async extractWithEnsemble(
 		content: string,
 		prompt: string,
@@ -56,11 +67,15 @@ export class EnsembleExtractor {
 		);
 
 		// Build consensus from successful extractions
-		return this.buildConsensus(successfulExtractions, {
-			totalRuns: options.runs,
-			successfulRuns: successfulExtractions.length,
-			averageResponseTime: responseTime / options.runs,
-		});
+		return this.buildConsensus(
+			successfulExtractions,
+			{
+				totalRuns: options.runs,
+				successfulRuns: successfulExtractions.length,
+				averageResponseTime: responseTime / options.runs,
+			},
+			options.similarityOptions,
+		);
 	}
 
 	private async executeRunWithErrorHandling(
@@ -96,6 +111,7 @@ export class EnsembleExtractor {
 			successfulRuns: number;
 			averageResponseTime: number;
 		},
+		similarityOptions?: Partial<SimilarityOptions>,
 	): Promise<EnsembleExtractionResult> {
 		if (extractions.length === 0) {
 			return {
@@ -109,25 +125,34 @@ export class EnsembleExtractor {
 			};
 		}
 
-		// Step 1: Flatten all nuggets from all runs
-		const allNuggets = extractions.flatMap((extraction) =>
-			extraction.golden_nuggets.map((nugget) => ({
-				...nugget,
-				runId: Math.random().toString(36).substr(2, 9), // Track source
-			})),
+		// Step 1: Flatten all nuggets from all runs with enhanced type
+		const allNuggets: NuggetWithEmbedding[] = extractions.flatMap(
+			(extraction) =>
+				extraction.golden_nuggets.map((nugget) => ({
+					...nugget,
+					runId: Math.random().toString(36).substr(2, 9), // Track source
+				})),
 		);
 
-		// Step 2: Group by semantic similarity (simplified for Phase 1)
-		const nuggetGroups = this.groupBySimilarity(allNuggets);
+		console.log(
+			`Starting consensus building for ${allNuggets.length} nuggets from ${extractions.length} runs`,
+		);
+
+		// Step 2: Group by semantic similarity using hybrid approach
+		const nuggetGroups = await this.groupBySimilarityWithEmbeddings(
+			allNuggets,
+			similarityOptions,
+		);
 
 		// Step 3: Apply majority voting and confidence scoring
 		const consensusNuggets = nuggetGroups.map((group) => ({
-			type: group[0].type,
+			type: group[0].type as "tool" | "media" | "aha! moments" | "analogy" | "model",
 			startContent: group[0].startContent,
 			endContent: group[0].endContent,
 			confidence: group.length / metadata.successfulRuns,
 			runsSupportingThis: group.length,
 			totalRuns: metadata.totalRuns,
+			similarityMethod: "embedding" as const,
 		}));
 
 		// Step 4: Sort by confidence (highest first)
@@ -169,6 +194,45 @@ export class EnsembleExtractor {
 		}
 
 		return groups;
+	}
+
+	/**
+	 * New method: Group nuggets by similarity using embeddings with word overlap fallback
+	 */
+	private async groupBySimilarityWithEmbeddings(
+		nuggets: NuggetWithEmbedding[],
+		similarityOptions?: Partial<SimilarityOptions>,
+	): Promise<NuggetWithEmbedding[][]> {
+		try {
+			console.log(
+				`[EnsembleExtractor] Using embedding-based similarity grouping for ${nuggets.length} nuggets`,
+			);
+
+			// Update hybrid similarity matcher configuration if provided
+			if (similarityOptions) {
+				this.hybridSimilarityMatcher.updateConfiguration(similarityOptions);
+			}
+
+			// Use hybrid similarity matcher to group nuggets
+			const groups = await this.hybridSimilarityMatcher.groupSimilarNuggets(
+				nuggets,
+				similarityOptions,
+			);
+
+			console.log(
+				`[EnsembleExtractor] Grouped nuggets into ${groups.length} similarity groups`,
+			);
+
+			return groups;
+		} catch (error) {
+			console.warn(
+				`[EnsembleExtractor] Embedding-based grouping failed, falling back to word overlap:`,
+				error,
+			);
+
+			// Fallback to original grouping algorithm
+			return this.groupBySimilarity(nuggets);
+		}
 	}
 
 	private calculateSimpleSimilarity(text1: string, text2: string): number {

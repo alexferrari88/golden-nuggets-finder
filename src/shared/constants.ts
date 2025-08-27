@@ -10,6 +10,47 @@ export const GEMINI_CONFIG = {
 	THINKING_BUDGET: -1,
 } as const;
 
+export const EMBEDDING_CONFIG = {
+	/** Default embedding model for Gemini */
+	MODEL: "gemini-embedding-001",
+	/** Default task type for ensemble nugget similarity */
+	TASK_TYPE: "SEMANTIC_SIMILARITY" as const,
+	/** Default embedding dimensionality (768 is optimal for short technical text) */
+	OUTPUT_DIMENSIONALITY: 768,
+	/** Default similarity threshold for embedding-based grouping */
+	EMBEDDING_THRESHOLD: 0.8,
+	/** Default word overlap threshold for fallback grouping */
+	WORD_OVERLAP_THRESHOLD: 0.8,
+	/** Default cache duration in milliseconds (30 minutes) */
+	CACHE_DURATION: 30 * 60 * 1000,
+	/** Default maximum cache size (number of entries) */
+	MAX_CACHE_SIZE: 1000,
+	/** Default maximum batch size for API calls */
+	MAX_BATCH_SIZE: 25,
+	/** Default maximum retries for API calls */
+	MAX_RETRIES: 3,
+	/** Default retry delay in milliseconds */
+	RETRY_DELAY: 1000,
+} as const;
+
+export const SIMILARITY_DEFAULTS = {
+	/** Default configuration for hybrid similarity matching */
+	EMBEDDING_OPTIONS: {
+		taskType: EMBEDDING_CONFIG.TASK_TYPE,
+		outputDimensionality: EMBEDDING_CONFIG.OUTPUT_DIMENSIONALITY,
+	},
+	/** Default similarity options for ensemble processing */
+	SIMILARITY_OPTIONS: {
+		embeddingThreshold: EMBEDDING_CONFIG.EMBEDDING_THRESHOLD,
+		wordOverlapThreshold: EMBEDDING_CONFIG.WORD_OVERLAP_THRESHOLD,
+		useEmbeddings: true,
+		embeddingOptions: {
+			taskType: EMBEDDING_CONFIG.TASK_TYPE,
+			outputDimensionality: EMBEDDING_CONFIG.OUTPUT_DIMENSIONALITY,
+		},
+	},
+} as const;
+
 export const DEFAULT_PROMPTS = [
 	{
 		id: "default-insights",

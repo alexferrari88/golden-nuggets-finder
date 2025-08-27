@@ -1,6 +1,5 @@
 import {
 	type AnalysisProgressMessage,
-	type AnalysisRequest,
 	type DebugLogMessage,
 	type GoldenNugget,
 	MESSAGE_TYPES,

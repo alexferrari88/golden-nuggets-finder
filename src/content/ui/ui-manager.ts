@@ -38,7 +38,6 @@ export class UIManager {
 	private currentPromptId?: string;
 	private currentTypeFilter?: TypeFilterOptions;
 	private controlPanel: HTMLElement | null = null;
-	private originalPanelContent?: HTMLElement;
 	private prompts: SavedPrompt[] = [];
 	private keyboardListener?: (event: KeyboardEvent) => void;
 	private analysisState = {
@@ -1023,10 +1022,10 @@ export class UIManager {
 		// Hide simple notification if it's showing
 		this.notifications.hideProgress();
 
-		// Store original content
-		this.originalPanelContent = this.controlPanel.cloneNode(
-			true,
-		) as HTMLElement;
+		// Store original content (currently unused)
+		// this.originalPanelContent = this.controlPanel.cloneNode(
+		//	true,
+		// ) as HTMLElement;
 
 		// Find the current prompt name
 		const currentPrompt = this.prompts.find(
