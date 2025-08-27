@@ -319,27 +319,17 @@ function getFallbackModels(providerId: ProviderId): ModelInfo[] {
 				name: "Gemini 2.5 Pro",
 				description: "Most capable model with enhanced reasoning",
 			},
-			{
-				id: "gemini-2.0-flash",
-				name: "Gemini 2.0 Flash",
-				description: "Next-gen capabilities with superior speed",
-			},
 		],
 		openai: [
 			{
-				id: "gpt-4o",
-				name: "GPT-4o",
+				id: "gpt-5",
+				name: "GPT-5",
 				description: "Latest multimodal model",
 			},
 			{
-				id: "gpt-4",
-				name: "GPT-4",
-				description: "High accuracy for complex problems",
-			},
-			{
-				id: "gpt-3.5-turbo",
-				name: "GPT-3.5 Turbo",
-				description: "Cost-effective option",
+				id: "gpt-5-mini",
+				name: "GPT-5 Mini",
+				description: "Mini version of GPT-5",
 			},
 		],
 		anthropic: [

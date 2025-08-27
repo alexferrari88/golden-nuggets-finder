@@ -146,7 +146,12 @@ export class EnsembleExtractor {
 
 		// Step 3: Apply majority voting and confidence scoring
 		const consensusNuggets = nuggetGroups.map((group) => ({
-			type: group[0].type as "tool" | "media" | "aha! moments" | "analogy" | "model",
+			type: group[0].type as
+				| "tool"
+				| "media"
+				| "aha! moments"
+				| "analogy"
+				| "model",
 			startContent: group[0].startContent,
 			endContent: group[0].endContent,
 			confidence: group.length / metadata.successfulRuns,

@@ -64,8 +64,12 @@ describe("EnsembleExtractor with Embeddings Integration", () => {
 		} as LLMProvider;
 
 		// Setup embedding service mock using vi.mocked for better type safety
-		const { embeddingService } = await import("../../src/background/services/embedding-service");
-		const { calculateCosineSimilarity } = await import("../../src/shared/utils/cosine-similarity");
+		const { embeddingService } = await import(
+			"../../src/background/services/embedding-service"
+		);
+		const { calculateCosineSimilarity } = await import(
+			"../../src/shared/utils/cosine-similarity"
+		);
 		mockEmbeddingService = embeddingService;
 		mockCalculateCosineSimilarity = vi.mocked(calculateCosineSimilarity);
 

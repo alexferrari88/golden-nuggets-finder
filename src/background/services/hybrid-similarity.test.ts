@@ -48,7 +48,9 @@ describe("HybridSimilarityMatcher", () => {
 		hybridMatcher = new HybridSimilarityMatcher();
 
 		const { embeddingService } = await import("./embedding-service");
-		const { calculateCosineSimilarity } = await import("../../shared/utils/cosine-similarity");
+		const { calculateCosineSimilarity } = await import(
+			"../../shared/utils/cosine-similarity"
+		);
 		mockEmbeddingService = embeddingService;
 		mockCalculateCosineSimilarity = vi.mocked(calculateCosineSimilarity);
 
@@ -331,7 +333,7 @@ describe("HybridSimilarityMatcher", () => {
 
 		it("should find most similar nugget using embeddings", async () => {
 			mockCalculateCosineSimilarity
-				.mockReturnValueOnce(0.85) // vs nugget 1 
+				.mockReturnValueOnce(0.85) // vs nugget 1
 				.mockReturnValueOnce(0.3); // vs nugget 2
 
 			const result = await hybridMatcher.findMostSimilar(

@@ -69,7 +69,7 @@ describe("EmbeddingService", () => {
 
 			// With 768 dimensions (default), normalization is applied
 			const expectedNormalized = {
-				values: [0.2672612419124244, 0.5345224838248488, 0.8017837257372731]
+				values: [0.2672612419124244, 0.5345224838248488, 0.8017837257372731],
 			};
 			expect(result).toEqual(expectedNormalized);
 			expect(mockFetch).toHaveBeenCalledOnce();
@@ -101,9 +101,9 @@ describe("EmbeddingService", () => {
 				"https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent",
 				expect.objectContaining({
 					method: "POST",
-					headers: { 
+					headers: {
 						"Content-Type": "application/json",
-						"x-goog-api-key": "test-api-key"
+						"x-goog-api-key": "test-api-key",
 					},
 					body: JSON.stringify({
 						model: "models/gemini-embedding-001",
@@ -125,7 +125,7 @@ describe("EmbeddingService", () => {
 				expect.objectContaining({
 					headers: expect.objectContaining({
 						"Content-Type": "application/json",
-						"x-goog-api-key": "test-api-key"
+						"x-goog-api-key": "test-api-key",
 					}),
 					body: JSON.stringify({
 						model: "models/gemini-embedding-001",
@@ -177,9 +177,15 @@ describe("EmbeddingService", () => {
 
 			expect(results).toHaveLength(3);
 			// With 768 dimensions (default), normalization is applied
-			expect(results[0]).toEqual({ values: [0.2672612419124244, 0.5345224838248488, 0.8017837257372731] });
-			expect(results[1]).toEqual({ values: [0.4558423058385518, 0.5698028822981898, 0.6837634587578276] });
-			expect(results[2]).toEqual({ values: [0.5025707110324166, 0.5743665268941904, 0.6461623427559643] });
+			expect(results[0]).toEqual({
+				values: [0.2672612419124244, 0.5345224838248488, 0.8017837257372731],
+			});
+			expect(results[1]).toEqual({
+				values: [0.4558423058385518, 0.5698028822981898, 0.6837634587578276],
+			});
+			expect(results[2]).toEqual({
+				values: [0.5025707110324166, 0.5743665268941904, 0.6461623427559643],
+			});
 		});
 
 		it("should handle empty text array", async () => {
@@ -265,7 +271,9 @@ describe("EmbeddingService", () => {
 			const result = await embeddingService.generateEmbedding("test");
 
 			// With 768 dimensions (default), normalization is applied
-			expect(result).toEqual({ values: [0.2672612419124244, 0.5345224838248488, 0.8017837257372731] });
+			expect(result).toEqual({
+				values: [0.2672612419124244, 0.5345224838248488, 0.8017837257372731],
+			});
 			expect(mockFetch).toHaveBeenCalledTimes(3); // Original + 2 retries
 		});
 
@@ -449,8 +457,12 @@ describe("EmbeddingService", () => {
 
 	describe("singleton instance", () => {
 		it("should export a singleton instance", async () => {
-			const { embeddingService: singleton1 } = await import("./embedding-service");
-			const { embeddingService: singleton2 } = await import("./embedding-service");
+			const { embeddingService: singleton1 } = await import(
+				"./embedding-service"
+			);
+			const { embeddingService: singleton2 } = await import(
+				"./embedding-service"
+			);
 
 			expect(singleton1).toBe(singleton2);
 		});
@@ -506,11 +518,11 @@ describe("EmbeddingService", () => {
 				expect.objectContaining({
 					headers: expect.objectContaining({
 						"Content-Type": "application/json",
-						"x-goog-api-key": "test-api-key"
+						"x-goog-api-key": "test-api-key",
 					}),
 					body: JSON.stringify({
 						model: "models/gemini-embedding-001",
-						content: texts.map(text => ({ parts: [{ text }] })),
+						content: texts.map((text) => ({ parts: [{ text }] })),
 						taskType: "CLUSTERING",
 						outputDimensionality: 768,
 					}),
