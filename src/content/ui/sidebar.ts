@@ -1,4 +1,3 @@
-import { TYPE_CONFIGURATIONS } from "../../background/type-filter-service";
 import {
 	getDisplayContent,
 	reconstructFullContent,
@@ -96,12 +95,7 @@ export class Sidebar {
 	/**
 	 * Get the emoji for a nugget type
 	 */
-	private getTypeEmoji(type: GoldenNuggetType): string {
-		const typeConfig = TYPE_CONFIGURATIONS.find(
-			(config) => config.type === type,
-		);
-		return typeConfig?.emoji || "";
-	}
+	// Method removed - no longer needed as we don't use emojis in type badges
 
 	/**
 	 * Get display content for a nugget in the sidebar
@@ -910,12 +904,9 @@ export class Sidebar {
 			this.toggleItemSelection(globalIndex);
 		});
 
-		// Type badge - more subtle
+		// Type badge - more subtle, no emoji
 		const typeBadge = document.createElement("span");
-		const typeEmoji = this.getTypeEmoji(item.nugget.type);
-		typeBadge.textContent = typeEmoji
-			? `${typeEmoji} ${item.nugget.type}`
-			: item.nugget.type;
+		typeBadge.textContent = item.nugget.type;
 		typeBadge.style.cssText = `
       background: ${colors.background.tertiary};
       color: ${colors.text.secondary};
@@ -930,45 +921,71 @@ export class Sidebar {
 		leftContainer.appendChild(checkbox);
 		leftContainer.appendChild(typeBadge);
 
-		// Confidence display for ensemble results
+		// Consensus display for ensemble results - cleaner design
 		const ensembleNugget = item.nugget as EnhancedGoldenNugget;
 		if (
 			ensembleNugget.confidence !== undefined &&
 			ensembleNugget.runsSupportingThis !== undefined &&
 			ensembleNugget.totalRuns !== undefined
 		) {
-			const confidenceContainer = document.createElement("div");
-			confidenceContainer.style.cssText = `
+			const consensusContainer = document.createElement("div");
+			consensusContainer.style.cssText = `
         display: flex;
-        flex-direction: column;
-        align-items: flex-start;
+        align-items: center;
         gap: ${spacing.xs};
         margin-left: ${spacing.sm};
       `;
 
-			// Confidence stars
-			const confidenceStars = document.createElement("div");
-			const starCount = Math.ceil(ensembleNugget.confidence * 5);
-			const starsText = "⭐".repeat(Math.max(1, Math.min(5, starCount)));
-			confidenceStars.textContent = starsText;
-			confidenceStars.style.cssText = `
+			// Calculate consensus percentage
+			const consensusPercent = Math.round(
+				(ensembleNugget.runsSupportingThis / ensembleNugget.totalRuns) * 100,
+			);
+
+			// Determine badge styling based on consensus level using neutral colors
+			let badgeColor = colors.background.tertiary;
+			let textColor = colors.text.secondary;
+
+			if (consensusPercent >= 80) {
+				// High consensus - darker background for emphasis
+				badgeColor = colors.gray[100];
+				textColor = colors.text.primary;
+			} else if (consensusPercent >= 50) {
+				// Medium consensus - medium background
+				badgeColor = colors.background.tertiary;
+				textColor = colors.text.secondary;
+			} else {
+				// Low consensus - lighter, more subtle
+				badgeColor = colors.gray[50];
+				textColor = colors.text.tertiary;
+			}
+
+			// Consensus badge with percentage
+			const consensusBadge = document.createElement("div");
+			consensusBadge.textContent = `${consensusPercent}%`;
+			consensusBadge.style.cssText = `
+        background: ${badgeColor};
+        color: ${textColor};
+        padding: ${spacing.xs} ${spacing.sm};
+        border-radius: ${borderRadius.sm};
         font-size: ${typography.fontSize.xs};
-        line-height: 1;
+        font-weight: ${typography.fontWeight.medium};
+        min-width: 36px;
+        text-align: center;
+        border: 1px solid ${colors.border.light};
       `;
 
-			// Agreement text
+			// Agreement detail text - more concise
 			const agreementText = document.createElement("div");
-			agreementText.textContent = `(${ensembleNugget.runsSupportingThis}/${ensembleNugget.totalRuns} runs agreed)`;
+			agreementText.textContent = `${ensembleNugget.runsSupportingThis}/${ensembleNugget.totalRuns}`;
 			agreementText.style.cssText = `
         font-size: ${typography.fontSize.xs};
         color: ${colors.text.secondary};
-        font-style: italic;
-        line-height: 1;
+        font-weight: ${typography.fontWeight.medium};
       `;
 
-			confidenceContainer.appendChild(confidenceStars);
-			confidenceContainer.appendChild(agreementText);
-			leftContainer.appendChild(confidenceContainer);
+			consensusContainer.appendChild(consensusBadge);
+			consensusContainer.appendChild(agreementText);
+			leftContainer.appendChild(consensusContainer);
 		}
 
 		// Selection indicator and status
