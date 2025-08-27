@@ -50,8 +50,8 @@ export class StorageManager {
 		}
 
 		// Check cache BEFORE rate limiting to avoid unnecessary rate limit hits
-		const cached = this.getFromCache(STORAGE_KEYS.API_KEY);
-		if (cached !== null) {
+		const cached = this.getFromCache<string>(STORAGE_KEYS.API_KEY);
+		if (cached !== null && typeof cached === "string") {
 			if (isDevMode()) {
 				console.log(
 					"[Storage] Returning cached API key (bypassing rate limit)",
@@ -259,8 +259,8 @@ export class StorageManager {
 	}
 
 	async getPrompts(): Promise<SavedPrompt[]> {
-		const cached = this.getFromCache(STORAGE_KEYS.PROMPTS);
-		if (cached !== null) {
+		const cached = this.getFromCache<SavedPrompt[]>(STORAGE_KEYS.PROMPTS);
+		if (cached !== null && Array.isArray(cached)) {
 			return cached;
 		}
 
@@ -327,8 +327,8 @@ export class StorageManager {
 	}
 
 	async getPersona(): Promise<string> {
-		const cached = this.getFromCache(STORAGE_KEYS.USER_PERSONA);
-		if (cached !== null) {
+		const cached = this.getFromCache<string>(STORAGE_KEYS.USER_PERSONA);
+		if (cached !== null && typeof cached === "string") {
 			return cached;
 		}
 
@@ -347,8 +347,10 @@ export class StorageManager {
 	// Analysis state management for popup persistence
 	async getAnalysisState(): Promise<PersistentAnalysisState | null> {
 		try {
-			const cached = this.getFromCache(STORAGE_KEYS.ANALYSIS_STATE);
-			if (cached !== null) {
+			const cached = this.getFromCache<PersistentAnalysisState>(
+				STORAGE_KEYS.ANALYSIS_STATE,
+			);
+			if (cached !== null && typeof cached === "object") {
 				return cached;
 			}
 
@@ -489,8 +491,8 @@ export class StorageManager {
 		},
 	): Promise<ExtensionConfig> {
 		const configKey = "full_config";
-		const cached = this.getFromCache(configKey);
-		if (cached !== null) {
+		const cached = this.getFromCache<ExtensionConfig>(configKey);
+		if (cached !== null && typeof cached === "object") {
 			return cached;
 		}
 

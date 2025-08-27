@@ -752,15 +752,22 @@ export class MessageHandler {
 		try {
 			switch (request.type) {
 				case MESSAGE_TYPES.ABORT_ANALYSIS:
-					await this.handleAbortAnalysis(request, sendResponse);
+					await this.handleAbortAnalysis(
+						request as AbortAnalysisRequest,
+						sendResponse,
+					);
 					break;
 				case MESSAGE_TYPES.ANALYZE_CONTENT:
-					await this.handleAnalyzeContent(request, sender, sendResponse);
+					await this.handleAnalyzeContent(
+						request as AnalysisRequest,
+						sender,
+						sendResponse,
+					);
 					break;
 
 				case MESSAGE_TYPES.ANALYZE_CONTENT_ENSEMBLE:
 					await this.handleAnalyzeContentEnsemble(
-						request,
+						request as EnsembleAnalysisRequest,
 						sender,
 						sendResponse,
 					);
@@ -768,7 +775,7 @@ export class MessageHandler {
 
 				case MESSAGE_TYPES.ANALYZE_SELECTED_CONTENT:
 					await this.handleAnalyzeSelectedContent(
-						request,
+						request as AnalyzeSelectedContentRequest,
 						sender,
 						sendResponse,
 					);
@@ -779,15 +786,24 @@ export class MessageHandler {
 					break;
 
 				case MESSAGE_TYPES.SAVE_PROMPT:
-					await this.handleSavePrompt(request, sendResponse);
+					await this.handleSavePrompt(
+						request as SavePromptRequest,
+						sendResponse,
+					);
 					break;
 
 				case MESSAGE_TYPES.DELETE_PROMPT:
-					await this.handleDeletePrompt(request, sendResponse);
+					await this.handleDeletePrompt(
+						request as DeletePromptRequest,
+						sendResponse,
+					);
 					break;
 
 				case MESSAGE_TYPES.SET_DEFAULT_PROMPT:
-					await this.handleSetDefaultPrompt(request, sendResponse);
+					await this.handleSetDefaultPrompt(
+						request as SetDefaultPromptRequest,
+						sendResponse,
+					);
 					break;
 
 				case MESSAGE_TYPES.GET_CONFIG:
@@ -795,7 +811,10 @@ export class MessageHandler {
 					break;
 
 				case MESSAGE_TYPES.SAVE_CONFIG:
-					await this.handleSaveConfig(request, sendResponse);
+					await this.handleSaveConfig(
+						request as SaveConfigRequest,
+						sendResponse,
+					);
 					break;
 
 				case MESSAGE_TYPES.OPEN_OPTIONS_PAGE:
@@ -803,16 +822,24 @@ export class MessageHandler {
 					break;
 
 				case MESSAGE_TYPES.SUBMIT_NUGGET_FEEDBACK:
-					await this.handleSubmitNuggetFeedback(request, sender, sendResponse);
+					await this.handleSubmitNuggetFeedback(
+						request as SubmitNuggetFeedbackRequest,
+						sender,
+						sendResponse,
+					);
 					break;
 
 				case MESSAGE_TYPES.DELETE_NUGGET_FEEDBACK:
-					await this.handleDeleteNuggetFeedback(request, sender, sendResponse);
+					await this.handleDeleteNuggetFeedback(
+						request as DeleteNuggetFeedbackRequest,
+						sender,
+						sendResponse,
+					);
 					break;
 
 				case MESSAGE_TYPES.SUBMIT_MISSING_CONTENT_FEEDBACK:
 					await this.handleSubmitMissingContentFeedback(
-						request,
+						request as SubmitMissingContentFeedbackRequest,
 						sender,
 						sendResponse,
 					);
@@ -823,7 +850,10 @@ export class MessageHandler {
 					break;
 
 				case MESSAGE_TYPES.TRIGGER_OPTIMIZATION:
-					await this.handleTriggerOptimization(request, sendResponse);
+					await this.handleTriggerOptimization(
+						request as TriggerOptimizationRequest,
+						sendResponse,
+					);
 					break;
 
 				case MESSAGE_TYPES.GET_CURRENT_OPTIMIZED_PROMPT:
@@ -831,7 +861,10 @@ export class MessageHandler {
 					break;
 
 				case MESSAGE_TYPES.SWITCH_PROVIDER:
-					await this.handleSwitchProvider(request, sendResponse);
+					await this.handleSwitchProvider(
+						request as SwitchProviderRequest,
+						sendResponse,
+					);
 					break;
 
 				case MESSAGE_TYPES.GET_AVAILABLE_PROVIDERS:
@@ -843,7 +876,10 @@ export class MessageHandler {
 					break;
 
 				case MESSAGE_TYPES.VALIDATE_PROVIDER:
-					await this.handleValidateProvider(request, sendResponse);
+					await this.handleValidateProvider(
+						request as ValidateProviderRequest,
+						sendResponse,
+					);
 					break;
 
 				case "DEBUG_TEST":

@@ -84,7 +84,7 @@ export async function getAvailableProviders(): Promise<ProviderId[]> {
 	const configuredProviders = await listConfiguredProviders();
 	available.push(...configuredProviders);
 
-	return [...new Set(available)]; // Remove duplicates
+	return Array.from(new Set(available)); // Remove duplicates
 }
 
 export async function getFallbackProvider(): Promise<ProviderId | null> {

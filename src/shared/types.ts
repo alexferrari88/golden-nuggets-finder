@@ -1,5 +1,5 @@
 import type { GoldenNuggetType } from "./schemas";
-import type { ProviderId } from "./types/providers";
+import type { EnsembleExtractionResult, ProviderId } from "./types/providers";
 
 // Export provider types for multi-LLM support
 export * from "./types/providers";
@@ -83,6 +83,7 @@ export interface TypeConfiguration {
 }
 
 export interface AnalysisRequest {
+	type?: string; // Message type for discrimination
 	content: string;
 	promptId: string;
 	url: string;
@@ -95,6 +96,7 @@ export interface AnalysisRequest {
 
 // New ensemble analysis request
 export interface EnsembleAnalysisRequest {
+	type?: string; // Message type for discrimination
 	content: string;
 	promptId: string;
 	url: string;
@@ -289,7 +291,9 @@ export interface AnalysisProgressMessage {
 		| "ANALYSIS_CONTENT_OPTIMIZED"
 		| "ANALYSIS_API_REQUEST_START"
 		| "ANALYSIS_API_RESPONSE_RECEIVED"
-		| "ANALYSIS_PROCESSING_RESULTS";
+		| "ANALYSIS_PROCESSING_RESULTS"
+		| "ensemble_extraction_progress"
+		| "ensemble_consensus_complete";
 	step: 1 | 2 | 3 | 4;
 	message: string;
 	timestamp: number;
@@ -334,6 +338,10 @@ export interface MessageTypes {
 	ANALYSIS_API_REQUEST_START: "ANALYSIS_API_REQUEST_START";
 	ANALYSIS_API_RESPONSE_RECEIVED: "ANALYSIS_API_RESPONSE_RECEIVED";
 	ANALYSIS_PROCESSING_RESULTS: "ANALYSIS_PROCESSING_RESULTS";
+	// Ensemble Analysis Messages
+	ANALYZE_CONTENT_ENSEMBLE: "analyze_content_ensemble";
+	ENSEMBLE_EXTRACTION_PROGRESS: "ensemble_extraction_progress";
+	ENSEMBLE_CONSENSUS_COMPLETE: "ensemble_consensus_complete";
 	SHOW_ERROR: "SHOW_ERROR";
 	SHOW_INFO: "SHOW_INFO";
 	SHOW_API_KEY_ERROR: "SHOW_API_KEY_ERROR";

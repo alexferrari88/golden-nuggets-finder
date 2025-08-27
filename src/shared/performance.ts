@@ -110,7 +110,7 @@ export class PerformanceMonitor {
 			{ avg: number; min: number; max: number; count: number }
 		> = {};
 
-		for (const [name] of this.metrics) {
+		for (const name of Array.from(this.metrics.keys())) {
 			const metrics = this.getMetrics(name);
 			if (metrics) {
 				result[name] = metrics;
@@ -179,8 +179,25 @@ export function withPerformanceMonitoring<T>(
 	}
 }
 
+export function withSyncPerformanceMonitoring<T>(
+	name: string,
+	fn: () => T,
+	context?: string,
+): T {
+	performanceMonitor.startTimer(name);
+
+	try {
+		const result = fn();
+		performanceMonitor.logTimer(name, context);
+		return result;
+	} catch (error) {
+		performanceMonitor.logTimer(name, context);
+		throw error;
+	}
+}
+
 export function measureDOMOperation<T>(name: string, fn: () => T): T {
-	return withPerformanceMonitoring(`DOM:${name}`, fn, "DOM operation");
+	return withSyncPerformanceMonitoring(`DOM:${name}`, fn, "DOM operation");
 }
 
 export function measureAPICall<T>(
@@ -198,7 +215,7 @@ export function measureContentExtraction<T>(
 }
 
 export function measureHighlighting<T>(name: string, fn: () => T): T {
-	return withPerformanceMonitoring(
+	return withSyncPerformanceMonitoring(
 		`Highlight:${name}`,
 		fn,
 		"Text highlighting",

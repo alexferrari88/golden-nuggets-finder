@@ -434,7 +434,7 @@ export class SecurityManager {
 		const now = Date.now();
 		const cutoff = now - SECURITY_CONFIG.RATE_LIMIT_WINDOW * 2;
 
-		for (const [key, entry] of this.rateLimitMap) {
+		for (const [key, entry] of Array.from(this.rateLimitMap.entries())) {
 			if (entry.timestamp < cutoff) {
 				this.rateLimitMap.delete(key);
 			}
@@ -444,7 +444,7 @@ export class SecurityManager {
 	/**
 	 * Log access attempts for audit trail
 	 */
-	private logAccess(
+	public logAccess(
 		context: AccessContext,
 		success: boolean,
 		error?: string,
@@ -507,7 +507,9 @@ export class SecurityManager {
 					timestamp: logEntry.timestamp,
 				},
 				success,
-				error: success ? undefined : details?.errorMessage || `${event} failed`,
+				error: success
+					? undefined
+					: String(details?.errorMessage || `${event} failed`),
 				keyFingerprint: this.keyFingerprint || undefined,
 			});
 

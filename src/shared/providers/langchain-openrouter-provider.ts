@@ -231,7 +231,11 @@ export class LangChainOpenRouterProvider implements LLMProvider {
 				response.golden_nuggets = response.golden_nuggets.map((nugget) => ({
 					...nugget,
 					type: this.normalizeType(nugget.type),
-				}));
+				})) as Array<{
+					type: "tool" | "media" | "aha! moments" | "analogy" | "model";
+					startContent: string;
+					endContent: string;
+				}>;
 			}
 
 			// Log the response
@@ -241,7 +245,7 @@ export class LangChainOpenRouterProvider implements LLMProvider {
 					model: this.modelName,
 					success: true,
 				},
-				response,
+				response as GoldenNuggetsResponse,
 			);
 
 			return response as GoldenNuggetsResponse;

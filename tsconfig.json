@@ -1,13 +1,15 @@
 {
   "extends": "./.wxt/tsconfig.json",
   "compilerOptions": {
-    "target": "ES2020",
+    "target": "ES2022",
+    "module": "ESNext",
     "jsx": "react-jsx",
     "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
     "downlevelIteration": true,
-    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "skipLibCheck": true,
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
     "types": ["vitest/globals", "node", "@types/chrome"]
   },
   "exclude": ["node_modules", "dist", "frontend", "backend"]

@@ -50,7 +50,7 @@ describe("LangChainOpenAIProvider", () => {
 
 		const provider = new LangChainOpenAIProvider(configWithoutModel);
 
-		expect(provider.modelName).toBe("gpt-4.1-mini");
+		expect(provider.modelName).toBe("gpt-5-mini");
 	});
 
 	it("should extract golden nuggets successfully", async () => {
