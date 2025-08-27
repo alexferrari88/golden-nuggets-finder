@@ -107,12 +107,19 @@ export class GeminiClient {
 		userPrompt: string,
 		progressOptions?: AnalysisProgressOptions,
 		temperature?: number,
+		modelName?: string,
 	): Promise<GeminiResponse> {
 		await this.initializeClient();
 
 		if (!this.apiKey) {
 			throw new Error("Gemini client not initialized");
 		}
+
+		// Use passed model name or fallback to config default
+		const selectedModel = modelName || GEMINI_CONFIG.MODEL;
+		debugLogger.log(
+			`[GeminiClient] Using model: "${selectedModel}" (passed: "${modelName}", default: "${GEMINI_CONFIG.MODEL}")`,
+		);
 
 		// Optimize content size to improve API performance
 		const optimizedContent = this.optimizeContentForAPI(content);
@@ -156,7 +163,7 @@ export class GeminiClient {
 
 				// Log request payload in development mode
 				debugLogger.logLLMRequest(
-					`${this.API_BASE_URL}/${GEMINI_CONFIG.MODEL}:generateContent`,
+					`${this.API_BASE_URL}/${selectedModel}:generateContent`,
 					requestBody,
 				);
 
@@ -174,7 +181,7 @@ export class GeminiClient {
 
 				performanceMonitor.startTimer("gemini_request");
 				const response = await fetch(
-					`${this.API_BASE_URL}/${GEMINI_CONFIG.MODEL}:generateContent`,
+					`${this.API_BASE_URL}/${selectedModel}:generateContent`,
 					{
 						method: "POST",
 						headers: this.getSecureHeaders(),

@@ -483,47 +483,73 @@ export class MessageHandler {
 
 	// Helper to get the selected provider configuration from storage with fallback support
 	private static async getSelectedProvider(): Promise<ProviderConfig> {
+		debugLogger.log("[MessageHandler] Getting selected provider configuration");
+
 		// Get selected provider from storage
 		const result = await chrome.storage.local.get(["selectedProvider"]);
 		let providerId = result.selectedProvider;
 
+		debugLogger.log(
+			`[MessageHandler] Stored selectedProvider: ${providerId || "null"}`,
+		);
+
 		// If no provider is explicitly selected, find the first configured provider
 		if (!providerId) {
+			debugLogger.log(
+				"[MessageHandler] No provider selected, finding first available",
+			);
 			const availableProviders = await getAvailableProviders();
 			if (availableProviders.length > 0) {
 				providerId = availableProviders[0];
-				console.log(
-					`No provider selected, using first available: ${providerId}`,
+				debugLogger.log(
+					`[MessageHandler] Using first available provider: ${providerId}`,
 				);
 				// Automatically set this as the selected provider
 				await chrome.storage.local.set({ selectedProvider: providerId });
+				debugLogger.log(
+					`[MessageHandler] Automatically saved provider: ${providerId}`,
+				);
 			} else {
+				debugLogger.error("[MessageHandler] No configured providers available");
 				throw new Error(
 					`No configured providers available. Please configure an API key in the options page.`,
 				);
 			}
 		} else {
 			// Check if selected provider is still configured
+			debugLogger.log(
+				`[MessageHandler] Validating provider configuration for: ${providerId}`,
+			);
 			const isConfigured = await isProviderConfigured(providerId);
 			if (!isConfigured) {
-				console.warn(
-					`Selected provider ${providerId} is not configured, trying fallback...`,
+				debugLogger.warn(
+					`[MessageHandler] Selected provider ${providerId} is not configured, trying fallback`,
 				);
 
 				// Try to switch to a fallback provider
 				const fallbackProviderId = await switchToFallbackProvider();
 				if (fallbackProviderId) {
 					providerId = fallbackProviderId;
-					console.log(`Switched to fallback provider: ${providerId}`);
+					debugLogger.log(
+						`[MessageHandler] Switched to fallback provider: ${providerId}`,
+					);
 				} else {
+					debugLogger.error("[MessageHandler] No fallback providers available");
 					throw new Error(
 						`No configured providers available. Please configure an API key in the options page.`,
 					);
 				}
+			} else {
+				debugLogger.log(
+					`[MessageHandler] Provider ${providerId} is configured and ready`,
+				);
 			}
 		}
 
 		// Get API key for provider
+		debugLogger.log(
+			`[MessageHandler] Retrieving API key for provider: ${providerId}`,
+		);
 		let apiKey: string;
 		if (providerId === "gemini") {
 			try {
@@ -532,22 +558,55 @@ export class MessageHandler {
 					action: "read",
 					timestamp: Date.now(),
 				});
-			} catch (_error) {
+				debugLogger.log(
+					"[MessageHandler] Successfully retrieved Gemini API key",
+				);
+			} catch (error) {
+				debugLogger.error(
+					"[MessageHandler] Failed to retrieve Gemini API key:",
+					error,
+				);
 				// If there's an error accessing the API key, treat as not configured
 				apiKey = "";
 			}
 		} else {
 			apiKey = (await getApiKey(providerId)) || "";
+			debugLogger.log(
+				`[MessageHandler] Retrieved API key for ${providerId}: ${apiKey ? "present" : "missing"}`,
+			);
 		}
 
 		if (!apiKey) {
+			debugLogger.error(
+				`[MessageHandler] No API key found for provider: ${providerId}`,
+			);
 			throw new Error(`No API key found for provider: ${providerId}`);
 		}
+
+		// Get selected model for this provider (THIS IS CRITICAL FOR THE BUG)
+		debugLogger.log(
+			`[MessageHandler] Getting selected model for provider: ${providerId}`,
+		);
+		const modelName = await getSelectedModel(providerId);
+
+		const finalConfig = {
+			providerId,
+			apiKey: "[REDACTED]", // Don't log the actual API key
+			modelName,
+		};
+
+		debugLogger.log(
+			`[MessageHandler] Final provider configuration: ${JSON.stringify({
+				providerId: finalConfig.providerId,
+				modelName: finalConfig.modelName,
+				apiKey: "[REDACTED]",
+			})}`,
+		);
 
 		return {
 			providerId,
 			apiKey,
-			modelName: await getSelectedModel(providerId),
+			modelName,
 		};
 	}
 

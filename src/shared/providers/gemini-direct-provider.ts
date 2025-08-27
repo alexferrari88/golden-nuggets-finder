@@ -20,12 +20,13 @@ export class GeminiDirectProvider implements LLMProvider {
 		prompt: string,
 		temperature?: number,
 	): Promise<GoldenNuggetsResponse> {
-		// Use existing GeminiClient implementation
+		// Use existing GeminiClient implementation with the selected model
 		const geminiResponse = await this.geminiClient.analyzeContent(
 			content,
 			prompt,
 			undefined, // progressOptions
 			temperature,
+			this.modelName, // Pass the correct model name
 		);
 
 		// Pass through the correct GeminiResponse format without synthesis

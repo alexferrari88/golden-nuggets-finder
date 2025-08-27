@@ -104,6 +104,7 @@ describe("GeminiDirectProvider", () => {
 				"test prompt",
 				undefined, // progressOptions
 				undefined, // temperature (not provided)
+				"gemini-2.5-flash", // model name
 			);
 		});
 
@@ -119,6 +120,7 @@ describe("GeminiDirectProvider", () => {
 				"test prompt",
 				undefined, // progressOptions
 				0.7, // temperature
+				"gemini-2.5-flash", // model name
 			);
 		});
 

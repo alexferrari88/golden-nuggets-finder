@@ -7,7 +7,6 @@ import type {
 	EmbeddingVector,
 } from "../../shared/types/embedding-types";
 
-
 export class EmbeddingService {
 	private apiKey: string | null = null;
 	private readonly MAX_RETRIES = EMBEDDING_CONFIG.MAX_RETRIES;
@@ -95,18 +94,20 @@ export class EmbeddingService {
 	 */
 	private normalizeEmbedding(embedding: EmbeddingVector): EmbeddingVector {
 		const values = embedding.values;
-		
+
 		// Calculate L2 norm (magnitude)
-		const magnitude = Math.sqrt(values.reduce((sum, value) => sum + value * value, 0));
-		
+		const magnitude = Math.sqrt(
+			values.reduce((sum, value) => sum + value * value, 0),
+		);
+
 		// Avoid division by zero
 		if (magnitude === 0) {
 			return embedding;
 		}
-		
+
 		// Normalize by dividing each component by magnitude
-		const normalizedValues = values.map(value => value / magnitude);
-		
+		const normalizedValues = values.map((value) => value / magnitude);
+
 		return { values: normalizedValues };
 	}
 
@@ -130,12 +131,12 @@ export class EmbeddingService {
 			// Use batch endpoint for multiple texts
 			apiUrl = `${this.API_BASE_URL}/gemini-embedding-001:batchEmbedContents`;
 			requestBody = {
-				requests: texts.map(text => ({
+				requests: texts.map((text) => ({
 					model: `models/${EMBEDDING_CONFIG.MODEL}`,
 					content: { parts: [{ text }] },
 					taskType,
 					outputDimensionality,
-				}))
+				})),
 			};
 		} else {
 			// Use single endpoint for single text
@@ -149,36 +150,48 @@ export class EmbeddingService {
 		}
 
 		// Detailed logging for debugging
-		debugLogger.log(`[EmbeddingService] Making ${isBatch ? 'batch' : 'single'} API call with ${texts.length} texts`);
-		debugLogger.log(`[EmbeddingService] Request body:`, JSON.stringify(requestBody, null, 2));
+		debugLogger.log(
+			`[EmbeddingService] Making ${isBatch ? "batch" : "single"} API call with ${texts.length} texts`,
+		);
+		debugLogger.log(
+			`[EmbeddingService] Request body:`,
+			JSON.stringify(requestBody, null, 2),
+		);
 		debugLogger.log(`[EmbeddingService] API URL:`, apiUrl);
 
 		try {
-			const response = await fetch(
-				apiUrl,
-				{
-					method: "POST",
-					headers: {
-						"Content-Type": "application/json",
-						"x-goog-api-key": this.apiKey,
-					},
-					body: JSON.stringify(requestBody),
+			const response = await fetch(apiUrl, {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+					"x-goog-api-key": this.apiKey || "",
 				},
-			);
+				body: JSON.stringify(requestBody),
+			});
 
-			debugLogger.log(`[EmbeddingService] Response status:`, response.status, response.statusText);
+			debugLogger.log(
+				`[EmbeddingService] Response status:`,
+				response.status,
+				response.statusText,
+			);
 
 			if (!response.ok) {
 				let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
 				let errorData = null;
 				try {
 					errorData = await response.json();
-					debugLogger.log(`[EmbeddingService] Error response:`, JSON.stringify(errorData, null, 2));
+					debugLogger.log(
+						`[EmbeddingService] Error response:`,
+						JSON.stringify(errorData, null, 2),
+					);
 					if (errorData.error?.message) {
 						errorMessage = errorData.error.message;
 					}
 				} catch (parseError) {
-					debugLogger.log(`[EmbeddingService] Failed to parse error response:`, parseError);
+					debugLogger.log(
+						`[EmbeddingService] Failed to parse error response:`,
+						parseError,
+					);
 					// Use default error message if JSON parsing fails
 				}
 
@@ -187,18 +200,25 @@ export class EmbeddingService {
 			}
 
 			const data = await response.json();
-			debugLogger.log(`[EmbeddingService] Response data:`, JSON.stringify(data, null, 2));
+			debugLogger.log(
+				`[EmbeddingService] Response data:`,
+				JSON.stringify(data, null, 2),
+			);
 
 			if (isBatch) {
 				// Batch response format: { embeddings: [{ values: [...] }, ...] }
 				if (!data.embeddings || !Array.isArray(data.embeddings)) {
-					throw new Error("Invalid batch response format from Gemini embedding API");
+					throw new Error(
+						"Invalid batch response format from Gemini embedding API",
+					);
 				}
 				return data.embeddings;
 			} else {
 				// Single response format: { embedding: { values: [...] } }
 				if (!data.embedding || !Array.isArray(data.embedding.values)) {
-					throw new Error("Invalid single response format from Gemini embedding API");
+					throw new Error(
+						"Invalid single response format from Gemini embedding API",
+					);
 				}
 				return [data.embedding]; // Return array for consistency
 			}
@@ -241,7 +261,8 @@ export class EmbeddingService {
 		let embedding = embeddings[0];
 
 		// Normalize embeddings for non-3072 dimensions (per Gemini documentation)
-		const outputDimensionality = options.outputDimensionality ?? EMBEDDING_CONFIG.OUTPUT_DIMENSIONALITY;
+		const outputDimensionality =
+			options.outputDimensionality ?? EMBEDDING_CONFIG.OUTPUT_DIMENSIONALITY;
 		if (outputDimensionality !== 3072) {
 			embedding = this.normalizeEmbedding(embedding);
 		}
@@ -259,10 +280,14 @@ export class EmbeddingService {
 		texts: string[],
 		options: EmbeddingOptions = {},
 	): Promise<EmbeddingVector[]> {
-		debugLogger.log(`[EmbeddingService] generateEmbeddings called with ${texts.length} texts`);
-		
+		debugLogger.log(
+			`[EmbeddingService] generateEmbeddings called with ${texts.length} texts`,
+		);
+
 		if (texts.length === 0) {
-			debugLogger.log(`[EmbeddingService] Empty texts array, returning empty results`);
+			debugLogger.log(
+				`[EmbeddingService] Empty texts array, returning empty results`,
+			);
 			return [];
 		}
 
@@ -277,23 +302,34 @@ export class EmbeddingService {
 
 			if (cached) {
 				results[i] = cached;
-				debugLogger.log(`[EmbeddingService] Cache hit for text ${i}: "${text.substring(0, 50)}..."`);
+				debugLogger.log(
+					`[EmbeddingService] Cache hit for text ${i}: "${text.substring(0, 50)}..."`,
+				);
 			} else {
 				uncachedTexts.push(text);
 				uncachedIndices.push(i);
-				debugLogger.log(`[EmbeddingService] Cache miss for text ${i}: "${text.substring(0, 50)}..."`);
+				debugLogger.log(
+					`[EmbeddingService] Cache miss for text ${i}: "${text.substring(0, 50)}..."`,
+				);
 			}
 		}
 
-		debugLogger.log(`[EmbeddingService] Cache summary: ${results.filter(r => r).length} hits, ${uncachedTexts.length} misses`);
+		debugLogger.log(
+			`[EmbeddingService] Cache summary: ${results.filter((r) => r).length} hits, ${uncachedTexts.length} misses`,
+		);
 
 		// Process uncached texts in batches
 		if (uncachedTexts.length > 0) {
-			const outputDimensionality = options.outputDimensionality ?? EMBEDDING_CONFIG.OUTPUT_DIMENSIONALITY;
+			const outputDimensionality =
+				options.outputDimensionality ?? EMBEDDING_CONFIG.OUTPUT_DIMENSIONALITY;
 			const needsNormalization = outputDimensionality !== 3072;
 
-			debugLogger.log(`[EmbeddingService] Processing ${uncachedTexts.length} uncached texts in batches of ${this.MAX_BATCH_SIZE}`);
-			debugLogger.log(`[EmbeddingService] Normalization needed: ${needsNormalization} (dimension: ${outputDimensionality})`);
+			debugLogger.log(
+				`[EmbeddingService] Processing ${uncachedTexts.length} uncached texts in batches of ${this.MAX_BATCH_SIZE}`,
+			);
+			debugLogger.log(
+				`[EmbeddingService] Normalization needed: ${needsNormalization} (dimension: ${outputDimensionality})`,
+			);
 
 			// Process texts in batches using proper batch API
 			for (let i = 0; i < uncachedTexts.length; i += this.MAX_BATCH_SIZE) {
@@ -306,7 +342,9 @@ export class EmbeddingService {
 
 				const batchEmbeddings = await this.makeApiCall(batch, options);
 
-				debugLogger.log(`[EmbeddingService] Received ${batchEmbeddings.length} embeddings from batch API`);
+				debugLogger.log(
+					`[EmbeddingService] Received ${batchEmbeddings.length} embeddings from batch API`,
+				);
 
 				// Store results and cache embeddings
 				for (let j = 0; j < batch.length; j++) {
@@ -314,15 +352,25 @@ export class EmbeddingService {
 					let embedding = batchEmbeddings[j];
 					const originalIndex = batchIndices[j];
 
-					debugLogger.log(`[EmbeddingService] Processing embedding ${j} for original index ${originalIndex}`);
-					debugLogger.log(`[EmbeddingService] Original embedding dimension: ${embedding.values.length}`);
+					debugLogger.log(
+						`[EmbeddingService] Processing embedding ${j} for original index ${originalIndex}`,
+					);
+					debugLogger.log(
+						`[EmbeddingService] Original embedding dimension: ${embedding.values.length}`,
+					);
 
 					// Normalize embeddings for non-3072 dimensions
 					if (needsNormalization) {
-						const originalMagnitude = Math.sqrt(embedding.values.reduce((sum, value) => sum + value * value, 0));
+						const originalMagnitude = Math.sqrt(
+							embedding.values.reduce((sum, value) => sum + value * value, 0),
+						);
 						embedding = this.normalizeEmbedding(embedding);
-						const normalizedMagnitude = Math.sqrt(embedding.values.reduce((sum, value) => sum + value * value, 0));
-						debugLogger.log(`[EmbeddingService] Normalized embedding: ${originalMagnitude.toFixed(4)} -> ${normalizedMagnitude.toFixed(4)}`);
+						const normalizedMagnitude = Math.sqrt(
+							embedding.values.reduce((sum, value) => sum + value * value, 0),
+						);
+						debugLogger.log(
+							`[EmbeddingService] Normalized embedding: ${originalMagnitude.toFixed(4)} -> ${normalizedMagnitude.toFixed(4)}`,
+						);
 					}
 
 					results[originalIndex] = embedding;
@@ -331,7 +379,9 @@ export class EmbeddingService {
 			}
 		}
 
-		debugLogger.log(`[EmbeddingService] Returning ${results.length} embeddings total`);
+		debugLogger.log(
+			`[EmbeddingService] Returning ${results.length} embeddings total`,
+		);
 		return results;
 	}
 
