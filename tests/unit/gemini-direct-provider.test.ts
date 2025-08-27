@@ -102,6 +102,23 @@ describe("GeminiDirectProvider", () => {
 			expect(mockGeminiClient.analyzeContent).toHaveBeenCalledWith(
 				"test content",
 				"test prompt",
+				undefined, // progressOptions
+				undefined, // temperature (not provided)
+			);
+		});
+
+		it("should pass temperature parameter to GeminiClient", async () => {
+			mockGeminiClient.analyzeContent.mockResolvedValue({
+				golden_nuggets: [],
+			});
+
+			await provider.extractGoldenNuggets("test content", "test prompt", 0.7);
+
+			expect(mockGeminiClient.analyzeContent).toHaveBeenCalledWith(
+				"test content",
+				"test prompt",
+				undefined, // progressOptions
+				0.7, // temperature
 			);
 		});
 

@@ -26,9 +26,16 @@ export interface EnsembleExtractionResult {
 export interface LLMProvider {
 	readonly providerId: ProviderId;
 	readonly modelName: string;
+	/**
+	 * Extract golden nuggets from content using the provided prompt
+	 * @param content - The content to analyze
+	 * @param prompt - The analysis prompt
+	 * @param temperature - Optional temperature parameter (0.0-2.0). If not provided, uses provider default (typically 0.2)
+	 */
 	extractGoldenNuggets(
 		content: string,
 		prompt: string,
+		temperature?: number,
 	): Promise<GoldenNuggetsResponse>;
 	validateApiKey(): Promise<boolean>;
 

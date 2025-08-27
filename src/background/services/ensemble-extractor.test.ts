@@ -248,4 +248,45 @@ describe("EnsembleExtractor", () => {
 		expect(groupedNugget!.runsSupportingThis).toBe(2);
 		expect(groupedNugget!.confidence).toBeCloseTo(2 / 3);
 	});
+
+	it("should pass temperature parameter to provider", async () => {
+		mockProvider.extractGoldenNuggets.mockResolvedValue({
+			golden_nuggets: [nugget1],
+		});
+
+		await ensembleExtractor.extractWithEnsemble(
+			"test content",
+			"test prompt",
+			mockProvider,
+			{ runs: 2, temperature: 0.8, parallelExecution: true },
+		);
+
+		// Verify that extractGoldenNuggets was called with the temperature parameter
+		expect(mockProvider.extractGoldenNuggets).toHaveBeenCalledTimes(2);
+		expect(mockProvider.extractGoldenNuggets).toHaveBeenCalledWith(
+			"test content",
+			"test prompt",
+			0.8,
+		);
+	});
+
+	it("should work with undefined temperature", async () => {
+		mockProvider.extractGoldenNuggets.mockResolvedValue({
+			golden_nuggets: [nugget1],
+		});
+
+		await ensembleExtractor.extractWithEnsemble(
+			"test content",
+			"test prompt",
+			mockProvider,
+			{ runs: 1, temperature: undefined, parallelExecution: true },
+		);
+
+		// Verify that extractGoldenNuggets was called with undefined temperature
+		expect(mockProvider.extractGoldenNuggets).toHaveBeenCalledWith(
+			"test content",
+			"test prompt",
+			undefined,
+		);
+	});
 });

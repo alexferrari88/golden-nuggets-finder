@@ -106,6 +106,7 @@ export class GeminiClient {
 		content: string,
 		userPrompt: string,
 		progressOptions?: AnalysisProgressOptions,
+		temperature?: number,
 	): Promise<GeminiResponse> {
 		await this.initializeClient();
 
@@ -146,6 +147,7 @@ export class GeminiClient {
 					generationConfig: {
 						responseMimeType: "application/json",
 						responseSchema,
+						...(temperature !== undefined && { temperature }),
 						thinkingConfig: {
 							thinkingBudget: GEMINI_CONFIG.THINKING_BUDGET,
 						},

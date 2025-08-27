@@ -168,7 +168,29 @@ export class LangChainOpenRouterProvider implements LLMProvider {
 	async extractGoldenNuggets(
 		content: string,
 		prompt: string,
+		temperature?: number,
 	): Promise<GoldenNuggetsResponse> {
+		// Use provided temperature or fallback to default (0.2)
+		const effectiveTemperature = temperature ?? 0.2;
+
+		// Create model with specified temperature
+		const model =
+			temperature !== undefined
+				? new ChatOpenAI({
+						apiKey: this.config.apiKey,
+						model: this.modelName,
+						temperature: effectiveTemperature,
+						maxRetries: 0, // Disable ChatOpenAI's built-in retry logic - we handle retries ourselves
+						configuration: {
+							baseURL: "https://openrouter.ai/api/v1",
+							defaultHeaders: {
+								"HTTP-Referer": "https://golden-nuggets-finder.com",
+								"X-Title": "Golden Nuggets Finder",
+							},
+						},
+					})
+				: this.model;
+
 		// Log the request
 		debugLogger.logLLMRequest(
 			`https://openrouter.ai/api/v1/chat/completions (${this.modelName})`,
@@ -179,12 +201,13 @@ export class LangChainOpenRouterProvider implements LLMProvider {
 					{ role: "user", content: `${content.substring(0, 500)}...` }, // Truncate for logging
 				],
 				provider: "openrouter",
+				temperature: effectiveTemperature,
 			},
 		);
 
 		try {
 			const response = await this.executeWithRetry(async () => {
-				const structuredModel = this.model.withStructuredOutput(
+				const structuredModel = model.withStructuredOutput(
 					GoldenNuggetsSchema,
 					{
 						name: "extract_golden_nuggets",

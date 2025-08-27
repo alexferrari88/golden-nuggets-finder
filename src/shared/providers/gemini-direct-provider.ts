@@ -18,11 +18,14 @@ export class GeminiDirectProvider implements LLMProvider {
 	async extractGoldenNuggets(
 		content: string,
 		prompt: string,
+		temperature?: number,
 	): Promise<GoldenNuggetsResponse> {
 		// Use existing GeminiClient implementation
 		const geminiResponse = await this.geminiClient.analyzeContent(
 			content,
 			prompt,
+			undefined, // progressOptions
+			temperature,
 		);
 
 		// Pass through the correct GeminiResponse format without synthesis

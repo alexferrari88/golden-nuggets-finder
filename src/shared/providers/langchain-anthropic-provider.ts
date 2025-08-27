@@ -36,8 +36,22 @@ export class LangChainAnthropicProvider implements LLMProvider {
 	async extractGoldenNuggets(
 		content: string,
 		prompt: string,
+		temperature?: number,
 	): Promise<GoldenNuggetsResponse> {
 		try {
+			// Use provided temperature or fallback to default (0.2)
+			const effectiveTemperature = temperature ?? 0.2;
+
+			// Create model with specified temperature
+			const model =
+				temperature !== undefined
+					? new ChatAnthropic({
+							apiKey: this.config.apiKey,
+							model: this.modelName,
+							temperature: effectiveTemperature,
+						})
+					: this.model;
+
 			// Log the request
 			debugLogger.logLLMRequest(
 				`https://api.anthropic.com/v1/messages (${this.modelName})`,
@@ -48,16 +62,14 @@ export class LangChainAnthropicProvider implements LLMProvider {
 						{ role: "user", content: `${content.substring(0, 500)}...` }, // Truncate for logging
 					],
 					provider: "anthropic",
+					temperature: effectiveTemperature,
 				},
 			);
 
-			const structuredModel = this.model.withStructuredOutput(
-				GoldenNuggetsSchema,
-				{
-					name: "extract_golden_nuggets",
-					method: "functionCalling",
-				},
-			);
+			const structuredModel = model.withStructuredOutput(GoldenNuggetsSchema, {
+				name: "extract_golden_nuggets",
+				method: "functionCalling",
+			});
 
 			const response = await structuredModel.invoke([
 				new SystemMessage(prompt),

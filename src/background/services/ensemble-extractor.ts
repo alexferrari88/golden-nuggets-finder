@@ -32,7 +32,13 @@ export class EnsembleExtractor {
 		const extractionPromises = Array(options.runs)
 			.fill(null)
 			.map((_, runIndex) =>
-				this.executeRunWithErrorHandling(content, prompt, provider, runIndex),
+				this.executeRunWithErrorHandling(
+					content,
+					prompt,
+					provider,
+					runIndex,
+					options.temperature,
+				),
 			);
 
 		const extractions = await Promise.allSettled(extractionPromises);
@@ -62,11 +68,16 @@ export class EnsembleExtractor {
 		prompt: string,
 		provider: LLMProvider,
 		runIndex: number,
+		temperature?: number,
 	): Promise<GoldenNuggetsResponse> {
 		try {
 			console.log(`Executing run ${runIndex + 1} for ${provider.providerId}`);
 
-			const rawResponse = await provider.extractGoldenNuggets(content, prompt);
+			const rawResponse = await provider.extractGoldenNuggets(
+				content,
+				prompt,
+				temperature,
+			);
 			return normalize(rawResponse, provider.providerId);
 		} catch (error) {
 			console.error(

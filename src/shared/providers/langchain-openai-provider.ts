@@ -25,7 +25,7 @@ export class LangChainOpenAIProvider implements LLMProvider {
 	private model: ChatOpenAI;
 
 	constructor(private config: ProviderConfig) {
-		this.modelName = config.modelName || "gpt-4.1-mini";
+		this.modelName = config.modelName || "gpt-5-mini";
 		this.model = new ChatOpenAI({
 			apiKey: config.apiKey,
 			model: this.modelName,
@@ -36,8 +36,22 @@ export class LangChainOpenAIProvider implements LLMProvider {
 	async extractGoldenNuggets(
 		content: string,
 		prompt: string,
+		temperature?: number,
 	): Promise<GoldenNuggetsResponse> {
 		try {
+			// Use provided temperature or fallback to default (0.2)
+			const effectiveTemperature = temperature ?? 0.2;
+
+			// Create model with specified temperature
+			const model =
+				temperature !== undefined
+					? new ChatOpenAI({
+							apiKey: this.config.apiKey,
+							model: this.modelName,
+							temperature: effectiveTemperature,
+						})
+					: this.model;
+
 			// Log the request
 			debugLogger.logLLMRequest(
 				`https://api.openai.com/v1/chat/completions (${this.modelName})`,
@@ -48,16 +62,14 @@ export class LangChainOpenAIProvider implements LLMProvider {
 						{ role: "user", content: `${content.substring(0, 500)}...` }, // Truncate for logging
 					],
 					provider: "openai",
+					temperature: effectiveTemperature,
 				},
 			);
 
-			const structuredModel = this.model.withStructuredOutput(
-				GoldenNuggetsSchema,
-				{
-					name: "extract_golden_nuggets",
-					method: "functionCalling",
-				},
-			);
+			const structuredModel = model.withStructuredOutput(GoldenNuggetsSchema, {
+				name: "extract_golden_nuggets",
+				method: "functionCalling",
+			});
 
 			const response = await structuredModel.invoke([
 				new SystemMessage(prompt),
