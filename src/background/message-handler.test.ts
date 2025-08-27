@@ -87,7 +87,7 @@ describe("MessageHandler", () => {
 			analyzeContent: vi.fn().mockResolvedValue({ golden_nuggets: [] }),
 		};
 		mockSendResponse = vi.fn();
-		messageHandler = new MessageHandler(mockGeminiClient);
+		messageHandler = new MessageHandler();
 
 		// Mock fetch to reject (simulating no optimized prompt available)
 		mockFetch.mockRejectedValue(new Error("No optimized prompt available"));
@@ -421,7 +421,8 @@ describe("MessageHandler", () => {
 					userPersona: "data scientist specializing in machine learning",
 				});
 
-				const result = await messageHandler.replacePersonaPlaceholder(
+				// Access private method for testing
+				const result = await (messageHandler as any).replacePersonaPlaceholder(
 					"You are a {{ persona }}. Analyze this content.",
 				);
 
@@ -436,7 +437,8 @@ describe("MessageHandler", () => {
 					userPersona: "senior software engineer",
 				});
 
-				const result = await messageHandler.replacePersonaPlaceholder(
+				// Access private method for testing
+				const result = await (messageHandler as any).replacePersonaPlaceholder(
 					"As a {{ persona }}, analyze this code. Remember you are a {{ persona }}.",
 				);
 
@@ -451,7 +453,8 @@ describe("MessageHandler", () => {
 					userPersona: "UX designer",
 				});
 
-				const result = await messageHandler.replacePersonaPlaceholder(
+				// Access private method for testing
+				const result = await (messageHandler as any).replacePersonaPlaceholder(
 					"You are a {{persona}} and also a {{  persona  }}.",
 				);
 
@@ -464,7 +467,8 @@ describe("MessageHandler", () => {
 					userPersona: "",
 				});
 
-				const result = await messageHandler.replacePersonaPlaceholder(
+				// Access private method for testing
+				const result = await (messageHandler as any).replacePersonaPlaceholder(
 					"You are a {{ persona }}. Analyze this content.",
 				);
 
@@ -475,7 +479,8 @@ describe("MessageHandler", () => {
 				// Mock undefined persona in storage
 				(storage.getConfig as ReturnType<typeof vi.fn>).mockResolvedValue({});
 
-				const result = await messageHandler.replacePersonaPlaceholder(
+				// Access private method for testing
+				const result = await (messageHandler as any).replacePersonaPlaceholder(
 					"You are a {{ persona }}. Analyze this content.",
 				);
 
@@ -488,7 +493,8 @@ describe("MessageHandler", () => {
 					new Error("Storage access failed"),
 				);
 
-				const result = await messageHandler.replacePersonaPlaceholder(
+				// Access private method for testing
+				const result = await (messageHandler as any).replacePersonaPlaceholder(
 					"You are a {{ persona }}. Analyze this content.",
 				);
 
@@ -501,7 +507,8 @@ describe("MessageHandler", () => {
 					userPersona: "product manager",
 				});
 
-				const result = await messageHandler.replacePersonaPlaceholder(
+				// Access private method for testing
+				const result = await (messageHandler as any).replacePersonaPlaceholder(
 					"Analyze this content for insights.",
 				);
 

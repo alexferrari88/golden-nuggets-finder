@@ -140,7 +140,8 @@ describe("NotificationManager", () => {
 	describe("showApiKeyError", () => {
 		// Mock chrome.runtime for this test
 		beforeEach(() => {
-			(global as typeof global & { chrome: Partial<typeof chrome> }).chrome = {
+			// Use any to avoid complex type issues in tests
+			(global as any).chrome = {
 				runtime: {
 					sendMessage: vi.fn(),
 				},

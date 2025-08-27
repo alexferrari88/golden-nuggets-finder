@@ -537,7 +537,7 @@ export class MessageHandler {
 				apiKey = "";
 			}
 		} else {
-			apiKey = await getApiKey(providerId);
+			apiKey = (await getApiKey(providerId)) || "";
 		}
 
 		if (!apiKey) {
@@ -2346,7 +2346,7 @@ export class MessageHandler {
 		}
 
 		// Create provider configuration outside try block
-		let config: ProviderConfig;
+		let config: ProviderConfig | undefined;
 		try {
 			config = {
 				providerId,

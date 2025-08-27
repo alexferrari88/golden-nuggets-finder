@@ -29,7 +29,7 @@
 		"test:e2e:report": "playwright show-report",
 		"lint": "biome check",
 		"lint:fix": "biome check --write",
-		"typecheck": "tsc --noEmit"
+		"typecheck": "tsc --noEmit --skipLibCheck"
 	},
 	"keywords": [
 		"browser-extension",

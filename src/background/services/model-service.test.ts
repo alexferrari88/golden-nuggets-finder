@@ -405,7 +405,7 @@ describe("ModelService", () => {
 				).fetchWithTimeout("http://test.com");
 				expect.fail("Should have thrown an error");
 			} catch (error) {
-				expect(error.message).toBe("Request timeout");
+				expect((error as Error).message).toBe("Request timeout");
 			}
 		});
 

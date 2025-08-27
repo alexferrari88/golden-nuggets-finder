@@ -343,6 +343,12 @@ describe("MessageHandler Error Handling", () => {
 						context: "Test context",
 						modelProvider: "gemini" as const,
 						modelName: "gemini-2.5-flash",
+						prompt: {
+							id: "test-prompt-id",
+							content: "Test prompt content",
+							type: "default" as const,
+							name: "Test Prompt",
+						},
 					},
 				};
 
@@ -387,6 +393,12 @@ describe("MessageHandler Error Handling", () => {
 							context: "Test context",
 							modelProvider: "gemini" as const,
 							modelName: "gemini-2.5-flash",
+							prompt: {
+								id: "test-prompt-id",
+								content: "Test prompt content",
+								type: "default" as const,
+								name: "Test Prompt",
+							},
 						},
 					],
 				};
@@ -511,6 +523,12 @@ describe("MessageHandler Error Handling", () => {
 					context: "E2E test context",
 					modelProvider: "gemini" as const,
 					modelName: "gemini-2.5-flash",
+					prompt: {
+						id: "test-prompt-id",
+						content: "Test prompt content",
+						type: "default" as const,
+						name: "Test Prompt",
+					},
 				},
 			};
 

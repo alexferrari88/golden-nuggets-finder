@@ -581,7 +581,7 @@ export class Highlighter {
 			return true;
 		} catch (error) {
 			console.error("Error creating CSS highlight:", error);
-			console.error("Error details:", error.message);
+			console.error("Error details:", (error as Error).message);
 			console.error("Falling back to DOM highlighting");
 			return this.highlightWithDOM(range, nugget);
 		}

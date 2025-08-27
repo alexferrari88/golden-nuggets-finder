@@ -17,7 +17,7 @@ export async function switchProvider(providerId: ProviderId): Promise<boolean> {
 				timestamp: Date.now(),
 			});
 		} else {
-			apiKey = await getApiKey(providerId);
+			apiKey = (await getApiKey(providerId)) || "";
 		}
 
 		if (!apiKey) {

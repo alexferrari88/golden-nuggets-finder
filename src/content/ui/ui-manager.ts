@@ -38,6 +38,7 @@ export class UIManager {
 	private currentPromptId?: string;
 	private currentTypeFilter?: TypeFilterOptions;
 	private controlPanel: HTMLElement | null = null;
+	private originalPanelContent?: HTMLElement;
 	private prompts: SavedPrompt[] = [];
 	private keyboardListener?: (event: KeyboardEvent) => void;
 	private analysisState = {
@@ -1740,7 +1741,8 @@ export class UIManager {
 			if (content.trim()) {
 				missingContentFeedback.push({
 					id: feedbackId,
-					content: content.substring(0, 1000), // Limit content length
+					startContent: content.substring(0, 100), // First 100 chars
+					endContent: content.length > 100 ? content.substring(content.length - 100) : content, // Last 100 chars
 					suggestedType: selectedType,
 					timestamp: Date.now(),
 					url: window.location.href,
@@ -1748,6 +1750,13 @@ export class UIManager {
 					// Add provider/model data from the analysis that generated the original results
 					modelProvider: lastUsedProvider?.providerId || "gemini",
 					modelName: lastUsedProvider?.modelName || "gemini-2.5-flash",
+					// TODO: Prompt metadata should come from the analysis that generated the original results
+					prompt: {
+						id: "unknown",
+						content: "",
+						type: "default",
+						name: "Unknown Prompt",
+					},
 				});
 			}
 		});

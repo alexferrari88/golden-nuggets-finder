@@ -1347,6 +1347,14 @@ export class Sidebar {
 			// Add provider/model data from the analysis that generated this nugget
 			modelProvider: lastUsedProvider?.providerId || "gemini",
 			modelName: lastUsedProvider?.modelName || "gemini-2.5-flash",
+			// TODO: Prompt metadata should come from the analysis that generated this nugget
+			// For now, using placeholder values to satisfy type requirements
+			prompt: {
+				id: "unknown",
+				content: "",
+				type: "default",
+				name: "Unknown Prompt",
+			},
 		};
 
 		// Update the item
@@ -1403,6 +1411,13 @@ export class Sidebar {
 				// Add provider/model data from the analysis that generated this nugget
 				modelProvider: lastUsedProvider?.providerId || "gemini",
 				modelName: lastUsedProvider?.modelName || "gemini-2.5-flash",
+				// TODO: Prompt metadata should come from the analysis that generated this nugget
+				prompt: {
+					id: "unknown",
+					content: "",
+					type: "default",
+					name: "Unknown Prompt",
+				},
 			};
 		}
 

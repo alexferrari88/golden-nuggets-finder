@@ -225,27 +225,29 @@ export default defineContentScript({
 			switch (debugLog.type) {
 				case "llm-request":
 					if (debugLog.data) {
+						const requestData = debugLog.data as { endpoint?: string; requestBody?: unknown };
 						console.log(
 							"[LLM Request] Gemini API - Endpoint:",
-							debugLog.data.endpoint,
+							requestData.endpoint,
 						);
 						console.log(
 							"[LLM Request] Request Body:",
-							JSON.stringify(debugLog.data.requestBody, null, 2),
+							JSON.stringify(requestData.requestBody, null, 2),
 						);
 					}
 					break;
 
 				case "llm-response":
 					if (debugLog.data) {
+						const responseData = debugLog.data as { responseData?: unknown; parsedResponse?: unknown };
 						console.log(
 							"[LLM Response] Raw Response:",
-							JSON.stringify(debugLog.data.responseData, null, 2),
+							JSON.stringify(responseData.responseData, null, 2),
 						);
-						if (debugLog.data.parsedResponse) {
+						if (responseData.parsedResponse) {
 							console.log(
 								"[LLM Response] Parsed Response:",
-								JSON.stringify(debugLog.data.parsedResponse, null, 2),
+								JSON.stringify(responseData.parsedResponse, null, 2),
 							);
 						}
 					}
@@ -253,33 +255,34 @@ export default defineContentScript({
 
 				case "llm-validation":
 					if (debugLog.data) {
+						const validationData = debugLog.data as { endpoint?: string; requestBody?: unknown; status?: number; statusText?: string; valid?: boolean };
 						console.log(
 							"[LLM Request] API Key Validation - Endpoint:",
-							debugLog.data.endpoint,
+							validationData.endpoint,
 						);
 						console.log(
 							"[LLM Request] Test Request Body:",
-							JSON.stringify(debugLog.data.requestBody, null, 2),
+							JSON.stringify(validationData.requestBody, null, 2),
 						);
 						console.log(
 							"[LLM Response] API Key Validation - Status:",
-							debugLog.data.status,
-							debugLog.data.statusText,
+							validationData.status,
+							validationData.statusText,
 						);
-						console.log("[LLM Response] API Key Valid:", debugLog.data.valid);
+						console.log("[LLM Response] API Key Valid:", validationData.valid);
 					}
 					break;
 
 				case "log":
-					console.log(debugLog.message, ...(debugLog.data || []));
+					console.log(debugLog.message, ...(Array.isArray(debugLog.data) ? debugLog.data : []));
 					break;
 
 				case "error":
-					console.error(debugLog.message, ...(debugLog.data || []));
+					console.error(debugLog.message, ...(Array.isArray(debugLog.data) ? debugLog.data : []));
 					break;
 
 				case "warn":
-					console.warn(debugLog.message, ...(debugLog.data || []));
+					console.warn(debugLog.message, ...(Array.isArray(debugLog.data) ? debugLog.data : []));
 					break;
 
 				default:
@@ -372,7 +375,7 @@ export default defineContentScript({
 						await analyzeContent(
 							request.promptId,
 							request.source,
-							request.analysisId,
+							request.analysisId || "",
 							request.typeFilter,
 						);
 						sendResponse({ success: true });
@@ -383,7 +386,7 @@ export default defineContentScript({
 						await analyzeContentEnsemble(
 							request.promptId,
 							request.source,
-							request.analysisId,
+							request.analysisId || "",
 							request.typeFilter,
 							(request as any).ensembleOptions,
 						);
@@ -527,7 +530,7 @@ export default defineContentScript({
 				}
 
 				// Send analysis request to background script with progress tracking info
-				const analysisRequest: AnalysisRequest = {
+				const analysisRequest = {
 					content: content,
 					promptId: promptId,
 					url: window.location.href,
@@ -539,7 +542,7 @@ export default defineContentScript({
 				performanceMonitor.startTimer("api_request");
 				const response = await sendMessageToBackground(
 					MESSAGE_TYPES.ANALYZE_CONTENT,
-					analysisRequest,
+					analysisRequest as any,
 				);
 				performanceMonitor.logTimer("api_request", "Background API call");
 
@@ -625,7 +628,7 @@ export default defineContentScript({
 
 				// Show ensemble-specific progress banner
 				if (source !== "popup") {
-					uiManager.showProgressBanner("🎯 Starting Ensemble Analysis...");
+					uiManager.showProgressBanner();
 				}
 
 				// Extract content from the page using the same logic as regular analysis
@@ -665,7 +668,7 @@ export default defineContentScript({
 				performanceMonitor.startTimer("ensemble_api_request");
 				const response = await sendMessageToBackground(
 					MESSAGE_TYPES.ANALYZE_CONTENT_ENSEMBLE,
-					ensembleRequest,
+					ensembleRequest as any,
 				);
 				performanceMonitor.logTimer(
 					"ensemble_api_request",

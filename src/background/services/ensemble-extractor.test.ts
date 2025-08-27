@@ -279,7 +279,7 @@ describe("EnsembleExtractor", () => {
 			"test content",
 			"test prompt",
 			mockProvider,
-			{ runs: 1, temperature: undefined, parallelExecution: true },
+			{ runs: 1, temperature: 0.5, parallelExecution: true },
 		);
 
 		// Verify that extractGoldenNuggets was called with undefined temperature

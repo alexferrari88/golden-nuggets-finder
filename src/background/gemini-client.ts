@@ -406,7 +406,9 @@ export class GeminiClient {
 		if (this.responseCache.size > 10) {
 			// Remove oldest entries
 			const oldestKey = this.responseCache.keys().next().value;
-			this.responseCache.delete(oldestKey);
+			if (oldestKey !== undefined) {
+				this.responseCache.delete(oldestKey);
+			}
 		}
 
 		this.responseCache.set(cacheKey, {
@@ -438,7 +440,7 @@ export class GeminiClient {
 			// Log API key validation request/response in development mode
 			debugLogger.logLLMValidation(
 				modelsUrl,
-				null, // No request body for GET
+				{}, // No request body for GET
 				response.status,
 				response.statusText,
 				response.ok,

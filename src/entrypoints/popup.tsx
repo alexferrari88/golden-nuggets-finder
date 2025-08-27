@@ -183,6 +183,18 @@ const usePhaseProgression = (
 				// Step 4: Finalize phase (instant)
 				phaseIndex = 2;
 				shouldComplete = true;
+			} else if (
+				progressMessage.type === MESSAGE_TYPES.ENSEMBLE_EXTRACTION_PROGRESS
+			) {
+				// Ensemble extraction progress - map to AI thinking phase
+				phaseIndex = 1;
+				shouldComplete = false; // Ensemble is still in progress
+			} else if (
+				progressMessage.type === MESSAGE_TYPES.ENSEMBLE_CONSENSUS_COMPLETE
+			) {
+				// Ensemble consensus complete - finalize phase
+				phaseIndex = 2;
+				shouldComplete = true;
 			}
 
 			if (phaseIndex >= 0) {
@@ -316,6 +328,7 @@ function IndexPopup() {
 		"analogy",
 		"model",
 	]);
+	const [ensembleMode, setEnsembleMode] = useState<boolean>(false);
 
 	// Analysis phases data - reflects real workflow timing
 	const analysisPhases = [
@@ -338,6 +351,12 @@ function IndexPopup() {
 				"⚡ Processing hundreds of words per second",
 				"🎯 Filtering for the most valuable insights",
 			],
+			ensembleTips: [
+				"🎯 Running 3 parallel analyses for higher confidence",
+				"🤖 Multiple AI runs analyzing the same content independently",
+				"🔄 Building consensus from multiple perspectives",
+				"✨ Filtering duplicates and ranking by confidence",
+			],
 		},
 		{
 			id: "finalize",
@@ -349,7 +368,11 @@ function IndexPopup() {
 
 	// Use custom hooks for loading animation
 	const { displayText, isComplete, showCursor } = useTypingEffect(
-		analyzing ? "Analyzing your content..." : "",
+		analyzing
+			? ensembleMode
+				? "Running ensemble analysis..."
+				: "Analyzing your content..."
+			: "",
 		80,
 	);
 
@@ -423,15 +446,20 @@ function IndexPopup() {
 	useEffect(() => {
 		if (currentPhase === 1) {
 			const aiPhase = analysisPhases[1];
-			if (aiPhase.tips && aiPhase.tips.length > 1) {
+			// Use ensemble tips if ensemble mode is active, otherwise use regular tips
+			const tips =
+				ensembleMode && aiPhase.ensembleTips
+					? aiPhase.ensembleTips
+					: aiPhase.tips;
+			if (tips && tips.length > 1) {
 				const interval = setInterval(() => {
-					setCurrentTipIndex((prev) => (prev + 1) % aiPhase.tips?.length);
+					setCurrentTipIndex((prev) => (prev + 1) % tips.length);
 				}, 3000); // Change tip every 3 seconds
 
 				return () => clearInterval(interval);
 			}
 		}
-	}, [currentPhase]);
+	}, [currentPhase, ensembleMode]);
 
 	// Check backend availability
 	const checkBackendStatus = useCallback(async () => {
@@ -613,7 +641,9 @@ function IndexPopup() {
 					message.type === MESSAGE_TYPES.ANALYSIS_CONTENT_OPTIMIZED ||
 					message.type === MESSAGE_TYPES.ANALYSIS_API_REQUEST_START ||
 					message.type === MESSAGE_TYPES.ANALYSIS_API_RESPONSE_RECEIVED ||
-					message.type === MESSAGE_TYPES.ANALYSIS_PROCESSING_RESULTS)
+					message.type === MESSAGE_TYPES.ANALYSIS_PROCESSING_RESULTS ||
+					message.type === MESSAGE_TYPES.ENSEMBLE_EXTRACTION_PROGRESS ||
+					message.type === MESSAGE_TYPES.ENSEMBLE_CONSENSUS_COMPLETE)
 			) {
 				processRealTimePhase(message as AnalysisProgressMessage);
 			}
@@ -700,14 +730,27 @@ function IndexPopup() {
 			const typeFilter: TypeFilterOptions =
 				createCombinationTypeFilter(selectedTypes);
 
-			// Send message to content script with analysis ID and type filter
-			await chrome.tabs.sendMessage(tab.id, {
-				type: MESSAGE_TYPES.ANALYZE_CONTENT,
-				promptId: promptId,
-				source: "popup",
-				analysisId: analysisId,
-				typeFilter: typeFilter,
-			});
+			// Send message to content script - route based on ensemble mode
+			if (ensembleMode) {
+				// Send ensemble analysis message
+				await chrome.tabs.sendMessage(tab.id, {
+					type: MESSAGE_TYPES.ANALYZE_CONTENT_ENSEMBLE,
+					promptId: promptId,
+					source: "popup",
+					analysisId: analysisId,
+					typeFilter: typeFilter,
+					ensembleOptions: { runs: 3, mode: "balanced" },
+				});
+			} else {
+				// Send regular analysis message
+				await chrome.tabs.sendMessage(tab.id, {
+					type: MESSAGE_TYPES.ANALYZE_CONTENT,
+					promptId: promptId,
+					source: "popup",
+					analysisId: analysisId,
+					typeFilter: typeFilter,
+				});
+			}
 
 			// Listen for analysis completion - don't close popup immediately
 			const listener = (message: { type: string; error?: string }) => {
@@ -1125,9 +1168,15 @@ function IndexPopup() {
 													transition: "opacity 0.3s ease",
 												}}
 											>
-												{phase.tips && phase.tips.length > 0
-													? phase.tips[currentTipIndex]
-													: phase.description}
+												{(() => {
+													const tips =
+														ensembleMode && phase.ensembleTips
+															? phase.ensembleTips
+															: phase.tips;
+													return tips && tips.length > 0
+														? tips[currentTipIndex]
+														: phase.description;
+												})()}
 											</div>
 
 											{/* Time estimate and elapsed time */}
@@ -1357,6 +1406,73 @@ function IndexPopup() {
 						title="Change provider and model"
 					>
 						⚙️
+					</button>
+				</div>
+
+				{/* Ensemble Mode Toggle */}
+				<div
+					style={{
+						display: "flex",
+						alignItems: "center",
+						justifyContent: "center",
+						gap: spacing.sm,
+						marginBottom: spacing.md,
+						padding: spacing.sm,
+						backgroundColor: ensembleMode
+							? colors.background.secondary
+							: "transparent",
+						borderRadius: borderRadius.md,
+						border: `1px solid ${
+							ensembleMode ? `${colors.text.accent}33` : colors.border.light
+						}`,
+						transition: "all 0.2s ease",
+					}}
+				>
+					<span
+						style={{
+							fontSize: typography.fontSize.sm,
+							fontWeight: typography.fontWeight.medium,
+							color: ensembleMode ? colors.text.accent : colors.text.secondary,
+						}}
+					>
+						🎯 Ensemble Mode (3 runs)
+					</span>
+					<button
+						type="button"
+						onClick={() => setEnsembleMode(!ensembleMode)}
+						style={{
+							width: "44px",
+							height: "24px",
+							backgroundColor: ensembleMode
+								? colors.text.accent
+								: colors.background.primary,
+							border: `2px solid ${
+								ensembleMode ? colors.text.accent : colors.border.default
+							}`,
+							borderRadius: "12px",
+							cursor: "pointer",
+							transition: "all 0.2s ease",
+							position: "relative",
+						}}
+						title="Toggle ensemble mode for higher confidence results (3x cost)"
+					>
+						<div
+							style={{
+								width: "16px",
+								height: "16px",
+								backgroundColor: ensembleMode
+									? colors.background.primary
+									: colors.text.tertiary,
+								borderRadius: "50%",
+								transition: "all 0.2s ease",
+								transform: ensembleMode
+									? "translateX(20px)"
+									: "translateX(0px)",
+								position: "absolute",
+								top: "2px",
+								left: "2px",
+							}}
+						/>
 					</button>
 				</div>
 
