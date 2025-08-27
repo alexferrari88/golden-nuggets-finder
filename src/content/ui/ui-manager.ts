@@ -1742,7 +1742,10 @@ export class UIManager {
 				missingContentFeedback.push({
 					id: feedbackId,
 					startContent: content.substring(0, 100), // First 100 chars
-					endContent: content.length > 100 ? content.substring(content.length - 100) : content, // Last 100 chars
+					endContent:
+						content.length > 100
+							? content.substring(content.length - 100)
+							: content, // Last 100 chars
 					suggestedType: selectedType,
 					timestamp: Date.now(),
 					url: window.location.href,

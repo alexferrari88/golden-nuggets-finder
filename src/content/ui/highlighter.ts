@@ -252,6 +252,39 @@ export class Highlighter {
 	}
 
 	/**
+	 * Conservative quote normalization - only normalizes quote characters
+	 * Converts all quote types (straight, curly, smart) to standard straight quotes
+	 * for matching purposes, but preserves all other content exactly
+	 */
+	private normalizeQuotes(text: string): string {
+		return (
+			text
+				// Convert opening smart/curly quotes to straight quotes
+				.replace(/[""]/g, '"') // " and " to "
+				.replace(/['']/g, "'") // ' and ' to '
+				// Convert any remaining quote entities
+				.replace(/&quot;/g, '"')
+				.replace(/&#39;/g, "'")
+				.replace(/&apos;/g, "'")
+		);
+	}
+
+	/**
+	 * URL spacing normalization - removes spaces around dots in URLs
+	 * Conservative: only applies to patterns that look like URLs or domain names
+	 */
+	private normalizeUrlSpacing(text: string): string {
+		return (
+			text
+				// Remove spaces around dots in URL-like patterns
+				// Matches patterns like "pmc. ncbi. nlm. nih. gov" -> "pmc.ncbi.nlm.nih.gov"
+				.replace(/([a-zA-Z0-9])\s*\.\s*([a-zA-Z0-9])/g, "$1.$2")
+				// Handle multiple consecutive replacements for patterns like "a. b. c. d"
+				.replace(/([a-zA-Z0-9])\s*\.\s*([a-zA-Z0-9])/g, "$1.$2")
+		);
+	}
+
+	/**
 	 * Try to find text using multiple matching strategies
 	 */
 	private findTextWithStrategies(
@@ -435,13 +468,83 @@ export class Highlighter {
 				}
 			}
 
+			// Strategy 5: Try with quote character normalization (conservative fallback)
+			if (possibleRanges.length === 0) {
+				const quoteNormalizedStartContent =
+					this.normalizeQuotes(startContent).toLowerCase();
+				const quoteNormalizedEndContent =
+					this.normalizeQuotes(endContent).toLowerCase();
+
+				// Only try quote normalization if it actually changes something
+				if (
+					quoteNormalizedStartContent !== startContentLower ||
+					quoteNormalizedEndContent !== endContentLower
+				) {
+					possibleRanges = this.findTextWithStrategies(
+						fullTextLower,
+						quoteNormalizedStartContent,
+						quoteNormalizedEndContent,
+						"quote character normalization",
+					);
+
+					// If still no match, try normalizing the DOM text quotes too
+					if (possibleRanges.length === 0) {
+						const quoteNormalizedFullText =
+							this.normalizeQuotes(fullText).toLowerCase();
+						if (quoteNormalizedFullText !== fullTextLower) {
+							possibleRanges = this.findTextWithStrategies(
+								quoteNormalizedFullText,
+								quoteNormalizedStartContent,
+								quoteNormalizedEndContent,
+								"both DOM and search quote normalization",
+							);
+						}
+					}
+				}
+			}
+
+			// Strategy 6: Try with URL spacing normalization (conservative fallback)
+			if (possibleRanges.length === 0) {
+				const urlNormalizedStartContent =
+					this.normalizeUrlSpacing(startContent).toLowerCase();
+				const urlNormalizedEndContent =
+					this.normalizeUrlSpacing(endContent).toLowerCase();
+
+				// Only try URL spacing normalization if it actually changes something
+				if (
+					urlNormalizedStartContent !== startContentLower ||
+					urlNormalizedEndContent !== endContentLower
+				) {
+					possibleRanges = this.findTextWithStrategies(
+						fullTextLower,
+						urlNormalizedStartContent,
+						urlNormalizedEndContent,
+						"URL spacing normalization",
+					);
+
+					// If still no match, try normalizing the DOM text URLs too
+					if (possibleRanges.length === 0) {
+						const urlNormalizedFullText =
+							this.normalizeUrlSpacing(fullText).toLowerCase();
+						if (urlNormalizedFullText !== fullTextLower) {
+							possibleRanges = this.findTextWithStrategies(
+								urlNormalizedFullText,
+								urlNormalizedStartContent,
+								urlNormalizedEndContent,
+								"both DOM and search URL normalization",
+							);
+						}
+					}
+				}
+			}
+
 			if (possibleRanges.length === 0) {
 				console.warn(
 					"No valid range found for:",
 					startContent,
 					"→",
 					endContent,
-					"(tried exact, normalized, and end-normalized matching)",
+					"(tried exact, normalized, quote, and URL spacing matching)",
 				);
 				return null;
 			}

@@ -225,7 +225,10 @@ export default defineContentScript({
 			switch (debugLog.type) {
 				case "llm-request":
 					if (debugLog.data) {
-						const requestData = debugLog.data as { endpoint?: string; requestBody?: unknown };
+						const requestData = debugLog.data as {
+							endpoint?: string;
+							requestBody?: unknown;
+						};
 						console.log(
 							"[LLM Request] Gemini API - Endpoint:",
 							requestData.endpoint,
@@ -239,7 +242,10 @@ export default defineContentScript({
 
 				case "llm-response":
 					if (debugLog.data) {
-						const responseData = debugLog.data as { responseData?: unknown; parsedResponse?: unknown };
+						const responseData = debugLog.data as {
+							responseData?: unknown;
+							parsedResponse?: unknown;
+						};
 						console.log(
 							"[LLM Response] Raw Response:",
 							JSON.stringify(responseData.responseData, null, 2),
@@ -255,7 +261,13 @@ export default defineContentScript({
 
 				case "llm-validation":
 					if (debugLog.data) {
-						const validationData = debugLog.data as { endpoint?: string; requestBody?: unknown; status?: number; statusText?: string; valid?: boolean };
+						const validationData = debugLog.data as {
+							endpoint?: string;
+							requestBody?: unknown;
+							status?: number;
+							statusText?: string;
+							valid?: boolean;
+						};
 						console.log(
 							"[LLM Request] API Key Validation - Endpoint:",
 							validationData.endpoint,
@@ -274,15 +286,24 @@ export default defineContentScript({
 					break;
 
 				case "log":
-					console.log(debugLog.message, ...(Array.isArray(debugLog.data) ? debugLog.data : []));
+					console.log(
+						debugLog.message,
+						...(Array.isArray(debugLog.data) ? debugLog.data : []),
+					);
 					break;
 
 				case "error":
-					console.error(debugLog.message, ...(Array.isArray(debugLog.data) ? debugLog.data : []));
+					console.error(
+						debugLog.message,
+						...(Array.isArray(debugLog.data) ? debugLog.data : []),
+					);
 					break;
 
 				case "warn":
-					console.warn(debugLog.message, ...(Array.isArray(debugLog.data) ? debugLog.data : []));
+					console.warn(
+						debugLog.message,
+						...(Array.isArray(debugLog.data) ? debugLog.data : []),
+					);
 					break;
 
 				default:
