@@ -41,9 +41,50 @@ export function sanitizeEndContent(endContent: string): string {
 		return `${filename}.${extension}`;
 	}
 
-	// If not a filename pattern, apply existing trailing punctuation removal
-	// This matches any combination of punctuation (.,!;:?) and whitespace at the end
-	const sanitized = endContent.replace(/[.,!;:?\s]+$/, "").trim();
+	// Enhanced punctuation and quote normalization for better matching
+	let sanitized = endContent;
+
+	// Step 1: Normalize quote characters for consistent matching
+	// Convert smart quotes and multiple quotes to standard quotes
+	sanitized = sanitized
+		.replace(/[""]/g, '"') // Smart double quotes to standard
+		.replace(/['']/g, "'") // Smart single quotes to standard
+		.replace(/"{2,}/g, '"') // Multiple double quotes to single
+		.replace(/'{2,}/g, "'") // Multiple single quotes to single
+		.replace(/&quot;/g, '"') // HTML entities
+		.replace(/&#39;/g, "'")
+		.replace(/&apos;/g, "'");
+
+	// Step 2: Enhanced punctuation normalization for matching
+	// The key insight: for boundary matching, ., ?, ! are semantically equivalent
+	// when they appear at the end of sentences
+
+	// Identify sentence-ending punctuation + quotes pattern
+	// Only match if the content ends cleanly with sentence punctuation (no mixed punctuation)
+	const sentenceEndPattern = /^([^.!?]*?)([.!?]+)(['"]*)\s*$/;
+	const match = sanitized.match(sentenceEndPattern);
+
+	if (match) {
+		// We have: <content><punctuation><optional-quotes><optional-whitespace>
+		const [, content, punctuation, _quotes] = match;
+
+		// For flexible matching, we return just the core content without trailing punctuation
+		// This allows matching between "observations." and "observations?" and "observations.""
+		const baseContent = content.trim();
+
+		// If the content is too short after removing punctuation, keep one punctuation mark
+		// But only if there's actual content (not just empty string)
+		if (baseContent.length > 0 && baseContent.length < 3 && punctuation.length > 0) {
+			// Keep the content with one punctuation mark for very short phrases
+			return baseContent + punctuation[0];
+		}
+
+		return baseContent; // Return just the content for more flexible matching
+	}
+
+	// Step 3: If no clear sentence-ending pattern, apply standard trailing punctuation removal
+	// This matches any combination of punctuation and whitespace at the end
+	sanitized = sanitized.replace(/[.,!;:?'"\s]+$/, "").trim();
 
 	// If the entire string was just punctuation/whitespace, return empty string
 	return sanitized;

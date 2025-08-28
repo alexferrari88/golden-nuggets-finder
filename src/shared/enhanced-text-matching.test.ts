@@ -46,7 +46,7 @@ describe("Enhanced Text Matching System", () => {
 		test("should find exact matches", async () => {
 			const matcher = new RobustTextMatcher();
 			matcher.initializeContent(); // Initialize with DOM content
-			
+
 			const result = await matcher.findBestMatch("Artificial intelligence");
 
 			expect(result.found).toBe(true);
@@ -128,13 +128,10 @@ describe("Enhanced Text Matching System", () => {
 		});
 
 		test("should create matcher with custom options", () => {
-			const matcher = createRobustTextMatcher(
-				document.body.textContent || "",
-				{
-					fuzzyThreshold: 0.9,
-					enableFuzzyMatching: false,
-				},
-			);
+			const matcher = createRobustTextMatcher(document.body.textContent || "", {
+				fuzzyThreshold: 0.9,
+				enableFuzzyMatching: false,
+			});
 			expect(matcher).toBeInstanceOf(RobustTextMatcher);
 		});
 	});
@@ -423,6 +420,120 @@ describe("Boundary Precision Issues (Real-world Failures)", () => {
 				result.matchedContent.startsWith('"statistically significance'),
 			).toBe(true);
 			expect(result.matchedContent.endsWith('these observations?"')).toBe(true);
+		});
+	});
+
+	describe("Issue #5: HackerNews Punctuation/Quote Mismatch (Reproduction)", () => {
+		test("should handle punctuation mismatch: period vs question mark in endContent", async () => {
+			// This test reproduces the exact failure case from HackerNews
+			// Extracted nugget has period + double quotes, actual text has question mark + single quote
+			const startContent = "I'd say rather that";
+			const endContent = 'these observations.""'; // AI extracted: period + double quotes
+
+			const result = await enhancedTextMatching(
+				startContent,
+				endContent,
+				document.body.textContent || "",
+			);
+
+			// This should succeed after our fix - this is the key improvement
+			expect(result.success).toBe(true);
+			expect(result.confidence).toBeGreaterThan(0.7);
+			expect(result.strategy).toBeDefined();
+
+			// Should match the core content from the DOM (the most important part)
+			expect(result.matchedContent).toContain("I'd say rather that");
+			expect(result.matchedContent).toContain("these observations");
+			expect(result.matchedContent).toContain("statistically significance");
+
+			// The matched content should contain the complete sentence
+			// Allow some flexibility in exact punctuation since that was the original issue
+			expect(result.matchedContent).toContain("is a measure of surprise");
+			expect(result.matchedContent).toContain("null hypothesis");
+
+			// Verify indices point to correct positions
+			if (result.success) {
+				const originalText = document.body.textContent || "";
+				const actualStart = originalText.substring(
+					result.startIndex,
+					result.startIndex + startContent.length,
+				);
+				expect(actualStart.toLowerCase()).toBe(startContent.toLowerCase());
+			}
+		});
+
+		test("should handle quote character variations: double quotes vs single quotes", async () => {
+			// Test different quote character patterns that might cause mismatches
+			const testCases = [
+				{
+					description: "AI extracted double quotes, page has single",
+					startContent: "I'd say rather that",
+					endContent: 'these observations.""', // Double quotes from AI
+				},
+				{
+					description: "AI extracted period, page has question mark",
+					startContent: "I'd say rather that",
+					endContent: "these observations.", // Period instead of question mark
+				},
+			];
+
+			for (const testCase of testCases) {
+				const result = await enhancedTextMatching(
+					testCase.startContent,
+					testCase.endContent,
+					document.body.textContent || "",
+				);
+
+				// After our fix, these should all succeed
+				expect(result.success, `Failed for case: ${testCase.description}`).toBe(
+					true,
+				);
+				expect(result.confidence, `Low confidence for case: ${testCase.description}`).toBeGreaterThan(
+					0.5,
+				);
+			}
+		});
+
+		test("should handle sanitizeEndContent punctuation edge cases", async () => {
+			// Test the specific edge case where sanitizeEndContent may fail
+			const startContent = "I'd say rather that";
+
+			// These endContent variations should all find the same core match
+			const endContentVariations = [
+				'these observations?"', // Actual page content
+				'these observations.""', // AI extracted content
+				'these observations."', // Single quote variation
+				"these observations?", // No quotes
+				"these observations.", // Period, no quotes
+				"these observations", // No punctuation
+			];
+
+			const originalText = document.body.textContent || "";
+
+			for (let i = 0; i < endContentVariations.length; i++) {
+				const endContent = endContentVariations[i];
+				const result = await enhancedTextMatching(
+					startContent,
+					endContent,
+					originalText,
+				);
+
+				// All should succeed after our fix - this is the key improvement
+				expect(result.success, `Failed for endContent variation: "${endContent}"`).toBe(
+					true,
+				);
+
+				// All should contain the core content elements (flexible matching)
+				expect(result.matchedContent, `Missing start content for: "${endContent}"`).toContain(
+					"I'd say rather that",
+				);
+				expect(result.matchedContent, `Missing end content for: "${endContent}"`).toContain(
+					"these observation",
+				); // More flexible - allow "observation" or "observations"
+				expect(result.matchedContent, `Missing key content for: "${endContent}"`).toContain(
+					"statistically significance",
+				);
+			}
 		});
 	});
 

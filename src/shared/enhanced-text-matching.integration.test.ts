@@ -446,6 +446,78 @@ describe("Enhanced Text Matching Integration", () => {
 		});
 	});
 
+	describe("Punctuation and Quote Mismatch Scenarios", () => {
+		beforeEach(() => {
+			// Real-world HackerNews-style content that caused the original issue
+			document.body.innerHTML = `
+				<div class="comment">
+					<p>The basic idea is that, because everything correlates with everything else, you can't just look at correlations and infer that they're more than incidental.</p>
+					<p>It's less of a big difference than it might seem, because it takes infinitely long to specify a real number to infinite precision. If you think about something like trying to tell if you hit the exact center of the bullseye, you eventually get down to the quantum mechanical scale and you find that the idea of an atom being in the exact center isn't even that well defined.</p>
+					<p>In a finite or countable number of trials you won't see a measure zero event.</p>
+					<blockquote>they're estimating the probability of rejecting the null if the null was true.</blockquote>
+					<p>Right, but the null hypothesis is usually false and so it's a weird thing to measure. It's a proxy for the real thing you want, which is the probability of your hypothesis being true given the data. These are just some of the reasons why many statisticians consider the tradition of null hypothesis testing to be a mistake.</p>
+					<p>These concerns about everything being correlated actually warrant much more careful understanding about the political ramifications of how and what we choose to model and based on which variables, because they tell us that in almost any non-trivial case a model is at least partly necessarily a political object almost certainly consciously or subconsciously decorated with some conception of how the world is or ought to be explained.</p>
+					<p>I'd say rather that "statistically significance" is a measure of surprise. It's saying "If this default (the null hypothesis) is true, how surprised would I be to make these observations?"</p>
+				</div>
+			`;
+		});
+
+		test("should handle AI-extracted content with different punctuation than page", async () => {
+			// This reproduces the exact HackerNews issue where:
+			// AI extracted: "these observations.""  (period + double quotes)
+			// Page content: "these observations?"   (question mark + single quote)
+			const result = await enhancedTextMatching(
+				"I'd say rather that",
+				'these observations.""', // AI extracted with period + double quotes
+				document.body.textContent || "",
+			);
+
+			expect(result.success).toBe(true);
+			expect(result.confidence).toBeGreaterThan(0.7);
+			expect(result.matchedContent).toContain("I'd say rather that");
+			expect(result.matchedContent).toContain("these observation"); // Flexible matching
+		});
+
+		test("should handle various quote character mismatches", async () => {
+			// Test different quote character variations
+			const quoteVariations = [
+				'these observations?"', // Actual page content
+				'these observations.""', // AI extracted content
+				'these observations."', // Mixed variation
+				"these observations?", // No quotes
+				"these observations.", // Period, no quotes
+			];
+
+			for (const endContent of quoteVariations) {
+				const result = await enhancedTextMatching(
+					"I'd say rather that",
+					endContent,
+					document.body.textContent || "",
+				);
+
+				expect(result.success, `Should succeed for endContent: "${endContent}"`).toBe(
+					true,
+				);
+				expect(result.confidence, `Should have decent confidence for: "${endContent}"`).toBeGreaterThan(
+					0.5,
+				);
+			}
+		});
+
+		test("should handle punctuation normalization in longer text", async () => {
+			// Test with longer content that has punctuation differences
+			const result = await enhancedTextMatching(
+				"Right, but the null hypothesis",
+				"to be a mistake.",
+				document.body.textContent || "",
+			);
+
+			expect(result.success).toBe(true);
+			expect(result.matchedContent).toContain("null hypothesis");
+			expect(result.matchedContent).toContain("mistake");
+		});
+	});
+
 	describe("Feature Flag Integration", () => {
 		beforeEach(() => {
 			document.body.innerHTML = `
