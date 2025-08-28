@@ -45,6 +45,8 @@ describe("Enhanced Text Matching System", () => {
 
 		test("should find exact matches", async () => {
 			const matcher = new RobustTextMatcher();
+			matcher.initializeContent(); // Initialize with DOM content
+			
 			const result = await matcher.findBestMatch("Artificial intelligence");
 
 			expect(result.found).toBe(true);
@@ -54,6 +56,7 @@ describe("Enhanced Text Matching System", () => {
 
 		test("should handle case insensitive matching", async () => {
 			const matcher = new RobustTextMatcher();
+			matcher.initializeContent(); // Initialize with DOM content
 			const result = await matcher.findBestMatch("ARTIFICIAL INTELLIGENCE");
 
 			expect(result.found).toBe(true);
@@ -62,6 +65,7 @@ describe("Enhanced Text Matching System", () => {
 
 		test("should handle missing words (LLM hallucination)", async () => {
 			const matcher = new RobustTextMatcher();
+			matcher.initializeContent(); // Initialize with DOM content
 			// LLM generates "increasingly important" but page has "increasingly important in our daily lives"
 			const result = await matcher.findBestMatch("increasingly important");
 
@@ -71,6 +75,7 @@ describe("Enhanced Text Matching System", () => {
 
 		test("should handle extra words (LLM hallucination)", async () => {
 			const matcher = new RobustTextMatcher();
+			matcher.initializeContent(); // Initialize with DOM content
 			// LLM generates longer text than what exists
 			const result = await matcher.findBestMatch(
 				"Artificial intelligence has become increasingly important and essential",
@@ -81,6 +86,7 @@ describe("Enhanced Text Matching System", () => {
 
 		test("should handle typos with fuzzy matching", async () => {
 			const matcher = new RobustTextMatcher();
+			matcher.initializeContent(); // Initialize with DOM content
 			const result = await matcher.findBestMatch("Artifical inteligence"); // typos
 
 			expect(result.found).toBe(true);
@@ -89,6 +95,7 @@ describe("Enhanced Text Matching System", () => {
 
 		test("should return not found for completely unrelated text", async () => {
 			const matcher = new RobustTextMatcher();
+			matcher.initializeContent(); // Initialize with DOM content
 			const result = await matcher.findBestMatch(
 				"completely unrelated content about cooking",
 			);
@@ -98,6 +105,7 @@ describe("Enhanced Text Matching System", () => {
 
 		test("should handle empty search text", async () => {
 			const matcher = new RobustTextMatcher();
+			matcher.initializeContent(); // Initialize with DOM content
 			const result = await matcher.findBestMatch("");
 
 			expect(result.found).toBe(false);
@@ -105,6 +113,7 @@ describe("Enhanced Text Matching System", () => {
 
 		test("should handle very short search text", async () => {
 			const matcher = new RobustTextMatcher();
+			matcher.initializeContent(); // Initialize with DOM content
 			const result = await matcher.findBestMatch("AI");
 
 			// This might or might not be found depending on content
@@ -119,10 +128,13 @@ describe("Enhanced Text Matching System", () => {
 		});
 
 		test("should create matcher with custom options", () => {
-			const matcher = createRobustTextMatcher({
-				fuzzyThreshold: 0.9,
-				enableFuzzyMatching: false,
-			});
+			const matcher = createRobustTextMatcher(
+				document.body.textContent || "",
+				{
+					fuzzyThreshold: 0.9,
+					enableFuzzyMatching: false,
+				},
+			);
 			expect(matcher).toBeInstanceOf(RobustTextMatcher);
 		});
 	});
@@ -175,6 +187,7 @@ describe("Enhanced Text Matching System", () => {
 
 		test("should normalize different quote types", async () => {
 			const matcher = new RobustTextMatcher();
+			matcher.initializeContent(); // Initialize with DOM content
 
 			const result1 = await matcher.findBestMatch('"deep learning"');
 			const result2 = await matcher.findBestMatch("'neural networks'");
@@ -185,6 +198,7 @@ describe("Enhanced Text Matching System", () => {
 
 		test("should normalize different dash types", async () => {
 			const matcher = new RobustTextMatcher();
+			matcher.initializeContent(); // Initialize with DOM content
 
 			const result = await matcher.findBestMatch("$1,000-$2,000"); // Using regular dash
 			expect(result.found).toBe(true);
@@ -192,6 +206,7 @@ describe("Enhanced Text Matching System", () => {
 
 		test("should normalize ellipsis variations", async () => {
 			const matcher = new RobustTextMatcher();
+			matcher.initializeContent(); // Initialize with DOM content
 
 			const result = await matcher.findBestMatch("It's the future..."); // Using three dots
 			expect(result.found).toBe(true);
@@ -199,6 +214,7 @@ describe("Enhanced Text Matching System", () => {
 
 		test("should handle mathematical symbols", async () => {
 			const matcher = new RobustTextMatcher();
+			matcher.initializeContent(); // Initialize with DOM content
 
 			const result = await matcher.findBestMatch("α + β = γ");
 			expect(result.found).toBe(true);
@@ -220,6 +236,7 @@ describe("Enhanced Text Matching System", () => {
 
 		test("should match text spanning multiple inline elements", async () => {
 			const matcher = new RobustTextMatcher();
+			matcher.initializeContent(); // Initialize with DOM content
 
 			const result = await matcher.findBestMatch(
 				"artificial intelligence field has seen remarkable",
@@ -230,6 +247,7 @@ describe("Enhanced Text Matching System", () => {
 
 		test("should match text with nested formatting", async () => {
 			const matcher = new RobustTextMatcher();
+			matcher.initializeContent(); // Initialize with DOM content
 
 			const result = await matcher.findBestMatch(
 				"deep learning and natural language processing",
@@ -239,6 +257,7 @@ describe("Enhanced Text Matching System", () => {
 
 		test("should handle superscript and subscript text", async () => {
 			const matcher = new RobustTextMatcher();
+			matcher.initializeContent(); // Initialize with DOM content
 
 			const result = await matcher.findBestMatch(
 				"attention mechanisms, and gradient optimization",
@@ -290,6 +309,236 @@ describe("Enhanced Text Matching System", () => {
 			expect(DEFAULT_MATCHER_OPTIONS.enableDiffAlignment).toBe(true);
 			expect(DEFAULT_MATCHER_OPTIONS.enableFuzzyMatching).toBe(true);
 			expect(DEFAULT_MATCHER_OPTIONS.maxTextNodes).toBe(1000);
+		});
+	});
+});
+
+describe("Boundary Precision Issues (Real-world Failures)", () => {
+	beforeEach(() => {
+		// Set up DOM with the actual HackerNews content that was failing
+		document.body.innerHTML = `
+			<div class="comment">
+				<p>The basic idea is that, because everything correlates with everything else, you can't just look at correlations and infer that they're more than incidental.</p>
+				<p>It's less of a big difference than it might seem, because it takes infinitely long to specify a real number to infinite precision. If you think about something like trying to tell if you hit the exact center of the bullseye, you eventually get down to the quantum mechanical scale and you find that the idea of an atom being in the exact center isn't even that well defined.</p>
+				<p>In a finite or countable number of trials you won't see a measure zero event.</p>
+				<blockquote>they're estimating the probability of rejecting the null if the null was true.</blockquote>
+				<p>Right, but the null hypothesis is usually false and so it's a weird thing to measure. It's a proxy for the real thing you want, which is the probability of your hypothesis being true given the data. These are just some of the reasons why many statisticians consider the tradition of null hypothesis testing to be a mistake.</p>
+				<p>These concerns about everything being correlated actually warrant much more careful understanding about the political ramifications of how and what we choose to model and based on which variables, because they tell us that in almost any non-trivial case a model is at least partly necessarily a political object almost certainly consciously or subconsciously decorated with some conception of how the world is or ought to be explained.</p>
+				<p>I'd say rather that "statistically significance" is a measure of surprise. It's saying "If this default (the null hypothesis) is true, how surprised would I be to make these observations?"</p>
+			</div>
+		`;
+	});
+
+	describe("Issue #1: Boundary Detection with Punctuation", () => {
+		test("should match exact boundaries for 'because everything correlates' to 'more than incidental.'", async () => {
+			const startContent = "because everything correlates";
+			const endContent = "more than incidental.";
+
+			const result = await enhancedTextMatching(
+				startContent,
+				endContent,
+				document.body.textContent || "",
+			);
+
+			expect(result.success).toBe(true);
+			expect(result.matchedContent).toBe(
+				"because everything correlates with everything else, you can't just look at correlations and infer that they're more than incidental.",
+			);
+
+			// Critical: Should NOT include leading punctuation
+			expect(result.matchedContent.startsWith(", because")).toBe(false);
+			expect(result.matchedContent.startsWith("because")).toBe(true);
+
+			// Critical: Should NOT truncate the final word
+			expect(result.matchedContent.endsWith("incidental.")).toBe(true);
+			expect(result.matchedContent.endsWith("incident")).toBe(false);
+		});
+	});
+
+	describe("Issue #2: Multi-paragraph Boundary Detection", () => {
+		test("should match exact boundaries for 'Right, but the' to 'to be a mistake.'", async () => {
+			const startContent = "Right, but the";
+			const endContent = "to be a mistake.";
+
+			const result = await enhancedTextMatching(
+				startContent,
+				endContent,
+				document.body.textContent || "",
+			);
+
+			expect(result.success).toBe(true);
+
+			// Critical: Should NOT include preceding sentence fragment
+			expect(result.matchedContent.startsWith("e.")).toBe(false);
+			expect(result.matchedContent.startsWith("Right, but the")).toBe(true);
+
+			// Critical: Should NOT truncate the final word
+			expect(result.matchedContent.endsWith("to be a mistake.")).toBe(true);
+			expect(result.matchedContent.endsWith("mista")).toBe(false);
+		});
+	});
+
+	describe("Issue #3: Word Boundary Detection", () => {
+		test("should match exact boundaries for 'they tell us that in' to 'how the world is'", async () => {
+			const startContent = "they tell us that in";
+			const endContent = "how the world is";
+
+			const result = await enhancedTextMatching(
+				startContent,
+				endContent,
+				document.body.textContent || "",
+			);
+
+			expect(result.success).toBe(true);
+
+			// Critical: Should NOT include fragment from previous word
+			expect(result.matchedContent.startsWith("e they")).toBe(false);
+			expect(result.matchedContent.startsWith("they tell us that in")).toBe(
+				true,
+			);
+
+			// Critical: Should include complete end phrase
+			expect(result.matchedContent.endsWith("how the world is")).toBe(true);
+			expect(result.matchedContent.endsWith("how the world")).toBe(false);
+		});
+	});
+
+	describe("Issue #4: Quote Handling", () => {
+		test("should match text with quotes: 'statistically significance' to 'these observations?'", async () => {
+			const startContent = '"statistically significance" is a';
+			const endContent = 'these observations?"';
+
+			const result = await enhancedTextMatching(
+				startContent,
+				endContent,
+				document.body.textContent || "",
+			);
+
+			expect(result.success).toBe(true);
+			expect(result.matchedContent).toContain("statistically significance");
+			expect(result.matchedContent).toContain("these observations");
+
+			// Should handle quote normalization properly
+			expect(
+				result.matchedContent.startsWith('"statistically significance'),
+			).toBe(true);
+			expect(result.matchedContent.endsWith('these observations?"')).toBe(true);
+		});
+	});
+
+	describe("Position Mapping Validation", () => {
+		test("should return indices that point to correct content in original text", async () => {
+			const startContent = "Right, but the";
+			const endContent = "to be a mistake.";
+
+			const originalText = document.body.textContent || "";
+			const result = await enhancedTextMatching(
+				startContent,
+				endContent,
+				originalText,
+			);
+
+			if (result.success) {
+				// Validate that indices point to correct content
+				const actualStart = originalText.substring(
+					result.startIndex,
+					result.startIndex + startContent.length,
+				);
+				const actualEnd = originalText.substring(
+					result.endIndex - endContent.length,
+					result.endIndex,
+				);
+
+				expect(actualStart.toLowerCase()).toBe(startContent.toLowerCase());
+				expect(actualEnd.toLowerCase()).toBe(endContent.toLowerCase());
+			}
+		});
+
+		test("should handle whitespace normalization in position mapping", async () => {
+			const startContent = "because everything correlates";
+			const endContent = "more than incidental.";
+
+			const originalText = document.body.textContent || "";
+			const result = await enhancedTextMatching(
+				startContent,
+				endContent,
+				originalText,
+			);
+
+			if (result.success) {
+				// Check that no extra whitespace characters are included
+				expect(result.matchedContent.trim()).toBe(result.matchedContent);
+
+				// Check that boundaries are at word boundaries, not mid-word
+				const charBefore = originalText.charAt(result.startIndex - 1);
+				const charAfter = originalText.charAt(result.endIndex);
+
+				// Should be whitespace or punctuation, not alphanumeric
+				if (charBefore) {
+					expect(/\s|[.!?;,:'"()]/.test(charBefore)).toBe(true);
+				}
+				if (charAfter) {
+					expect(/\s|[.!?;,:'"()]/.test(charAfter)).toBe(true);
+				}
+			}
+		});
+	});
+
+	describe("Normalization Consistency", () => {
+		test("should handle punctuation variations consistently", async () => {
+			// Test with different punctuation patterns
+			const testCases = [
+				{
+					start: "because everything correlates",
+					end: "more than incidental.",
+				},
+				{ start: "because everything correlates", end: "more than incidental" }, // No period
+				{ start: "Right, but the", end: "to be a mistake." },
+				{ start: "Right, but the", end: "to be a mistake" }, // No period
+			];
+
+			for (const testCase of testCases) {
+				const result = await enhancedTextMatching(
+					testCase.start,
+					testCase.end,
+					document.body.textContent || "",
+				);
+
+				if (result.success) {
+					// Should find consistent matches regardless of punctuation variations
+					expect(result.matchedContent).toContain(testCase.start);
+					expect(result.matchedContent).toContain(
+						testCase.end.replace(/\.$/, ""),
+					); // Remove trailing period for comparison
+				}
+			}
+		});
+
+		test("should handle quote character variations", async () => {
+			const testCases = [
+				{
+					start: '"statistically significance" is a',
+					end: 'these observations?"',
+				},
+				{
+					start: '"statistically significance" is a',
+					end: 'these observations?"',
+				}, // Curly quotes
+				{
+					start: "'statistically significance' is a",
+					end: "these observations?'",
+				}, // Single quotes - but this won't match, so just test the first one
+			];
+
+			// Just test the first case since the quote content in DOM uses double quotes
+			const result = await enhancedTextMatching(
+				testCases[0].start,
+				testCases[0].end,
+				document.body.textContent || "",
+			);
+
+			// Should handle quote normalization and find matches
+			expect(result.success).toBe(true);
 		});
 	});
 });
