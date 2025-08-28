@@ -429,6 +429,113 @@ describe("Content Reconstruction - LLM Hallucinated EndContent", () => {
 			);
 			expect(sanitizeEndContent("Version 2. Final")).toBe("Version 2. Final");
 		});
+
+		// ===============================================================================
+		// HACKERS NEWS PUNCTUATION MISMATCH FIX - COMPREHENSIVE TEST COVERAGE
+		// ===============================================================================
+		describe("HackerNews-style LLM punctuation hallucination fixes", () => {
+			it("should handle the reported HackerNews case: 'observations.\"\"' vs 'observations?'", () => {
+				// This is the exact case reported by the user
+				const llmHallucinated = 'these observations.""'; // LLM extracted with period + extra quotes
+				const actualPageText = "these observations?"; // Actual page text with question mark
+
+				// Both should normalize to the same base content for matching
+				const normalizedLlm = sanitizeEndContent(llmHallucinated);
+				const normalizedPage = sanitizeEndContent(actualPageText);
+
+				expect(normalizedLlm).toBe("these observations");
+				expect(normalizedPage).toBe("these observations");
+				expect(normalizedLlm).toBe(normalizedPage); // Critical: they must match!
+			});
+
+			it("should aggressively strip all trailing punctuation variations", () => {
+				const baseText = "these observations";
+
+				// Test various punctuation + quote combinations that LLMs hallucinate
+				const variations = [
+					"these observations.",
+					"these observations?",
+					"these observations!",
+					'these observations."',
+					'these observations?"',
+					'these observations!"',
+					'these observations.""',
+					'these observations?""',
+					'these observations!""',
+					"these observations.'",
+					"these observations?'",
+					"these observations!'",
+					"these observations.''",
+					"these observations?''",
+					"these observations!''",
+					"these observations.;",
+					"these observations?:",
+					"these observations!,",
+					"these observations.,!",
+					"these observations?;:",
+					"these observations!.,",
+				];
+
+				// All variations should normalize to the same base content
+				variations.forEach((variation) => {
+					expect(sanitizeEndContent(variation)).toBe(baseText);
+				});
+			});
+
+			it("should handle mixed punctuation and whitespace combinations", () => {
+				const baseText = "observations";
+
+				// Test combinations with trailing whitespace
+				const complexVariations = [
+					"observations. ",
+					"observations? ",
+					"observations! ",
+					'observations."" ',
+					'observations?"" ',
+					'observations!"" ',
+					"observations.\t",
+					"observations?\n",
+					"observations!\r\n",
+					'observations."" \t\n',
+					'observations?"" \t\r\n',
+					'observations  . "" \t\n',
+				];
+
+				complexVariations.forEach((variation) => {
+					expect(sanitizeEndContent(variation)).toBe(baseText);
+				});
+			});
+
+			it("should preserve content when punctuation is essential (abbreviations)", () => {
+				// Test cases where we don't want to over-strip
+				expect(sanitizeEndContent("Mr.")).toBe("Mr"); // Still strip trailing period
+				expect(sanitizeEndContent("Dr.")).toBe("Dr"); // Still strip trailing period
+				expect(sanitizeEndContent("U.S.A.")).toBe("U.S.A"); // Strip only final period
+				expect(sanitizeEndContent("Ph.D.")).toBe("Ph.D"); // Strip only final period
+			});
+
+			it("should handle edge case scenarios for very short content", () => {
+				// Test the edge case logic for very short content
+				expect(sanitizeEndContent("a.")).toBe("a");
+				expect(sanitizeEndContent("I?")).toBe("I");
+				expect(sanitizeEndContent("OK!")).toBe("OK");
+				expect(sanitizeEndContent('No."')).toBe("No");
+
+				// Test cases where we might over-strip
+				expect(sanitizeEndContent("?")).toBe(""); // Pure punctuation should be empty
+				expect(sanitizeEndContent('.""')).toBe(""); // Pure punctuation + quotes should be empty
+				expect(sanitizeEndContent('  . " ')).toBe(""); // Whitespace + punctuation should be empty
+			});
+
+			it("should maintain backwards compatibility with quote normalization", () => {
+				// Verify the quote normalization step still works before aggressive stripping
+				expect(sanitizeEndContent("test content\u201D")).toBe("test content"); // Smart double quote (Unicode)
+				expect(sanitizeEndContent("test content\u2019")).toBe("test content"); // Smart single quote (Unicode)
+				expect(sanitizeEndContent("test content&quot;")).toBe("test content"); // HTML entity
+				expect(sanitizeEndContent("test content&#39;")).toBe("test content"); // HTML entity
+				expect(sanitizeEndContent("test content&apos;")).toBe("test content"); // HTML entity
+			});
+		});
 	});
 
 	describe("reconstructFullContent with sanitized endContent", () => {
@@ -519,6 +626,126 @@ describe("Content Reconstruction - LLM Hallucinated EndContent", () => {
 			expect(result.success).toBe(true);
 			expect(result.matchedContent).toContain("learning new technologies");
 			expect(result.matchedContent).toContain("practice and dedication");
+		});
+
+		// ===============================================================================
+		// END-TO-END INTEGRATION TESTS FOR HACKERS NEWS PUNCTUATION FIX
+		// ===============================================================================
+		it("should successfully match HackerNews-style content with punctuation mismatches", () => {
+			// Simulate the exact HackerNews scenario reported by the user
+			const hackerNewsPageContent = `
+				I'd say rather that "statistically significance" is a measure of surprise. 
+				It's saying "If this default (the null hypothesis) is true, how surprised would I be to make these observations?"
+			`.trim();
+
+			// LLM extracted nugget with hallucinated punctuation
+			const nuggetWithHallucinatedPunctuation: GoldenNugget = {
+				type: "analogy",
+				startContent: "I'd say rather that",
+				endContent: 'these observations.""', // LLM hallucinated period + extra quotes
+			};
+
+			// This should successfully match despite the punctuation mismatch
+			const result = reconstructFullContent(
+				nuggetWithHallucinatedPunctuation,
+				hackerNewsPageContent,
+			);
+
+			// Should find the match and reconstruct the full content
+			expect(result).toContain("I'd say rather that");
+			expect(result).toContain("these observations");
+			expect(result).not.toBe('I\'d say rather that...these observations.""');
+
+			// Should contain the full sentence about statistical significance
+			expect(result).toContain("statistically significance");
+			expect(result).toContain("measure of surprise");
+		});
+
+		it("should handle multiple punctuation variations in the same text", () => {
+			const pageContent =
+				"The quick brown fox jumps. But wait, there's more? Indeed!";
+
+			const testCases = [
+				{
+					nugget: {
+						type: "tool" as const,
+						startContent: "The quick brown",
+						endContent: "jumps.", // Period in LLM
+					},
+					expectedMatch: true,
+				},
+				{
+					nugget: {
+						type: "tool" as const,
+						startContent: "The quick brown",
+						endContent: "jumps?", // Question mark hallucination
+					},
+					expectedMatch: true,
+				},
+				{
+					nugget: {
+						type: "tool" as const,
+						startContent: "The quick brown",
+						endContent: 'jumps!""', // Exclamation + quotes hallucination
+					},
+					expectedMatch: true,
+				},
+			];
+
+			testCases.forEach((testCase, _index) => {
+				const result = reconstructFullContent(testCase.nugget, pageContent);
+				if (testCase.expectedMatch) {
+					expect(result).toContain("The quick brown");
+					expect(result).toContain("jumps");
+					expect(result).not.toContain("...");
+				}
+			});
+		});
+
+		it("should maintain matching accuracy with improvedStartEndMatching", () => {
+			// Test the core matching function with punctuation variations
+			const pageContent =
+				"Learning machine learning requires practice and patience with algorithms.";
+
+			const startContent = "Learning machine learning";
+			const testEndContents = [
+				"algorithms.", // Period
+				"algorithms?", // Question mark
+				"algorithms!", // Exclamation
+				'algorithms."', // Period + quote
+				'algorithms?""', // Question + double quotes
+				"algorithms!''", // Exclamation + single quotes
+				'algorithms .;:"', // Multiple punctuation + quote
+			];
+
+			// All variations should successfully match
+			testEndContents.forEach((endContent) => {
+				const result = improvedStartEndMatching(
+					startContent,
+					endContent,
+					pageContent,
+				);
+				expect(result.success).toBe(true);
+				expect(result.matchedContent).toContain("learning machine learning");
+				expect(result.matchedContent).toContain("algorithms");
+			});
+		});
+
+		it("should preserve original behavior for non-punctuation content", () => {
+			// Ensure we didn't break existing functionality
+			const pageContent =
+				"Complex systems require careful analysis and systematic approaches.";
+
+			const workingNugget: GoldenNugget = {
+				type: "model",
+				startContent: "Complex systems",
+				endContent: "systematic approaches", // No trailing punctuation
+			};
+
+			const result = reconstructFullContent(workingNugget, pageContent);
+			expect(result).toContain("Complex systems");
+			expect(result).toContain("systematic approaches");
+			expect(result).toContain("careful analysis");
 		});
 	});
 });

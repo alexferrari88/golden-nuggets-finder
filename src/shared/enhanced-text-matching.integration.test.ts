@@ -495,12 +495,14 @@ describe("Enhanced Text Matching Integration", () => {
 					document.body.textContent || "",
 				);
 
-				expect(result.success, `Should succeed for endContent: "${endContent}"`).toBe(
-					true,
-				);
-				expect(result.confidence, `Should have decent confidence for: "${endContent}"`).toBeGreaterThan(
-					0.5,
-				);
+				expect(
+					result.success,
+					`Should succeed for endContent: "${endContent}"`,
+				).toBe(true);
+				expect(
+					result.confidence,
+					`Should have decent confidence for: "${endContent}"`,
+				).toBeGreaterThan(0.5);
 			}
 		});
 

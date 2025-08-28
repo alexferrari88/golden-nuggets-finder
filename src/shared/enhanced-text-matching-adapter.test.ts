@@ -49,7 +49,9 @@ describe("Enhanced Text Matching Adapter", () => {
 			);
 
 			expect(result).toBeDefined();
-			expect(typeof result).toBe("boolean");
+			expect(typeof result).toBe("object");
+			expect(result.success).toBe(true);
+			expect(result.found).toBe(true);
 		});
 
 		test("should handle LLM hallucination scenarios", async () => {
@@ -61,7 +63,9 @@ describe("Enhanced Text Matching Adapter", () => {
 			);
 
 			expect(result).toBeDefined();
-			expect(typeof result).toBe("boolean");
+			expect(typeof result).toBe("object");
+			expect(result.success).toBe(true);
+			expect(result.found).toBe(true);
 		});
 
 		test("should handle non-existent content", async () => {
@@ -72,7 +76,9 @@ describe("Enhanced Text Matching Adapter", () => {
 			);
 
 			expect(result).toBeDefined();
-			expect(typeof result).toBe("boolean");
+			expect(typeof result).toBe("object");
+			expect(result.success).toBe(false);
+			expect(result.found).toBe(false);
 		});
 
 		test("should work with custom configuration", async () => {
@@ -90,7 +96,9 @@ describe("Enhanced Text Matching Adapter", () => {
 			);
 
 			expect(result).toBeDefined();
-			expect(typeof result).toBe("boolean");
+			expect(typeof result).toBe("object");
+			expect(result.success).toBe(true);
+			expect(result.found).toBe(true);
 		});
 	});
 

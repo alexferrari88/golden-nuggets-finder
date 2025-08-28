@@ -488,9 +488,10 @@ describe("Boundary Precision Issues (Real-world Failures)", () => {
 				expect(result.success, `Failed for case: ${testCase.description}`).toBe(
 					true,
 				);
-				expect(result.confidence, `Low confidence for case: ${testCase.description}`).toBeGreaterThan(
-					0.5,
-				);
+				expect(
+					result.confidence,
+					`Low confidence for case: ${testCase.description}`,
+				).toBeGreaterThan(0.5);
 			}
 		});
 
@@ -519,20 +520,24 @@ describe("Boundary Precision Issues (Real-world Failures)", () => {
 				);
 
 				// All should succeed after our fix - this is the key improvement
-				expect(result.success, `Failed for endContent variation: "${endContent}"`).toBe(
-					true,
-				);
+				expect(
+					result.success,
+					`Failed for endContent variation: "${endContent}"`,
+				).toBe(true);
 
 				// All should contain the core content elements (flexible matching)
-				expect(result.matchedContent, `Missing start content for: "${endContent}"`).toContain(
-					"I'd say rather that",
-				);
-				expect(result.matchedContent, `Missing end content for: "${endContent}"`).toContain(
-					"these observation",
-				); // More flexible - allow "observation" or "observations"
-				expect(result.matchedContent, `Missing key content for: "${endContent}"`).toContain(
-					"statistically significance",
-				);
+				expect(
+					result.matchedContent,
+					`Missing start content for: "${endContent}"`,
+				).toContain("I'd say rather that");
+				expect(
+					result.matchedContent,
+					`Missing end content for: "${endContent}"`,
+				).toContain("these observation"); // More flexible - allow "observation" or "observations"
+				expect(
+					result.matchedContent,
+					`Missing key content for: "${endContent}"`,
+				).toContain("statistically significance");
 			}
 		});
 	});
