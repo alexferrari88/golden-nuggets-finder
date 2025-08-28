@@ -2,9 +2,12 @@ import { ChatAnthropic } from "@langchain/anthropic";
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { z } from "zod";
 import { debugLogger } from "../debug";
+import type { GoldenNuggetType } from "../schemas";
 import type {
 	GoldenNuggetsResponse,
 	LLMProvider,
+	Phase1Response,
+	Phase2Response,
 	ProviderConfig,
 } from "../types/providers";
 
@@ -113,6 +116,176 @@ export class LangChainAnthropicProvider implements LLMProvider {
 		} catch (error) {
 			console.warn(`Anthropic API key validation failed:`, error.message);
 			return false;
+		}
+	}
+
+	async extractPhase1HighRecall(
+		content: string,
+		prompt: string,
+		temperature = 0.7,
+		_selectedTypes?: GoldenNuggetType[],
+	): Promise<Phase1Response> {
+		try {
+			// Create Phase 1 schema for high recall extraction
+			const Phase1Schema = z.object({
+				golden_nuggets: z.array(
+					z.object({
+						type: z.enum(["tool", "media", "aha! moments", "analogy", "model"]),
+						fullContent: z.string(),
+						confidence: z.number().min(0).max(1),
+					}),
+				),
+			});
+
+			// Create model with Phase 1 temperature (high recall)
+			const model = new ChatAnthropic({
+				apiKey: this.config.apiKey,
+				model: this.modelName,
+				temperature: temperature,
+			});
+
+			// Log the request
+			debugLogger.logLLMRequest(
+				`https://api.anthropic.com/v1/messages (${this.modelName}) - Phase 1`,
+				{
+					model: this.modelName,
+					messages: [
+						{ role: "system", content: prompt },
+						{ role: "user", content: `${content.substring(0, 500)}...` },
+					],
+					provider: "anthropic",
+					temperature: temperature,
+					phase: "1-high-recall",
+				},
+			);
+
+			const structuredModel = model.withStructuredOutput(Phase1Schema, {
+				name: "extract_golden_nuggets_phase1",
+				method: "functionCalling",
+			});
+
+			const response = await structuredModel.invoke([
+				new SystemMessage(prompt),
+				new HumanMessage(content),
+			]);
+
+			// Log the response
+			debugLogger.logLLMResponse(
+				{
+					provider: "anthropic",
+					model: this.modelName,
+					phase: "1-high-recall",
+					success: true,
+				},
+				response,
+			);
+
+			return response as Phase1Response;
+		} catch (error) {
+			// Log the error
+			debugLogger.logLLMResponse({
+				provider: "anthropic",
+				model: this.modelName,
+				phase: "1-high-recall",
+				success: false,
+				error: error.message,
+			});
+
+			console.error(`Anthropic Phase 1 provider error:`, error);
+			throw new Error(`Anthropic Phase 1 API call failed: ${error.message}`);
+		}
+	}
+
+	async extractPhase2HighPrecision(
+		content: string,
+		prompt: string,
+		nuggets: Array<{
+			type: GoldenNuggetType;
+			fullContent: string;
+			confidence: number;
+		}>,
+		temperature = 0.0,
+	): Promise<Phase2Response> {
+		try {
+			// Create Phase 2 schema for boundary detection
+			const Phase2Schema = z.object({
+				golden_nuggets: z.array(
+					z.object({
+						type: z.enum(["tool", "media", "aha! moments", "analogy", "model"]),
+						startContent: z.string(),
+						endContent: z.string(),
+						confidence: z.number().min(0).max(1),
+					}),
+				),
+			});
+
+			// Create model with Phase 2 temperature (high precision)
+			const model = new ChatAnthropic({
+				apiKey: this.config.apiKey,
+				model: this.modelName,
+				temperature: temperature,
+			});
+
+			// Build the Phase 2 prompt with nuggets context
+			const nuggetsList = nuggets
+				.map(
+					(nugget, index) =>
+						`${index + 1}. Type: ${nugget.type}\n   Content: "${nugget.fullContent}"\n   Confidence: ${nugget.confidence}`,
+				)
+				.join("\n\n");
+
+			const phase2PromptWithContext = `${prompt}\n\nNUGGETS TO PROCESS:\n${nuggetsList}\n\nORIGINAL CONTENT:\n${content}`;
+
+			// Log the request
+			debugLogger.logLLMRequest(
+				`https://api.anthropic.com/v1/messages (${this.modelName}) - Phase 2`,
+				{
+					model: this.modelName,
+					messages: [
+						{ role: "system", content: phase2PromptWithContext },
+						{ role: "user", content: `${content.substring(0, 500)}...` },
+					],
+					provider: "anthropic",
+					temperature: temperature,
+					phase: "2-high-precision",
+					nuggetCount: nuggets.length,
+				},
+			);
+
+			const structuredModel = model.withStructuredOutput(Phase2Schema, {
+				name: "extract_golden_nuggets_phase2",
+				method: "functionCalling",
+			});
+
+			const response = await structuredModel.invoke([
+				new SystemMessage(phase2PromptWithContext),
+				new HumanMessage(content),
+			]);
+
+			// Log the response
+			debugLogger.logLLMResponse(
+				{
+					provider: "anthropic",
+					model: this.modelName,
+					phase: "2-high-precision",
+					success: true,
+				},
+				response,
+			);
+
+			return response as Phase2Response;
+		} catch (error) {
+			// Log the error
+			debugLogger.logLLMResponse({
+				provider: "anthropic",
+				model: this.modelName,
+				phase: "2-high-precision",
+				success: false,
+				error: error.message,
+			});
+
+			console.error(`Anthropic Phase 2 provider error:`, error);
+			throw new Error(`Anthropic Phase 2 API call failed: ${error.message}`);
 		}
 	}
 }

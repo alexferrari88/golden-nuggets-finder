@@ -46,7 +46,7 @@ export const GOLDEN_NUGGET_SCHEMA = {
 	},
 	required: ["golden_nuggets"],
 	propertyOrdering: ["golden_nuggets"],
-} as const;
+};
 
 export function generateGoldenNuggetSchema(selectedTypes: GoldenNuggetType[]) {
 	const properties: Record<string, any> = {
@@ -87,7 +87,7 @@ export function generateGoldenNuggetSchema(selectedTypes: GoldenNuggetType[]) {
 		},
 		required: ["golden_nuggets"],
 		propertyOrdering: ["golden_nuggets"],
-	} as const;
+	};
 }
 
 // Phase 1: High Recall Schema with fullContent and confidence
@@ -127,7 +127,7 @@ export const PHASE_1_HIGH_RECALL_SCHEMA = {
 	},
 	required: ["golden_nuggets"],
 	propertyOrdering: ["golden_nuggets"],
-} as const;
+};
 
 export function generatePhase1HighRecallSchema(
 	selectedTypes: GoldenNuggetType[],
@@ -165,14 +165,14 @@ export function generatePhase1HighRecallSchema(
 				items: {
 					type: "object",
 					properties,
-					required,
-					propertyOrdering,
+					required: required,
+					propertyOrdering: propertyOrdering,
 				},
 			},
 		},
 		required: ["golden_nuggets"],
 		propertyOrdering: ["golden_nuggets"],
-	} as const;
+	};
 }
 
 // Phase 2: High Precision Schema for boundary detection
@@ -217,7 +217,7 @@ export const PHASE_2_HIGH_PRECISION_SCHEMA = {
 	},
 	required: ["golden_nuggets"],
 	propertyOrdering: ["golden_nuggets"],
-} as const;
+};
 
 export function generatePhase2HighPrecisionSchema(
 	selectedTypes: GoldenNuggetType[],
@@ -268,5 +268,5 @@ export function generatePhase2HighPrecisionSchema(
 		},
 		required: ["golden_nuggets"],
 		propertyOrdering: ["golden_nuggets"],
-	} as const;
+	};
 }

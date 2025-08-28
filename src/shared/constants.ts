@@ -101,11 +101,10 @@ export const PHASE_1_HIGH_RECALL_PROMPT = `
 You are an expert at analyzing content and extracting valuable insights, which we call "golden nuggets."
 These golden nuggets should be tailored to a specific persona and categorized into five types.
 Your goal is to analyze the provided content and extract only the most insightful, non-obvious, and high-signal content for someone with this persona: {{ persona }}.
-Your primary directive is **precision over recall**. It is vastly preferable to return zero nuggets than to include a single mediocre one.
 
-Crucially, do not force or invent extractions. If no content meets the strict criteria below, the \`golden_nuggets\` array MUST be empty ([]).
+**IMPORTANT: This is Phase 1 - the HIGH RECALL phase. Your primary directive is recall over precision. Be generous with extractions while maintaining reasonable quality standards.**
 
-**IMPORTANT: This is a high-recall phase. Be more generous with extractions than usual, but still maintain quality standards.**
+Be inclusive in your extraction approach. If content could potentially be valuable, include it with an appropriate confidence score rather than excluding it entirely. The precision refinement will happen in Phase 2.
 
 Golden nugget types and their characteristics:
 

@@ -2,8 +2,9 @@ import {
 	PHASE_1_HIGH_RECALL_PROMPT,
 	PHASE_2_HIGH_PRECISION_PROMPT,
 } from "../../shared/constants";
+import { debugLogger } from "../../shared/debug";
 import type { GoldenNuggetType } from "../../shared/schemas";
-import type { LLMProvider } from "../../shared/types/providers";
+import type { LLMProvider, Phase1Response } from "../../shared/types/providers";
 import { EnsembleExtractor } from "./ensemble-extractor";
 import {
 	FuzzyBoundaryMatcher,
@@ -16,25 +17,6 @@ import {
  * Phase 1: High recall extraction with confidence scoring
  * Phase 2: High precision boundary detection via fuzzy matching + LLM fallback
  */
-
-// Phase 1 response format with fullContent and confidence
-export interface Phase1Response {
-	golden_nuggets: Array<{
-		type: GoldenNuggetType;
-		fullContent: string;
-		confidence: number;
-	}>;
-}
-
-// Phase 2 response format for boundary detection
-export interface Phase2Response {
-	golden_nuggets: Array<{
-		type: GoldenNuggetType;
-		startContent: string;
-		endContent: string;
-		confidence: number;
-	}>;
-}
 
 // Final combined response format (compatible with existing GoldenNuggetsResponse)
 export interface TwoPhaseExtractionResult {
@@ -101,12 +83,19 @@ export class TwoPhaseExtractor {
 					options.fuzzyMatchOptions?.minConfidenceThreshold ?? 0.7,
 				...options.fuzzyMatchOptions,
 			},
-			selectedTypes: options.selectedTypes,
+			selectedTypes: options.selectedTypes || [],
 		};
 
 		console.log(
 			`Starting two-phase extraction with provider ${provider.providerId}, ensemble: ${opts.useEnsemble}`,
 		);
+		debugLogger.log(`[TwoPhase] 🚀 Starting extraction with options:`, {
+			confidenceThreshold: opts.confidenceThreshold,
+			useEnsemble: opts.useEnsemble,
+			phase1Temperature: opts.phase1Temperature,
+			phase2Temperature: opts.phase2Temperature,
+			contentLength: content.length,
+		});
 
 		try {
 			// Phase 1: High-recall extraction
@@ -120,6 +109,10 @@ export class TwoPhaseExtractor {
 			console.log(
 				`Phase 1 completed: ${phase1Result.golden_nuggets.length} nuggets extracted`,
 			);
+			debugLogger.log(
+				`[TwoPhase] Phase 1 raw nuggets:`,
+				JSON.stringify(phase1Result.golden_nuggets.slice(0, 3), null, 2),
+			);
 
 			// Filter by confidence threshold
 			const filteredNuggets = phase1Result.golden_nuggets.filter(
@@ -129,6 +122,14 @@ export class TwoPhaseExtractor {
 			console.log(
 				`After confidence filtering (>= ${opts.confidenceThreshold}): ${filteredNuggets.length} nuggets`,
 			);
+			debugLogger.log(
+				`[TwoPhase] Filtered nuggets:`,
+				JSON.stringify(filteredNuggets.slice(0, 2), null, 2),
+			);
+			debugLogger.log(
+				`[TwoPhase] Confidence scores:`,
+				phase1Result.golden_nuggets.map((n) => n.confidence),
+			);
 
 			// Check for abort condition (too many low confidence nuggets)
 			const lowConfidenceRatio =
@@ -136,10 +137,21 @@ export class TwoPhaseExtractor {
 				filteredNuggets.length /
 					Math.max(phase1Result.golden_nuggets.length, 1);
 
+			debugLogger.log(
+				`[TwoPhase] Abort check: lowConfidenceRatio=${lowConfidenceRatio.toFixed(3)}, threshold=0.6, phase1Count=${phase1Result.golden_nuggets.length}, filteredCount=${filteredNuggets.length}`,
+			);
+
 			if (lowConfidenceRatio > 0.6 && phase1Result.golden_nuggets.length > 0) {
 				// More than 60% of nuggets have low confidence - abort
 				console.log(
 					`Aborting extraction: ${Math.round(lowConfidenceRatio * 100)}% of nuggets have confidence < ${opts.confidenceThreshold}`,
+				);
+				debugLogger.log(
+					`[TwoPhase] ❌ ABORT: Returning empty results due to low confidence ratio`,
+				);
+
+				debugLogger.log(
+					`[TwoPhase] ❌ ABORT: This is likely the issue - returning empty golden_nuggets array`,
 				);
 
 				return {
@@ -215,7 +227,7 @@ export class TwoPhaseExtractor {
 		);
 
 		if (options.useEnsemble) {
-			// Use ensemble extraction for Phase 1
+			// Use ensemble extraction for Phase 1 - NOW WITH PROPER PHASE 1 INTEGRATION
 			const ensembleResult = await this.ensembleExtractor.extractWithEnsemble(
 				content,
 				phase1Prompt,
@@ -224,35 +236,40 @@ export class TwoPhaseExtractor {
 					runs: options.ensembleRuns,
 					temperature: options.phase1Temperature,
 					parallelExecution: true,
+					usePhase1: true, // Enable Phase 1 method usage
+					selectedTypes: options.selectedTypes || [],
 				},
 			);
 
 			// Convert ensemble result to Phase 1 format
-			// Note: Ensemble results don't have confidence scores, so we'll assign based on consensus
+			// Note: Ensemble results already have confidence scores from consensus
 			return {
 				golden_nuggets: ensembleResult.golden_nuggets.map((nugget) => ({
 					type: nugget.type as GoldenNuggetType,
 					fullContent: `${nugget.startContent} ... ${nugget.endContent}`, // Reconstruct full content
-					confidence: 0.9, // High confidence for consensus nuggets
+					confidence: nugget.confidence, // Use actual ensemble confidence
 				})),
 			};
 		} else {
-			// Single extraction for Phase 1
-			const rawResponse = await provider.extractGoldenNuggets(
+			// Single extraction for Phase 1 - NOW USING THE CORRECT PHASE 1 METHOD
+			const rawResponse = await provider.extractPhase1HighRecall(
 				content,
 				phase1Prompt,
 				options.phase1Temperature,
+				options.selectedTypes,
 			);
 
-			// Note: We need to handle the fact that providers return startContent/endContent format
-			// but Phase 1 should return fullContent. For now, we'll reconstruct.
-			return {
-				golden_nuggets: rawResponse.golden_nuggets.map((nugget) => ({
-					type: nugget.type as GoldenNuggetType,
-					fullContent: `${nugget.startContent} ... ${nugget.endContent}`, // Placeholder - ideally Phase 1 should return fullContent
-					confidence: 0.8, // Default confidence for single extraction
-				})),
-			};
+			debugLogger.log(`[TwoPhase] Phase 1 single extraction raw response:`, {
+				nuggetCount: rawResponse.golden_nuggets.length,
+				sampleNugget: rawResponse.golden_nuggets[0] || null,
+				confidenceScores: rawResponse.golden_nuggets.map((n) => n.confidence),
+			});
+
+			debugLogger.log(
+				`[TwoPhase] ✅ Now using proper Phase 1 method with real confidence scores`,
+			);
+
+			return rawResponse;
 		}
 	}
 
@@ -319,25 +336,29 @@ export class TwoPhaseExtractor {
 		provider: LLMProvider,
 		temperature: number,
 	): Promise<Phase2NuggetResult[]> {
-		// Prepare Phase 2 prompt with nuggets to be processed
-		const phase2PromptWithNuggets = this.buildPhase2PromptWithNuggets(
-			originalContent,
-			unmatchedNuggets,
-		);
-
 		try {
-			const rawResponse = await provider.extractGoldenNuggets(
+			// NOW USING THE CORRECT PHASE 2 METHOD
+			const rawResponse = await provider.extractPhase2HighPrecision(
 				originalContent,
-				phase2PromptWithNuggets,
+				PHASE_2_HIGH_PRECISION_PROMPT,
+				unmatchedNuggets,
 				temperature,
 			);
+
+			debugLogger.log(
+				`[TwoPhase] ✅ Now using proper Phase 2 method with real confidence scores`,
+			);
+			debugLogger.log(`[TwoPhase] Phase 2 LLM boundary detection response:`, {
+				nuggetCount: rawResponse.golden_nuggets.length,
+				confidenceScores: rawResponse.golden_nuggets.map((n) => n.confidence),
+			});
 
 			// Convert response to Phase2NuggetResult format
 			return rawResponse.golden_nuggets.map((nugget) => ({
 				type: nugget.type as GoldenNuggetType,
 				startContent: nugget.startContent,
 				endContent: nugget.endContent,
-				confidence: 0.7, // LLM boundary detection confidence
+				confidence: nugget.confidence, // Use actual LLM-provided confidence
 				matchMethod: "llm" as const,
 			}));
 		} catch (error) {
@@ -345,29 +366,6 @@ export class TwoPhaseExtractor {
 			// Return empty results rather than throwing
 			return [];
 		}
-	}
-
-	/**
-	 * Builds Phase 2 prompt including the nuggets that need boundary detection
-	 */
-	private buildPhase2PromptWithNuggets(
-		originalContent: string,
-		nuggets: Phase1Nugget[],
-	): string {
-		const nuggetsList = nuggets
-			.map(
-				(nugget, index) =>
-					`${index + 1}. Type: ${nugget.type}\n   Content: "${nugget.fullContent}"\n   Confidence: ${nugget.confidence}`,
-			)
-			.join("\n\n");
-
-		return `${PHASE_2_HIGH_PRECISION_PROMPT}
-
-NUGGETS TO PROCESS:
-${nuggetsList}
-
-ORIGINAL CONTENT:
-${originalContent}`;
 	}
 
 	/**
@@ -379,9 +377,7 @@ ${originalContent}`;
 	): string {
 		// Extract persona from original prompt if it exists
 		const personaMatch = originalPrompt.match(/persona:\s*([^\n]+)/i);
-		const persona = personaMatch
-			? personaMatch[1].trim()
-			: "";
+		const persona = personaMatch ? personaMatch[1].trim() : "";
 
 		return phase1Prompt.replace(/\{\{\s*persona\s*\}\}/g, persona);
 	}

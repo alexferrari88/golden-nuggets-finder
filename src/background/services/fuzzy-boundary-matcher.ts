@@ -17,7 +17,7 @@ export interface Phase2NuggetResult {
 	startContent: string;
 	endContent: string;
 	confidence: number;
-	matchMethod: "exact" | "fuzzy" | "not_found";
+	matchMethod: "exact" | "fuzzy" | "llm" | "not_found";
 }
 
 export interface BoundaryMatchOptions {

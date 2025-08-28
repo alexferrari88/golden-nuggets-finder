@@ -245,4 +245,285 @@ describe("LangChainAnthropicProvider", () => {
 
 		expect(isValid).toBe(false);
 	});
+
+	describe("Phase 1 High Recall Extraction", () => {
+		it("should extract Phase 1 nuggets with confidence scores", async () => {
+			const { ChatAnthropic } = await import("@langchain/anthropic");
+
+			// Mock Phase 1 response with confidence scores
+			(ChatAnthropic as ReturnType<typeof vi.fn>).mockImplementationOnce(
+				() => ({
+					withStructuredOutput: vi.fn().mockReturnValue({
+						invoke: vi.fn().mockResolvedValue({
+							golden_nuggets: [
+								{
+									type: "tool",
+									fullContent:
+										"This is a complete tool description with full content",
+									confidence: 0.85,
+								},
+								{
+									type: "analogy",
+									fullContent:
+										"This analogy explains complex concepts using simple terms",
+									confidence: 0.92,
+								},
+							],
+						}),
+					}),
+				}),
+			);
+
+			const provider = new LangChainAnthropicProvider(mockConfig);
+
+			const result = await provider.extractPhase1HighRecall(
+				"Test content for Phase 1 high recall extraction",
+				"Test Phase 1 prompt",
+				0.7,
+			);
+
+			expect(result).toEqual({
+				golden_nuggets: [
+					{
+						type: "tool",
+						fullContent:
+							"This is a complete tool description with full content",
+						confidence: 0.85,
+					},
+					{
+						type: "analogy",
+						fullContent:
+							"This analogy explains complex concepts using simple terms",
+						confidence: 0.92,
+					},
+				],
+			});
+		});
+
+		it("should handle Phase 1 extraction errors", async () => {
+			const { ChatAnthropic } = await import("@langchain/anthropic");
+
+			// Mock Phase 1 error
+			(ChatAnthropic as ReturnType<typeof vi.fn>).mockImplementationOnce(
+				() => ({
+					withStructuredOutput: vi.fn().mockReturnValue({
+						invoke: vi.fn().mockRejectedValue(new Error("Phase 1 API Error")),
+					}),
+				}),
+			);
+
+			const provider = new LangChainAnthropicProvider(mockConfig);
+
+			await expect(
+				provider.extractPhase1HighRecall("test content", "test prompt", 0.7),
+			).rejects.toThrow("Anthropic Phase 1 API call failed: Phase 1 API Error");
+		});
+
+		it("should use default temperature for Phase 1", async () => {
+			const { ChatAnthropic } = await import("@langchain/anthropic");
+
+			const mockChatAnthropic = vi.fn().mockReturnValue({
+				withStructuredOutput: vi.fn().mockReturnValue({
+					invoke: vi.fn().mockResolvedValue({
+						golden_nuggets: [],
+					}),
+				}),
+			});
+			(ChatAnthropic as ReturnType<typeof vi.fn>).mockImplementationOnce(
+				mockChatAnthropic,
+			);
+
+			const provider = new LangChainAnthropicProvider(mockConfig);
+
+			await provider.extractPhase1HighRecall("test content", "test prompt");
+
+			expect(mockChatAnthropic).toHaveBeenCalledWith({
+				apiKey: mockConfig.apiKey,
+				model: mockConfig.modelName,
+				temperature: 0.7, // Default temperature
+			});
+		});
+
+		it("should support type filtering in Phase 1", async () => {
+			const { ChatAnthropic } = await import("@langchain/anthropic");
+
+			// Mock successful response
+			(ChatAnthropic as ReturnType<typeof vi.fn>).mockImplementationOnce(
+				() => ({
+					withStructuredOutput: vi.fn().mockReturnValue({
+						invoke: vi.fn().mockResolvedValue({
+							golden_nuggets: [
+								{
+									type: "tool",
+									fullContent: "Only tools should be extracted",
+									confidence: 0.9,
+								},
+							],
+						}),
+					}),
+				}),
+			);
+
+			const provider = new LangChainAnthropicProvider(mockConfig);
+
+			const result = await provider.extractPhase1HighRecall(
+				"test content",
+				"test prompt",
+				0.7,
+				["tool"], // Filter only tools
+			);
+
+			expect(result.golden_nuggets).toHaveLength(1);
+			expect(result.golden_nuggets[0].type).toBe("tool");
+		});
+	});
+
+	describe("Phase 2 High Precision Extraction", () => {
+		it("should extract Phase 2 nuggets with boundary detection", async () => {
+			const { ChatAnthropic } = await import("@langchain/anthropic");
+
+			// Mock Phase 2 response with start/end boundaries
+			(ChatAnthropic as ReturnType<typeof vi.fn>).mockImplementationOnce(
+				() => ({
+					withStructuredOutput: vi.fn().mockReturnValue({
+						invoke: vi.fn().mockResolvedValue({
+							golden_nuggets: [
+								{
+									type: "tool",
+									startContent: "This is the",
+									endContent: "boundary detection example",
+									confidence: 0.88,
+								},
+							],
+						}),
+					}),
+				}),
+			);
+
+			const provider = new LangChainAnthropicProvider(mockConfig);
+
+			const nuggets = [
+				{
+					type: "tool" as const,
+					fullContent:
+						"This is the complete content for boundary detection example",
+					confidence: 0.85,
+				},
+			];
+
+			const result = await provider.extractPhase2HighPrecision(
+				"Original content containing: This is the complete content for boundary detection example and more text",
+				"Test Phase 2 prompt",
+				nuggets,
+				0.0,
+			);
+
+			expect(result).toEqual({
+				golden_nuggets: [
+					{
+						type: "tool",
+						startContent: "This is the",
+						endContent: "boundary detection example",
+						confidence: 0.88,
+					},
+				],
+			});
+		});
+
+		it("should handle Phase 2 extraction errors", async () => {
+			const { ChatAnthropic } = await import("@langchain/anthropic");
+
+			// Mock Phase 2 error
+			(ChatAnthropic as ReturnType<typeof vi.fn>).mockImplementationOnce(
+				() => ({
+					withStructuredOutput: vi.fn().mockReturnValue({
+						invoke: vi.fn().mockRejectedValue(new Error("Phase 2 API Error")),
+					}),
+				}),
+			);
+
+			const provider = new LangChainAnthropicProvider(mockConfig);
+
+			const nuggets = [
+				{
+					type: "tool" as const,
+					fullContent: "test content",
+					confidence: 0.85,
+				},
+			];
+
+			await expect(
+				provider.extractPhase2HighPrecision(
+					"original content",
+					"test prompt",
+					nuggets,
+					0.0,
+				),
+			).rejects.toThrow("Anthropic Phase 2 API call failed: Phase 2 API Error");
+		});
+
+		it("should use high precision temperature for Phase 2", async () => {
+			const { ChatAnthropic } = await import("@langchain/anthropic");
+
+			const mockChatAnthropic = vi.fn().mockReturnValue({
+				withStructuredOutput: vi.fn().mockReturnValue({
+					invoke: vi.fn().mockResolvedValue({
+						golden_nuggets: [],
+					}),
+				}),
+			});
+			(ChatAnthropic as ReturnType<typeof vi.fn>).mockImplementationOnce(
+				mockChatAnthropic,
+			);
+
+			const provider = new LangChainAnthropicProvider(mockConfig);
+
+			const nuggets = [
+				{
+					type: "tool" as const,
+					fullContent: "test content",
+					confidence: 0.85,
+				},
+			];
+
+			await provider.extractPhase2HighPrecision(
+				"original content",
+				"test prompt",
+				nuggets,
+				0.0,
+			);
+
+			expect(mockChatAnthropic).toHaveBeenCalledWith({
+				apiKey: mockConfig.apiKey,
+				model: mockConfig.modelName,
+				temperature: 0.0, // High precision temperature
+			});
+		});
+
+		it("should handle empty nuggets array in Phase 2", async () => {
+			const { ChatAnthropic } = await import("@langchain/anthropic");
+
+			// Mock empty response
+			(ChatAnthropic as ReturnType<typeof vi.fn>).mockImplementationOnce(
+				() => ({
+					withStructuredOutput: vi.fn().mockReturnValue({
+						invoke: vi.fn().mockResolvedValue({
+							golden_nuggets: [],
+						}),
+					}),
+				}),
+			);
+
+			const provider = new LangChainAnthropicProvider(mockConfig);
+
+			const result = await provider.extractPhase2HighPrecision(
+				"original content",
+				"test prompt",
+				[], // Empty nuggets
+				0.0,
+			);
+
+			expect(result.golden_nuggets).toEqual([]);
+		});
+	});
 });

@@ -693,6 +693,12 @@ export class MessageHandler {
 							})),
 						};
 
+						debugLogger.log(`[TwoPhase] Final normalized response:`, {
+							golden_nuggets_count: normalizedResponse.golden_nuggets.length,
+							sample_nugget: normalizedResponse.golden_nuggets[0] || null,
+							two_phase_metadata: twoPhaseResult.metadata,
+						});
+
 						console.log(
 							`Two-phase extraction completed: ${twoPhaseResult.golden_nuggets.length} nuggets (${twoPhaseResult.metadata.phase2FuzzyCount} fuzzy + ${twoPhaseResult.metadata.phase2LlmCount} LLM)`,
 						);
