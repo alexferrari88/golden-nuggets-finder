@@ -37,6 +37,214 @@ import {
 } from "./content-reconstruction";
 
 /**
+ * Position mapping utility for converting indices between original and normalized text
+ * Solves the core text space mismatch problem
+ */
+interface PositionMap {
+	/** Maps original text indices to normalized text indices */
+	originalToNormalized: Map<number, number>;
+	/** Maps normalized text indices to original text indices */
+	normalizedToOriginal: Map<number, number>;
+}
+
+/**
+ * Create position mapping between original and normalized text
+ * This allows accurate conversion of indices between text spaces
+ */
+function createPositionMap(
+	originalText: string,
+	normalizedText: string,
+): PositionMap {
+	const originalToNormalized = new Map<number, number>();
+	const normalizedToOriginal = new Map<number, number>();
+
+	const _originalIndex = 0;
+	let normalizedIndex = 0;
+
+	// Handle simple case where texts are identical
+	if (originalText === normalizedText) {
+		for (let i = 0; i <= originalText.length; i++) {
+			originalToNormalized.set(i, i);
+			normalizedToOriginal.set(i, i);
+		}
+		return { originalToNormalized, normalizedToOriginal };
+	}
+
+	// For complex normalization, use character-by-character mapping
+	// This is approximate but handles most common normalization cases
+	const originalChars = [...originalText];
+	const normalizedChars = [...normalizedText];
+
+	// Build mapping by finding corresponding positions
+	for (let origIdx = 0; origIdx < originalChars.length; origIdx++) {
+		const origChar = originalChars[origIdx].toLowerCase();
+
+		// Find the next matching character in normalized text
+		while (
+			normalizedIndex < normalizedChars.length &&
+			normalizedChars[normalizedIndex].toLowerCase() !== origChar
+		) {
+			// Skip normalized character that doesn't match
+			normalizedIndex++;
+		}
+
+		if (normalizedIndex < normalizedChars.length) {
+			originalToNormalized.set(origIdx, normalizedIndex);
+			normalizedToOriginal.set(normalizedIndex, origIdx);
+			normalizedIndex++;
+		} else {
+			// End of normalized text reached, map remaining original chars to end
+			originalToNormalized.set(origIdx, normalizedText.length);
+		}
+	}
+
+	// Map end positions
+	originalToNormalized.set(originalText.length, normalizedText.length);
+	normalizedToOriginal.set(normalizedText.length, originalText.length);
+
+	return { originalToNormalized, normalizedToOriginal };
+}
+
+/**
+ * Boundary validation result
+ */
+interface BoundaryValidationResult {
+	valid: boolean;
+	adjustedStartIndex?: number;
+	adjustedEndIndex?: number;
+	reason?: string;
+}
+
+/**
+ * Validate and refine text boundaries to ensure precise matching
+ * Ensures that returned indices point to exact start and end content
+ */
+function validateAndRefineBoundaries(
+	originalText: string,
+	startIndex: number,
+	endIndex: number,
+	expectedStartContent: string,
+	expectedEndContent: string,
+	maxAdjustment: number = 50,
+): BoundaryValidationResult {
+	// Basic bounds checking
+	if (
+		startIndex < 0 ||
+		endIndex > originalText.length ||
+		startIndex >= endIndex
+	) {
+		return {
+			valid: false,
+			reason: `Invalid indices: start=${startIndex}, end=${endIndex}, textLength=${originalText.length}`,
+		};
+	}
+
+	const _originalLower = originalText.toLowerCase();
+	const expectedStartLower = expectedStartContent.toLowerCase();
+	const expectedEndLower = expectedEndContent.toLowerCase();
+
+	// Check if current boundaries are already correct
+	const currentStartText = originalText.substring(
+		startIndex,
+		startIndex + expectedStartContent.length,
+	);
+	const currentEndText = originalText.substring(
+		endIndex - expectedEndContent.length,
+		endIndex,
+	);
+
+	if (
+		currentStartText.toLowerCase() === expectedStartLower &&
+		currentEndText.toLowerCase() === expectedEndLower
+	) {
+		return {
+			valid: true,
+			adjustedStartIndex: startIndex,
+			adjustedEndIndex: endIndex,
+		};
+	}
+
+	// Try to find correct start position within adjustment range
+	let adjustedStartIndex = startIndex;
+	let startFound = false;
+
+	for (let adj = -maxAdjustment; adj <= maxAdjustment && !startFound; adj++) {
+		const testStartIndex = startIndex + adj;
+		if (
+			testStartIndex >= 0 &&
+			testStartIndex <= originalText.length - expectedStartContent.length
+		) {
+			const testStartText = originalText.substring(
+				testStartIndex,
+				testStartIndex + expectedStartContent.length,
+			);
+			if (testStartText.toLowerCase() === expectedStartLower) {
+				adjustedStartIndex = testStartIndex;
+				startFound = true;
+			}
+		}
+	}
+
+	// Try to find correct end position within adjustment range
+	let adjustedEndIndex = endIndex;
+	let endFound = false;
+
+	for (let adj = -maxAdjustment; adj <= maxAdjustment && !endFound; adj++) {
+		const testEndIndex = endIndex + adj;
+		if (
+			testEndIndex >= expectedEndContent.length &&
+			testEndIndex <= originalText.length
+		) {
+			const testEndText = originalText.substring(
+				testEndIndex - expectedEndContent.length,
+				testEndIndex,
+			);
+			if (testEndText.toLowerCase() === expectedEndLower) {
+				adjustedEndIndex = testEndIndex;
+				endFound = true;
+			}
+		}
+	}
+
+	// Validate that adjusted boundaries make sense
+	if (startFound && endFound && adjustedStartIndex < adjustedEndIndex) {
+		return {
+			valid: true,
+			adjustedStartIndex,
+			adjustedEndIndex,
+		};
+	}
+
+	// Try fallback: look for start and end content anywhere in a reasonable range
+	const searchStart = Math.max(0, startIndex - maxAdjustment);
+	const searchEnd = Math.min(originalText.length, endIndex + maxAdjustment);
+	const searchRegion = originalText
+		.substring(searchStart, searchEnd)
+		.toLowerCase();
+
+	const fallbackStartIndex = searchRegion.indexOf(expectedStartLower);
+	if (fallbackStartIndex !== -1) {
+		const absoluteStartIndex = searchStart + fallbackStartIndex;
+		const fallbackEndIndex = searchRegion.lastIndexOf(expectedEndLower);
+		if (fallbackEndIndex !== -1 && fallbackEndIndex > fallbackStartIndex) {
+			const absoluteEndIndex =
+				searchStart + fallbackEndIndex + expectedEndContent.length;
+
+			return {
+				valid: true,
+				adjustedStartIndex: absoluteStartIndex,
+				adjustedEndIndex: absoluteEndIndex,
+			};
+		}
+	}
+
+	return {
+		valid: false,
+		reason: `Could not find expected boundaries: start="${expectedStartContent}", end="${expectedEndContent}"`,
+	};
+}
+
+/**
  * Configuration options for the enhanced text matcher
  */
 export interface RobustTextMatcherOptions {
@@ -278,8 +486,8 @@ export class RobustTextMatcher {
 	 */
 	private initializeStrategies(): MatchingStrategy[] {
 		return [
-			new ExactMatchingStrategy(this.options),
-			new DiffBasedMatchingStrategy(this.options),
+			new ExactMatchingStrategy(),
+			new DiffBasedMatchingStrategy(),
 			new FuzzyMatchingStrategy(this.options),
 			// Semantic strategy can be added here in the future
 		];
@@ -395,14 +603,36 @@ export class RobustTextMatcher {
 		confidence: number;
 		strategy?: string;
 	}> {
-		// Use the existing findTextRange method with text as both start and end
-		const result = await this.findTextRange(textToFind, textToFind);
+		// For single text matching, check if the text exists in our content
+		if (!textToFind || textToFind.length === 0) {
+			return { found: false, confidence: 0, strategy: "none" };
+		}
 
-		return {
-			found: result.success,
-			confidence: result.confidence,
-			strategy: result.strategy,
-		};
+		// Simple text search in fullText
+		const normalizedFullText = this.fullText.toLowerCase();
+		const normalizedSearchText = textToFind.toLowerCase();
+
+		if (normalizedFullText.includes(normalizedSearchText)) {
+			return { found: true, confidence: 1.0, strategy: "exact" };
+		}
+
+		// Try with Fuse.js fuzzy matching if enabled
+		if (this.options.enableFuzzyMatching && this.fuse) {
+			const fuseResults = this.fuse.search(textToFind);
+			if (fuseResults.length > 0) {
+				const bestMatch = fuseResults[0];
+				// Fuse.js score is distance (0 = perfect match, 1 = no match)
+				// We want similarity, so confidence = 1 - score
+				const confidence = 1 - bestMatch.score!;
+				// Only consider it a match if confidence is above threshold
+				// and the score is quite good (less than 0.4 distance)
+				if (bestMatch.score! <= 0.4 && confidence >= 1 - this.options.fuzzyThreshold) {
+					return { found: true, confidence, strategy: "fuzzy" };
+				}
+			}
+		}
+
+		return { found: false, confidence: 0, strategy: "none" };
 	}
 }
 
@@ -426,14 +656,38 @@ class ExactMatchingStrategy implements MatchingStrategy {
 		);
 
 		if (result.success) {
-			return {
-				success: true,
-				strategy: "exact",
-				confidence: 1.0,
-				startIndex: result.startIndex!,
-				endIndex: result.endIndex!,
-				matchedContent: result.matchedContent!,
-			};
+			// Apply boundary validation even to improved matching results
+			const boundaryValidation = validateAndRefineBoundaries(
+				searchText,
+				result.startIndex!,
+				result.endIndex!,
+				startContent,
+				endContent,
+			);
+
+			if (boundaryValidation.valid) {
+				return {
+					success: true,
+					strategy: "exact",
+					confidence: 1.0,
+					startIndex: boundaryValidation.adjustedStartIndex!,
+					endIndex: boundaryValidation.adjustedEndIndex!,
+					matchedContent: searchText.substring(
+						boundaryValidation.adjustedStartIndex!,
+						boundaryValidation.adjustedEndIndex!,
+					),
+				};
+			} else {
+				// If boundary validation fails, fall back to the original result
+				return {
+					success: true,
+					strategy: "exact",
+					confidence: 0.95, // Slightly lower confidence for non-validated boundaries
+					startIndex: result.startIndex!,
+					endIndex: result.endIndex!,
+					matchedContent: result.matchedContent!,
+				};
+			}
 		}
 
 		// Try all the existing 6-strategy normalization approach
@@ -514,6 +768,7 @@ class ExactMatchingStrategy implements MatchingStrategy {
 		searchText: string,
 	): EnhancedMatchResult {
 		try {
+			const originalSearchText = searchText;
 			let normalizedSearchText = searchText.toLowerCase();
 			let normalizedStart = startContent.toLowerCase();
 			let normalizedEnd = sanitizeEndContent(endContent).toLowerCase();
@@ -551,7 +806,7 @@ class ExactMatchingStrategy implements MatchingStrategy {
 				normalizedEnd = this.normalizeTextForMatching(normalizedEnd);
 			}
 
-			// Try to find the match
+			// Try to find the match in normalized space
 			const startIndex = normalizedSearchText.indexOf(normalizedStart);
 			if (startIndex === -1) {
 				return {
@@ -581,17 +836,54 @@ class ExactMatchingStrategy implements MatchingStrategy {
 			}
 
 			const finalEndIndex = endIndex + normalizedEnd.length;
-			const matchedContent = normalizedSearchText.substring(
-				startIndex,
-				finalEndIndex,
+
+			// Create position mapping between original and normalized text
+			const positionMap = createPositionMap(
+				originalSearchText,
+				normalizedSearchText,
+			);
+
+			// Convert normalized indices back to original text space
+			const originalStartIndex =
+				positionMap.normalizedToOriginal.get(startIndex) ?? startIndex;
+			const originalEndIndex =
+				positionMap.normalizedToOriginal.get(finalEndIndex) ?? finalEndIndex;
+
+			// Validate and refine boundaries in original text space
+			const boundaryValidation = validateAndRefineBoundaries(
+				originalSearchText,
+				originalStartIndex,
+				originalEndIndex,
+				startContent,
+				endContent,
+			);
+
+			if (!boundaryValidation.valid) {
+				return {
+					success: false,
+					strategy: "exact",
+					confidence: 0,
+					startIndex: -1,
+					endIndex: -1,
+					matchedContent: "",
+					reason: boundaryValidation.reason,
+				};
+			}
+
+			// Use refined boundaries
+			const refinedStartIndex = boundaryValidation.adjustedStartIndex!;
+			const refinedEndIndex = boundaryValidation.adjustedEndIndex!;
+			const matchedContent = originalSearchText.substring(
+				refinedStartIndex,
+				refinedEndIndex,
 			);
 
 			return {
 				success: true,
 				strategy: "exact",
-				confidence: 0.9,
-				startIndex,
-				endIndex: finalEndIndex,
+				confidence: 0.95, // Higher confidence for boundary-validated matches
+				startIndex: refinedStartIndex,
+				endIndex: refinedEndIndex,
 				matchedContent,
 			};
 		} catch (error) {
@@ -743,7 +1035,7 @@ class DiffBasedMatchingStrategy implements MatchingStrategy {
 		endIndex: number;
 		matchedContent: string;
 	} {
-		// Analyze diff to find segments that match start and end content
+		const originalSearchText = searchText;
 		const normalizedStart = advancedNormalize(startContent);
 		const normalizedEnd = advancedNormalize(endContent);
 		const normalizedSearch = advancedNormalize(searchText);
@@ -772,25 +1064,55 @@ class DiffBasedMatchingStrategy implements MatchingStrategy {
 						currentPosition + startIndex + normalizedStart.length,
 					);
 					if (endIndex !== -1) {
-						const matchedContent = normalizedSearch.substring(
-							currentPosition + startIndex,
-							endIndex + normalizedEnd.length,
+						const finalEndIndex = endIndex + normalizedEnd.length;
+
+						// Create position mapping between original and normalized text
+						const positionMap = createPositionMap(
+							originalSearchText,
+							normalizedSearch,
 						);
 
-						const confidence = this.calculateConfidence(
-							matchedContent,
-							normalizedStart,
-							normalizedEnd,
+						// Convert normalized indices back to original text space
+						const normalizedStartIndex = currentPosition + startIndex;
+						const originalStartIndex =
+							positionMap.normalizedToOriginal.get(normalizedStartIndex) ??
+							normalizedStartIndex;
+						const originalEndIndex =
+							positionMap.normalizedToOriginal.get(finalEndIndex) ??
+							finalEndIndex;
+
+						// Validate and refine boundaries in original text space
+						const boundaryValidation = validateAndRefineBoundaries(
+							originalSearchText,
+							originalStartIndex,
+							originalEndIndex,
+							startContent,
+							endContent,
 						);
 
-						if (confidence > bestMatch.confidence) {
-							bestMatch = {
-								success: true,
-								confidence,
-								startIndex: currentPosition + startIndex,
-								endIndex: endIndex + normalizedEnd.length,
+						if (boundaryValidation.valid) {
+							const refinedStartIndex = boundaryValidation.adjustedStartIndex!;
+							const refinedEndIndex = boundaryValidation.adjustedEndIndex!;
+							const matchedContent = originalSearchText.substring(
+								refinedStartIndex,
+								refinedEndIndex,
+							);
+
+							const confidence = this.calculateConfidence(
 								matchedContent,
-							};
+								startContent,
+								endContent,
+							);
+
+							if (confidence > bestMatch.confidence) {
+								bestMatch = {
+									success: true,
+									confidence,
+									startIndex: refinedStartIndex,
+									endIndex: refinedEndIndex,
+									matchedContent,
+								};
+							}
 						}
 					}
 				}
@@ -816,7 +1138,7 @@ class DiffBasedMatchingStrategy implements MatchingStrategy {
 		endIndex: number;
 		matchedContent: string;
 	} {
-		// Similar logic to word alignment but at character level
+		const originalSearchText = searchText;
 		const normalizedStart = advancedNormalize(startContent);
 		const normalizedEnd = advancedNormalize(endContent);
 		const normalizedSearch = advancedNormalize(searchText);
@@ -847,21 +1169,55 @@ class DiffBasedMatchingStrategy implements MatchingStrategy {
 			};
 		}
 
-		const matchedContent = normalizedSearch.substring(
-			startIndex,
-			endIndex + normalizedEnd.length,
+		const finalEndIndex = endIndex + normalizedEnd.length;
+
+		// Create position mapping between original and normalized text
+		const positionMap = createPositionMap(originalSearchText, normalizedSearch);
+
+		// Convert normalized indices back to original text space
+		const originalStartIndex =
+			positionMap.normalizedToOriginal.get(startIndex) ?? startIndex;
+		const originalEndIndex =
+			positionMap.normalizedToOriginal.get(finalEndIndex) ?? finalEndIndex;
+
+		// Validate and refine boundaries in original text space
+		const boundaryValidation = validateAndRefineBoundaries(
+			originalSearchText,
+			originalStartIndex,
+			originalEndIndex,
+			startContent,
+			endContent,
 		);
+
+		if (!boundaryValidation.valid) {
+			return {
+				success: false,
+				confidence: 0,
+				startIndex: -1,
+				endIndex: -1,
+				matchedContent: "",
+			};
+		}
+
+		// Use refined boundaries
+		const refinedStartIndex = boundaryValidation.adjustedStartIndex!;
+		const refinedEndIndex = boundaryValidation.adjustedEndIndex!;
+		const matchedContent = originalSearchText.substring(
+			refinedStartIndex,
+			refinedEndIndex,
+		);
+
 		const confidence = this.calculateConfidence(
 			matchedContent,
-			normalizedStart,
-			normalizedEnd,
+			startContent,
+			endContent,
 		);
 
 		return {
 			success: true,
 			confidence,
-			startIndex,
-			endIndex: endIndex + normalizedEnd.length,
+			startIndex: refinedStartIndex,
+			endIndex: refinedEndIndex,
 			matchedContent,
 		};
 	}
