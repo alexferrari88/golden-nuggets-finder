@@ -139,11 +139,35 @@ function validateAndRefineBoundaries(
 		};
 	}
 
-	const _originalLower = originalText.toLowerCase();
-	const expectedStartLower = expectedStartContent.toLowerCase();
-	const expectedEndLower = expectedEndContent.toLowerCase();
+	// Enhanced normalization for boundary validation
+	// Use the same sanitization logic we improved earlier
+	const sanitizedEndContent = sanitizeEndContent(expectedEndContent);
 
-	// Check if current boundaries are already correct
+	// Apply flexible normalization for better matching
+	const normalizeForBoundaryCheck = (text: string) => {
+		return (
+			text
+				.toLowerCase()
+				// Normalize quotes like our enhanced strategies
+				.replace(/[""]/g, '"')
+				.replace(/['']/g, "'")
+				.replace(/"{2,}/g, '"')
+				.replace(/'{2,}/g, "'")
+				.replace(/&quot;/g, '"')
+				.replace(/&#39;/g, "'")
+				.replace(/&apos;/g, "'")
+				// Remove trailing punctuation for flexible end matching
+				.replace(/[.!?]+(['"])*\s*$/, "")
+				.trim()
+		);
+	};
+
+	const _originalTextNormalized = normalizeForBoundaryCheck(originalText);
+	const expectedStartNormalized =
+		normalizeForBoundaryCheck(expectedStartContent);
+	const expectedEndNormalized = normalizeForBoundaryCheck(sanitizedEndContent);
+
+	// Check if current boundaries are already correct (exact match first)
 	const currentStartText = originalText.substring(
 		startIndex,
 		startIndex + expectedStartContent.length,
@@ -154,8 +178,8 @@ function validateAndRefineBoundaries(
 	);
 
 	if (
-		currentStartText.toLowerCase() === expectedStartLower &&
-		currentEndText.toLowerCase() === expectedEndLower
+		currentStartText.toLowerCase() === expectedStartContent.toLowerCase() &&
+		currentEndText.toLowerCase() === expectedEndContent.toLowerCase()
 	) {
 		return {
 			valid: true,
@@ -164,10 +188,11 @@ function validateAndRefineBoundaries(
 		};
 	}
 
-	// Try to find correct start position within adjustment range
+	// Enhanced boundary finding with flexible normalization
 	let adjustedStartIndex = startIndex;
 	let startFound = false;
 
+	// Try to find start position with multiple approaches
 	for (let adj = -maxAdjustment; adj <= maxAdjustment && !startFound; adj++) {
 		const testStartIndex = startIndex + adj;
 		if (
@@ -178,14 +203,19 @@ function validateAndRefineBoundaries(
 				testStartIndex,
 				testStartIndex + expectedStartContent.length,
 			);
-			if (testStartText.toLowerCase() === expectedStartLower) {
+
+			// Try both exact and normalized matching
+			if (
+				testStartText.toLowerCase() === expectedStartContent.toLowerCase() ||
+				normalizeForBoundaryCheck(testStartText) === expectedStartNormalized
+			) {
 				adjustedStartIndex = testStartIndex;
 				startFound = true;
 			}
 		}
 	}
 
-	// Try to find correct end position within adjustment range
+	// Enhanced end position finding with flexible length and punctuation handling
 	let adjustedEndIndex = endIndex;
 	let endFound = false;
 
@@ -195,13 +225,41 @@ function validateAndRefineBoundaries(
 			testEndIndex >= expectedEndContent.length &&
 			testEndIndex <= originalText.length
 		) {
-			const testEndText = originalText.substring(
-				testEndIndex - expectedEndContent.length,
-				testEndIndex,
-			);
-			if (testEndText.toLowerCase() === expectedEndLower) {
-				adjustedEndIndex = testEndIndex;
-				endFound = true;
+			// Try different lengths to account for punctuation variations
+			const lengthVariations = [
+				expectedEndContent.length,
+				expectedEndContent.length - 1, // Might be shorter due to punctuation removal
+				expectedEndContent.length + 1, // Might be longer due to extra quotes
+				sanitizedEndContent.length, // Length after sanitization
+			];
+
+			for (const len of lengthVariations) {
+				if (testEndIndex >= len) {
+					const testEndText = originalText.substring(
+						testEndIndex - len,
+						testEndIndex,
+					);
+
+					// Try multiple matching approaches
+					const matches = [
+						// Exact case-insensitive match
+						testEndText.toLowerCase() === expectedEndContent.toLowerCase(),
+						// Match with sanitized end content
+						testEndText.toLowerCase() === sanitizedEndContent.toLowerCase(),
+						// Normalized flexible match
+						normalizeForBoundaryCheck(testEndText) === expectedEndNormalized,
+						// Partial match for cases where punctuation differs
+						normalizeForBoundaryCheck(testEndText).includes(
+							expectedEndNormalized,
+						) && expectedEndNormalized.length > 3, // Avoid false positives with short text
+					];
+
+					if (matches.some((match) => match)) {
+						adjustedEndIndex = testEndIndex;
+						endFound = true;
+						break;
+					}
+				}
 			}
 		}
 	}
@@ -215,32 +273,38 @@ function validateAndRefineBoundaries(
 		};
 	}
 
-	// Try fallback: look for start and end content anywhere in a reasonable range
+	// Enhanced fallback: look for start and end content with flexible normalization
 	const searchStart = Math.max(0, startIndex - maxAdjustment);
 	const searchEnd = Math.min(originalText.length, endIndex + maxAdjustment);
-	const searchRegion = originalText
-		.substring(searchStart, searchEnd)
-		.toLowerCase();
+	const searchRegion = originalText.substring(searchStart, searchEnd);
+	const searchRegionNormalized = normalizeForBoundaryCheck(searchRegion);
 
-	const fallbackStartIndex = searchRegion.indexOf(expectedStartLower);
+	const fallbackStartIndex = searchRegionNormalized.indexOf(
+		expectedStartNormalized,
+	);
 	if (fallbackStartIndex !== -1) {
 		const absoluteStartIndex = searchStart + fallbackStartIndex;
-		const fallbackEndIndex = searchRegion.lastIndexOf(expectedEndLower);
+		const fallbackEndIndex = searchRegionNormalized.lastIndexOf(
+			expectedEndNormalized,
+		);
 		if (fallbackEndIndex !== -1 && fallbackEndIndex > fallbackStartIndex) {
 			const absoluteEndIndex =
-				searchStart + fallbackEndIndex + expectedEndContent.length;
+				searchStart + fallbackEndIndex + expectedEndNormalized.length;
+
+			// Ensure the absolute end index makes sense with original text
+			const validEndIndex = Math.min(absoluteEndIndex, originalText.length);
 
 			return {
 				valid: true,
 				adjustedStartIndex: absoluteStartIndex,
-				adjustedEndIndex: absoluteEndIndex,
+				adjustedEndIndex: validEndIndex,
 			};
 		}
 	}
 
 	return {
 		valid: false,
-		reason: `Could not find expected boundaries: start="${expectedStartContent}", end="${expectedEndContent}"`,
+		reason: `Could not find expected boundaries after enhanced validation: start="${expectedStartContent}", end="${expectedEndContent}" (sanitized: "${sanitizedEndContent}")`,
 	};
 }
 
@@ -626,7 +690,10 @@ export class RobustTextMatcher {
 				const confidence = 1 - bestMatch.score!;
 				// Only consider it a match if confidence is above threshold
 				// and the score is quite good (less than 0.4 distance)
-				if (bestMatch.score! <= 0.4 && confidence >= 1 - this.options.fuzzyThreshold) {
+				if (
+					bestMatch.score! <= 0.4 &&
+					confidence >= 1 - this.options.fuzzyThreshold
+				) {
 					return { found: true, confidence, strategy: "fuzzy" };
 				}
 			}
@@ -724,6 +791,7 @@ class ExactMatchingStrategy implements MatchingStrategy {
 
 	/**
 	 * Preserve existing 6-strategy normalization approach from highlighter.ts
+	 * Enhanced with additional strategies for punctuation and quote variations
 	 */
 	private getExistingStrategies() {
 		return [
@@ -757,6 +825,21 @@ class ExactMatchingStrategy implements MatchingStrategy {
 			{
 				name: "URL spacing normalization",
 				normalize: (text: string) => this.normalizeUrlSpacing(text),
+			},
+
+			// Strategy 7: Flexible punctuation + quote normalization (NEW)
+			// Handles cases like "observations."" vs "observations?"
+			{
+				name: "flexible punctuation-quote",
+				normalize: (text: string) => this.normalizeFlexiblePunctuation(text),
+			},
+
+			// Strategy 8: Combined quote and punctuation normalization (NEW)
+			// Applies both quote and punctuation normalization together
+			{
+				name: "combined normalization",
+				normalize: (text: string) =>
+					this.normalizeQuotes(this.normalizeFlexiblePunctuation(text)),
 			},
 		];
 	}
@@ -912,13 +995,24 @@ class ExactMatchingStrategy implements MatchingStrategy {
 	private normalizeQuotes(text: string): string {
 		return (
 			text
-				// Convert opening smart/curly quotes to straight quotes
+				// Step 1: Convert smart/curly quotes to straight quotes
 				.replace(/[""]/g, '"') // " and " to "
 				.replace(/['']/g, "'") // ' and ' to '
-				// Convert any remaining quote entities
+				// Step 2: Convert HTML entities
 				.replace(/&quot;/g, '"')
 				.replace(/&#39;/g, "'")
 				.replace(/&apos;/g, "'")
+				// Step 3: Handle multiple consecutive quotes (key for our HackerNews issue)
+				.replace(/"{2,}/g, '"') // Multiple double quotes to single: "" -> "
+				.replace(/'{2,}/g, "'") // Multiple single quotes to single: '' -> '
+				// Step 4: Handle mixed quote patterns and normalize quote boundaries
+				.replace(/(['"])([^'"]*?)\1+/g, "$1$2$1") // Clean quote pairs with extras
+				// Step 5: Normalize punctuation + quote combinations for boundary matching
+				// This is crucial for matching "observations."" vs "observations?"
+				.replace(/([.!?])(['"])+/g, (_match, punct, quotes) => {
+					// Keep one punctuation + one quote for consistency
+					return punct + quotes[0];
+				})
 		);
 	}
 
@@ -929,6 +1023,30 @@ class ExactMatchingStrategy implements MatchingStrategy {
 				.replace(/([a-zA-Z0-9])\\s*\\.\\s*([a-zA-Z0-9])/g, "$1.$2")
 				// Handle multiple consecutive replacements
 				.replace(/([a-zA-Z0-9])\\s*\\.\\s*([a-zA-Z0-9])/g, "$1.$2")
+		);
+	}
+
+	/**
+	 * New flexible punctuation normalization method
+	 * Handles the specific case where AI extracted "observations."" but page has "observations?"
+	 */
+	private normalizeFlexiblePunctuation(text: string): string {
+		return (
+			text
+				// Step 1: Normalize sentence-ending punctuation to be interchangeable
+				// Replace ., ?, ! with a common placeholder for matching, then restore
+				.replace(
+					/([^.!?])([.!?]+)(['"]*)\s*$/g,
+					(_match, beforePunct, _punct, quotes, _offset, _string) => {
+						// For end-of-text punctuation, treat all sentence endings as equivalent
+						// This helps match "observations." with "observations?"
+						const _cleanedQuotes = quotes.replace(/["']+/g, '"'); // Normalize quotes
+						return beforePunct; // Return just the content for flexible matching
+					},
+				)
+				// Step 2: Handle mid-text punctuation variations (preserve these as-is)
+				.replace(/\s+/g, " ") // Normalize whitespace
+				.trim()
 		);
 	}
 }
