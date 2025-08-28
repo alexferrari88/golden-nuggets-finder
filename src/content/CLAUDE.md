@@ -30,6 +30,7 @@ Content scripts are injected dynamically only when needed (not on all pages) and
 - Analysis workflow and performance monitoring with real-time progress updates
 - Communication with background scripts via message passing
 - Multi-provider analysis support with provider metadata display
+- Ensemble mode UI integration with confidence scoring and consensus visualization
 
 ## Content Extraction System
 
@@ -64,12 +65,14 @@ Orchestrates all UI interactions and coordinates between components:
 - Coordinates highlighting and sidebar display
 
 ### Highlighter (`ui/highlighter.ts`)
-Modern text highlighting using CSS Custom Highlight API with DOM fallback:
+Modern text highlighting using CSS Custom Highlight API with DOM fallback and enhanced text matching:
 - **CSS Custom Highlight API**: Uses modern browser API for performance and native behavior
 - **DOM Fallback**: Graceful degradation to DOM-based highlighting for older browsers
+- **Enhanced Text Matching Integration**: Uses `EnhancedTextMatchingAdapter` for improved accuracy and reliability
+- **Multi-Strategy Matching**: Combines exact matching, fuzzy matching, and content reconstruction for robust highlighting
 - **Ultra-Subtle Styling**: Uses design system's minimal gray overlays for sophisticated highlighting
 - **Minimal Visual Impact**: Small, unobtrusive indicators with hover states using design system colors
-- **Performance Optimized**: CSS-based highlighting avoids DOM manipulation overhead
+- **Performance Optimized**: CSS-based highlighting with intelligent caching avoids DOM manipulation overhead
 - **Accessibility**: Maintains proper contrast while being visually minimal using neutral grays
 
 ### Sidebar (`ui/sidebar.ts`)
@@ -84,12 +87,55 @@ Manages different types of notification banners with automatic lifecycle:
 - **Multiple Banner Types**: Progress, error, success, info, API key error, and provider-specific banners
 - **Real-time Progress**: Displays analysis progress with provider information and timing
 - **Provider Integration**: Shows provider metadata, response times, and model information
+- **Ensemble Progress Support**: Specialized notifications for multi-run analysis with run counters
 - **Rate Limiting Support**: Displays rate limiting messages with retry countdown
 - **Auto-hide Behavior**: Automatic timeout for errors and success messages
 - **Interactive Options**: Info banners can include buttons with custom actions
 - **Single Banner Policy**: Only one banner shown at a time, with smart replacement
 - **Design System Integration**: Uses design system colors, typography, and timing
 - **Smooth Animations**: Fade-in and slide-in animations for professional feel
+
+### Ensemble Mode UI Integration
+
+Content script UI components include specialized features for ensemble mode analysis:
+
+#### Enhanced Notification System
+Ensemble-specific progress notifications with run tracking:
+- **Ensemble Progress Messages**: Real-time updates during multi-run analysis
+- **Run Counter**: Shows current run progress (e.g., "Run 2 of 3")
+- **Cost Indication**: Clear display of multiplied API costs
+- **Consensus Building**: Progress messages during similarity matching
+
+#### Sidebar Ensemble Results
+Enhanced sidebar display for ensemble analysis results:
+- **Confidence Scoring**: Visual indicators showing nugget confidence levels
+- **Consensus Metadata**: Run agreement statistics (e.g., "3/3 runs" or "2/3 runs")
+- **Quality Indicators**: Visual cues for high-confidence vs moderate-confidence nuggets
+- **Ensemble Badges**: Subtle indicators showing analysis was performed with ensemble mode
+
+#### Example Ensemble UI Elements
+```typescript
+// Ensemble-specific progress notification
+const ensembleProgressMessage = `🎯 Starting ensemble extraction (${runs} runs)`
+
+// Consensus display in sidebar
+const consensusElement = document.createElement('div')
+consensusElement.style.cssText = `
+  background: ${colors.background.secondary};
+  border: 1px solid ${colors.border.light};
+  border-radius: 4px;
+  padding: ${spacing.xs};
+  color: ${colors.text.secondary};
+  font-size: ${typography.fontSize.xs};
+`
+consensusElement.textContent = `${runsSupportingThis}/${totalRuns} agreement`
+```
+
+#### Ensemble Mode Visual Design
+- **Confidence Indicators**: Subtle opacity variations based on consensus strength
+- **Agreement Badges**: Small text indicators showing run agreement
+- **Enhanced Cards**: Additional metadata sections for ensemble-specific information
+- **Cost Awareness**: Clear visual indicators when ensemble mode is active
 
 ### Design System Integration
 Content script UI components follow the shared design system:

@@ -69,6 +69,60 @@ Manages provider availability and switching:
 - **Default Model**: `openai/gpt-3.5-turbo`
 - **Features**: Access to multiple providers through single API
 
+## Ensemble Mode Integration
+
+### EnsembleExtractor Service (`services/ensemble-extractor.ts`)
+Advanced multi-run analysis service that provides improved accuracy through consensus-based extraction:
+
+#### Core Functionality
+- **Multi-Run Execution**: Performs multiple independent analysis runs with same provider
+- **Hybrid Similarity Matching**: Uses advanced text matching algorithms for consensus building
+- **Embedding Analysis**: Semantic similarity analysis for duplicate detection
+- **Confidence Scoring**: Assigns confidence metrics based on run agreement
+- **Result Consolidation**: Merges multiple runs into consensus results with metadata
+
+#### Key Methods
+- `extractWithEnsemble(content, provider, prompt, options)`: Main ensemble extraction method
+- `buildConsensusResult(runResults, options)`: Combines multiple run results
+- `calculateConfidenceScores(nuggets, totalRuns)`: Assigns confidence based on agreement
+
+#### Configuration Options
+- **Run Count**: Number of analysis passes (default: 3, configurable 1-10)
+- **Mode Selection**: Different ensemble strategies (balanced, precision-focused, recall-focused)
+- **Similarity Threshold**: Consensus threshold for nugget inclusion (default: 0.7)
+- **Temperature**: AI provider temperature setting for diversity (default: 0.7)
+
+#### Performance Characteristics
+- **Latency**: ~3x longer than single-run (runs are sequential)
+- **API Cost**: Linear scaling with run count (3 runs = 3x cost)
+- **Memory Usage**: Minimal - processes results incrementally
+- **Error Resilience**: Continues with partial results if some runs fail
+
+### Ensemble Message Types
+Extended message passing system with ensemble-specific types:
+- **ANALYZE_CONTENT_ENSEMBLE**: Trigger ensemble analysis
+- **ENSEMBLE_EXTRACTION_PROGRESS**: Progress updates during ensemble runs
+- **ENSEMBLE_CONSENSUS_COMPLETE**: Ensemble analysis finished
+
+### Context Menu Integration
+Enhanced context menu with ensemble support:
+- **"Analyze Content"**: Standard single-run analysis
+- **"Ensemble Analysis"**: Multi-run ensemble analysis (shows cost indication)
+
+### Storage Integration
+Ensemble preferences stored securely using the same encryption system:
+- **enabled**: Master toggle for ensemble functionality
+- **defaultRuns**: Default number of analysis runs (3)
+- **defaultMode**: Default ensemble strategy ("balanced")
+
+### Background Script Ensemble Flow
+1. **Request Handling**: MessageHandler receives ensemble analysis request
+2. **Configuration**: Loads ensemble settings from secure storage
+3. **Provider Setup**: Creates appropriate AI provider instance
+4. **Ensemble Execution**: EnsembleExtractor performs multi-run analysis
+5. **Result Processing**: Hybrid similarity matching builds consensus
+6. **Response**: Enhanced response with confidence scores and metadata
+
 ## Golden Nugget Response Schema
 
 All AI providers are normalized to return responses in this standardized format:
@@ -95,6 +149,7 @@ Uses typed message system with `MESSAGE_TYPES` constants for communication betwe
 - **Analysis Flow**: 
   - `ANALYZE_CONTENT`: Trigger content analysis
   - `ANALYZE_SELECTED_CONTENT`: Analyze user-selected content
+  - `ANALYZE_CONTENT_ENSEMBLE`: Trigger ensemble analysis with multiple runs
   - `ANALYSIS_COMPLETE`: Analysis finished successfully
   - `ANALYSIS_ERROR`: Analysis failed with error
 - **Progress Tracking**: 
@@ -103,6 +158,8 @@ Uses typed message system with `MESSAGE_TYPES` constants for communication betwe
   - `ANALYSIS_API_REQUEST_START`: Step 3 start
   - `ANALYSIS_API_RESPONSE_RECEIVED`: Step 3 complete
   - `ANALYSIS_PROCESSING_RESULTS`: Step 4 complete
+  - `ENSEMBLE_EXTRACTION_PROGRESS`: Progress updates during ensemble runs
+  - `ENSEMBLE_CONSENSUS_COMPLETE`: Ensemble consensus building finished
 - **User Interface**:
   - `SHOW_ERROR`: Display error message to user
   - `SHOW_INFO`: Display informational message

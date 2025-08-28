@@ -75,6 +75,7 @@ Manages user-selected models for each provider:
 - **User Prompts**: Array of saved prompt objects with names, content, and default status
 - **Provider Configuration**: Selected provider and provider-specific settings
 - **Type Filtering**: User preferences for nugget type filtering
+- **Ensemble Settings**: Configuration for ensemble mode (enabled, defaultRuns, defaultMode)
 
 ### Storage Best Practices
 - Use local storage for user preferences and settings
@@ -171,6 +172,73 @@ JSON schema definitions for API validation:
 - **Type Filtering**: Dynamic schema generation based on user-selected types
 - **Extensibility**: Easy addition of new nugget types and validation rules
 
+## Ensemble Support
+
+### Ensemble Types and Interfaces
+The shared utilities include comprehensive type definitions for ensemble functionality:
+
+#### Ensemble Configuration Types
+```typescript
+interface EnsembleSettings {
+  enabled: boolean;
+  defaultRuns: number;
+  defaultMode: EnsembleMode;
+}
+
+interface EnsembleOptions {
+  runs: number;
+  mode: EnsembleMode;
+}
+
+type EnsembleMode = 'balanced' | 'precision' | 'recall';
+```
+
+#### Enhanced Nugget Types
+Extended golden nugget types with ensemble metadata:
+```typescript
+interface EnhancedGoldenNugget extends GoldenNugget {
+  confidence?: number;
+  runsSupportingThis?: number;
+  totalRuns?: number;
+  consensusReached?: boolean;
+}
+```
+
+### Ensemble Constants (`constants.ts`)
+Ensemble-specific configuration constants:
+- **ENSEMBLE_SETTINGS**: Storage key for ensemble configuration
+- **DEFAULT_SIMILARITY_THRESHOLD**: Default threshold for nugget consensus (0.7)
+- **DEFAULT_ENSEMBLE_RUNS**: Default number of analysis runs (3)
+- **MAX_ENSEMBLE_RUNS**: Maximum allowed runs for cost control (10)
+
+### Hybrid Similarity System (`services/hybrid-similarity.ts`)
+Advanced similarity matching system used by ensemble extractor:
+- **Multi-Strategy Matching**: Combines semantic similarity with exact text matching
+- **Embedding Analysis**: Uses vector embeddings for semantic similarity comparison
+- **Consensus Building**: Groups similar nuggets from multiple runs
+- **Confidence Scoring**: Calculates confidence based on run agreement
+- **Duplicate Elimination**: Advanced deduplication with configurable thresholds
+
+#### Key Features
+- **Semantic Understanding**: Vector embeddings capture meaning beyond exact text
+- **Performance Optimized**: Efficient batch processing for multiple nugget comparisons
+- **Configurable Thresholds**: Adjustable similarity thresholds for different content types
+- **Detailed Reporting**: Comprehensive similarity scores and match explanations
+
+### Ensemble Storage Integration
+Ensemble settings are stored using the same security and encryption system:
+- **Encrypted Storage**: Ensemble preferences encrypted using SecurityManager
+- **Chrome Storage**: Persisted in Chrome local storage with caching
+- **Validation**: Runtime validation of ensemble configuration values
+- **Migration Support**: Automatic handling of settings schema updates
+
+### Ensemble Utilities
+Shared utility functions for ensemble operations:
+- **Configuration Validation**: Validates ensemble settings and options
+- **Cost Calculation**: Estimates API costs for ensemble analysis
+- **Progress Tracking**: Specialized progress messages for multi-run analysis
+- **Result Formatting**: Formats ensemble results for UI display
+
 ## Development System
 
 ### Debug Logger (`debug.ts`)
@@ -193,6 +261,7 @@ Comprehensive TypeScript interfaces for all extension data structures:
 - **Core Data Models**: GoldenNugget, SavedPrompt, ExtensionConfig with multi-provider support
 - **UI State Management**: NuggetDisplayState, SidebarNuggetItem, TypeFilterOptions
 - **Analysis System**: AnalysisRequest, AnalysisResponse, AnalysisProgressMessage with provider metadata
+- **Ensemble System**: EnsembleOptions, EnhancedGoldenNugget, EnsembleSettings with consensus metadata
 - **Feedback System**: NuggetFeedback, MissingContentFeedback, FeedbackStats
 - **Export System**: ExportData, ExportOptions with multiple format support
 - **Message System**: Complete MessageTypes enum for inter-component communication
