@@ -338,6 +338,7 @@ function IndexPopup() {
 		"model",
 	]);
 	const [ensembleMode, setEnsembleMode] = useState<boolean>(false);
+	const [twoPhaseMode, setTwoPhaseMode] = useState<boolean>(false);
 
 	// Analysis phases data - reflects real workflow timing
 	const analysisPhases = [
@@ -784,7 +785,18 @@ function IndexPopup() {
 			const typeFilter: TypeFilterOptions =
 				createCombinationTypeFilter(selectedTypes);
 
-			// Send message to content script - route based on ensemble mode
+			// Get two-phase settings if enabled
+			let useTwoPhaseExtraction = false;
+			if (twoPhaseMode) {
+				try {
+					const twoPhaseSettings = await storage.getTwoPhaseSettings();
+					useTwoPhaseExtraction = twoPhaseSettings.enabled;
+				} catch (error) {
+					console.warn("Failed to get two-phase settings from popup:", error);
+				}
+			}
+
+			// Send message to content script - route based on extraction mode
 			if (ensembleMode) {
 				// Get ensemble settings for ensemble analysis
 				let ensembleOptions: { runs: number; mode: EnsembleMode } = {
@@ -816,13 +828,14 @@ function IndexPopup() {
 					ensembleOptions,
 				});
 			} else {
-				// Send regular analysis message
+				// Send regular analysis message with optional two-phase parameter
 				await chrome.tabs.sendMessage(tab.id, {
 					type: MESSAGE_TYPES.ANALYZE_CONTENT,
 					promptId: promptId,
 					source: "popup",
 					analysisId: analysisId,
 					typeFilter: typeFilter,
+					useTwoPhase: useTwoPhaseExtraction,
 				});
 			}
 
@@ -1540,6 +1553,73 @@ function IndexPopup() {
 								borderRadius: "50%",
 								transition: "all 0.2s ease",
 								transform: ensembleMode
+									? "translateX(20px)"
+									: "translateX(0px)",
+								position: "absolute",
+								top: "2px",
+								left: "2px",
+							}}
+						/>
+					</button>
+				</div>
+
+				{/* Two-Phase Mode Toggle */}
+				<div
+					style={{
+						display: "flex",
+						alignItems: "center",
+						justifyContent: "center",
+						gap: spacing.sm,
+						marginBottom: spacing.md,
+						padding: spacing.sm,
+						backgroundColor: twoPhaseMode
+							? colors.background.secondary
+							: "transparent",
+						borderRadius: borderRadius.md,
+						border: `1px solid ${
+							twoPhaseMode ? `${colors.text.accent}33` : colors.border.light
+						}`,
+						transition: "all 0.2s ease",
+					}}
+				>
+					<span
+						style={{
+							fontSize: typography.fontSize.sm,
+							fontWeight: typography.fontWeight.medium,
+							color: twoPhaseMode ? colors.text.accent : colors.text.secondary,
+						}}
+					>
+						✨ Two-Phase Mode (Higher Precision)
+					</span>
+					<button
+						type="button"
+						onClick={() => setTwoPhaseMode(!twoPhaseMode)}
+						style={{
+							width: "44px",
+							height: "24px",
+							backgroundColor: twoPhaseMode
+								? colors.text.accent
+								: colors.background.primary,
+							border: `2px solid ${
+								twoPhaseMode ? colors.text.accent : colors.border.default
+							}`,
+							borderRadius: "12px",
+							cursor: "pointer",
+							transition: "all 0.2s ease",
+							position: "relative",
+						}}
+						title="Toggle two-phase extraction for higher precision results (higher cost)"
+					>
+						<div
+							style={{
+								width: "16px",
+								height: "16px",
+								backgroundColor: twoPhaseMode
+									? colors.background.primary
+									: colors.text.tertiary,
+								borderRadius: "50%",
+								transition: "all 0.2s ease",
+								transform: twoPhaseMode
 									? "translateX(20px)"
 									: "translateX(0px)",
 								position: "absolute",

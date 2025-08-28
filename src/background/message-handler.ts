@@ -39,6 +39,7 @@ import {
 	switchToFallbackProvider,
 } from "./services/provider-switcher";
 import { normalize as normalizeResponse } from "./services/response-normalizer";
+import { TwoPhaseExtractor } from "./services/two-phase-extractor";
 import {
 	generateFilteredPrompt,
 	validateSelectedTypes,
@@ -618,6 +619,7 @@ export class MessageHandler {
 		tabId?: number,
 		useEnsemble = false,
 		ensembleRuns?: number,
+		useTwoPhase = false,
 	): Promise<GoldenNuggetsResponse> {
 		let currentProviderId: ProviderId | null = null;
 		let attempts = 0;
@@ -666,7 +668,35 @@ export class MessageHandler {
 					const startTime = performance.now();
 					let normalizedResponse: GoldenNuggetsResponse;
 
-					if (useEnsemble) {
+					if (useTwoPhase) {
+						// Use two-phase extraction
+						const twoPhaseExtractor = new TwoPhaseExtractor();
+						const twoPhaseResult = await twoPhaseExtractor.extractWithTwoPhase(
+							content,
+							prompt,
+							provider,
+							{
+								useEnsemble,
+								ensembleRuns: finalEnsembleRuns,
+								confidenceThreshold: 0.85,
+								phase1Temperature: 0.7,
+								phase2Temperature: 0.0,
+							},
+						);
+
+						// Convert two-phase result to standard response format
+						normalizedResponse = {
+							golden_nuggets: twoPhaseResult.golden_nuggets.map((nugget) => ({
+								type: nugget.type,
+								startContent: nugget.startContent,
+								endContent: nugget.endContent,
+							})),
+						};
+
+						console.log(
+							`Two-phase extraction completed: ${twoPhaseResult.golden_nuggets.length} nuggets (${twoPhaseResult.metadata.phase2FuzzyCount} fuzzy + ${twoPhaseResult.metadata.phase2LlmCount} LLM)`,
+						);
+					} else if (useEnsemble) {
 						// Use ensemble extraction
 						const ensembleExtractor = new EnsembleExtractor();
 						const ensembleResult = await ensembleExtractor.extractWithEnsemble(
@@ -1153,6 +1183,9 @@ export class MessageHandler {
 				processedPrompt,
 				analysisId,
 				sender.tab?.id,
+				false, // useEnsemble - not used for regular content analysis
+				undefined, // ensembleRuns - not used for regular content analysis
+				request.useTwoPhase, // useTwoPhase - pass through from request
 			);
 
 			// Send step 4 progress: processing results

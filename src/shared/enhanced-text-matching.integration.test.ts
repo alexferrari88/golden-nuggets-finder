@@ -39,6 +39,7 @@ describe("Enhanced Text Matching Integration", () => {
 		test("should handle LLM returning truncated text", async () => {
 			// LLM returns "Machine learning has" but page has "Machine learning has revolutionized"
 			const matcher = new RobustTextMatcher();
+			matcher.initializeContent(); // Initialize with current DOM content
 			const result = await matcher.findBestMatch("Machine learning has");
 
 			expect(result.found).toBe(true);
@@ -48,6 +49,7 @@ describe("Enhanced Text Matching Integration", () => {
 		test("should handle LLM adding filler words", async () => {
 			// LLM adds "Indeed," or "Furthermore," at beginning
 			const matcher = new RobustTextMatcher();
+			matcher.initializeContent(); // Initialize with current DOM content
 			const result = await matcher.findBestMatch(
 				"Indeed, machine learning has revolutionized",
 			);
@@ -58,6 +60,7 @@ describe("Enhanced Text Matching Integration", () => {
 		test("should handle LLM paraphrasing with synonyms", async () => {
 			// LLM uses "shows" instead of "demonstrates"
 			const matcher = new RobustTextMatcher();
+			matcher.initializeContent(); // Initialize with current DOM content
 			const result = await matcher.findBestMatch(
 				"technology shows remarkable capabilities",
 			);
@@ -69,6 +72,7 @@ describe("Enhanced Text Matching Integration", () => {
 		test("should handle LLM combining sentences", async () => {
 			// LLM merges end of one sentence with start of next
 			const matcher = new RobustTextMatcher();
+			matcher.initializeContent(); // Initialize with current DOM content
 			const result = await matcher.findBestMatch(
 				"predictive analytics. However, implementing",
 			);
@@ -79,6 +83,7 @@ describe("Enhanced Text Matching Integration", () => {
 		test("should handle LLM quote attribution issues", async () => {
 			// LLM includes or excludes quote attribution
 			const matcher = new RobustTextMatcher();
+			matcher.initializeContent(); // Initialize with current DOM content
 			const result = await matcher.findBestMatch(
 				"The development of full artificial intelligence",
 			);
@@ -91,6 +96,7 @@ describe("Enhanced Text Matching Integration", () => {
 			// LLM changes capitalization at sentence boundaries
 			document.body.innerHTML = `<p>the technology demonstrates remarkable capabilities.</p>`;
 			const matcher = new RobustTextMatcher();
+			matcher.initializeContent(); // Initialize with current DOM content
 
 			const result = await matcher.findBestMatch("The Technology Demonstrates");
 			expect(result.found).toBe(true);
@@ -114,6 +120,7 @@ describe("Enhanced Text Matching Integration", () => {
 			`;
 
 			const matcher = new RobustTextMatcher();
+			matcher.initializeContent(); // Initialize with current DOM content
 			const result = await matcher.findBestMatch(
 				"ML models can perpetuate existing biases",
 			);
@@ -148,6 +155,7 @@ describe("Enhanced Text Matching Integration", () => {
 			`;
 
 			const matcher = new RobustTextMatcher();
+			matcher.initializeContent(); // Initialize with current DOM content
 			const result = await matcher.findBestMatch(
 				"concerned about privacy implications",
 			);
@@ -174,6 +182,7 @@ describe("Enhanced Text Matching Integration", () => {
 			`;
 
 			const matcher = new RobustTextMatcher();
+			matcher.initializeContent(); // Initialize with current DOM content
 			const result = await matcher.findBestMatch(
 				"achieved human-level performance on standardized",
 			);
@@ -256,6 +265,7 @@ describe("Enhanced Text Matching Integration", () => {
 			document.body.innerHTML = `<div class="large-content">${largeContent}</div>`;
 
 			const matcher = new RobustTextMatcher();
+			matcher.initializeContent(); // Initialize with current DOM content
 			const startTime = performance.now();
 
 			const result = await matcher.findBestMatch(
@@ -309,6 +319,7 @@ describe("Enhanced Text Matching Integration", () => {
 
 		test("should normalize different quote types", async () => {
 			const matcher = new RobustTextMatcher();
+			matcher.initializeContent(); // Initialize with current DOM content
 
 			const result1 = await matcher.findBestMatch('"deep learning"');
 			const result2 = await matcher.findBestMatch("'neural networks'");
@@ -319,6 +330,7 @@ describe("Enhanced Text Matching Integration", () => {
 
 		test("should normalize different dash types", async () => {
 			const matcher = new RobustTextMatcher();
+			matcher.initializeContent(); // Initialize with current DOM content
 
 			const result = await matcher.findBestMatch("$1,000-$2,000"); // Using regular dash
 			expect(result.found).toBe(true);
@@ -326,6 +338,7 @@ describe("Enhanced Text Matching Integration", () => {
 
 		test("should normalize ellipsis variations", async () => {
 			const matcher = new RobustTextMatcher();
+			matcher.initializeContent(); // Initialize with current DOM content
 
 			const result = await matcher.findBestMatch("It's the future..."); // Using three dots
 			expect(result.found).toBe(true);
@@ -333,6 +346,7 @@ describe("Enhanced Text Matching Integration", () => {
 
 		test("should handle mathematical symbols", async () => {
 			const matcher = new RobustTextMatcher();
+			matcher.initializeContent(); // Initialize with current DOM content
 
 			const result = await matcher.findBestMatch("α + β = γ");
 			expect(result.found).toBe(true);
@@ -354,6 +368,7 @@ describe("Enhanced Text Matching Integration", () => {
 
 		test("should match text spanning multiple inline elements", async () => {
 			const matcher = new RobustTextMatcher();
+			matcher.initializeContent(); // Initialize with current DOM content
 
 			const result = await matcher.findBestMatch(
 				"artificial intelligence field has seen remarkable",
@@ -364,6 +379,7 @@ describe("Enhanced Text Matching Integration", () => {
 
 		test("should match text with nested formatting", async () => {
 			const matcher = new RobustTextMatcher();
+			matcher.initializeContent(); // Initialize with current DOM content
 
 			const result = await matcher.findBestMatch(
 				"deep learning and natural language processing",
@@ -373,6 +389,7 @@ describe("Enhanced Text Matching Integration", () => {
 
 		test("should handle superscript and subscript text", async () => {
 			const matcher = new RobustTextMatcher();
+			matcher.initializeContent(); // Initialize with current DOM content
 
 			const result = await matcher.findBestMatch(
 				"attention mechanisms, and gradient optimization",
@@ -392,6 +409,7 @@ describe("Enhanced Text Matching Integration", () => {
 			`;
 
 			const matcher = new RobustTextMatcher();
+			matcher.initializeContent(); // Initialize with current DOM content
 			const result = await matcher.findBestMatch("not properly closed");
 
 			expect(result.found).toBe(true);
@@ -408,6 +426,7 @@ describe("Enhanced Text Matching Integration", () => {
 			`;
 
 			const matcher = new RobustTextMatcher();
+			matcher.initializeContent(); // Initialize with current DOM content
 			const result = await matcher.findBestMatch("Actual content here");
 
 			expect(result.found).toBe(true);
@@ -429,6 +448,7 @@ describe("Enhanced Text Matching Integration", () => {
 			`;
 
 			const matcher = new RobustTextMatcher();
+			matcher.initializeContent(); // Initialize with current DOM content
 
 			const scriptResult = await matcher.findBestMatch(
 				"This should not be matched",

@@ -382,6 +382,92 @@ export class StorageManager {
 		});
 	}
 
+	async getTwoPhaseSettings(): Promise<{
+		enabled: boolean;
+		confidenceThreshold: number;
+		phase1Temperature: number;
+		phase2Temperature: number;
+		maxNuggetsPerType: {
+			"aha! moments": number;
+			analogy: number;
+			model: number;
+			tool: number; // -1 means unlimited
+			media: number; // -1 means unlimited
+		};
+		fuzzyMatchOptions: {
+			tolerance: number;
+			minConfidenceThreshold: number;
+		};
+	}> {
+		const cached = this.getFromCache<{
+			enabled: boolean;
+			confidenceThreshold: number;
+			phase1Temperature: number;
+			phase2Temperature: number;
+			maxNuggetsPerType: {
+				"aha! moments": number;
+				analogy: number;
+				model: number;
+				tool: number;
+				media: number;
+			};
+			fuzzyMatchOptions: {
+				tolerance: number;
+				minConfidenceThreshold: number;
+			};
+		}>(STORAGE_KEYS.TWO_PHASE_SETTINGS);
+		if (cached !== null && typeof cached === "object") {
+			return cached;
+		}
+
+		const result = await chrome.storage.sync.get(
+			STORAGE_KEYS.TWO_PHASE_SETTINGS,
+		);
+		const settings = result[STORAGE_KEYS.TWO_PHASE_SETTINGS] || {
+			enabled: false, // Two-phase is opt-in
+			confidenceThreshold: 0.85,
+			phase1Temperature: 0.7,
+			phase2Temperature: 0.0,
+			maxNuggetsPerType: {
+				"aha! moments": 5,
+				analogy: 5,
+				model: 5,
+				tool: -1, // Unlimited
+				media: -1, // Unlimited
+			},
+			fuzzyMatchOptions: {
+				tolerance: 0.8,
+				minConfidenceThreshold: 0.7,
+			},
+		};
+
+		this.setCache(STORAGE_KEYS.TWO_PHASE_SETTINGS, settings);
+		return settings;
+	}
+
+	async saveTwoPhaseSettings(settings: {
+		enabled: boolean;
+		confidenceThreshold: number;
+		phase1Temperature: number;
+		phase2Temperature: number;
+		maxNuggetsPerType: {
+			"aha! moments": number;
+			analogy: number;
+			model: number;
+			tool: number;
+			media: number;
+		};
+		fuzzyMatchOptions: {
+			tolerance: number;
+			minConfidenceThreshold: number;
+		};
+	}): Promise<void> {
+		this.setCache(STORAGE_KEYS.TWO_PHASE_SETTINGS, settings);
+		await chrome.storage.sync.set({
+			[STORAGE_KEYS.TWO_PHASE_SETTINGS]: settings,
+		});
+	}
+
 	// Analysis state management for popup persistence
 	async getAnalysisState(): Promise<PersistentAnalysisState | null> {
 		try {
@@ -556,18 +642,21 @@ export class StorageManager {
 			return cached;
 		}
 
-		const [apiKey, prompts, persona, ensembleSettings] = await Promise.all([
-			this.getApiKey(context),
-			this.getPrompts(),
-			this.getPersona(),
-			this.getEnsembleSettings(),
-		]);
+		const [apiKey, prompts, persona, ensembleSettings, twoPhaseSettings] =
+			await Promise.all([
+				this.getApiKey(context),
+				this.getPrompts(),
+				this.getPersona(),
+				this.getEnsembleSettings(),
+				this.getTwoPhaseSettings(),
+			]);
 
 		const config = {
 			geminiApiKey: apiKey,
 			userPrompts: prompts,
 			userPersona: persona,
 			ensembleSettings,
+			twoPhaseSettings,
 		};
 
 		this.setCache(configKey, config);

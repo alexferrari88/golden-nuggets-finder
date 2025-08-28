@@ -4,6 +4,7 @@ export const STORAGE_KEYS = {
 	USER_PERSONA: "userPersona",
 	ANALYSIS_STATE: "analysisState", // Analysis progress state
 	ENSEMBLE_SETTINGS: "ensembleSettings", // Ensemble configuration settings
+	TWO_PHASE_SETTINGS: "twoPhaseSettings", // Two-phase extraction configuration
 } as const;
 
 export const GEMINI_CONFIG = {
@@ -57,41 +58,25 @@ export const DEFAULT_PROMPTS = [
 		id: "default-insights",
 		name: "Find Key Insights",
 		prompt: `
-You are an AI assistant tasked with analyzing content and extracting valuable insights, which we call "golden nuggets."
-These golden nuggets should be tailored to a specific persona and categorized into specific types.
-Your goal is to analyze the provided content and extract only the most insightful, non-obvious, and high-signal content for someone with this persona:
-{{ persona }}
-It is vastly preferable to return zero nuggets than to include a single mediocre one.
+You are an expert at analyzing content and extracting valuable insights, which we call "golden nuggets."
+These golden nuggets should be tailored to a specific persona and categorized into five types.
+Your goal is to analyze the provided content and extract only the most insightful, non-obvious, and high-signal content for someone with this persona: {{ persona }}.
+Your primary directive is **precision over recall**. It is vastly preferable to return zero nuggets than to include a single mediocre one.
 
 **Crucially, do not force or invent extractions. If no content meets the strict criteria below, the \`golden_nuggets\` array MUST be empty ([]).**
 
-
 Golden nugget types and their characteristics:
 
-1. **Actionable Tools:** A specific, tool/software/technique. Must include its specific, valuable application.
-    *   **Bad:** "You should use a calendar."
-    *   **Good:** "I use Trello's calendar power-up to visualize my content pipeline, which helps me manage deadlines when my ADHD makes time-planning difficult."
-
-2. **High-Signal Media:** A high-quality book, article, video, or podcast. Must include *why* it's valuable.
-    *   **Bad:** "Check out the NFL podcast."
-    *   **Good:** "The episode of the Tim Ferriss podcast with guest Derek Sivers has a brilliant segment on the idea of 'hell yeah or no' for decision-making."
-
-3. **Deep Aha! Moments:** A concise, insightful explanation of a complex concept that goes beyond a surface-level definition. It should feel like a mini-lesson.
-    *   **Bad:** "The mitochondria is the powerhouse of the cell."
-    *   **Good:** "The reason async/await in Javascript is so powerful is that it's syntactic sugar over Promises, allowing you to write asynchronous code that reads like synchronous code, avoiding 'callback hell'."
-
-4. **Powerful Analogies:** An analogy that makes a complex topic surprisingly simple and clear.
-    *   **Bad:** "It's like learning to ride a bike."
-    *   **Good:** "Thinking about technical debt as being like a financial debt is useful. You can take it on purposefully to ship faster, but you have to pay interest (slower development) until you pay it down (refactor)."
-
-5. **Mental Models:** A named cognitive framework, productivity technique, or principle for thinking. The simple mention of a specific model is valuable as a hook for further research.
-    *   **Bad:** "You should think about the problem differently." (Too generic)
-    *   **Good:** "I apply the 'Inversion' mental model by asking 'What would guarantee failure?' before starting a new project. This helps me identify and mitigate risks proactively instead of just planning for success."
+1. Mental Models & Frameworks: Conceptual structures or approaches for understanding complex systems or making decisions.
+2. Powerful Analogies: Comparisons that effectively explain or illustrate a concept by relating it to something more familiar.
+3. Media: Recommendations for books, articles, podcasts, magazines, or YouTube videos/playlists that provide valuable information or insights.
+4. Tools: Specific software, techniques, or methodologies that can be applied to improve productivity, solve problems, or enhance understanding.
+5. "Aha!" Moments: Key insights or realizations that provide a new perspective or understanding of a topic.
 
 Instructions for extracting and formatting golden nuggets:
 
 1. Carefully read and analyze the provided content.
-2. Identify potential golden nuggets that align with the categories above and are relevant to the specified persona.
+2. Identify potential golden nuggets that align with the five categories and are relevant to the specified persona.
 3. For each category, select the most impactful and relevant golden nugget. If no suitable nugget is found for a category, omit it from the results.
 4. For each selected golden nugget, identify the exact start and end of the relevant content in the original text.
 
@@ -110,3 +95,86 @@ Your task is to analyze the given content, extract the most relevant golden nugg
 		isDefault: true,
 	},
 ] as const;
+
+// Phase 1: High Recall Prompt for maximum nugget extraction with confidence scoring
+export const PHASE_1_HIGH_RECALL_PROMPT = `
+You are an expert at analyzing content and extracting valuable insights, which we call "golden nuggets."
+These golden nuggets should be tailored to a specific persona and categorized into five types.
+Your goal is to analyze the provided content and extract only the most insightful, non-obvious, and high-signal content for someone with this persona: {{ persona }}.
+Your primary directive is **precision over recall**. It is vastly preferable to return zero nuggets than to include a single mediocre one.
+
+Crucially, do not force or invent extractions. If no content meets the strict criteria below, the \`golden_nuggets\` array MUST be empty ([]).
+
+**IMPORTANT: This is a high-recall phase. Be more generous with extractions than usual, but still maintain quality standards.**
+
+Golden nugget types and their characteristics:
+
+1. Mental Models & Frameworks: Conceptual structures or approaches for understanding complex systems or making decisions.
+2. Powerful Analogies: Comparisons that effectively explain or illustrate a concept by relating it to something more familiar.
+3. Media: Recommendations for books, articles, podcasts, magazines, or YouTube videos/playlists that provide valuable information or insights.
+4. Tools: Specific software, techniques, or methodologies that can be applied to improve productivity, solve problems, or enhance understanding.
+5. "Aha!" Moments: Key insights or realizations that provide a new perspective or understanding of a topic.
+
+Instructions for extracting and formatting golden nuggets:
+
+1. Carefully read and analyze the provided content.
+2. Identify potential golden nuggets that align with the categories above and are relevant to the specified persona.
+3. Extract multiple nuggets per category when valuable content exists.
+4. For each golden nugget, provide the complete verbatim content and assign a confidence score.
+
+Extraction limits per category:
+- **Tools and Media**: Extract as many as you find valuable (no limit)
+- **Aha! Moments, Analogies, and Mental Models**: Extract up to 5 of the best per category
+
+Additional instructions and constraints:
+
+1. For each nugget, provide the complete verbatim content in the fullContent field - do not paraphrase or modify.
+2. Assign a confidence score from 0.0 to 1.0 for each nugget based on:
+   - Relevance to the persona (0.3 weight)
+   - Uniqueness and non-obviousness (0.4 weight)
+   - Actionability and practical value (0.3 weight)
+3. Be generous in this high-recall phase, but maintain minimum quality standards.
+4. If no golden nuggets are found for any category, return an empty array for the golden_nuggets field.
+5. Do not include any explanations or additional commentary outside of the JSON structure.
+
+Your task is to analyze the given content, extract multiple relevant golden nuggets per category with confidence scores, and present them in the required JSON format.
+Creative exploration is encouraged.
+`.trim();
+
+// Phase 2: High Precision Prompt for exact boundary detection
+export const PHASE_2_HIGH_PRECISION_PROMPT = `
+You are an expert at finding exact text boundaries for golden nuggets that have already been identified.
+This is Phase 2 of a two-phase extraction system focused on HIGH PRECISION - finding exact start and end boundaries for specific nuggets.
+
+You will be provided with:
+1. The original content text
+2. An array of golden nuggets (with their full content) that need precise boundary detection
+
+Your task is to find the exact startContent (first few words, max 5) and endContent (last few words, max 5) for each provided nugget.
+
+Instructions for boundary detection:
+
+1. For each provided golden nugget, locate its fullContent within the original text.
+2. Extract the first few words (maximum 5) as startContent - these must be the EXACT words from the original text.
+3. Extract the last few words (maximum 5) as endContent - these must be the EXACT words from the original text.
+4. Maintain the same confidence score provided for each nugget.
+5. If you cannot locate a nugget's content in the original text with high confidence, assign it a confidence score of 0.0.
+
+Boundary detection requirements:
+
+1. StartContent and endContent must contain EXACT words from the original text.
+2. Do not modify, paraphrase, or change any wording or symbols.
+3. Maximum 5 words for both startContent and endContent.
+4. Preserve original punctuation and capitalization exactly.
+5. If a nugget is shorter than 5 words total, use appropriate portions for start and end.
+
+Quality standards:
+
+1. Only provide boundaries you can locate with high precision in the original text.
+2. If you cannot find exact matches, set confidence to 0.0 for that nugget.
+3. Maintain the same type classification for each nugget.
+4. Do not add, remove, or modify any nuggets - only provide boundary information.
+
+Your task is to analyze the provided nuggets against the original content and return precise start/end boundaries for each nugget.
+Maximum precision required.
+`.trim();

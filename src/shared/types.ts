@@ -62,6 +62,25 @@ export interface ExtensionConfig {
 		defaultMode: "fast" | "balanced" | "comprehensive";
 		enabled: boolean;
 	};
+
+	// Two-phase extraction settings
+	twoPhaseSettings?: {
+		enabled: boolean;
+		confidenceThreshold: number;
+		phase1Temperature: number;
+		phase2Temperature: number;
+		maxNuggetsPerType: {
+			"aha! moments": number;
+			analogy: number;
+			model: number;
+			tool: number; // -1 means unlimited
+			media: number; // -1 means unlimited
+		};
+		fuzzyMatchOptions: {
+			tolerance: number;
+			minConfidenceThreshold: number;
+		};
+	};
 }
 
 // Separate type definitions for Ensemble
@@ -108,6 +127,8 @@ export interface AnalysisRequest {
 	typeFilter?: TypeFilterOptions; // Type filtering options
 	// NEW: Full prompt metadata for analysis context tracking
 	promptMetadata?: PromptMetadata; // Optional - will be resolved from promptId if not provided
+	// Two-phase extraction parameter
+	useTwoPhase?: boolean;
 }
 
 // New ensemble analysis request
