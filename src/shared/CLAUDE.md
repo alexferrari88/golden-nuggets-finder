@@ -109,8 +109,28 @@ Comprehensive security system for API key protection and access control:
 
 ## Content Processing System
 
+### Enhanced Text Matching System
+The extension uses a sophisticated multi-strategy text matching system for accurate golden nugget highlighting:
+
+#### Enhanced Text Matching (`enhanced-text-matching.ts`)
+Advanced text matching engine with multiple fallback strategies:
+- **Multi-Strategy Approach**: Combines exact matching, fuzzy matching, and content reconstruction
+- **Unicode Normalization**: Handles all common Unicode character variants for reliable matching
+- **Performance Optimization**: Intelligent caching and memoization for repeated queries
+- **Configurable Thresholds**: Adjustable matching sensitivity for different content types
+- **Detailed Reporting**: Comprehensive match results with confidence scores and failure reasons
+
+#### Enhanced Text Matching Adapter (`enhanced-text-matching-adapter.ts`)
+Integration layer connecting enhanced matching with content reconstruction:
+- **Strategy Coordination**: Orchestrates multiple matching strategies in priority order
+- **Fallback Logic**: Graceful degradation when primary matching strategies fail
+- **Content Integration**: Seamless integration with content reconstruction system
+- **Performance Monitoring**: Built-in timing and success rate tracking
+- **Error Recovery**: Robust error handling with detailed failure context
+
 ### Content Reconstruction (`content-reconstruction.ts`)
-Advanced text reconstruction utilities for golden nuggets:
+Advanced text reconstruction utilities enhanced with modern matching:
+- **Enhanced Matching Integration**: Now uses enhanced text matching for improved accuracy
 - **Unicode Normalization**: Handles all common Unicode character variants for reliable matching
 - **Text Reconstruction**: Rebuilds full content from startContent and endContent snippets
 - **Improved Matching**: Enhanced start/end matching algorithm with detailed error reporting
@@ -118,13 +138,15 @@ Advanced text reconstruction utilities for golden nuggets:
 
 ### Text Matching Features
 - **Advanced Normalization**: Handles apostrophes, quotes, dashes, ellipses, and whitespace variants
-- **Multi-Strategy Matching**: Combines exact matching, reconstruction, and partial word matching
+- **Multi-Strategy Matching**: Combines exact matching, enhanced text matching, fuzzy matching, and partial word matching
 - **Error Reporting**: Detailed match results with failure reasons and indices
 - **Content Validation**: Length-based validation to ensure reconstruction quality
+- **Performance Caching**: Intelligent caching system for improved response times
 
 ### Fuzzy Matching (`fuzzy-matching.ts`)
-Tolerance-based content matching system:
+Tolerance-based content matching system integrated with enhanced matching:
 - **Word-Level Matching**: Uses Levenshtein distance for handling minor text variations
+- **Enhanced Integration**: Now works as part of the enhanced text matching strategy pipeline
 - **Configurable Tolerance**: Adjustable match threshold (default 0.8) for different use cases
 - **Performance Optimized**: Efficient algorithms for real-time content highlighting
 
@@ -132,6 +154,7 @@ Tolerance-based content matching system:
 - **Levenshtein Distance**: Single-character edit distance calculation
 - **Word Filtering**: Smart word filtering to improve match accuracy
 - **Tolerance Control**: Fine-tuned matching thresholds for different content types
+- **Strategy Integration**: Seamless integration with enhanced text matching system
 
 ## Schema System
 
@@ -501,6 +524,9 @@ The shared utilities include comprehensive unit tests:
 - **Chrome Extension Utils Tests** (`chrome-extension-utils.test.ts`): Tests for content script injection and analysis ID generation
 - **Provider Validation Tests** (`provider-validation-utils.test.ts`): Tests for provider configuration validation and error handling
 - **Content Reconstruction Tests** (`content-reconstruction.test.ts`): Tests for text matching and reconstruction algorithms
+- **Enhanced Text Matching Tests** (`enhanced-text-matching.test.ts`): Tests for advanced text matching strategies
+- **Enhanced Text Matching Adapter Tests** (`enhanced-text-matching-adapter.test.ts`): Tests for strategy coordination and fallback logic
+- **Enhanced Text Matching Integration Tests** (`enhanced-text-matching.integration.test.ts`): End-to-end testing of text matching system
 - **Model Storage Tests** (`storage/model-storage.test.ts`): Tests for provider model selection and storage
 
 ### Test Coverage Areas
@@ -509,7 +535,8 @@ The shared utilities include comprehensive unit tests:
 - **Storage**: CRUD operations, error handling, data integrity validation
 - **Chrome Extension Operations**: Content script injection, deduplication, retry logic
 - **Provider Validation**: Configuration checks, error scenarios, fallback handling
-- **Content Processing**: Text reconstruction, fuzzy matching, normalization
+- **Content Processing**: Text reconstruction, enhanced text matching, fuzzy matching, normalization
+- **Enhanced Text Matching**: Multi-strategy matching, adapter coordination, performance optimization
 - **Performance**: Timing validation, memory usage monitoring
 - **Error Handling**: Edge cases, malformed data, security failures
 

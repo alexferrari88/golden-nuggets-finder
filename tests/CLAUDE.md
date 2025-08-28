@@ -8,9 +8,9 @@ This document covers the testing strategy, setup, and best practices for the Gol
 - **Framework**: Vitest
 - **Environment**: happy-dom (test environment)
 - **Focus**: Individual components and utilities
-- **Coverage**: Excludes UI entry points but covers core logic
+- **Coverage**: Excludes UI entry points, config files, and test directories but covers core logic
 - **Locations**: Tests exist in both `src/` directories (component tests) and `tests/unit/` (integration unit tests)
-- **Test Counts**: 16 component tests in `src/` directories, 17 integration unit tests in `tests/unit/`
+- **Test Counts**: 23 component tests in `src/` directories, 19 integration unit tests in `tests/unit/`
 
 ### End-to-End Testing
 - **Framework**: Playwright
@@ -36,8 +36,9 @@ This document covers the testing strategy, setup, and best practices for the Gol
 
 ### Manual Testing
 - **Focus**: Full user workflows requiring content script injection
-- **Coverage**: Complete analysis workflows, highlighting, sidebar display
+- **Coverage**: Complete analysis workflows, highlighting, sidebar display, multi-provider switching
 - **Documentation**: Comprehensive checklist in `tests/manual-testing-checklist.md`
+- **Error Scenarios**: Detailed error handling testing guide in `tests/manual/error-handling-demo.md`
 
 ## Playwright Limitations with Chrome Extensions
 
@@ -130,28 +131,47 @@ The `tests/unit/` directory contains integration-focused unit tests that test cr
 - `content-extraction.test.ts` - Content extraction workflow testing
 - `popup-error-handling.test.ts` - Popup error handling and display
 - `sidebar-pagination.test.ts` - Sidebar pagination functionality
+- `options-persona.test.ts` - Options page persona and user experience testing
 
 **Error Handling:**
 - `error-handler.test.ts` - Comprehensive error handling service
 - `feedback-reset.test.ts` - Feedback reset workflow testing
 
+**Advanced AI Features:**
+- `ensemble-extractor-embeddings.test.ts` - Ensemble content extraction with embedding analysis
+
 ### Component Test Coverage (`src/` directories)
 
 Component tests provide coverage for individual modules:
+
+**Shared Utilities:**
 - `src/shared/schemas.test.ts` - Data validation schemas
 - `src/shared/security.test.ts` - Security utilities and encryption
 - `src/shared/storage.test.ts` - Storage utilities and management
 - `src/shared/chrome-extension-utils.test.ts` - Chrome extension utility functions
 - `src/shared/provider-validation-utils.test.ts` - Provider validation utilities
 - `src/shared/content-reconstruction.test.ts` - Content reconstruction algorithms
+- `src/shared/enhanced-text-matching.test.ts` - Core enhanced text matching algorithms
+- `src/shared/enhanced-text-matching-adapter.test.ts` - Text matching adapter utilities
+- `src/shared/enhanced-text-matching.integration.test.ts` - Integration tests for enhanced text matching
+- `src/shared/utils/cosine-similarity.test.ts` - Cosine similarity utility functions
+- `src/shared/storage/model-storage.test.ts` - Model-specific storage utilities
+
+**Background Services:**
 - `src/background/gemini-client.test.ts` - Gemini API client functionality
 - `src/background/message-handler.test.ts` - Message handling logic
 - `src/background/error-handling.test.ts` - Error handling utilities
 - `src/background/type-filter-service.test.ts` - Type filtering service
 - `src/background/services/response-normalizer.test.ts` - Response normalization
 - `src/background/services/model-service.test.ts` - Model configuration service
+- `src/background/services/embedding-service.test.ts` - Text embedding service
+- `src/background/services/ensemble-extractor.test.ts` - Ensemble content extraction service
+- `src/background/services/hybrid-similarity.test.ts` - Hybrid similarity measurement service
+
+**Content Script UI:**
 - `src/content/ui/notifications.test.ts` - Notification UI components
-- `src/shared/storage/model-storage.test.ts` - Model-specific storage utilities
+- `src/content/ui/highlighter.normalization.test.ts` - Text normalization for highlighting
+- `src/content/ui/highlighter.case-sensitivity.test.ts` - Case sensitivity handling for highlighting
 
 ### Integration Test Directory (`tests/integration/`)
 
@@ -162,6 +182,12 @@ Integration tests that make real API calls to validate cross-provider functional
 
 Documentation and guides for manual testing scenarios:
 - `error-handling-demo.md` - Comprehensive guide for testing error handling, fallback mechanisms, and provider switching
+
+### Testing Documentation
+
+Additional testing documentation files:
+- `manual-testing-checklist.md` - Complete manual testing checklist for core workflows
+- `deployment-checklist.md` - Multi-provider deployment verification checklist
 
 ## Test Commands
 
@@ -200,9 +226,73 @@ Documentation and guides for manual testing scenarios:
 2. Playwright fixtures automatically load extension from `dist/chrome-mv3-dev` in test browser
 3. Tests interact with extension through browser APIs and extension messaging
 
+## Configuration Details
+
+### Vitest Configuration
+
+**Coverage Configuration:**
+- **Provider**: V8 coverage engine
+- **Reporters**: Text and HTML reports
+- **Excludes**: 
+  - Node modules and build directories
+  - Test directories (`tests/`)
+  - Configuration files (`*.config.ts`)
+  - UI entry points (`src/options.tsx`, `src/popup.tsx`, `src/content.ts`, `src/background/index.ts`)
+
+**Test Environment:**
+- **Environment**: happy-dom for DOM simulation
+- **Globals**: Vitest globals enabled for test utilities
+- **Setup**: Comprehensive mocking via `tests/setup.ts`
+- **Path Aliases**: `@` alias for `/src` directory
+- **Include Pattern**: `src/**/*.{test,spec}.{js,ts}`, `tests/**/*.{test,spec}.{js,ts}`
+- **Exclude Pattern**: `node_modules`, `dist`, `build`, `tests/e2e`
+
+### Playwright Configuration
+
+**Test Execution:**
+- **Directory**: `./tests/e2e`
+- **Parallel**: Full parallelization enabled
+- **Retries**: 2 retries on CI, 0 locally  
+- **Workers**: 1 worker on CI, unlimited locally
+- **Timeout**: 30 seconds (extended for extension initialization)
+- **Expect Timeout**: 10 seconds
+
+**Debugging and Reporting:**
+- **Traces**: Captured on first retry
+- **Screenshots**: Only on failure
+- **Videos**: Retained on failure
+- **Reporter**: List format for clear output
+- **Browser**: Chromium-extension project configuration
+
+## Test Setup and Mocking
+
+### Test Setup File (`tests/setup.ts`)
+
+The test setup file provides comprehensive mocking for the testing environment:
+
+**Chrome Extension API Mocking:**
+- Complete `chrome.storage` API (sync and local)
+- `chrome.runtime` message passing system
+- `chrome.alarms` API for background tasks
+
+**Security and Cryptography:**
+- WebCrypto API with AES-GCM encryption/decryption
+- Device fingerprinting components (navigator, screen, performance)
+- Consistent random value generation for testing
+
+**DOM and Browser Environment:**
+- NodeFilter constants for TreeWalker operations
+- Global fetch API mocking
+- Window location object simulation
+
+**Testing Utilities:**
+- Predictable mock implementations for reliable testing
+- Console method mocking to reduce test noise
+- Performance API mocking with memory simulation
+
 ## Test Fixtures and Mocks
 
-### Fixtures Directory (`fixtures/`)
+### Fixtures Directory (`tests/fixtures/`)
 - **Purpose**: Use `tests/fixtures/` for test data and mocks
 - **Content**: Sample HTML pages, API responses, test data
 - **Organization**: Organize by test type and component
@@ -214,9 +304,10 @@ Documentation and guides for manual testing scenarios:
 - `mock-data.ts` - Mock API responses and test data objects
 
 ### Mock Strategy
-- Mock external APIs (Google Gemini) for predictable testing
+- Mock external APIs (Google Gemini, Anthropic, OpenAI) for predictable testing
 - Use real DOM elements for content extraction testing
-- Mock Chrome extension APIs for unit tests
+- Mock Chrome extension APIs comprehensively for unit tests
+- Provide device-consistent fingerprinting for security tests
 
 ## Testing Best Practices
 
