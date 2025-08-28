@@ -47,44 +47,43 @@ export function sanitizeEndContent(endContent: string): string {
 	// Step 1: Normalize quote characters for consistent matching
 	// Convert smart quotes and multiple quotes to standard quotes
 	sanitized = sanitized
-		.replace(/[""]/g, '"') // Smart double quotes to standard
-		.replace(/['']/g, "'") // Smart single quotes to standard
+		.replace(/[\u201C\u201D]/g, '"') // Smart double quotes to standard (Unicode)
+		.replace(/[\u2018\u2019]/g, "'") // Smart single quotes to standard (Unicode)
 		.replace(/"{2,}/g, '"') // Multiple double quotes to single
 		.replace(/'{2,}/g, "'") // Multiple single quotes to single
 		.replace(/&quot;/g, '"') // HTML entities
 		.replace(/&#39;/g, "'")
 		.replace(/&apos;/g, "'");
 
-	// Step 2: Enhanced punctuation normalization for matching
-	// The key insight: for boundary matching, ., ?, ! are semantically equivalent
-	// when they appear at the end of sentences
+	// Step 2: Aggressive punctuation and quote stripping for robust endContent matching
+	//
+	// RATIONALE: LLMs frequently hallucinate punctuation details (e.g., "observations."" vs "observations?")
+	// For boundary matching, we ignore ALL trailing punctuation/quotes and focus on semantic content
+	// This is more reliable than trying to normalize punctuation equivalencies
+	//
+	// Examples this handles:
+	// "these observations.""  → "these observations"
+	// "these observations?"   → "these observations"
+	// "these observations!"   → "these observations"
+	// "these observations.;:" → "these observations"
 
-	// Identify sentence-ending punctuation + quotes pattern
-	// Only match if the content ends cleanly with sentence punctuation (no mixed punctuation)
-	const sentenceEndPattern = /^([^.!?]*?)([.!?]+)(['"]*)\s*$/;
-	const match = sanitized.match(sentenceEndPattern);
+	// Strip ALL trailing punctuation, quotes, and whitespace aggressively
+	// This regex matches any combination of punctuation and quotes at the end
+	// Use escaped quotes to avoid parsing issues
+	sanitized = sanitized.replace(/[.!?;:,"'\s]+$/, "").trim();
 
-	if (match) {
-		// We have: <content><punctuation><optional-quotes><optional-whitespace>
-		const [, content, punctuation, _quotes] = match;
-
-		// For flexible matching, we return just the core content without trailing punctuation
-		// This allows matching between "observations." and "observations?" and "observations.""
-		const baseContent = content.trim();
-
-		// If the content is too short after removing punctuation, keep one punctuation mark
-		// But only if there's actual content (not just empty string)
-		if (baseContent.length > 0 && baseContent.length < 3 && punctuation.length > 0) {
-			// Keep the content with one punctuation mark for very short phrases
-			return baseContent + punctuation[0];
+	// Handle edge case: if content becomes too short after stripping (e.g., "Mr." → "Mr")
+	// keep minimal content but still strip problematic punctuation that causes matching issues
+	if (sanitized.length > 0 && sanitized.length < 3) {
+		// For very short content, only strip the most problematic punctuation that LLMs hallucinate
+		// Keep structure-preserving punctuation like periods in abbreviations
+		const originalLength = endContent.length;
+		if (originalLength - sanitized.length > 3) {
+			// If we stripped more than 3 characters, we probably over-stripped
+			// Restore some content but still remove trailing quote/punctuation variations
+			sanitized = endContent.replace(/[.!?]+['""]*\s*$/, "").trim();
 		}
-
-		return baseContent; // Return just the content for more flexible matching
 	}
-
-	// Step 3: If no clear sentence-ending pattern, apply standard trailing punctuation removal
-	// This matches any combination of punctuation and whitespace at the end
-	sanitized = sanitized.replace(/[.,!;:?'"\s]+$/, "").trim();
 
 	// If the entire string was just punctuation/whitespace, return empty string
 	return sanitized;

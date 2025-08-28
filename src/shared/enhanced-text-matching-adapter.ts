@@ -45,8 +45,8 @@ export interface AdapterConfig {
 export const DEFAULT_ADAPTER_CONFIG: AdapterConfig = {
 	useEnhancedMatching: true, // Enable by default - hobby project, let's use it!
 	enableFallback: true, // Always enable fallback for safety
-	enablePerformanceComparison: true, // Enable to see how much better enhanced matching performs
-	enhancedSystemThreshold: 0.6, // Lower threshold for more aggressive matching in hobby project
+	enablePerformanceComparison: false, // Disable by default to avoid console noise in tests
+	enhancedSystemThreshold: 0.7, // Standard threshold for production reliability
 };
 
 /**
