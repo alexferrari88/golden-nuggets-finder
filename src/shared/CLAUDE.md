@@ -8,33 +8,41 @@ This document covers the shared utilities, multi-provider system, types, storage
 The extension supports multiple AI providers through a unified interface:
 
 #### Gemini Direct Provider (`providers/gemini-direct-provider.ts`)
-Direct REST API integration with Google Gemini:
+Direct REST API integration with Google Gemini with full two-phase extraction support:
 - **API Integration**: Direct REST calls without SDK dependencies
 - **Structured Output**: Uses Gemini's structured output capabilities with schema enforcement
+- **Two-Phase Methods**: Native support for both `extractPhase1HighRecall` and `extractPhase2HighPrecision`
 - **Thinking Budget**: Configurable thinking budget for complex analysis
 - **Caching**: Built-in response caching for improved performance
 - **Error Handling**: Gemini-specific error patterns and retry logic
+- **Temperature Control**: Supports different temperature settings for Phase 1 (0.7) and Phase 2 (0.0)
 
 #### LangChain Anthropic Provider (`providers/langchain-anthropic-provider.ts`)
-Anthropic Claude integration via LangChain:
+Anthropic Claude integration via LangChain with comprehensive two-phase extraction:
 - **LangChain Integration**: Leverages LangChain's Anthropic adapter
 - **Model Support**: Supports Claude Sonnet 4 and other Claude models
 - **Structured Output**: Tool calling for consistent response formatting
-- **Advanced Reasoning**: Optimized for complex analytical tasks
+- **Two-Phase Methods**: Full implementation of Phase 1 high-recall and Phase 2 precision extraction
+- **Advanced Reasoning**: Optimized for complex analytical tasks with confidence scoring
+- **Temperature Management**: Supports phase-specific temperature settings for optimal extraction quality
 
 #### LangChain OpenAI Provider (`providers/langchain-openai-provider.ts`)
-OpenAI integration via LangChain:
+OpenAI integration via LangChain with full two-phase extraction capabilities:
 - **Model Range**: Supports GPT-4o, GPT-4, and other OpenAI models
 - **Tool Calling**: Uses OpenAI's function calling for structured responses
-- **Cost Optimization**: Efficient token usage and model selection
+- **Two-Phase Implementation**: Complete support for Phase 1 high-recall and Phase 2 precision methods
+- **Cost Optimization**: Efficient token usage and model selection with phase-aware processing
 - **Reliability**: Robust error handling and retry mechanisms
+- **Confidence Integration**: Built-in confidence scoring for quality assessment
 
 #### LangChain OpenRouter Provider (`providers/langchain-openrouter-provider.ts`)
-OpenRouter integration providing access to multiple models:
+OpenRouter integration providing access to multiple models with two-phase extraction:
 - **Multi-Model Access**: Access to various models through single API
-- **Cost Comparison**: Enables cost comparison across different providers
-- **Model Variety**: Supports both open-source and proprietary models
+- **Two-Phase Support**: Complete implementation of both extraction phases across all supported models
+- **Cost Comparison**: Enables cost comparison across different providers with phase-aware analysis
+- **Model Variety**: Supports both open-source and proprietary models with consistent two-phase interface
 - **Fallback Option**: Serves as fallback when primary providers are unavailable
+- **Universal Compatibility**: Two-phase methods work consistently across all OpenRouter model options
 
 ### Provider Interface (`types/providers.ts`)
 Unified interface for all AI providers:
@@ -76,6 +84,12 @@ Manages user-selected models for each provider:
 - **Provider Configuration**: Selected provider and provider-specific settings
 - **Type Filtering**: User preferences for nugget type filtering
 - **Ensemble Settings**: Configuration for ensemble mode (enabled, defaultRuns, defaultMode)
+- **Two-Phase Settings**: Configuration for two-phase extraction system
+  - `enabled`: Boolean flag to enable/disable two-phase extraction
+  - `confidenceThreshold`: Minimum confidence score for Phase 1 nuggets (default 0.85)
+  - `phase1Temperature`: Temperature setting for Phase 1 high-recall extraction (default 0.7)
+  - `phase2Temperature`: Temperature setting for Phase 2 precision boundary detection (default 0.0)
+  - Stored securely using same encryption system as other extension settings
 
 ### Storage Best Practices
 - Use local storage for user preferences and settings
@@ -160,17 +174,33 @@ Tolerance-based content matching system integrated with enhanced matching:
 ## Schema System
 
 ### Schema Definitions (`schemas.ts`)
-JSON schema definitions for API validation:
+Comprehensive JSON schema definitions for both standard and two-phase extraction workflows:
+
+#### Standard Schema Functions
 - **Golden Nugget Schema**: Complete schema for nugget validation and API responses
 - **Type System**: Enforced golden nugget types (tool, media, aha! moments, analogy, model)
 - **Dynamic Schema Generation**: Configurable schemas based on selected nugget types
 - **Validation Support**: Integration with JSON schema validation libraries
 
+#### Two-Phase Schema Functions
+- **`generatePhase1HighRecallSchema(selectedTypes)`**: Schema for Phase 1 high-recall extraction
+  - Uses `fullContent` field for complete verbatim content capture
+  - Includes `confidence` field for scoring extracted nuggets (0.0-1.0)
+  - Optimized for generous extraction with quality assessment
+  - Properties: `type`, `fullContent`, `confidence`
+- **`generatePhase2HighPrecisionSchema(selectedTypes)`**: Schema for Phase 2 boundary detection
+  - Uses `startContent` and `endContent` fields for precise text boundaries
+  - Includes `confidence` field for boundary detection accuracy (0.0-1.0)
+  - Optimized for precise text location and highlighting
+  - Properties: `type`, `startContent`, `endContent`, `confidence`
+
 ### Schema Features
-- **Strict Validation**: Enforced required fields and data types
-- **Property Ordering**: Consistent property ordering for API responses
-- **Type Filtering**: Dynamic schema generation based on user-selected types
+- **Strict Validation**: Enforced required fields and data types across all schema variants
+- **Property Ordering**: Consistent property ordering for API responses and UI display
+- **Type Filtering**: Dynamic schema generation based on user-selected nugget types
 - **Extensibility**: Easy addition of new nugget types and validation rules
+- **Two-Phase Support**: Specialized schemas for different extraction phases with optimized field structures
+- **Confidence Integration**: Built-in confidence scoring for quality assessment and filtering
 
 ## Ensemble Support
 
@@ -257,11 +287,16 @@ Development and production logging system:
 ## Type System
 
 ### Core Types (`types.ts`)
-Comprehensive TypeScript interfaces for all extension data structures:
+Comprehensive TypeScript interfaces for all extension data structures including two-phase extraction:
 - **Core Data Models**: GoldenNugget, SavedPrompt, ExtensionConfig with multi-provider support
 - **UI State Management**: NuggetDisplayState, SidebarNuggetItem, TypeFilterOptions
 - **Analysis System**: AnalysisRequest, AnalysisResponse, AnalysisProgressMessage with provider metadata
 - **Ensemble System**: EnsembleOptions, EnhancedGoldenNugget, EnsembleSettings with consensus metadata
+- **Two-Phase System**: Comprehensive type support for two-phase extraction workflow
+  - `TwoPhaseExtractionOptions`: Configuration options for two-phase analysis
+  - `TwoPhaseExtractionResult`: Complete result structure with metadata and performance metrics
+  - `Phase2NuggetResult`: Individual nugget result from Phase 2 boundary detection
+  - Integration with storage system for persistent two-phase preferences
 - **Feedback System**: NuggetFeedback, MissingContentFeedback, FeedbackStats
 - **Export System**: ExportData, ExportOptions with multiple format support
 - **Message System**: Complete MessageTypes enum for inter-component communication
@@ -272,12 +307,18 @@ Comprehensive TypeScript interfaces for all extension data structures:
 Specialized type definitions for the multi-provider system:
 
 #### Provider Types (`types/providers.ts`)
-Core provider system types:
+Core provider system types with comprehensive two-phase extraction support:
 - **Provider IDs**: `ProviderId` union type for all supported providers
 - **Provider Configuration**: `ProviderConfig` interface for provider setup
-- **LLM Interface**: `LLMProvider` interface ensuring consistent provider API
-- **Response Format**: `GoldenNuggetsResponse` for standardized output
+- **LLM Interface**: `LLMProvider` interface ensuring consistent provider API with two-phase methods
+  - `extractPhase1HighRecall()`: High-recall extraction with confidence scoring
+  - `extractPhase2HighPrecision()`: Precise boundary detection for specific nuggets
+- **Response Formats**: 
+  - `GoldenNuggetsResponse` for standard single-phase extraction
+  - `Phase1Response` for high-recall extraction with fullContent and confidence
+  - `Phase2Response` for boundary detection with startContent/endContent and confidence
 - **Storage Schema**: `ProviderStorageSchema` for provider data persistence
+- **Two-Phase Types**: Specialized interfaces for two-phase workflow integration
 
 ### Advanced Type Features
 - **Feedback Integration**: Complete feedback system types for prompt optimization
@@ -374,11 +415,16 @@ element.style.cssText = `
 ## Constants and Configuration
 
 ### Constants (`constants.ts`)
-Core configuration values and defaults:
+Core configuration values and defaults including two-phase extraction system:
 - **Storage Keys**: Centralized key definitions for Chrome storage (`STORAGE_KEYS`)
+  - `TWO_PHASE_SETTINGS`: Storage key for two-phase extraction configuration
 - **Gemini Configuration**: API model selection and thinking budget settings (`GEMINI_CONFIG`)
 - **Default Prompts**: Complete default prompt system with sophisticated persona-based analysis
+- **Two-Phase Prompts**: Specialized prompts for two-phase extraction workflow
+  - `PHASE_1_HIGH_RECALL_PROMPT`: High-recall extraction prompt emphasizing comprehensive detection
+  - `PHASE_2_HIGH_PRECISION_PROMPT`: Precision boundary detection prompt for accurate text location
 - **Template Processing**: `processPromptTemplate()` function for dynamic prompt handling
+- **Confidence Thresholds**: Default confidence thresholds for two-phase filtering and quality control
 
 ### Default Prompt System
 The extension includes a comprehensive default prompt that implements:

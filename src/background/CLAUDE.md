@@ -20,6 +20,7 @@ The extension supports multiple AI providers through a unified interface:
 - **LangChain Providers**: OpenAI, Anthropic, and OpenRouter via LangChain
 - **Provider Factory**: Creates appropriate provider instances based on configuration
 - **Provider Switching**: Automatic fallback and manual provider switching
+- **Two-Phase Support**: All providers implement both Phase 1 and Phase 2 extraction methods
 
 ### Provider Factory (`services/provider-factory.ts`)
 Central factory for creating provider instances:
@@ -50,24 +51,36 @@ Manages provider availability and switching:
 - **Default Model**: `gemini-2.5-flash`
 - **Features**: Structured JSON output, thinking budget configuration
 - **Caching**: 5-minute response caching
+- **Two-Phase Methods**:
+  - `extractPhase1HighRecall()`: High-recall extraction with temperature 0.7
+  - `extractPhase2HighPrecision()`: Boundary detection with temperature 0.0
 
 ### OpenAI (LangChain Integration)
 - **Implementation**: `shared/providers/langchain-openai-provider.ts`
 - **API**: LangChain OpenAI integration
 - **Default Model**: `gpt-4.1-mini`
 - **Features**: Chat completion models, structured output via tool calling
+- **Two-Phase Methods**:
+  - `extractPhase1HighRecall()`: Returns `Phase1Response` with fullContent and confidence
+  - `extractPhase2HighPrecision()`: Returns `Phase2Response` with startContent/endContent boundaries
 
 ### Anthropic Claude (LangChain Integration)
 - **Implementation**: `shared/providers/langchain-anthropic-provider.ts`
 - **API**: LangChain Anthropic integration
 - **Default Model**: `claude-sonnet-4-20250514`
 - **Features**: Advanced reasoning capabilities, structured output
+- **Two-Phase Methods**:
+  - `extractPhase1HighRecall()`: High-recall extraction optimized for discovery
+  - `extractPhase2HighPrecision()`: Precise boundary detection for text matching
 
 ### OpenRouter (LangChain Integration)
 - **Implementation**: `shared/providers/langchain-openrouter-provider.ts`
 - **API**: LangChain OpenRouter integration providing access to multiple models
 - **Default Model**: `openai/gpt-3.5-turbo`
 - **Features**: Access to multiple providers through single API
+- **Two-Phase Methods**:
+  - `extractPhase1HighRecall()`: Multi-model high-recall extraction
+  - `extractPhase2HighPrecision()`: Precise boundary detection across model types
 
 ## Ensemble Mode Integration
 
@@ -80,6 +93,7 @@ Advanced multi-run analysis service that provides improved accuracy through cons
 - **Embedding Analysis**: Semantic similarity analysis for duplicate detection
 - **Confidence Scoring**: Assigns confidence metrics based on run agreement
 - **Result Consolidation**: Merges multiple runs into consensus results with metadata
+- **Two-Phase Integration**: Uses Phase 1 high-recall extraction for consensus building, then converts back to standard format for ensemble similarity matching
 
 #### Key Methods
 - `extractWithEnsemble(content, provider, prompt, options)`: Main ensemble extraction method
@@ -125,6 +139,7 @@ Ensemble preferences stored securely using the same encryption system:
 
 ## Golden Nugget Response Schema
 
+### Standard Response Format
 All AI providers are normalized to return responses in this standardized format:
 ```json
 {
@@ -138,6 +153,40 @@ All AI providers are normalized to return responses in this standardized format:
 }
 ```
 
+### Two-Phase Response Formats
+
+#### Phase 1 Response (`Phase1Response`)
+High-recall extraction with confidence scoring:
+```json
+{
+  "golden_nuggets": [
+    {
+      "type": "tool|media|aha! moments|analogy|model",
+      "fullContent": "Complete text of the golden nugget",
+      "confidence": 0.85
+    }
+  ]
+}
+```
+
+#### Phase 2 Response (`Phase2Response`)
+Boundary detection for precise text matching:
+```json
+{
+  "golden_nuggets": [
+    {
+      "type": "tool|media|aha! moments|analogy|model",
+      "startContent": "Original text verbatim (start)",
+      "endContent": "Original text verbatim (end)"
+    }
+  ]
+}
+```
+
+**Temperature Differences**:
+- **Phase 1**: Higher temperature (0.7) for creative, high-recall extraction
+- **Phase 2**: Lower temperature (0.0) for precise, deterministic boundary detection
+
 **Note**: Response normalization is handled by `services/response-normalizer.ts` to ensure consistent data structure across all providers.
 
 ## Message Passing System
@@ -147,8 +196,8 @@ Uses typed message system with `MESSAGE_TYPES` constants for communication betwe
 
 ### Core Message Types
 - **Analysis Flow**: 
-  - `ANALYZE_CONTENT`: Trigger content analysis
-  - `ANALYZE_SELECTED_CONTENT`: Analyze user-selected content
+  - `ANALYZE_CONTENT`: Trigger content analysis (supports `useTwoPhase` parameter)
+  - `ANALYZE_SELECTED_CONTENT`: Analyze user-selected content (supports `useTwoPhase` parameter)
   - `ANALYZE_CONTENT_ENSEMBLE`: Trigger ensemble analysis with multiple runs
   - `ANALYSIS_COMPLETE`: Analysis finished successfully
   - `ANALYSIS_ERROR`: Analysis failed with error
@@ -281,6 +330,33 @@ Comprehensive error handling across all providers:
 - **Retry Logic**: Implements intelligent retry with exponential backoff
 - **Error Recovery**: Automatic provider switching on persistent failures
 
+#### TwoPhaseExtractor (`services/two-phase-extractor.ts`)
+Main orchestrator for two-phase extraction workflow:
+- **Phase 1 Execution**: High-recall extraction using `extractPhase1HighRecall()` method
+- **Confidence Filtering**: Filters nuggets based on configurable confidence threshold (default: 0.85)
+- **Phase 2 Execution**: Boundary detection using fuzzy matching and LLM fallback
+- **Abort Logic**: Aborts extraction when >60% of nuggets have low confidence
+- **Performance Monitoring**: Tracks processing times and extraction method statistics
+- **Key Methods**:
+  - `extractWithTwoPhase()`: Main orchestration method
+  - `executePhase1()`: Phase 1 high-recall extraction
+  - `executePhase2()`: Phase 2 boundary detection
+  - `llmBoundaryDetection()`: Fallback LLM boundary detection
+
+#### FuzzyBoundaryMatcher (`services/fuzzy-boundary-matcher.ts`)
+Advanced text matching service for boundary extraction:
+- **Exact Match Strategy**: Direct text matching for identical content
+- **Fuzzy Match Strategy**: Levenshtein distance-based matching with configurable tolerance
+- **Word Boundary Detection**: Ensures matches respect word boundaries
+- **Confidence Scoring**: Assigns confidence based on match quality and strategy
+- **Similarity Calculation**: Advanced word-level similarity for fuzzy matching
+- **Key Methods**:
+  - `findBoundaries()`: Main boundary detection method
+  - `tryExactMatch()`: Exact text matching
+  - `tryFuzzyMatch()`: Fuzzy matching with Levenshtein distance
+  - `extractBoundariesFromIndex()`: Boundary extraction from match indices
+  - `getUnmatchedNuggets()`: Returns nuggets that couldn't be matched
+
 #### Response Normalizer (`services/response-normalizer.ts`)
 Ensures consistent data structure across providers:
 - **Schema Normalization**: Converts all provider responses to unified format
@@ -295,6 +371,12 @@ Ensures consistent data structure across providers:
 - **Automatic Fallback**: Switches to alternative providers when primary provider fails
 - **Retry Logic**: Intelligent retry with exponential backoff and provider-specific limits
 - **User-Friendly Messages**: Technical errors converted to actionable guidance
+
+### Two-Phase Error Handling
+- **Confidence Threshold Abort**: Automatically aborts when >60% of Phase 1 nuggets have low confidence
+- **Phase Isolation**: Failures in one phase don't affect the other
+- **Fuzzy Match Fallback**: LLM boundary detection as fallback when fuzzy matching fails
+- **Graceful Degradation**: Returns partial results when possible
 
 ### Network and Connectivity
 - **Timeout Handling**: Provider-specific timeout configurations
