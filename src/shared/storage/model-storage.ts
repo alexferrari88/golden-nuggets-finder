@@ -29,9 +29,6 @@ export async function storeModel(
 
 	const trimmedModelName = modelName.trim();
 	const storageKey = `${KEY_PREFIX}${providerId}`;
-	debugLogger.log(
-		`[ModelStorage] Storing model "${trimmedModelName}" for provider "${providerId}" with key "${storageKey}"`,
-	);
 
 	try {
 		// Check if chrome storage is available
@@ -45,10 +42,6 @@ export async function storeModel(
 			[storageKey]: trimmedModelName,
 		});
 
-		debugLogger.log(
-			`[ModelStorage] Successfully stored model "${trimmedModelName}" for provider "${providerId}"`,
-		);
-
 		// Verify the storage worked by reading it back
 		const verification = await chrome.storage.local.get(storageKey);
 		const storedValue = verification[storageKey];
@@ -60,10 +53,6 @@ export async function storeModel(
 			debugLogger.error(`[ModelStorage] ${error.message}`);
 			throw error;
 		}
-
-		debugLogger.log(
-			`[ModelStorage] Storage verification passed for provider "${providerId}"`,
-		);
 	} catch (error) {
 		debugLogger.error(
 			`[ModelStorage] Failed to store model for provider "${providerId}":`,
@@ -78,9 +67,6 @@ export async function storeModel(
  */
 export async function getModel(providerId: ProviderId): Promise<string | null> {
 	const storageKey = `${KEY_PREFIX}${providerId}`;
-	debugLogger.log(
-		`[ModelStorage] Getting model for provider "${providerId}" with storage key "${storageKey}"`,
-	);
 
 	// Validate input
 	if (!providerId || typeof providerId !== "string") {
@@ -98,14 +84,6 @@ export async function getModel(providerId: ProviderId): Promise<string | null> {
 		const result = await chrome.storage.local.get(storageKey);
 		const storedValue = result[storageKey];
 
-		debugLogger.log(
-			`[ModelStorage] Raw storage result for "${providerId}":`,
-			JSON.stringify(result),
-		);
-		debugLogger.log(
-			`[ModelStorage] Stored value for key "${storageKey}": ${storedValue === undefined ? "undefined" : `"${storedValue}"`}`,
-		);
-
 		// More explicit handling of falsy values vs null/undefined
 		let returnValue: string | null = null;
 		if (
@@ -114,27 +92,13 @@ export async function getModel(providerId: ProviderId): Promise<string | null> {
 			storedValue.trim().length > 0
 		) {
 			returnValue = storedValue.trim();
-			debugLogger.log(
-				`[ModelStorage] Valid model found for provider "${providerId}": "${returnValue}"`,
-			);
-		} else {
-			debugLogger.log(
-				`[ModelStorage] No valid model stored for provider "${providerId}" (value was: ${typeof storedValue} "${storedValue}")`,
-			);
 		}
-
-		debugLogger.log(
-			`[ModelStorage] Returning model for provider "${providerId}": ${returnValue === null ? "null (will use default)" : `"${returnValue}"`}`,
-		);
 
 		return returnValue;
 	} catch (error) {
 		debugLogger.error(
 			`[ModelStorage] Failed to retrieve model for provider "${providerId}":`,
 			error,
-		);
-		debugLogger.log(
-			`[ModelStorage] Returning null due to error, will use default model for "${providerId}"`,
 		);
 		return null;
 	}
@@ -227,13 +191,8 @@ export async function resetAllToDefaultModels(): Promise<void> {
 		"openrouter",
 	];
 	const keysToRemove = providers.map((id) => `${KEY_PREFIX}${id}`);
-	debugLogger.log(
-		`[ModelStorage] Resetting all models to defaults, removing keys: ${keysToRemove.join(", ")}`,
-	);
+	debugLogger.log(`[ModelStorage] Resetting all models to defaults`);
 	await chrome.storage.local.remove(keysToRemove);
-	debugLogger.log(
-		"[ModelStorage] All model selections have been reset to defaults",
-	);
 }
 
 /**
@@ -263,19 +222,10 @@ export async function debugDumpAllStoredModels(): Promise<
 		const allKeys = providers.map((id) => `${KEY_PREFIX}${id}`);
 		const storage = await chrome.storage.local.get(allKeys);
 
-		debugLogger.log(
-			`[ModelStorage] Raw storage dump:`,
-			JSON.stringify(storage, null, 2),
-		);
-
 		for (const providerId of providers) {
 			const storageKey = `${KEY_PREFIX}${providerId}`;
 			const storedValue = storage[storageKey];
 			result[providerId] = storedValue || null;
-
-			debugLogger.log(
-				`[ModelStorage] ${providerId}: key="${storageKey}" value="${storedValue || "null"}"`,
-			);
 		}
 
 		debugLogger.log("[ModelStorage] === END DIAGNOSTIC DUMP ===");

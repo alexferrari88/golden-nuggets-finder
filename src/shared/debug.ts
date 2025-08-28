@@ -99,9 +99,6 @@ export function isDevMode(): boolean {
 	try {
 		const manifest = chrome.runtime.getManifest();
 		const isDev = !("update_url" in manifest);
-		console.log(
-			`[DevMode Check] Development mode: ${isDev}, Update URL present: ${"update_url" in manifest}`,
-		);
 		return isDev;
 	} catch (error) {
 		// During build time or if chrome API is not available, assume development
@@ -180,7 +177,6 @@ export class DebugLogger {
 			// Test logging immediately if enabled
 			if (this.enabled) {
 				console.log(`[DebugLogger] ✅ LOGGING IS NOW ENABLED - Testing...`);
-				this.log("🔍 Test log message from checkAndUpdateLoggingState");
 			} else {
 				console.log(`[DebugLogger] ❌ LOGGING IS DISABLED`);
 			}

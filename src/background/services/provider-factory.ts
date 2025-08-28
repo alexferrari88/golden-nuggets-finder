@@ -13,10 +13,6 @@ import type {
 export async function createProvider(
 	config: ProviderConfig,
 ): Promise<LLMProvider> {
-	debugLogger.log(
-		`[ProviderFactory] Creating provider "${config.providerId}" with model "${config.modelName}"`,
-	);
-
 	// Validate configuration
 	if (!config) {
 		const error = new Error("Provider config is required");
@@ -57,10 +53,6 @@ export async function createProvider(
 		);
 	}
 
-	debugLogger.log(
-		`[ProviderFactory] Configuration validated, creating provider "${config.providerId}" with model "${config.modelName}"`,
-	);
-
 	switch (config.providerId) {
 		case "gemini":
 			return new GeminiDirectProvider(config);
@@ -89,13 +81,7 @@ export function getDefaultModel(providerId: ProviderId): string {
 		anthropic: "claude-sonnet-4-20250514",
 		openrouter: "openai/gpt-3.5-turbo",
 	};
-	const defaultModel = defaults[providerId];
-
-	debugLogger.log(
-		`[ProviderFactory] Using default model "${defaultModel}" for provider "${providerId}"`,
-	);
-
-	return defaultModel;
+	return defaults[providerId];
 }
 
 export function getSupportedProviders(): ProviderId[] {
@@ -158,10 +144,6 @@ export function validateModelForProvider(
 	const knownModels = getKnownModelsForProvider(providerId);
 	const isKnownModel = knownModels.includes(modelName);
 
-	debugLogger.log(
-		`[ProviderFactory] Model validation for "${modelName}" on provider "${providerId}": ${isKnownModel ? "VALID" : "UNKNOWN (may still work)"}`,
-	);
-
 	// For now, we return true even for unknown models since providers may have newer models
 	// But we log a warning for truly suspicious model names
 	if (!isKnownModel) {
@@ -179,10 +161,6 @@ export function validateModelForProvider(
 export async function getSelectedModel(
 	providerId: ProviderId,
 ): Promise<string> {
-	debugLogger.log(
-		`[ProviderFactory] Getting selected model for provider "${providerId}"`,
-	);
-
 	// Validate provider ID
 	if (!getSupportedProviders().includes(providerId)) {
 		debugLogger.error(
@@ -194,36 +172,18 @@ export async function getSelectedModel(
 	const selectedModel = await getModel(providerId);
 
 	if (selectedModel) {
-		debugLogger.log(
-			`[ProviderFactory] User has selected model "${selectedModel}" for provider "${providerId}"`,
-		);
-
 		// Validate the selected model
 		const isValidModel = validateModelForProvider(providerId, selectedModel);
 		if (!isValidModel) {
 			debugLogger.warn(
 				`[ProviderFactory] Selected model "${selectedModel}" failed validation for provider "${providerId}", falling back to default`,
 			);
-			const defaultModel = getDefaultModel(providerId);
-			debugLogger.log(
-				`[ProviderFactory] Final model for provider "${providerId}": "${defaultModel}" (default due to validation failure)`,
-			);
-			return defaultModel;
+			return getDefaultModel(providerId);
 		}
 
-		debugLogger.log(
-			`[ProviderFactory] Using validated user-selected model "${selectedModel}" for provider "${providerId}"`,
-		);
 		return selectedModel;
 	} else {
-		debugLogger.warn(
-			`[ProviderFactory] No user-selected model for provider "${providerId}", falling back to default`,
-		);
-		const defaultModel = getDefaultModel(providerId);
-		debugLogger.log(
-			`[ProviderFactory] Final model for provider "${providerId}": "${defaultModel}" (default)`,
-		);
-		return defaultModel;
+		return getDefaultModel(providerId);
 	}
 }
 
@@ -234,16 +194,7 @@ export async function createProviderWithSelectedModel(
 	providerId: ProviderId,
 	apiKey: string,
 ): Promise<LLMProvider> {
-	debugLogger.log(
-		`[ProviderFactory] Creating provider "${providerId}" with user-selected model`,
-	);
-
 	const modelName = await getSelectedModel(providerId);
-
-	debugLogger.log(
-		`[ProviderFactory] Final configuration: provider="${providerId}", model="${modelName}"`,
-	);
-
 	return createProvider({
 		providerId,
 		apiKey,
@@ -282,15 +233,9 @@ export async function debugModelSelection(providerId: ProviderId): Promise<{
 
 	// Get stored model
 	const storedModel = await getModel(providerId);
-	debugLogger.log(
-		`[ProviderFactory] Stored model for ${providerId}: ${storedModel || "null"}`,
-	);
 
 	// Get default model
 	const defaultModel = getDefaultModel(providerId);
-	debugLogger.log(
-		`[ProviderFactory] Default model for ${providerId}: ${defaultModel}`,
-	);
 
 	// Validate stored model if it exists
 	let isStoredModelValid = true;
@@ -319,11 +264,8 @@ export async function debugModelSelection(providerId: ProviderId): Promise<{
 	};
 
 	debugLogger.log(
-		`[ProviderFactory] Model selection debug result:`,
-		JSON.stringify(result, null, 2),
-	);
-	debugLogger.log(
 		`[ProviderFactory] === END MODEL SELECTION DEBUG FOR ${providerId} ===`,
+		JSON.stringify(result, null, 2),
 	);
 
 	return result;
