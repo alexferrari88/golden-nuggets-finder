@@ -1,3 +1,5 @@
+import type { GoldenNuggetType } from "../schemas";
+
 export type ProviderId = "gemini" | "openai" | "anthropic" | "openrouter";
 
 export interface ProviderConfig {
@@ -19,6 +21,7 @@ export interface EnsembleExtractionResult {
 	}>;
 	metadata: {
 		totalRuns: number;
+		successfulRuns: number;
 		consensusReached: number;
 		duplicatesRemoved: number;
 		averageResponseTime: number;

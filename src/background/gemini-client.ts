@@ -1,6 +1,7 @@
 import { GEMINI_CONFIG } from "../shared/constants";
 import { debugLogger } from "../shared/debug";
 import { measureAPICall, performanceMonitor } from "../shared/performance";
+import type { GoldenNuggetType } from "../shared/schemas";
 import { generateGoldenNuggetSchema } from "../shared/schemas";
 import { storage } from "../shared/storage";
 import {
@@ -9,6 +10,7 @@ import {
 	MESSAGE_TYPES,
 	type TypeFilterOptions,
 } from "../shared/types";
+import type { Phase1Response, Phase2Response } from "../shared/types/providers";
 import { TypeFilterService } from "./type-filter-service";
 
 interface ResponseSchemaProperty {
@@ -477,6 +479,246 @@ export class GeminiClient {
 			"Content-Type": "application/json",
 			"x-goog-api-key": effectiveApiKey,
 		};
+	}
+
+	/**
+	 * Extract golden nuggets using Phase 1: High Recall approach
+	 * Returns nuggets with fullContent and confidence scores
+	 */
+	async extractPhase1HighRecall(
+		content: string,
+		prompt: string,
+		temperature = 0.7,
+		selectedTypes?: GoldenNuggetType[],
+		modelName?: string,
+	): Promise<Phase1Response> {
+		await this.initializeClient();
+
+		if (!this.apiKey) {
+			throw new Error("Gemini client not initialized");
+		}
+
+		// Use passed model name or fallback to config default
+		const selectedModel = modelName || GEMINI_CONFIG.MODEL;
+		debugLogger.log(
+			`[GeminiClient] Phase 1 High Recall using model: "${selectedModel}" (passed: "${modelName}", default: "${GEMINI_CONFIG.MODEL}")`,
+		);
+
+		// Use dedicated Gemini Phase 1 schema
+		const { generateGeminiPhase1HighRecallSchema } = await import(
+			"../shared/schemas"
+		);
+		const geminiSchema = generateGeminiPhase1HighRecallSchema(
+			selectedTypes || [],
+		);
+
+		// Optimize content size
+		const optimizedContent = this.optimizeContentForAPI(content);
+
+		return this.retryRequest(async () => {
+			return measureAPICall("gemini_phase1_high_recall", async () => {
+				const requestBody = {
+					system_instruction: {
+						parts: [{ text: prompt }],
+					},
+					contents: [
+						{
+							parts: [{ text: optimizedContent }],
+						},
+					],
+					generationConfig: {
+						responseMimeType: "application/json",
+						responseSchema: geminiSchema,
+						temperature: temperature,
+						thinkingConfig: {
+							thinkingBudget: GEMINI_CONFIG.THINKING_BUDGET,
+						},
+					},
+				};
+
+				// Log request in development mode
+				debugLogger.logLLMRequest(
+					`${this.API_BASE_URL}/${selectedModel}:generateContent - Phase 1`,
+					requestBody,
+				);
+
+				performanceMonitor.startTimer("gemini_phase1_request");
+				const response = await fetch(
+					`${this.API_BASE_URL}/${selectedModel}:generateContent`,
+					{
+						method: "POST",
+						headers: this.getSecureHeaders(),
+						body: JSON.stringify(requestBody),
+					},
+				);
+				performanceMonitor.logTimer(
+					"gemini_phase1_request",
+					"HTTP request to Gemini API - Phase 1",
+				);
+
+				if (!response.ok) {
+					const errorText = await response.text();
+					throw new Error(
+						`Gemini API error (Phase 1): ${response.status} ${response.statusText} - ${errorText}`,
+					);
+				}
+
+				performanceMonitor.startTimer("gemini_phase1_response_parse");
+				const responseData = await response.json();
+
+				// Extract the text from the response
+				const responseText =
+					responseData.candidates?.[0]?.content?.parts?.[0]?.text;
+				if (!responseText) {
+					throw new Error(
+						"No response text received from Gemini API (Phase 1)",
+					);
+				}
+
+				const result = JSON.parse(responseText) as Phase1Response;
+
+				// Log response in development mode
+				debugLogger.logLLMResponse(responseData);
+
+				performanceMonitor.logTimer(
+					"gemini_phase1_response_parse",
+					"Parse Gemini Phase 1 response",
+				);
+
+				// Validate the response structure
+				if (!result.golden_nuggets || !Array.isArray(result.golden_nuggets)) {
+					throw new Error("Invalid Phase 1 response format from Gemini API");
+				}
+
+				return result;
+			});
+		});
+	}
+
+	/**
+	 * Extract golden nuggets using Phase 2: High Precision approach
+	 * Returns nuggets with precise startContent/endContent boundaries and confidence scores
+	 */
+	async extractPhase2HighPrecision(
+		content: string,
+		prompt: string,
+		nuggets: Array<{
+			type: GoldenNuggetType;
+			fullContent: string;
+			confidence: number;
+		}>,
+		temperature = 0.0,
+		modelName?: string,
+	): Promise<Phase2Response> {
+		await this.initializeClient();
+
+		if (!this.apiKey) {
+			throw new Error("Gemini client not initialized");
+		}
+
+		// Use passed model name or fallback to config default
+		const selectedModel = modelName || GEMINI_CONFIG.MODEL;
+		debugLogger.log(
+			`[GeminiClient] Phase 2 High Precision using model: "${selectedModel}" (passed: "${modelName}", default: "${GEMINI_CONFIG.MODEL}")`,
+		);
+
+		// Use dedicated Gemini Phase 2 schema
+		const { generateGeminiPhase2HighPrecisionSchema } = await import(
+			"../shared/schemas"
+		);
+		const geminiSchema = generateGeminiPhase2HighPrecisionSchema([]);
+
+		// Build the Phase 2 prompt with nuggets context
+		const nuggetsList = nuggets
+			.map(
+				(nugget, index) =>
+					`${index + 1}. Type: ${nugget.type}\n   Content: "${nugget.fullContent}"\n   Confidence: ${nugget.confidence}`,
+			)
+			.join("\n\n");
+
+		const phase2PromptWithContext = `${prompt}\n\nNUGGETS TO PROCESS:\n${nuggetsList}\n\nORIGINAL CONTENT:\n${content}`;
+
+		// Optimize content size
+		const optimizedContent = this.optimizeContentForAPI(content);
+
+		return this.retryRequest(async () => {
+			return measureAPICall("gemini_phase2_high_precision", async () => {
+				const requestBody = {
+					system_instruction: {
+						parts: [{ text: phase2PromptWithContext }],
+					},
+					contents: [
+						{
+							parts: [{ text: optimizedContent }],
+						},
+					],
+					generationConfig: {
+						responseMimeType: "application/json",
+						responseSchema: geminiSchema,
+						temperature: temperature,
+						thinkingConfig: {
+							thinkingBudget: GEMINI_CONFIG.THINKING_BUDGET,
+						},
+					},
+				};
+
+				// Log request in development mode
+				debugLogger.logLLMRequest(
+					`${this.API_BASE_URL}/${selectedModel}:generateContent - Phase 2`,
+					requestBody,
+				);
+
+				performanceMonitor.startTimer("gemini_phase2_request");
+				const response = await fetch(
+					`${this.API_BASE_URL}/${selectedModel}:generateContent`,
+					{
+						method: "POST",
+						headers: this.getSecureHeaders(),
+						body: JSON.stringify(requestBody),
+					},
+				);
+				performanceMonitor.logTimer(
+					"gemini_phase2_request",
+					"HTTP request to Gemini API - Phase 2",
+				);
+
+				if (!response.ok) {
+					const errorText = await response.text();
+					throw new Error(
+						`Gemini API error (Phase 2): ${response.status} ${response.statusText} - ${errorText}`,
+					);
+				}
+
+				performanceMonitor.startTimer("gemini_phase2_response_parse");
+				const responseData = await response.json();
+
+				// Extract the text from the response
+				const responseText =
+					responseData.candidates?.[0]?.content?.parts?.[0]?.text;
+				if (!responseText) {
+					throw new Error(
+						"No response text received from Gemini API (Phase 2)",
+					);
+				}
+
+				const result = JSON.parse(responseText) as Phase2Response;
+
+				// Log response in development mode
+				debugLogger.logLLMResponse(responseData);
+
+				performanceMonitor.logTimer(
+					"gemini_phase2_response_parse",
+					"Parse Gemini Phase 2 response",
+				);
+
+				// Validate the response structure
+				if (!result.golden_nuggets || !Array.isArray(result.golden_nuggets)) {
+					throw new Error("Invalid Phase 2 response format from Gemini API");
+				}
+
+				return result;
+			});
+		});
 	}
 
 	/**

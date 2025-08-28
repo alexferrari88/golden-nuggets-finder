@@ -236,13 +236,13 @@ export class SecurityManager {
 			const encryptedBuffer = new Uint8Array(
 				encryptedData.encrypted
 					.match(/.{1,2}/g)
-					?.map((byte) => parseInt(byte, 16)),
+					?.map((byte) => parseInt(byte, 16)) || [],
 			);
 			const iv = new Uint8Array(
-				encryptedData.iv.match(/.{1,2}/g)?.map((byte) => parseInt(byte, 16)),
+				encryptedData.iv.match(/.{1,2}/g)?.map((byte) => parseInt(byte, 16)) || [],
 			);
 			const salt = new Uint8Array(
-				encryptedData.salt.match(/.{1,2}/g)?.map((byte) => parseInt(byte, 16)),
+				encryptedData.salt.match(/.{1,2}/g)?.map((byte) => parseInt(byte, 16)) || [],
 			);
 
 			// Derive decryption key
@@ -264,7 +264,7 @@ export class SecurityManager {
 			performanceMonitor.logTimer("security_decrypt", "API key decryption");
 
 			this.logSecurityEvent("decryption", true, {
-				keyFingerprint: this.keyFingerprint,
+				keyFingerprint: this.keyFingerprint || "unknown",
 				encryptedDataVersion: encryptedData.version,
 				encryptedDataAge: Date.now() - encryptedData.timestamp,
 			});
@@ -323,7 +323,7 @@ export class SecurityManager {
 					);
 				}
 				// Fallback to original error if enhancement fails
-				enhancedError = error;
+				enhancedError = error as Error & { code?: string; originalError?: Error; canRecover?: boolean };
 			}
 
 			throw enhancedError;

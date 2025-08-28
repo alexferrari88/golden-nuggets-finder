@@ -47,7 +47,8 @@ export class GeminiDirectProvider implements LLMProvider {
 			// Use existing GeminiClient validation method
 			return await this.geminiClient.validateApiKey(this.config.apiKey);
 		} catch (error) {
-			console.warn(`Gemini API key validation failed:`, error.message);
+			const message = error instanceof Error ? error.message : String(error);
+			console.warn(`Gemini API key validation failed:`, message);
 			return false;
 		}
 	}
@@ -58,32 +59,14 @@ export class GeminiDirectProvider implements LLMProvider {
 		temperature = 0.7,
 		selectedTypes?: GoldenNuggetType[],
 	): Promise<Phase1Response> {
-		// Use Phase 1 schema for high recall extraction
-		const phase1Schema = await import("../schemas").then((m) =>
-			m.generatePhase1HighRecallSchema(selectedTypes || []),
-		);
-
-		const geminiResponse = await this.geminiClient.analyzeContent(
+		// Directly call the new GeminiClient Phase 1 method
+		return this.geminiClient.extractPhase1HighRecall(
 			content,
 			prompt,
-			{ responseSchema: phase1Schema }, // Use Phase 1 schema
 			temperature,
+			selectedTypes,
 			this.modelName,
 		);
-
-		// Convert from Gemini format to Phase1Response format
-		return {
-			golden_nuggets: geminiResponse.golden_nuggets.map((nugget) => ({
-				type: nugget.type as GoldenNuggetType,
-				// For Phase 1, we need fullContent. Since Gemini returns startContent/endContent,
-				// we reconstruct the full content. This is a temporary solution until we can
-				// modify the Gemini client to support Phase 1 schema directly.
-				fullContent: `${nugget.startContent} ... ${nugget.endContent}`,
-				// Assign a default confidence score since current Gemini client doesn't return this
-				// TODO: Modify GeminiClient to support confidence scores in responses
-				confidence: 0.8,
-			})),
-		};
 	}
 
 	async extractPhase2HighPrecision(
@@ -96,39 +79,13 @@ export class GeminiDirectProvider implements LLMProvider {
 		}>,
 		temperature = 0.0,
 	): Promise<Phase2Response> {
-		// Use Phase 2 schema for boundary detection
-		const phase2Schema = await import("../schemas").then((m) =>
-			m.generatePhase2HighPrecisionSchema([]),
-		);
-
-		// Build the Phase 2 prompt with nuggets context
-		const nuggetsList = nuggets
-			.map(
-				(nugget, index) =>
-					`${index + 1}. Type: ${nugget.type}\n   Content: "${nugget.fullContent}"\n   Confidence: ${nugget.confidence}`,
-			)
-			.join("\n\n");
-
-		const phase2PromptWithContext = `${prompt}\n\nNUGGETS TO PROCESS:\n${nuggetsList}\n\nORIGINAL CONTENT:\n${content}`;
-
-		const geminiResponse = await this.geminiClient.analyzeContent(
+		// Directly call the new GeminiClient Phase 2 method
+		return this.geminiClient.extractPhase2HighPrecision(
 			content,
-			phase2PromptWithContext,
-			{ responseSchema: phase2Schema }, // Use Phase 2 schema
+			prompt,
+			nuggets,
 			temperature,
 			this.modelName,
 		);
-
-		// Convert from Gemini format to Phase2Response format
-		return {
-			golden_nuggets: geminiResponse.golden_nuggets.map((nugget) => ({
-				type: nugget.type as GoldenNuggetType,
-				startContent: nugget.startContent,
-				endContent: nugget.endContent,
-				// Assign confidence from original nugget or default
-				confidence:
-					nuggets.find((n) => n.type === nugget.type)?.confidence || 0.7,
-			})),
-		};
 	}
 }

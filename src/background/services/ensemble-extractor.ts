@@ -160,6 +160,7 @@ export class EnsembleExtractor {
 				golden_nuggets: [],
 				metadata: {
 					totalRuns: metadata.totalRuns,
+					successfulRuns: 0,
 					consensusReached: 0,
 					duplicatesRemoved: 0,
 					averageResponseTime: metadata.averageResponseTime,
@@ -211,6 +212,7 @@ export class EnsembleExtractor {
 			golden_nuggets: sortedNuggets,
 			metadata: {
 				totalRuns: metadata.totalRuns,
+				successfulRuns: extractions.length,
 				consensusReached: sortedNuggets.length,
 				duplicatesRemoved: allNuggets.length - sortedNuggets.length,
 				averageResponseTime: metadata.averageResponseTime,

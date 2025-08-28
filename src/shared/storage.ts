@@ -724,7 +724,9 @@ export class StorageManager {
 		// Limit cache size to prevent memory issues
 		if (this.cache.size > 10) {
 			const oldestKey = this.cache.keys().next().value;
-			this.cache.delete(oldestKey);
+			if (oldestKey !== undefined) {
+				this.cache.delete(oldestKey);
+			}
 		}
 
 		this.cache.set(key, {

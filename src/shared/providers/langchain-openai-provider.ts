@@ -96,11 +96,12 @@ export class LangChainOpenAIProvider implements LLMProvider {
 				provider: "openai",
 				model: this.modelName,
 				success: false,
-				error: error.message,
+				error: error instanceof Error ? error.message : String(error),
 			});
 
+			const message = error instanceof Error ? error.message : String(error);
 			console.error(`OpenAI provider error:`, error);
-			throw new Error(`OpenAI API call failed: ${error.message}`);
+			throw new Error(`OpenAI API call failed: ${message}`);
 		}
 	}
 
@@ -113,7 +114,7 @@ export class LangChainOpenAIProvider implements LLMProvider {
 			});
 			return response.ok; // 200 = valid, 401 = invalid key
 		} catch (error) {
-			console.warn(`OpenAI API key validation failed:`, error.message);
+			console.warn(`OpenAI API key validation failed:`, error instanceof Error ? error.message : String(error));
 			return false;
 		}
 	}
@@ -169,15 +170,12 @@ export class LangChainOpenAIProvider implements LLMProvider {
 			]);
 
 			// Log the response
-			debugLogger.logLLMResponse(
-				{
-					provider: "openai",
-					model: this.modelName,
-					phase: "1-high-recall",
-					success: true,
-				},
-				response,
-			);
+			debugLogger.logLLMResponse({
+				provider: "openai",
+				model: this.modelName,
+				phase: "1-high-recall",
+				success: true,
+			});
 
 			return response as Phase1Response;
 		} catch (error) {
@@ -187,11 +185,12 @@ export class LangChainOpenAIProvider implements LLMProvider {
 				model: this.modelName,
 				phase: "1-high-recall",
 				success: false,
-				error: error.message,
+				error: error instanceof Error ? error.message : String(error),
 			});
 
 			console.error(`OpenAI Phase 1 provider error:`, error);
-			throw new Error(`OpenAI Phase 1 API call failed: ${error.message}`);
+			const message = error instanceof Error ? error.message : String(error);
+			throw new Error(`OpenAI Phase 1 API call failed: ${message}`);
 		}
 	}
 
@@ -262,15 +261,12 @@ export class LangChainOpenAIProvider implements LLMProvider {
 			]);
 
 			// Log the response
-			debugLogger.logLLMResponse(
-				{
-					provider: "openai",
-					model: this.modelName,
-					phase: "2-high-precision",
-					success: true,
-				},
-				response,
-			);
+			debugLogger.logLLMResponse({
+				provider: "openai",
+				model: this.modelName,
+				phase: "2-high-precision",
+				success: true,
+			});
 
 			return response as Phase2Response;
 		} catch (error) {
@@ -280,11 +276,12 @@ export class LangChainOpenAIProvider implements LLMProvider {
 				model: this.modelName,
 				phase: "2-high-precision",
 				success: false,
-				error: error.message,
+				error: error instanceof Error ? error.message : String(error),
 			});
 
 			console.error(`OpenAI Phase 2 provider error:`, error);
-			throw new Error(`OpenAI Phase 2 API call failed: ${error.message}`);
+			const message = error instanceof Error ? error.message : String(error);
+			throw new Error(`OpenAI Phase 2 API call failed: ${message}`);
 		}
 	}
 }

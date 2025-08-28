@@ -92,15 +92,16 @@ export class LangChainAnthropicProvider implements LLMProvider {
 			return response as GoldenNuggetsResponse;
 		} catch (error) {
 			// Log the error
+			const message = error instanceof Error ? error.message : String(error);
 			debugLogger.logLLMResponse({
 				provider: "anthropic",
 				model: this.modelName,
 				success: false,
-				error: error.message,
+				error: message,
 			});
 
 			console.error(`Anthropic provider error:`, error);
-			throw new Error(`Anthropic API call failed: ${error.message}`);
+			throw new Error(`Anthropic API call failed: ${message}`);
 		}
 	}
 
@@ -114,7 +115,7 @@ export class LangChainAnthropicProvider implements LLMProvider {
 			});
 			return response.ok; // 200 = valid, 401 = invalid key
 		} catch (error) {
-			console.warn(`Anthropic API key validation failed:`, error.message);
+			console.warn(`Anthropic API key validation failed:`, error instanceof Error ? error.message : String(error));
 			return false;
 		}
 	}
@@ -170,15 +171,12 @@ export class LangChainAnthropicProvider implements LLMProvider {
 			]);
 
 			// Log the response
-			debugLogger.logLLMResponse(
-				{
-					provider: "anthropic",
-					model: this.modelName,
-					phase: "1-high-recall",
-					success: true,
-				},
-				response,
-			);
+			debugLogger.logLLMResponse({
+				provider: "anthropic",
+				model: this.modelName,
+				phase: "1-high-recall",
+				success: true,
+			});
 
 			return response as Phase1Response;
 		} catch (error) {
@@ -188,11 +186,12 @@ export class LangChainAnthropicProvider implements LLMProvider {
 				model: this.modelName,
 				phase: "1-high-recall",
 				success: false,
-				error: error.message,
+				error: error instanceof Error ? error.message : String(error),
 			});
 
 			console.error(`Anthropic Phase 1 provider error:`, error);
-			throw new Error(`Anthropic Phase 1 API call failed: ${error.message}`);
+			const message = error instanceof Error ? error.message : String(error);
+			throw new Error(`Anthropic Phase 1 API call failed: ${message}`);
 		}
 	}
 
@@ -263,15 +262,12 @@ export class LangChainAnthropicProvider implements LLMProvider {
 			]);
 
 			// Log the response
-			debugLogger.logLLMResponse(
-				{
-					provider: "anthropic",
-					model: this.modelName,
-					phase: "2-high-precision",
-					success: true,
-				},
-				response,
-			);
+			debugLogger.logLLMResponse({
+				provider: "anthropic",
+				model: this.modelName,
+				phase: "2-high-precision",
+				success: true,
+			});
 
 			return response as Phase2Response;
 		} catch (error) {
@@ -281,11 +277,12 @@ export class LangChainAnthropicProvider implements LLMProvider {
 				model: this.modelName,
 				phase: "2-high-precision",
 				success: false,
-				error: error.message,
+				error: error instanceof Error ? error.message : String(error),
 			});
 
 			console.error(`Anthropic Phase 2 provider error:`, error);
-			throw new Error(`Anthropic Phase 2 API call failed: ${error.message}`);
+			const message = error instanceof Error ? error.message : String(error);
+			throw new Error(`Anthropic Phase 2 API call failed: ${message}`);
 		}
 	}
 }

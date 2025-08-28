@@ -143,7 +143,7 @@ describe("provider validation utilities", () => {
 
 			try {
 				await requireConfiguredProvider();
-				fail("Should have thrown ProviderConfigurationError");
+				throw new Error("Should have thrown ProviderConfigurationError");
 			} catch (error) {
 				expect(error).toBeInstanceOf(ProviderConfigurationError);
 				if (error instanceof ProviderConfigurationError) {

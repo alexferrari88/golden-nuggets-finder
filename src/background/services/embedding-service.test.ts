@@ -33,8 +33,8 @@ describe("EmbeddingService", () => {
 
 		// Setup storage mock
 		const { storage } = await import("../../shared/storage");
-		mockStorage = storage;
-		mockStorage.getApiKey.mockResolvedValue("test-api-key");
+		mockStorage = storage as any;
+		mockStorage.getApiKey = vi.fn().mockResolvedValue("test-api-key");
 
 		// Clear any existing cache
 		embeddingService.clearCache();

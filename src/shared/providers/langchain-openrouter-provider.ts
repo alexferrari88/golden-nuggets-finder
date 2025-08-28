@@ -242,14 +242,11 @@ export class LangChainOpenRouterProvider implements LLMProvider {
 			}
 
 			// Log the response
-			debugLogger.logLLMResponse(
-				{
-					provider: "openrouter",
-					model: this.modelName,
-					success: true,
-				},
-				response as GoldenNuggetsResponse,
-			);
+			debugLogger.logLLMResponse({
+				provider: "openrouter",
+				model: this.modelName,
+				success: true,
+			});
 
 			return response as GoldenNuggetsResponse;
 		} catch (error) {
@@ -400,15 +397,12 @@ export class LangChainOpenRouterProvider implements LLMProvider {
 			}
 
 			// Log the response
-			debugLogger.logLLMResponse(
-				{
-					provider: "openrouter",
-					model: this.modelName,
-					phase: "1-high-recall",
-					success: true,
-				},
-				response,
-			);
+			debugLogger.logLLMResponse({
+				provider: "openrouter",
+				model: this.modelName,
+				phase: "1-high-recall",
+				success: true,
+			});
 
 			return response as Phase1Response;
 		} catch (error) {
@@ -522,15 +516,12 @@ export class LangChainOpenRouterProvider implements LLMProvider {
 			}
 
 			// Log the response
-			debugLogger.logLLMResponse(
-				{
-					provider: "openrouter",
-					model: this.modelName,
-					phase: "2-high-precision",
-					success: true,
-				},
-				response,
-			);
+			debugLogger.logLLMResponse({
+				provider: "openrouter",
+				model: this.modelName,
+				phase: "2-high-precision",
+				success: true,
+			});
 
 			return response as Phase2Response;
 		} catch (error) {
