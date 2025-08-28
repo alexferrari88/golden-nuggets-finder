@@ -4,6 +4,10 @@
  */
 
 import { colors, generateInlineStyles } from "../../shared/design-system";
+import {
+	EnhancedTextMatcherAdapter,
+	FeatureFlags,
+} from "../../shared/enhanced-text-matching-adapter";
 import type { GoldenNugget } from "../../shared/types";
 
 // Type declarations for CSS Custom Highlight API
@@ -42,6 +46,8 @@ export class Highlighter {
 	private globalHighlight: BrowserHighlight | null = null;
 	private highlightClassName = "golden-nugget-highlight";
 	private cssHighlightSupported: boolean;
+	private enhancedMatcher: EnhancedTextMatcherAdapter | null = null;
+	private useEnhancedMatching: boolean = true; // Feature flag - enabled by default for hobby project
 
 	constructor() {
 		try {
@@ -51,6 +57,20 @@ export class Highlighter {
 				this.cssHighlightSupported,
 			);
 			this.setupCSSHighlightStyles();
+
+			// Initialize enhanced matcher if enabled
+			if (
+				this.useEnhancedMatching &&
+				FeatureFlags.getStatus().useEnhancedMatching
+			) {
+				try {
+					this.enhancedMatcher = new EnhancedTextMatcherAdapter();
+					console.log("Enhanced text matching enabled");
+				} catch (error) {
+					console.warn("Failed to initialize enhanced matcher:", error);
+					this.enhancedMatcher = null;
+				}
+			}
 		} catch (error) {
 			console.error("Error in Highlighter constructor:", error);
 			this.cssHighlightSupported = false;
@@ -63,7 +83,10 @@ export class Highlighter {
 	 * @param pageContent Optional page content for context
 	 * @returns true if highlighting was successful, false otherwise
 	 */
-	highlightNugget(nugget: GoldenNugget, _pageContent?: string): boolean {
+	highlightNugget(
+		nugget: GoldenNugget,
+		pageContent?: string,
+	): boolean | Promise<boolean> {
 		try {
 			console.log("highlightNugget called for:", nugget.startContent);
 
@@ -73,13 +96,50 @@ export class Highlighter {
 				return true;
 			}
 
-			// Find the range for this nugget
-			const range = this.findTextInDOM(nugget.startContent, nugget.endContent);
-			if (!range) {
-				console.warn("Could not find text range for nugget:", nugget);
-				return false;
-			}
+			// Find the range for this nugget using enhanced or original system
+			const rangeResult = this.findTextInDOMEnhanced(
+				nugget.startContent,
+				nugget.endContent,
+				pageContent,
+			);
 
+			// Handle both sync and async results
+			if (rangeResult instanceof Promise) {
+				return rangeResult
+					.then((range) => {
+						if (!range) {
+							console.warn("Could not find text range for nugget:", nugget);
+							return false;
+						}
+						return this.processHighlightingRange(range, nugget);
+					})
+					.catch((error) => {
+						console.error("Error highlighting nugget:", error, nugget);
+						return false;
+					});
+			} else {
+				const range = rangeResult;
+				if (!range) {
+					console.warn("Could not find text range for nugget:", nugget);
+					return false;
+				}
+				return this.processHighlightingRange(range, nugget);
+			}
+		} catch (error) {
+			console.error("Error highlighting nugget:", error, nugget);
+			return false;
+		}
+	}
+
+	/**
+	 * Process highlighting with the found range
+	 * Extracted to support both sync and async workflows
+	 */
+	private processHighlightingRange(
+		range: Range,
+		nugget: GoldenNugget,
+	): boolean {
+		try {
 			// Use CSS Custom Highlight API if supported, otherwise fallback to DOM manipulation
 			const success = this.cssHighlightSupported
 				? this.highlightWithCSS(range, nugget)
@@ -93,7 +153,7 @@ export class Highlighter {
 			console.log("Successfully highlighted nugget:", nugget.startContent);
 			return true;
 		} catch (error) {
-			console.error("Error highlighting nugget:", error, nugget);
+			console.error("Error processing highlighting range:", error);
 			return false;
 		}
 	}
@@ -736,5 +796,143 @@ export class Highlighter {
 			console.error("Error highlighting with DOM:", error);
 			return false;
 		}
+	}
+
+	/**
+	 * Enhanced text finding using RobustTextMatcher or fallback to original method
+	 * Maintains backward compatibility while providing improved matching
+	 */
+	private findTextInDOMEnhanced(
+		startContent: string,
+		endContent: string,
+		_pageContent?: string,
+	): Range | null | Promise<Range | null> {
+		// Try enhanced matcher first if available and enabled
+		if (this.enhancedMatcher && this.useEnhancedMatching) {
+			try {
+				const startTime = performance.now();
+
+				// Initialize enhanced matcher with current DOM
+				this.enhancedMatcher.initializeWithDOM();
+
+				// Find text using enhanced system (returns Promise)
+				return this.enhancedMatcher
+					.findTextInDOM(startContent, endContent)
+					.then((range) => {
+						const endTime = performance.now();
+
+						if (range) {
+							console.log("Enhanced text matching succeeded:", {
+								strategy: "enhanced",
+								timeMs: endTime - startTime,
+								stats: this.enhancedMatcher!.getStats(),
+							});
+							return range;
+						} else {
+							console.log(
+								"Enhanced text matching failed, falling back to original",
+							);
+
+							// Fallback to original implementation
+							const fallbackStartTime = performance.now();
+							const fallbackRange = this.findTextInDOM(
+								startContent,
+								endContent,
+							);
+							const fallbackEndTime = performance.now();
+
+							if (fallbackRange) {
+								console.log("Original text matching succeeded:", {
+									strategy: "original",
+									timeMs: fallbackEndTime - fallbackStartTime,
+								});
+							} else {
+								console.log("Original text matching failed");
+							}
+
+							return fallbackRange;
+						}
+					})
+					.catch((error) => {
+						console.warn(
+							"Enhanced text matching error, falling back to original:",
+							error,
+						);
+
+						// Fallback to original implementation
+						const fallbackStartTime = performance.now();
+						const range = this.findTextInDOM(startContent, endContent);
+						const fallbackEndTime = performance.now();
+
+						if (range) {
+							console.log("Original text matching succeeded:", {
+								strategy: "original",
+								timeMs: fallbackEndTime - fallbackStartTime,
+							});
+						} else {
+							console.log("Original text matching failed");
+						}
+
+						return range;
+					});
+			} catch (error) {
+				console.warn(
+					"Enhanced text matching setup error, falling back to original:",
+					error,
+				);
+			}
+		}
+
+		// Fallback to original implementation (synchronous)
+		const startTime = performance.now();
+		const range = this.findTextInDOM(startContent, endContent);
+		const endTime = performance.now();
+
+		if (range) {
+			console.log("Original text matching succeeded:", {
+				strategy: "original",
+				timeMs: endTime - startTime,
+			});
+		} else {
+			console.log("Original text matching failed");
+		}
+
+		return range;
+	}
+
+	/**
+	 * Enable or disable enhanced text matching
+	 * Provides runtime control over the enhanced system
+	 */
+	public setEnhancedMatching(enabled: boolean): void {
+		this.useEnhancedMatching = enabled;
+
+		if (enabled && !this.enhancedMatcher) {
+			// Initialize enhanced matcher if not already done
+			try {
+				this.enhancedMatcher = new EnhancedTextMatcherAdapter();
+				console.log("Enhanced text matching enabled");
+			} catch (error) {
+				console.warn("Failed to initialize enhanced matcher:", error);
+				this.enhancedMatcher = null;
+			}
+		}
+
+		console.log("Enhanced text matching", enabled ? "enabled" : "disabled");
+	}
+
+	/**
+	 * Get enhanced matching statistics for debugging
+	 */
+	public getEnhancedMatchingStats(): {
+		enabled: boolean;
+		available: boolean;
+		stats?: any;
+	} {
+		return {
+			enabled: this.useEnhancedMatching,
+			available: !!this.enhancedMatcher,
+			stats: this.enhancedMatcher?.getStats(),
+		};
 	}
 }

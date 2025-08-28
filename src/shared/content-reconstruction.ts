@@ -1,3 +1,13 @@
+import {
+	type EnhancedMatchResult,
+	enhancedTextMatching,
+} from "./enhanced-text-matching";
+import {
+	enhancedGetDisplayContent,
+	enhancedGetNormalizedContent,
+	enhancedReconstructFullContent,
+	FeatureFlags,
+} from "./enhanced-text-matching-adapter";
 import type { GoldenNugget } from "./types";
 
 /**
@@ -290,10 +300,12 @@ export function getNormalizedContent(
  */
 export interface MatchResult {
 	success: boolean;
+	found: boolean; // Added for compatibility with existing tests
 	reason?: string;
 	startIndex?: number;
 	endIndex?: number;
 	matchedContent?: string;
+	performanceMs?: number; // Added for adapter compatibility
 }
 
 /**
@@ -315,6 +327,7 @@ export function improvedStartEndMatching(
 	if (!sanitizedEndContent) {
 		return {
 			success: false,
+			found: false,
 			reason: "End content is empty after sanitization",
 		};
 	}
@@ -325,17 +338,22 @@ export function improvedStartEndMatching(
 
 	const startIndex = normalizedText.indexOf(normalizedStart);
 	if (startIndex === -1) {
-		return { success: false, reason: "Start content not found" };
+		return { success: false, found: false, reason: "Start content not found" };
 	}
 
 	const endSearchStart = startIndex + normalizedStart.length;
 	const endIndex = normalizedText.indexOf(normalizedEnd, endSearchStart);
 	if (endIndex === -1) {
-		return { success: false, reason: "End content not found after start" };
+		return {
+			success: false,
+			found: false,
+			reason: "End content not found after start",
+		};
 	}
 
 	return {
 		success: true,
+		found: true,
 		startIndex,
 		endIndex: endIndex + normalizedEnd.length,
 		matchedContent: normalizedText.substring(
@@ -408,3 +426,324 @@ export function improvedStartEndTextMatching(
 
 	return startMatchRatio >= 0.8 && endMatchRatio >= 0.8;
 }
+
+// =====================================================================
+// ENHANCED TEXT MATCHING INTEGRATION
+// =====================================================================
+
+/**
+ * Enhanced version of improvedStartEndMatching using the new robust system
+ * Provides better handling of LLM hallucinations and Unicode variants
+ *
+ * @param startContent - The start content to find
+ * @param endContent - The end content to find
+ * @param pageContent - The page content to search within
+ * @returns Enhanced match result with detailed information
+ */
+export async function improvedStartEndMatchingV2(
+	startContent: string,
+	endContent: string,
+	pageContent: string,
+): Promise<EnhancedMatchResult> {
+	// Check if enhanced matching is enabled
+	if (FeatureFlags.getStatus().useEnhancedMatching) {
+		try {
+			const result = await enhancedTextMatching(
+				startContent,
+				endContent,
+				pageContent,
+			);
+
+			// Add performance comparison logging if enabled
+			if (FeatureFlags.getStatus().enablePerformanceComparison) {
+				const originalResult = improvedStartEndMatching(
+					startContent,
+					endContent,
+					pageContent,
+				);
+				console.log("Enhanced vs Original matching comparison:", {
+					enhanced: {
+						success: result.success,
+						strategy: result.strategy,
+						confidence: result.confidence,
+						performanceMs: result.performanceMs,
+					},
+					original: {
+						success: originalResult.success,
+						reason: originalResult.reason,
+					},
+				});
+			}
+
+			return result;
+		} catch (error) {
+			console.warn(
+				"Enhanced matching failed, falling back to original:",
+				error,
+			);
+		}
+	}
+
+	// Fallback to original implementation
+	const originalResult = improvedStartEndMatching(
+		startContent,
+		endContent,
+		pageContent,
+	);
+
+	// Convert to enhanced format for consistency
+	return {
+		success: originalResult.success,
+		strategy: "exact" as const,
+		confidence: originalResult.success ? 0.95 : 0,
+		startIndex: originalResult.startIndex || -1,
+		endIndex: originalResult.endIndex || -1,
+		matchedContent: originalResult.matchedContent || "",
+		reason: originalResult.reason,
+	};
+}
+
+/**
+ * Enhanced version of reconstructFullContent with better LLM hallucination handling
+ * Uses the new robust text matching system for improved accuracy
+ *
+ * @param nugget - The golden nugget with startContent and endContent
+ * @param pageContent - The full page content to search within
+ * @returns The reconstructed full content with enhanced accuracy
+ */
+export async function reconstructFullContentV2(
+	nugget: GoldenNugget,
+	pageContent: string,
+): Promise<string> {
+	// Check if enhanced matching is enabled
+	if (FeatureFlags.getStatus().useEnhancedMatching) {
+		try {
+			return await enhancedReconstructFullContent(nugget, pageContent);
+		} catch (error) {
+			console.warn(
+				"Enhanced content reconstruction failed, falling back to original:",
+				error,
+			);
+		}
+	}
+
+	// Fallback to original implementation
+	return reconstructFullContent(nugget, pageContent);
+}
+
+/**
+ * Enhanced version of getDisplayContent with improved content reconstruction
+ * Provides better content display through enhanced matching algorithms
+ *
+ * @param nugget - The golden nugget
+ * @param pageContent - Optional page content for reconstruction
+ * @returns Enhanced display content
+ */
+export async function getDisplayContentV2(
+	nugget: GoldenNugget,
+	pageContent?: string,
+): Promise<string> {
+	// Check if enhanced matching is enabled
+	if (FeatureFlags.getStatus().useEnhancedMatching) {
+		try {
+			return await enhancedGetDisplayContent(nugget, pageContent);
+		} catch (error) {
+			console.warn(
+				"Enhanced display content failed, falling back to original:",
+				error,
+			);
+		}
+	}
+
+	// Fallback to original implementation
+	return getDisplayContent(nugget, pageContent);
+}
+
+/**
+ * Enhanced version of getNormalizedContent with better text processing
+ * Uses advanced normalization and reconstruction for improved matching
+ *
+ * @param nugget - The golden nugget
+ * @param pageContent - Optional page content for reconstruction
+ * @returns Enhanced normalized content
+ */
+export async function getNormalizedContentV2(
+	nugget: GoldenNugget,
+	pageContent?: string,
+): Promise<string> {
+	// Check if enhanced matching is enabled
+	if (FeatureFlags.getStatus().useEnhancedMatching) {
+		try {
+			return await enhancedGetNormalizedContent(nugget, pageContent);
+		} catch (error) {
+			console.warn(
+				"Enhanced normalized content failed, falling back to original:",
+				error,
+			);
+		}
+	}
+
+	// Fallback to original implementation
+	return getNormalizedContent(nugget, pageContent);
+}
+
+/**
+ * Enhanced batch processing for multiple nuggets
+ * Optimizes performance by batching enhanced matching operations
+ *
+ * @param nuggets - Array of golden nuggets to process
+ * @param pageContent - The page content to search within
+ * @returns Array of enhanced match results
+ */
+export async function batchEnhancedMatching(
+	nuggets: GoldenNugget[],
+	pageContent: string,
+): Promise<EnhancedMatchResult[]> {
+	const results: EnhancedMatchResult[] = [];
+
+	// Process nuggets in batches for better performance
+	const batchSize = 10;
+	for (let i = 0; i < nuggets.length; i += batchSize) {
+		const batch = nuggets.slice(i, i + batchSize);
+
+		const batchPromises = batch.map((nugget) =>
+			improvedStartEndMatchingV2(
+				nugget.startContent,
+				nugget.endContent,
+				pageContent,
+			),
+		);
+
+		const batchResults = await Promise.all(batchPromises);
+		results.push(...batchResults);
+	}
+
+	return results;
+}
+
+/**
+ * Migration utility to compare original vs enhanced results
+ * Useful for testing and gradual rollout of enhanced system
+ *
+ * @param nugget - The golden nugget to test
+ * @param pageContent - The page content to search within
+ * @returns Comparison results for analysis
+ */
+export async function compareMatchingMethods(
+	nugget: GoldenNugget,
+	pageContent: string,
+): Promise<{
+	original: MatchResult;
+	enhanced: EnhancedMatchResult;
+	agreement: boolean;
+	recommendation: "use_original" | "use_enhanced" | "equivalent";
+}> {
+	// Test original method
+	const originalStart = performance.now();
+	const original = improvedStartEndMatching(
+		nugget.startContent,
+		nugget.endContent,
+		pageContent,
+	);
+	const originalTime = performance.now() - originalStart;
+
+	// Test enhanced method
+	const enhancedStart = performance.now();
+	const enhanced = await improvedStartEndMatchingV2(
+		nugget.startContent,
+		nugget.endContent,
+		pageContent,
+	);
+	const enhancedTime = performance.now() - enhancedStart;
+
+	// Determine agreement
+	const agreement = original.success === enhanced.success;
+
+	// Make recommendation
+	let recommendation: "use_original" | "use_enhanced" | "equivalent" =
+		"equivalent";
+
+	if (enhanced.success && !original.success) {
+		recommendation = "use_enhanced";
+	} else if (original.success && !enhanced.success) {
+		recommendation = "use_original";
+	} else if (enhanced.success && original.success) {
+		// Both succeeded - prefer enhanced if confident and not significantly slower
+		if (enhanced.confidence > 0.8 && enhancedTime < originalTime * 1.5) {
+			recommendation = "use_enhanced";
+		} else {
+			recommendation = "use_original";
+		}
+	}
+
+	return {
+		original: { ...original, performanceMs: originalTime },
+		enhanced: { ...enhanced, performanceMs: enhancedTime },
+		agreement,
+		recommendation,
+	};
+}
+
+/**
+ * Feature flag helpers for content reconstruction
+ */
+export const ContentReconstructionFeatures = {
+	/**
+	 * Enable enhanced content reconstruction globally
+	 */
+	enableEnhanced(): void {
+		FeatureFlags.enableEnhancedMatching();
+		console.log("Enhanced content reconstruction enabled");
+	},
+
+	/**
+	 * Disable enhanced content reconstruction globally
+	 */
+	disableEnhanced(): void {
+		FeatureFlags.disableEnhancedMatching();
+		console.log("Enhanced content reconstruction disabled");
+	},
+
+	/**
+	 * Get current feature status
+	 */
+	getStatus(): {
+		enhanced: boolean;
+		fallback: boolean;
+		performanceComparison: boolean;
+	} {
+		const status = FeatureFlags.getStatus();
+		return {
+			enhanced: status.useEnhancedMatching,
+			fallback: status.enableFallback,
+			performanceComparison: status.enablePerformanceComparison,
+		};
+	},
+
+	/**
+	 * Test enhanced system with sample data
+	 */
+	async testEnhanced(
+		startContent: string,
+		endContent: string,
+		pageContent: string,
+	): Promise<{
+		success: boolean;
+		performance: number;
+		details: EnhancedMatchResult;
+	}> {
+		const startTime = performance.now();
+		const result = await improvedStartEndMatchingV2(
+			startContent,
+			endContent,
+			pageContent,
+		);
+		const endTime = performance.now();
+
+		return {
+			success: result.success,
+			performance: endTime - startTime,
+			details: result,
+		};
+	},
+};
