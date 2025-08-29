@@ -155,7 +155,8 @@ export function calculateBatchCosineSimilarity(
 			const similarity = calculateCosineSimilarity(vectors1[i], vectors2[i]);
 			results.push(similarity);
 		} catch (error) {
-			const errorMessage = error instanceof Error ? error.message : String(error);
+			const errorMessage =
+				error instanceof Error ? error.message : String(error);
 			throw new CosineSimilarityError(
 				`Error calculating similarity for pair ${i}: ${errorMessage}`,
 				Array.isArray(vectors1[i])
@@ -200,7 +201,8 @@ export function findMostSimilar(
 			}
 		} catch (error) {
 			// Skip invalid vectors and continue processing
-			const errorMessage = error instanceof Error ? error.message : String(error);
+			const errorMessage =
+				error instanceof Error ? error.message : String(error);
 			console.warn(`Skipping vector ${i} due to error:`, errorMessage);
 		}
 	}
@@ -250,7 +252,8 @@ export function groupBySimilarity(
 				}
 			} catch (error) {
 				// Skip invalid vector pairs
-				const errorMessage = error instanceof Error ? error.message : String(error);
+				const errorMessage =
+					error instanceof Error ? error.message : String(error);
 				console.warn(
 					`Skipping vector pair (${i}, ${j}) due to error:`,
 					errorMessage,

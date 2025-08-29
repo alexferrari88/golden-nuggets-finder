@@ -9,6 +9,7 @@ import {
 	FeatureFlags,
 } from "../../shared/enhanced-text-matching-adapter";
 import type { GoldenNugget } from "../../shared/types";
+import { isUrl } from "../../shared/utils/url-detection";
 
 // Type declarations for CSS Custom Highlight API
 declare global {
@@ -90,10 +91,44 @@ export class Highlighter {
 		try {
 			console.log("highlightNugget called for:", nugget.startContent);
 
+			// Enhanced error handling: Check for identical start/end content
+			if (nugget.startContent === nugget.endContent) {
+				const isUrlContent = isUrl(nugget.startContent.trim());
+				console.warn(
+					`Nugget has identical start/end content${isUrlContent ? " (URL detected)" : ""}:`,
+					{
+						type: nugget.type,
+						content: nugget.startContent,
+						isUrl: isUrlContent,
+					},
+				);
+
+				// For URL nuggets, this indicates a boundary generation issue that should have been fixed
+				if (isUrlContent) {
+					console.error(
+						"URL nugget still has identical boundaries after fixes. This suggests a problem in FuzzyBoundaryMatcher.",
+						nugget,
+					);
+				}
+
+				return false;
+			}
+
 			// Check if this nugget is already highlighted
 			if (this.isAlreadyHighlighted(nugget)) {
 				console.log("Already highlighted");
 				return true;
+			}
+
+			// Enhanced logging for URL nuggets
+			const isUrlNugget =
+				isUrl(nugget.startContent.trim()) || isUrl(nugget.endContent.trim());
+			if (isUrlNugget) {
+				console.log("Attempting to highlight URL nugget:", {
+					type: nugget.type,
+					startContent: nugget.startContent,
+					endContent: nugget.endContent,
+				});
 			}
 
 			// Find the range for this nugget using enhanced or original system
@@ -108,7 +143,12 @@ export class Highlighter {
 				return rangeResult
 					.then((range) => {
 						if (!range) {
-							console.warn("Could not find text range for nugget:", nugget);
+							const failureReason = this.diagnoseHighlightingFailure(nugget);
+							console.warn(
+								"Could not find text range for nugget:",
+								nugget,
+								failureReason,
+							);
 							return false;
 						}
 						return this.processHighlightingRange(range, nugget);
@@ -120,7 +160,12 @@ export class Highlighter {
 			} else {
 				const range = rangeResult;
 				if (!range) {
-					console.warn("Could not find text range for nugget:", nugget);
+					const failureReason = this.diagnoseHighlightingFailure(nugget);
+					console.warn(
+						"Could not find text range for nugget:",
+						nugget,
+						failureReason,
+					);
 					return false;
 				}
 				return this.processHighlightingRange(range, nugget);
@@ -933,6 +978,55 @@ export class Highlighter {
 			enabled: this.useEnhancedMatching,
 			available: !!this.enhancedMatcher,
 			stats: this.enhancedMatcher?.getStats(),
+		};
+	}
+
+	/**
+	 * Diagnose why highlighting failed for a nugget
+	 * Provides detailed information to help troubleshoot highlighting issues
+	 */
+	private diagnoseHighlightingFailure(nugget: GoldenNugget): {
+		reason: string;
+		details: {
+			isUrl: boolean;
+			identicalBoundaries: boolean;
+			emptyBoundaries: boolean;
+			contentLength: number;
+			startLength: number;
+			endLength: number;
+		};
+	} {
+		const startTrimmed = nugget.startContent.trim();
+		const endTrimmed = nugget.endContent.trim();
+		const isUrlContent = isUrl(startTrimmed) || isUrl(endTrimmed);
+		const identicalBoundaries = nugget.startContent === nugget.endContent;
+		const emptyBoundaries = !startTrimmed || !endTrimmed;
+
+		let reason = "Unknown highlighting failure";
+
+		if (identicalBoundaries) {
+			reason = isUrlContent
+				? "URL nugget has identical start/end boundaries (boundary generation issue)"
+				: "Nugget has identical start/end content (content processing issue)";
+		} else if (emptyBoundaries) {
+			reason = "Nugget has empty start or end content";
+		} else if (isUrlContent) {
+			reason =
+				"URL content not found on page (may be in href attributes or hidden)";
+		} else {
+			reason = "Content not found on page (text matching failed)";
+		}
+
+		return {
+			reason,
+			details: {
+				isUrl: isUrlContent,
+				identicalBoundaries,
+				emptyBoundaries,
+				contentLength: nugget.startContent.length + nugget.endContent.length,
+				startLength: nugget.startContent.length,
+				endLength: nugget.endContent.length,
+			},
 		};
 	}
 }

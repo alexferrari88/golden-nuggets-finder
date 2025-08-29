@@ -1,5 +1,10 @@
 import { advancedNormalize } from "../../shared/content-reconstruction";
 import type { GoldenNuggetType } from "../../shared/schemas";
+import {
+	generateUrlBoundaries,
+	isUrl,
+	validateBoundaries,
+} from "../../shared/utils/url-detection";
 import { calculateWordSimilarity } from "../../shared/utils/word-similarity";
 
 /**
@@ -170,6 +175,30 @@ export class FuzzyBoundaryMatcher {
 			};
 		}
 
+		// For any content type, generate boundaries even if not found in content
+		// This ensures we always provide usable boundaries for display purposes
+		const boundaries = this.generateBoundariesFromFullContent(
+			nugget.fullContent,
+		);
+
+		if (
+			boundaries.startContent &&
+			boundaries.endContent &&
+			boundaries.startContent !== boundaries.endContent
+		) {
+			return {
+				type: nugget.type,
+				startContent: boundaries.startContent,
+				endContent: boundaries.endContent,
+				fullContent: nugget.fullContent,
+				confidence: Math.max(
+					this.options.minConfidenceThreshold,
+					nugget.confidence * 0.9,
+				), // Ensure meets threshold
+				matchMethod: "fuzzy", // Boundary generation is a fuzzy approach when content not found
+			};
+		}
+
 		return {
 			type: nugget.type,
 			startContent: "",
@@ -201,21 +230,58 @@ export class FuzzyBoundaryMatcher {
 	 * Generate startContent and endContent directly from fullContent.
 	 * This preserves the perfect AI-generated content instead of corrupting it
 	 * by extracting boundaries from original text indices.
+	 * Special handling for URLs to ensure startContent !== endContent.
 	 */
 	private generateBoundariesFromFullContent(fullContent: string): {
 		startContent: string;
 		endContent: string;
 	} {
+		// Check if content is a URL (trimmed to handle whitespace)
+		const trimmedContent = fullContent.trim();
+		if (isUrl(trimmedContent)) {
+			// Use URL-specific boundary generation to avoid identical start/end
+			const urlBoundaries = generateUrlBoundaries(trimmedContent);
+
+			// Validate that boundaries are different - critical for highlighting
+			if (
+				validateBoundaries(urlBoundaries.startContent, urlBoundaries.endContent)
+			) {
+				return urlBoundaries;
+			}
+
+			// Fallback if URL boundaries are somehow invalid
+			console.warn(
+				"URL boundary generation failed, using fallback for:",
+				trimmedContent,
+			);
+		}
+
+		// Original logic for non-URL content
 		const words = fullContent.split(/\s+/).filter((w) => w.length > 0);
 
 		// Use the configured maxStartWords and maxEndWords from options
 		const startWords = words.slice(0, this.options.maxStartWords);
 		const endWords = words.slice(-this.options.maxEndWords);
 
-		return {
+		const boundaries = {
 			startContent: startWords.join(" "),
 			endContent: endWords.join(" "),
 		};
+
+		// Final validation to ensure boundaries are different
+		// This prevents the original issue where startContent === endContent
+		if (!validateBoundaries(boundaries.startContent, boundaries.endContent)) {
+			// Emergency fallback: truncate content to create different boundaries
+			const maxLength = Math.min(50, fullContent.length);
+			const halfLength = Math.floor(maxLength / 2);
+
+			return {
+				startContent: fullContent.slice(0, halfLength),
+				endContent: fullContent.slice(-halfLength),
+			};
+		}
+
+		return boundaries;
 	}
 
 	/**

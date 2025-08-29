@@ -21,6 +21,7 @@ import {
 	type ProviderId,
 	type SidebarNuggetItem,
 } from "../../shared/types";
+import { isUrl } from "../../shared/utils/url-detection";
 import type { Highlighter } from "./highlighter";
 
 // Extended nugget interface for UI operations
@@ -1096,6 +1097,55 @@ export class Sidebar {
         opacity: 0.8;
       `;
 			statusContainer.appendChild(highlightIndicator);
+		}
+
+		// URL indicator for non-highlightable URL content
+		const isUrlContent = this.isUrlNugget(item.nugget);
+		if (isUrlContent && item.status !== "highlighted") {
+			const urlIndicator = document.createElement("div");
+			urlIndicator.className = "url-indicator";
+			urlIndicator.title = "Link reference - content not highlightable on page";
+			urlIndicator.style.cssText = `
+        display: flex;
+        align-items: center;
+        gap: ${spacing.xs};
+        padding: ${spacing.xs} ${spacing.sm};
+        background: ${colors.background.tertiary};
+        border: 1px solid ${colors.border.light};
+        border-radius: ${borderRadius.sm};
+        font-size: ${typography.fontSize.xs};
+        color: ${colors.text.secondary};
+      `;
+
+			// Icon-like indicator (🔗 replacement using CSS)
+			const linkIcon = document.createElement("div");
+			linkIcon.style.cssText = `
+        width: 8px;
+        height: 8px;
+        border: 1px solid ${colors.text.secondary};
+        border-radius: 2px;
+        position: relative;
+        flex-shrink: 0;
+      `;
+
+			// Add a small connecting line to make it look like a link icon
+			const linkLine = document.createElement("div");
+			linkLine.style.cssText = `
+        position: absolute;
+        top: -2px;
+        right: -2px;
+        width: 4px;
+        height: 1px;
+        background: ${colors.text.secondary};
+      `;
+			linkIcon.appendChild(linkLine);
+
+			const linkText = document.createElement("span");
+			linkText.textContent = "Link";
+
+			urlIndicator.appendChild(linkIcon);
+			urlIndicator.appendChild(linkText);
+			statusContainer.appendChild(urlIndicator);
 		}
 
 		headerDiv.appendChild(leftContainer);
@@ -2785,5 +2835,25 @@ ${nugget.startContent}...${nugget.endContent}
 				`Connection test failed: ${error instanceof Error ? error.message : "Unknown error"}`,
 			);
 		}
+	}
+
+	/**
+	 * Check if a nugget contains URL content
+	 * @param nugget The golden nugget to check
+	 * @returns True if the nugget appears to contain URL content
+	 */
+	private isUrlNugget(nugget: GoldenNugget): boolean {
+		// Check if start or end content contains a URL
+		const startContent = nugget.startContent?.trim() || "";
+		const endContent = nugget.endContent?.trim() || "";
+
+		// Also check fullContent if available (from enhanced nuggets)
+		const enhancedNugget = nugget as EnhancedGoldenNugget;
+		const fullContent =
+			enhancedNugget._fullContent?.trim() ||
+			enhancedNugget.content?.trim() ||
+			"";
+
+		return isUrl(startContent) || isUrl(endContent) || isUrl(fullContent);
 	}
 }
