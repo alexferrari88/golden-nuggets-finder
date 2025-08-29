@@ -1040,39 +1040,7 @@ export class Sidebar {
         text-align: center;
       `;
 
-			// Extraction method indicator
-			if (ensembleNugget.extractionMethod) {
-				const methodText = document.createElement("div");
-				let methodLabel = "";
-				switch (ensembleNugget.extractionMethod) {
-					case "standard":
-						methodLabel = "Standard";
-						break;
-					case "fuzzy":
-						methodLabel = "Fuzzy";
-						break;
-					case "llm":
-						methodLabel = "LLM";
-						break;
-					case "ensemble":
-						methodLabel = "Ensemble";
-						break;
-					default:
-						methodLabel = ensembleNugget.extractionMethod;
-				}
-
-				methodText.textContent = methodLabel;
-				methodText.style.cssText = `
-          font-size: ${typography.fontSize.xs};
-          color: ${colors.text.secondary};
-          font-weight: ${typography.fontWeight.medium};
-        `;
-
-				confidenceContainer.appendChild(confidenceBadge);
-				confidenceContainer.appendChild(methodText);
-			} else {
-				confidenceContainer.appendChild(confidenceBadge);
-			}
+			confidenceContainer.appendChild(confidenceBadge);
 
 			leftContainer.appendChild(confidenceContainer);
 		}
