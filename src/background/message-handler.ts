@@ -701,7 +701,7 @@ export class MessageHandler {
 
 						debugLogger.log(`[TwoPhase] Final normalized response:`, {
 							golden_nuggets_count: normalizedResponse.golden_nuggets.length,
-							sample_nugget: normalizedResponse.golden_nuggets[0] || null,
+							all_nuggets: normalizedResponse.golden_nuggets,
 							two_phase_metadata: twoPhaseResult.metadata,
 						});
 
@@ -754,6 +754,9 @@ export class MessageHandler {
 							content,
 							prompt,
 						);
+
+						// Log the parsed response from the LLM
+						debugLogger.logLLMResponse({ rawResponse }, rawResponse);
 
 						// Normalize response and convert to enhanced format
 						const standardResponse = normalizeResponse(

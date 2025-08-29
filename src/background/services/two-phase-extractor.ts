@@ -273,7 +273,7 @@ export class TwoPhaseExtractor {
 
 			debugLogger.log(`[TwoPhase] Phase 1 single extraction raw response:`, {
 				nuggetCount: rawResponse.golden_nuggets.length,
-				sampleNugget: rawResponse.golden_nuggets[0] || null,
+				all_nuggets: rawResponse.golden_nuggets,
 				confidenceScores: rawResponse.golden_nuggets.map((n) => n.confidence),
 			});
 
