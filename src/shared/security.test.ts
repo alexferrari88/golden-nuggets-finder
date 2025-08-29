@@ -126,7 +126,7 @@ describe("SecurityManager", () => {
 
 	describe("Access Control", () => {
 		it("should allow valid access contexts", () => {
-			const validContext: InvalidAccessContext = {
+			const validContext: AccessContext = {
 				source: "background",
 				action: "read",
 				timestamp: Date.now(),
@@ -163,7 +163,7 @@ describe("SecurityManager", () => {
 		});
 
 		it("should allow content script reading API keys", () => {
-			const validContext: InvalidAccessContext = {
+			const validContext: AccessContext = {
 				source: "content",
 				action: "read",
 				timestamp: Date.now(),
@@ -174,7 +174,7 @@ describe("SecurityManager", () => {
 		});
 
 		it("should enforce rate limiting", () => {
-			const context: InvalidAccessContext = {
+			const context: AccessContext = {
 				source: "background",
 				action: "read",
 				timestamp: Date.now(),
@@ -182,11 +182,11 @@ describe("SecurityManager", () => {
 
 			// Make multiple requests quickly (background limit is now 50)
 			for (let i = 0; i < 50; i++) {
-				securityManager.validateAccess(context as AccessContext);
+				securityManager.validateAccess(context);
 			}
 
 			// The 51st request should be rate limited
-			const result = securityManager.validateAccess(context as AccessContext);
+			const result = securityManager.validateAccess(context);
 			expect(result).toBe(false);
 		});
 	});
@@ -369,7 +369,7 @@ describe("SecurityManager", () => {
 			};
 
 			// Mock an error condition by using invalid context that will trigger internal error
-			const errorContext: InvalidAccessContext = {
+			const errorContext: AccessContext = {
 				source: "background",
 				action: "read",
 				timestamp: Date.now(),
@@ -377,10 +377,10 @@ describe("SecurityManager", () => {
 
 			// Force an internal error by mocking the rate limit check to throw
 			const originalCheckRateLimit = (
-				securityManager as SecurityManagerTestAccess
+				securityManager as unknown as SecurityManagerTestAccess
 			).checkRateLimit;
 			vi.spyOn(
-				securityManager as SecurityManagerTestAccess,
+				securityManager as unknown as SecurityManagerTestAccess,
 				"checkRateLimit",
 			).mockImplementation(() => {
 				throw new Error("Test error");
@@ -390,7 +390,7 @@ describe("SecurityManager", () => {
 			expect(result).toBe(false);
 
 			// Restore original method
-			(securityManager as SecurityManagerTestAccess).checkRateLimit =
+			(securityManager as unknown as SecurityManagerTestAccess).checkRateLimit =
 				originalCheckRateLimit;
 		});
 	});

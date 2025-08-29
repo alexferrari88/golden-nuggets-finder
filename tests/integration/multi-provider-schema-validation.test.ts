@@ -22,7 +22,7 @@ import type {
 
 // Override happy-dom's mocks with real HTTP client
 global.fetch = fetch as any;
-global.Headers = Headers;
+global.Headers = Headers as any;
 global.Request = Request as any;
 global.Response = Response as any;
 
@@ -166,7 +166,7 @@ Return only the most valuable insights that would be genuinely useful to a softw
 
 						// If nuggets exist, verify each one has required fields
 						if (response.golden_nuggets.length > 0) {
-							response.golden_nuggets.forEach((nugget, _index) => {
+							response.golden_nuggets.forEach((nugget: any, _index: number) => {
 								expect(nugget.type).toBeDefined();
 								expect([
 									"tool",
@@ -187,7 +187,7 @@ Return only the most valuable insights that would be genuinely useful to a softw
 						);
 					} catch (error) {
 						console.error(`Error in ${providerId} test:`, error);
-						console.error(`Error stack:`, error.stack);
+						console.error(`Error stack:`, (error as Error).stack);
 						throw error;
 					}
 				},

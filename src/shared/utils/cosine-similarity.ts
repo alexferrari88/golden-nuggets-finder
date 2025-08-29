@@ -155,13 +155,14 @@ export function calculateBatchCosineSimilarity(
 			const similarity = calculateCosineSimilarity(vectors1[i], vectors2[i]);
 			results.push(similarity);
 		} catch (error) {
+			const errorMessage = error instanceof Error ? error.message : String(error);
 			throw new CosineSimilarityError(
-				`Error calculating similarity for pair ${i}: ${error.message}`,
+				`Error calculating similarity for pair ${i}: ${errorMessage}`,
 				Array.isArray(vectors1[i])
-					? vectors1[i].length
+					? (vectors1[i] as number[]).length
 					: (vectors1[i] as Vector).values.length,
 				Array.isArray(vectors2[i])
-					? vectors2[i].length
+					? (vectors2[i] as number[]).length
 					: (vectors2[i] as Vector).values.length,
 			);
 		}
@@ -199,7 +200,8 @@ export function findMostSimilar(
 			}
 		} catch (error) {
 			// Skip invalid vectors and continue processing
-			console.warn(`Skipping vector ${i} due to error:`, error.message);
+			const errorMessage = error instanceof Error ? error.message : String(error);
+			console.warn(`Skipping vector ${i} due to error:`, errorMessage);
 		}
 	}
 
@@ -248,9 +250,10 @@ export function groupBySimilarity(
 				}
 			} catch (error) {
 				// Skip invalid vector pairs
+				const errorMessage = error instanceof Error ? error.message : String(error);
 				console.warn(
 					`Skipping vector pair (${i}, ${j}) due to error:`,
-					error.message,
+					errorMessage,
 				);
 			}
 		}

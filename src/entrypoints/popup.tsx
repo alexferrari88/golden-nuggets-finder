@@ -1589,7 +1589,7 @@ function IndexPopup() {
 							color: twoPhaseMode ? colors.text.accent : colors.text.secondary,
 						}}
 					>
-						✨ Two-Phase Mode (Higher Precision)
+						✨ Two-Phase Mode
 					</span>
 					<button
 						type="button"

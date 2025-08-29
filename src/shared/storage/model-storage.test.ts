@@ -13,7 +13,7 @@ global.chrome = {
 	storage: {
 		local: mockStorageLocal,
 	},
-} as typeof chrome;
+} as unknown as typeof chrome;
 
 // Mock ProviderFactory
 vi.mock("../../background/services/provider-factory", () => ({

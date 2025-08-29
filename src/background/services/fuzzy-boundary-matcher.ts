@@ -1,5 +1,6 @@
 import { advancedNormalize } from "../../shared/content-reconstruction";
 import type { GoldenNuggetType } from "../../shared/schemas";
+import { calculateWordSimilarity } from "../../shared/utils/word-similarity";
 
 /**
  * Fuzzy boundary matcher for two-phase extraction system.
@@ -180,44 +181,20 @@ export class FuzzyBoundaryMatcher {
 	}
 
 	/**
-	 * Calculates similarity between two word arrays using multiple strategies.
+	 * Calculates similarity between two word arrays using shared utility.
 	 */
 	private calculateWordSimilarity(
 		nuggetWords: string[],
 		contentWords: string[],
 	): number {
-		if (nuggetWords.length !== contentWords.length) {
-			return 0.0;
-		}
-
-		let totalScore = 0;
-		for (let i = 0; i < nuggetWords.length; i++) {
-			const nuggetWord = nuggetWords[i];
-			const contentWord = contentWords[i];
-
-			// Exact match
-			if (nuggetWord === contentWord) {
-				totalScore += 1.0;
-			}
-			// Substring match
-			else if (
-				nuggetWord.includes(contentWord) ||
-				contentWord.includes(nuggetWord)
-			) {
-				totalScore += 0.8;
-			}
-			// Levenshtein distance match
-			else {
-				const distance = this.levenshteinDistance(nuggetWord, contentWord);
-				const maxLength = Math.max(nuggetWord.length, contentWord.length);
-				const similarity = 1.0 - distance / maxLength;
-				if (similarity > 0.6) {
-					totalScore += similarity * 0.7;
-				}
-			}
-		}
-
-		return totalScore / nuggetWords.length;
+		// Use the shared word similarity utility with the same scoring strategy
+		// as the original implementation
+		return calculateWordSimilarity(nuggetWords, contentWords, {
+			exactMatchScore: 1.0,
+			substringMatchScore: 0.8,
+			levenshteinScoreMultiplier: 0.7,
+			levenshteinThreshold: 0.6,
+		});
 	}
 
 	/**
@@ -239,33 +216,6 @@ export class FuzzyBoundaryMatcher {
 			startContent: startWords.join(" "),
 			endContent: endWords.join(" "),
 		};
-	}
-
-	/**
-	 * Calculates the Levenshtein distance between two strings.
-	 */
-	private levenshteinDistance(str1: string, str2: string): number {
-		const matrix: number[][] = [];
-		for (let i = 0; i <= str2.length; i++) {
-			matrix[i] = [i];
-		}
-		for (let j = 0; j <= str1.length; j++) {
-			matrix[0][j] = j;
-		}
-		for (let i = 1; i <= str2.length; i++) {
-			for (let j = 1; j <= str1.length; j++) {
-				if (str2.charAt(i - 1) === str1.charAt(j - 1)) {
-					matrix[i][j] = matrix[i - 1][j - 1];
-				} else {
-					matrix[i][j] = Math.min(
-						matrix[i - 1][j - 1] + 1,
-						matrix[i][j - 1] + 1,
-						matrix[i - 1][j] + 1,
-					);
-				}
-			}
-		}
-		return matrix[str2.length][str1.length];
 	}
 
 	/**
