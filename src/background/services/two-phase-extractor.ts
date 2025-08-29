@@ -24,6 +24,7 @@ export interface TwoPhaseExtractionResult {
 		type: GoldenNuggetType;
 		startContent: string;
 		endContent: string;
+		fullContent: string; // Include the preserved fullContent from Phase 1
 		confidence?: number; // Optional confidence score for backward compatibility
 		extractionMethod?: "fuzzy" | "llm"; // Optional method indicator
 	}>;
@@ -199,6 +200,7 @@ export class TwoPhaseExtractor {
 					type: nugget.type,
 					startContent: nugget.startContent,
 					endContent: nugget.endContent,
+					fullContent: nugget.fullContent, // Preserve the perfect fullContent from Phase 1
 					confidence: nugget.confidence,
 					extractionMethod:
 						nugget.matchMethod === "exact" || nugget.matchMethod === "fuzzy"
@@ -363,14 +365,23 @@ export class TwoPhaseExtractor {
 				confidenceScores: rawResponse.golden_nuggets.map((n) => n.confidence),
 			});
 
-			// Convert response to Phase2NuggetResult format
-			return rawResponse.golden_nuggets.map((nugget) => ({
-				type: nugget.type as GoldenNuggetType,
-				startContent: nugget.startContent,
-				endContent: nugget.endContent,
-				confidence: nugget.confidence, // Use actual LLM-provided confidence
-				matchMethod: "llm" as const,
-			}));
+			// Convert response to Phase2NuggetResult format, preserving original fullContent
+			return rawResponse.golden_nuggets.map((nugget, index) => {
+				// Find corresponding original nugget to preserve fullContent
+				const originalNugget =
+					unmatchedNuggets[index] ||
+					unmatchedNuggets.find((n) => n.type === nugget.type);
+				const fullContent = originalNugget?.fullContent || "";
+
+				return {
+					type: nugget.type as GoldenNuggetType,
+					startContent: nugget.startContent,
+					endContent: nugget.endContent,
+					fullContent: fullContent, // Preserve the perfect Phase 1 fullContent
+					confidence: nugget.confidence, // Use actual LLM-provided confidence
+					matchMethod: "llm" as const,
+				};
+			});
 		} catch (error) {
 			console.error("LLM boundary detection failed:", error);
 			// Return empty results rather than throwing

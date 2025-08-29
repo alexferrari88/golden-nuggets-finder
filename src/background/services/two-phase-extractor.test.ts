@@ -220,4 +220,178 @@ describe("TwoPhaseExtractor", () => {
 			expect(result.metadata).toHaveProperty("confidenceThreshold");
 		});
 	});
+
+	describe("fullContent preservation fix", () => {
+		it("should preserve perfect fullContent from Phase 1 instead of corrupting it", async () => {
+			// Arrange: This is the exact problematic example from the logs
+			const perfectFullContent =
+				'Significance testing only tells you the probability that the measured difference is a "good measurement". With a certain degree of confidence, you can say "the difference exists as measured". Whether the measured difference is significant in the sense of "meaningful" is a value judgement that we / stakeholders should impose on top of that, usually based on the magnitude of the measured difference, not the statistical significance.';
+
+			const phase1Response = {
+				golden_nuggets: [
+					{
+						type: "model" as const,
+						fullContent: perfectFullContent,
+						confidence: 0.95,
+					},
+				],
+			};
+
+			// Mock Phase 2 to use the new fuzzy matching logic that preserves fullContent
+			const phase2MockResult = {
+				fuzzyMatched: [
+					{
+						type: "model" as const,
+						startContent: "Significance testing only tells", // Generated from fullContent, not corrupted
+						endContent: "difference, not the statistical significance", // Generated from fullContent, not corrupted
+						fullContent: perfectFullContent, // The key fix - preserve the perfect content!
+						confidence: 0.95,
+						matchMethod: "fuzzy" as const,
+					},
+				],
+				llmMatched: [],
+			};
+
+			mockProvider.extractPhase1HighRecall.mockResolvedValue(phase1Response);
+			vi.spyOn(extractor, "executePhase2" as any).mockResolvedValue(
+				phase2MockResult,
+			);
+
+			// Act: Execute two-phase extraction
+			const result = await extractor.extractWithTwoPhase(
+				"Test content containing the significance testing explanation...",
+				"Test prompt",
+				mockProvider,
+				{
+					confidenceThreshold: 0.85,
+				},
+			);
+
+			// Assert: The perfect fullContent should be preserved, not corrupted
+			expect(result.golden_nuggets).toHaveLength(1);
+			const nugget = result.golden_nuggets[0];
+
+			// THE KEY ASSERTION: fullContent should be preserved exactly
+			expect(nugget.fullContent).toBe(perfectFullContent);
+
+			// startContent and endContent should be generated from fullContent, not from original text boundaries
+			expect(nugget.startContent).toBe("Significance testing only tells");
+			expect(nugget.endContent).toBe(
+				"difference, not the statistical significance",
+			);
+
+			// Should maintain confidence and extraction method
+			expect(nugget.confidence).toBe(0.95);
+			expect(nugget.extractionMethod).toBe("fuzzy");
+			expect(nugget.type).toBe("model");
+
+			// Verify metadata
+			expect(result.metadata.phase1Count).toBe(1);
+			expect(result.metadata.phase1FilteredCount).toBe(1);
+			expect(result.metadata.phase2FuzzyCount).toBe(1);
+			expect(result.metadata.phase2LlmCount).toBe(0);
+		});
+
+		it("should generate proper boundaries from fullContent for exact matches", async () => {
+			// Arrange: Test exact match scenario
+			const fullContent = "This is a short nugget for exact matching";
+			const phase1Response = {
+				golden_nuggets: [
+					{
+						type: "tool" as const,
+						fullContent: fullContent,
+						confidence: 0.9,
+					},
+				],
+			};
+
+			const phase2MockResult = {
+				fuzzyMatched: [
+					{
+						type: "tool" as const,
+						startContent: "This is a", // First few words from fullContent
+						endContent: "for exact matching", // Last few words from fullContent
+						fullContent: fullContent, // Preserved perfect content
+						confidence: 0.9,
+						matchMethod: "exact" as const,
+					},
+				],
+				llmMatched: [],
+			};
+
+			mockProvider.extractPhase1HighRecall.mockResolvedValue(phase1Response);
+			vi.spyOn(extractor, "executePhase2" as any).mockResolvedValue(
+				phase2MockResult,
+			);
+
+			// Act
+			const result = await extractor.extractWithTwoPhase(
+				`Some content with ${fullContent} embedded within`,
+				"Test prompt",
+				mockProvider,
+			);
+
+			// Assert
+			expect(result.golden_nuggets).toHaveLength(1);
+			const nugget = result.golden_nuggets[0];
+
+			// Perfect content preserved
+			expect(nugget.fullContent).toBe(fullContent);
+
+			// Boundaries generated from fullContent, not original text
+			expect(nugget.startContent).toBe("This is a");
+			expect(nugget.endContent).toBe("for exact matching");
+			expect(nugget.extractionMethod).toBe("fuzzy");
+		});
+
+		it("should preserve fullContent even for failed matches", async () => {
+			// Arrange: Test scenario where fuzzy matching fails
+			const fullContent = "This content won't be found in the original text";
+			const phase1Response = {
+				golden_nuggets: [
+					{
+						type: "tool" as const,
+						fullContent: fullContent,
+						confidence: 0.9,
+					},
+				],
+			};
+
+			// Mock Phase 2 to return failed fuzzy match but successful LLM boundary detection
+			const phase2MockResult = {
+				fuzzyMatched: [], // Fuzzy matching failed
+				llmMatched: [
+					{
+						type: "tool" as const,
+						startContent: "This content", // From LLM boundary detection
+						endContent: "the original text", // From LLM boundary detection
+						fullContent: fullContent, // Still preserve original fullContent!
+						confidence: 0.85,
+						matchMethod: "llm" as const,
+					},
+				],
+			};
+
+			mockProvider.extractPhase1HighRecall.mockResolvedValue(phase1Response);
+			vi.spyOn(extractor, "executePhase2" as any).mockResolvedValue(
+				phase2MockResult,
+			);
+
+			// Act
+			const result = await extractor.extractWithTwoPhase(
+				"Different content that doesn't match",
+				"Test prompt",
+				mockProvider,
+			);
+
+			// Assert
+			expect(result.golden_nuggets).toHaveLength(1);
+			const nugget = result.golden_nuggets[0];
+
+			// Perfect content should still be preserved even when fuzzy matching fails
+			expect(nugget.fullContent).toBe(fullContent);
+			expect(nugget.extractionMethod).toBe("llm");
+			expect(nugget.confidence).toBe(0.85);
+		});
+	});
 });

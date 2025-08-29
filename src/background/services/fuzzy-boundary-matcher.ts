@@ -16,6 +16,7 @@ export interface Phase2NuggetResult {
 	type: GoldenNuggetType;
 	startContent: string;
 	endContent: string;
+	fullContent: string; // Preserve the original fullContent from Phase 1
 	confidence: number;
 	matchMethod: "exact" | "fuzzy" | "llm" | "not_found";
 }
@@ -90,17 +91,16 @@ export class FuzzyBoundaryMatcher {
 		const index = normalizedContent.indexOf(normalizedNugget);
 
 		if (index !== -1) {
-			// Found exact match, extract boundaries from original text
-			const boundaries = this.extractBoundariesFromIndex(
-				originalContent,
-				index,
-				nugget.fullContent.length,
+			// Found exact match - verify the content exists, but generate boundaries from fullContent
+			const boundaries = this.generateBoundariesFromFullContent(
+				nugget.fullContent,
 			);
 
 			return {
 				type: nugget.type,
 				startContent: boundaries.startContent,
 				endContent: boundaries.endContent,
+				fullContent: nugget.fullContent, // Preserve the original perfect content
 				confidence: Math.min(nugget.confidence * 1.0, 1.0), // Keep original confidence for exact matches
 				matchMethod: "exact",
 			};
@@ -110,6 +110,7 @@ export class FuzzyBoundaryMatcher {
 			type: nugget.type,
 			startContent: "",
 			endContent: "",
+			fullContent: nugget.fullContent, // Always preserve fullContent, even for failed matches
 			confidence: 0.0,
 			matchMethod: "not_found",
 		};
@@ -153,17 +154,16 @@ export class FuzzyBoundaryMatcher {
 		}
 
 		if (bestMatch.confidence >= this.options.tolerance) {
-			// Find word boundaries in original text to extract proper boundaries
-			const boundaries = this.extractBoundariesFromWordIndices(
-				originalContent,
-				bestMatch.startIndex,
-				bestMatch.endIndex,
+			// Found fuzzy match - verify the content exists, but generate boundaries from fullContent
+			const boundaries = this.generateBoundariesFromFullContent(
+				nugget.fullContent,
 			);
 
 			return {
 				type: nugget.type,
 				startContent: boundaries.startContent,
 				endContent: boundaries.endContent,
+				fullContent: nugget.fullContent, // Preserve the original perfect content
 				confidence: Math.min(nugget.confidence * bestMatch.confidence, 1.0),
 				matchMethod: "fuzzy",
 			};
@@ -173,6 +173,7 @@ export class FuzzyBoundaryMatcher {
 			type: nugget.type,
 			startContent: "",
 			endContent: "",
+			fullContent: nugget.fullContent, // Always preserve fullContent, even for failed matches
 			confidence: 0.0,
 			matchMethod: "not_found",
 		};
@@ -220,36 +221,17 @@ export class FuzzyBoundaryMatcher {
 	}
 
 	/**
-	 * Extracts start and end content boundaries from character index position.
+	 * Generate startContent and endContent directly from fullContent.
+	 * This preserves the perfect AI-generated content instead of corrupting it
+	 * by extracting boundaries from original text indices.
 	 */
-	private extractBoundariesFromIndex(
-		originalContent: string,
-		startIndex: number,
-		contentLength: number,
-	): { startContent: string; endContent: string } {
-		// Find actual word boundaries around the matched content
-		let actualStart = startIndex;
-		let actualEnd = startIndex + contentLength;
+	private generateBoundariesFromFullContent(fullContent: string): {
+		startContent: string;
+		endContent: string;
+	} {
+		const words = fullContent.split(/\s+/).filter((w) => w.length > 0);
 
-		// Adjust start to word boundary
-		while (
-			actualStart > 0 &&
-			!this.isWordBoundary(originalContent, actualStart)
-		) {
-			actualStart--;
-		}
-
-		// Adjust end to word boundary
-		while (
-			actualEnd < originalContent.length &&
-			!this.isWordBoundary(originalContent, actualEnd)
-		) {
-			actualEnd++;
-		}
-
-		const matchedText = originalContent.slice(actualStart, actualEnd);
-		const words = matchedText.split(/\s+/).filter((w) => w.length > 0);
-
+		// Use the configured maxStartWords and maxEndWords from options
 		const startWords = words.slice(0, this.options.maxStartWords);
 		const endWords = words.slice(-this.options.maxEndWords);
 
@@ -257,48 +239,6 @@ export class FuzzyBoundaryMatcher {
 			startContent: startWords.join(" "),
 			endContent: endWords.join(" "),
 		};
-	}
-
-	/**
-	 * Extracts boundaries from word indices in the content.
-	 */
-	private extractBoundariesFromWordIndices(
-		originalContent: string,
-		startWordIndex: number,
-		endWordIndex: number,
-	): { startContent: string; endContent: string } {
-		const words = originalContent.split(/\s+/).filter((w) => w.length > 0);
-
-		const startWords = words.slice(
-			startWordIndex,
-			Math.min(startWordIndex + this.options.maxStartWords, words.length),
-		);
-		const endWords = words.slice(
-			Math.max(endWordIndex - this.options.maxEndWords + 1, 0),
-			endWordIndex + 1,
-		);
-
-		return {
-			startContent: startWords.join(" "),
-			endContent: endWords.join(" "),
-		};
-	}
-
-	/**
-	 * Checks if a character position is at a word boundary.
-	 */
-	private isWordBoundary(text: string, index: number): boolean {
-		if (index === 0 || index === text.length) return true;
-
-		const charBefore = text[index - 1];
-		const charAt = text[index];
-
-		return (
-			/\s/.test(charBefore) ||
-			/\s/.test(charAt) ||
-			/[.,;:!?]/.test(charBefore) ||
-			/[.,;:!?]/.test(charAt)
-		);
 	}
 
 	/**
