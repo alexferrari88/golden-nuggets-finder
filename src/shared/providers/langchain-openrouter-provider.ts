@@ -15,7 +15,7 @@ import type {
 const GoldenNuggetsSchema = z.object({
 	golden_nuggets: z.array(
 		z.object({
-			type: z.string(), // Accept any string, normalize later
+			type: z.enum(["tool", "media", "aha! moments", "analogy", "model"]),
 			startContent: z.string(),
 			endContent: z.string(),
 		}),
@@ -229,17 +229,7 @@ export class LangChainOpenRouterProvider implements LLMProvider {
 				return result;
 			});
 
-			// Normalize type values that OpenRouter models might return
-			if (response?.golden_nuggets) {
-				response.golden_nuggets = response.golden_nuggets.map((nugget) => ({
-					...nugget,
-					type: this.normalizeType(nugget.type),
-				})) as Array<{
-					type: "tool" | "media" | "aha! moments" | "analogy" | "model";
-					startContent: string;
-					endContent: string;
-				}>;
-			}
+			// Response already validated by schema - no normalization needed
 
 			// Log the response
 			debugLogger.logLLMResponse({
@@ -276,36 +266,6 @@ export class LangChainOpenRouterProvider implements LLMProvider {
 		}
 	}
 
-	private normalizeType(
-		type: string,
-	): "tool" | "media" | "aha! moments" | "analogy" | "model" {
-		// Handle common variations that OpenRouter models might return
-		const typeMap: Record<
-			string,
-			"tool" | "media" | "aha! moments" | "analogy" | "model"
-		> = {
-			"mental model": "model",
-			mental_model: "model",
-			framework: "model",
-			technique: "tool",
-			method: "tool",
-			resource: "media",
-			book: "media",
-			article: "media",
-			concept: "aha! moments",
-			comparison: "analogy",
-			metaphor: "analogy",
-		};
-
-		const normalized = typeMap[type.toLowerCase()] || type;
-
-		// Validate against allowed types
-		const allowedTypes = ["tool", "media", "aha! moments", "analogy", "model"];
-		return allowedTypes.includes(normalized)
-			? (normalized as "tool" | "media" | "aha! moments" | "analogy" | "model")
-			: "aha! moments";
-	}
-
 	async validateApiKey(): Promise<boolean> {
 		try {
 			const response = await fetch("https://openrouter.ai/api/v1/models", {
@@ -334,7 +294,7 @@ export class LangChainOpenRouterProvider implements LLMProvider {
 		const Phase1Schema = z.object({
 			golden_nuggets: z.array(
 				z.object({
-					type: z.string(), // Accept any string, normalize later
+					type: z.enum(["tool", "media", "aha! moments", "analogy", "model"]),
 					fullContent: z.string(),
 					confidence: z.number().min(0).max(1),
 				}),
@@ -388,13 +348,7 @@ export class LangChainOpenRouterProvider implements LLMProvider {
 				return result;
 			});
 
-			// Normalize type values
-			if (response?.golden_nuggets) {
-				response.golden_nuggets = response.golden_nuggets.map((nugget) => ({
-					...nugget,
-					type: this.normalizeType(nugget.type),
-				}));
-			}
+			// Response already validated by schema - no normalization needed
 
 			// Log the response
 			debugLogger.logLLMResponse({
@@ -441,7 +395,7 @@ export class LangChainOpenRouterProvider implements LLMProvider {
 		const Phase2Schema = z.object({
 			golden_nuggets: z.array(
 				z.object({
-					type: z.string(), // Accept any string, normalize later
+					type: z.enum(["tool", "media", "aha! moments", "analogy", "model"]),
 					startContent: z.string(),
 					endContent: z.string(),
 					confidence: z.number().min(0).max(1),
@@ -507,13 +461,7 @@ export class LangChainOpenRouterProvider implements LLMProvider {
 				return result;
 			});
 
-			// Normalize type values
-			if (response?.golden_nuggets) {
-				response.golden_nuggets = response.golden_nuggets.map((nugget) => ({
-					...nugget,
-					type: this.normalizeType(nugget.type),
-				}));
-			}
+			// Response already validated by schema - no normalization needed
 
 			// Log the response
 			debugLogger.logLLMResponse({
