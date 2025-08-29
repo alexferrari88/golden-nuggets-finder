@@ -119,7 +119,7 @@ Instructions for extracting and formatting golden nuggets:
 1. Carefully read and analyze the provided content.
 2. Identify potential golden nuggets that align with the categories above and are relevant to the specified persona.
 3. Extract multiple nuggets per category when valuable content exists.
-4. For each golden nugget, provide the complete verbatim content and assign a confidence score.
+4. For each golden nugget, provide the complete verbatim content and assign a confidence score. Extract verbatim spans only: do not paraphrase or synthesize.
 
 Extraction limits per category:
 - **Tools and Media**: Extract as many as you find valuable (no limit)
@@ -134,7 +134,9 @@ Additional instructions and constraints:
    - Actionability and practical value (0.3 weight)
 3. Be generous in this high-recall phase, but maintain minimum quality standards.
 4. If no golden nuggets are found for any category, return an empty array for the golden_nuggets field.
-5. Do not include any explanations or additional commentary outside of the JSON structure.
+5. For Tools and Media golden nuggets, NEVER extract just a bare URL without surrounding context. Always include relevant descriptive text, explanations, or context that makes the tool/media recommendation valuable. Only extract a URL alone if it is literally the only content available for that recommendation.
+6. When extracting golden nuggets that contain URLs, NEVER add spaces inside the URLs. URLs must remain intact and functional (e.g., use "http://www.example.com" not "http://www. example. com").
+7. Do not include any explanations or additional commentary outside of the JSON structure.
 
 Your task is to analyze the given content, extract multiple relevant golden nuggets per category with confidence scores, and present them in the required JSON format.
 Creative exploration is encouraged.
