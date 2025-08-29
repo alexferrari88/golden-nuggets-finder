@@ -6,16 +6,15 @@ export * from "./types/providers";
 
 export interface GoldenNugget {
 	type: GoldenNuggetType;
-	startContent: string;
-	endContent: string;
+	fullContent: string; // Primary content field
+	confidence?: number; // Optional confidence from Phase 1
+	validationScore?: number; // Optional validation score
+	extractionMethod?: "fuzzy" | "llm"; // Optional extraction method metadata
 }
 
 // Enhanced nugget interface with optional metadata for UI display
 export interface EnhancedGoldenNugget extends GoldenNugget {
-	// Optional metadata from advanced extraction modes
-	confidence?: number;
-	extractionMethod?: "standard" | "fuzzy" | "llm" | "ensemble";
-	// Ensemble-specific metadata
+	// Ensemble-specific metadata (base interface now has confidence and extractionMethod)
 	runsSupportingThis?: number;
 	totalRuns?: number;
 	similarityMethod?: "embedding" | "word_overlap" | "fallback";
@@ -178,8 +177,9 @@ export interface ExportData {
 	url: string;
 	nuggets: Array<{
 		type: string;
-		startContent: string;
-		endContent: string;
+		content: string; // Use fullContent directly
+		confidence?: number;
+		validationScore?: number;
 	}>;
 }
 

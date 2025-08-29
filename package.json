@@ -76,6 +76,7 @@
 		"@langchain/community": "^0.3.49",
 		"@langchain/core": "^0.3.66",
 		"@langchain/openai": "^0.6.3",
+		"@leeoniya/ufuzzy": "^1.0.19",
 		"@mozilla/readability": "^0.6.0",
 		"diff": "^8.0.2",
 		"fuse.js": "^7.1.0",

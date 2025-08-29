@@ -23,6 +23,7 @@ import type {
 	ProviderConfig,
 	ProviderId,
 } from "../shared/types/providers";
+import { ContentValidator } from "./services/content-validator";
 import { EnsembleExtractor } from "./services/ensemble-extractor";
 import {
 	getUserFriendlyMessage,
@@ -39,7 +40,6 @@ import {
 	switchToFallbackProvider,
 } from "./services/provider-switcher";
 import { normalize as normalizeResponse } from "./services/response-normalizer";
-import { TwoPhaseExtractor } from "./services/two-phase-extractor";
 import {
 	generateFilteredPrompt,
 	validateSelectedTypes,
@@ -620,6 +620,7 @@ export class MessageHandler {
 		useEnsemble = false,
 		ensembleRuns?: number,
 		useTwoPhase = false,
+		typeFilter?: TypeFilterOptions,
 	): Promise<EnhancedGoldenNuggetsResponse> {
 		let currentProviderId: ProviderId | null = null;
 		let attempts = 0;
@@ -669,44 +670,47 @@ export class MessageHandler {
 					let normalizedResponse: EnhancedGoldenNuggetsResponse;
 
 					if (useTwoPhase) {
-						// Use two-phase extraction
-						const twoPhaseExtractor = new TwoPhaseExtractor();
-						const twoPhaseResult = await twoPhaseExtractor.extractWithTwoPhase(
-							content,
-							prompt,
-							provider,
-							{
-								useEnsemble,
-								ensembleRuns: finalEnsembleRuns,
-								confidenceThreshold: 0.85,
-								phase1Temperature: 0.7,
-								phase2Temperature: 0.0,
-							},
-						);
+						// Use content validation (replaces complex two-phase system)
+						const contentValidator = new ContentValidator();
+						const validationResult =
+							await contentValidator.extractWithValidation(
+								content,
+								prompt,
+								provider,
+								{
+									temperature: 0.7,
+									selectedTypes: typeFilter?.selectedTypes,
+									validationThreshold: 0.8,
+								},
+							);
 
-						// Convert two-phase result to enhanced response format (preserving metadata)
+						// Convert validation result to enhanced response format
 						normalizedResponse = {
-							golden_nuggets: twoPhaseResult.golden_nuggets.map((nugget) => ({
+							golden_nuggets: validationResult.golden_nuggets.map((nugget) => ({
 								type: nugget.type,
-								startContent: nugget.startContent,
-								endContent: nugget.endContent,
-								confidence: nugget.confidence,
+								fullContent: nugget.fullContent,
+								confidence: nugget.confidence || 0,
+								validationScore: nugget.validationScore,
 								extractionMethod: nugget.extractionMethod,
 							})),
 							metadata: {
-								...twoPhaseResult.metadata,
-								extractionMode: "two-phase",
+								totalNuggets: validationResult.metadata.totalNuggets,
+								validatedCount: validationResult.metadata.validatedCount,
+								averageValidationScore:
+									validationResult.metadata.averageValidationScore,
+								totalProcessingTime: validationResult.metadata.processingTime,
+								extractionMode: "validated",
 							},
 						};
 
-						debugLogger.log(`[TwoPhase] Final normalized response:`, {
+						debugLogger.log(`[ContentValidator] Final normalized response:`, {
 							golden_nuggets_count: normalizedResponse.golden_nuggets.length,
 							all_nuggets: normalizedResponse.golden_nuggets,
-							two_phase_metadata: twoPhaseResult.metadata,
+							validation_metadata: validationResult.metadata,
 						});
 
 						console.log(
-							`Two-phase extraction completed: ${twoPhaseResult.golden_nuggets.length} nuggets (${twoPhaseResult.metadata.phase2FuzzyCount} fuzzy + ${twoPhaseResult.metadata.phase2LlmCount} LLM)`,
+							`Content validation completed: ${validationResult.golden_nuggets.length} nuggets (${validationResult.metadata.validatedCount} validated)`,
 						);
 					} else if (useEnsemble) {
 						// Use ensemble extraction
@@ -912,7 +916,7 @@ export class MessageHandler {
 
 				case MESSAGE_TYPES.ANALYZE_SELECTED_CONTENT:
 					await this.handleAnalyzeSelectedContent(
-						request as AnalyzeSelectedContentRequest,
+						request as SelectedContentAnalysisRequest,
 						sender,
 						sendResponse,
 					);
@@ -1222,6 +1226,7 @@ export class MessageHandler {
 				false, // useEnsemble - not used for regular content analysis
 				undefined, // ensembleRuns - not used for regular content analysis
 				request.useTwoPhase, // useTwoPhase - pass through from request
+				request.typeFilter, // typeFilter - pass through from request
 			);
 
 			// Send step 4 progress: processing results
@@ -1479,7 +1484,7 @@ export class MessageHandler {
 	}
 
 	private async handleAnalyzeSelectedContent(
-		request: AnalyzeSelectedContentRequest,
+		request: SelectedContentAnalysisRequest,
 		sender: chrome.runtime.MessageSender,
 		sendResponse: (response: AnalysisResponse) => void,
 	): Promise<void> {
@@ -1621,6 +1626,10 @@ export class MessageHandler {
 				processedPrompt,
 				analysisId,
 				sender.tab?.id,
+				false, // useEnsemble - not used for selected content analysis
+				undefined, // ensembleRuns - not used for selected content analysis
+				false, // useTwoPhase - not used for selected content analysis
+				request.typeFilter, // typeFilter - pass through from request
 			);
 
 			// Send step 4 progress: processing results

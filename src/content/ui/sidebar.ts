@@ -1,8 +1,4 @@
 import {
-	getDisplayContent,
-	reconstructFullContent,
-} from "../../shared/content-reconstruction";
-import {
 	borderRadius,
 	colors,
 	generateInlineStyles,
@@ -75,7 +71,6 @@ export class Sidebar {
 	private actionMenuVisible: boolean = false;
 	private restEndpointPanel: HTMLElement | null = null;
 	private restEndpointExpanded: boolean = false;
-	private pageContent: string | null = null; // Store page content for reconstruction
 	private providerMetadata: {
 		providerId: ProviderId;
 		modelName: string;
@@ -106,14 +101,14 @@ export class Sidebar {
 	 * Uses the shared reconstruction utility to show full content when possible
 	 */
 	private getSidebarDisplayContent(nugget: EnhancedGoldenNugget): string {
-		// Check if we have enhanced content from UIManager
-		if (nugget._fullContent) {
-			return nugget._fullContent;
+		// With fullContent migration, nuggets have complete content available
+		if (nugget.fullContent) {
+			return nugget.fullContent;
 		}
 
-		// Try to reconstruct using shared utility if we have page content
-		if (nugget.startContent && nugget.endContent) {
-			return getDisplayContent(nugget, this.pageContent || undefined);
+		// Check if we have enhanced content from UIManager (backward compatibility)
+		if (nugget._fullContent) {
+			return nugget._fullContent;
 		}
 
 		// Fallback for legacy content field (during transition)
@@ -145,49 +140,18 @@ export class Sidebar {
 	 * Prioritizes getting the absolute best/fullest content available for feedback storage
 	 */
 	private getFeedbackContent(nugget: EnhancedGoldenNugget): string {
+		// With fullContent migration, nuggets have complete content available
+		if (nugget.fullContent) {
+			return nugget.fullContent;
+		}
+
 		// Strategy 1: Check if we have enhanced full content from UIManager
 		if (nugget._fullContent) {
 			return nugget._fullContent;
 		}
 
-		// Strategy 2: Try to reconstruct using page content with more aggressive approach
-		if (nugget.startContent && nugget.endContent && this.pageContent) {
-			const reconstructed = getDisplayContent(nugget, this.pageContent);
-			// For feedback, accept any reconstructed content that's longer than just start+end
-			if (
-				reconstructed &&
-				reconstructed !== `${nugget.startContent}...${nugget.endContent}`
-			) {
-				return reconstructed;
-			}
-
-			// Try the full reconstruction method directly with more tolerance
-			const fullReconstructed = reconstructFullContent(
-				nugget,
-				this.pageContent,
-			);
-			if (
-				fullReconstructed &&
-				fullReconstructed.length >
-					nugget.startContent.length + nugget.endContent.length
-			) {
-				return fullReconstructed;
-			}
-		}
-
-		// Strategy 3: Use legacy content field if available and longer
-		if (
-			nugget.content &&
-			nugget.content.length >
-				(nugget.startContent?.length || 0) + (nugget.endContent?.length || 0)
-		) {
-			return nugget.content;
-		}
-
-		// Strategy 4: Fallback to start...end (but this is what we want to avoid)
-		return nugget.startContent && nugget.endContent
-			? `${nugget.startContent}...${nugget.endContent}`
-			: nugget.content || "";
+		// Fallback for legacy content field (during transition)
+		return nugget.content || "";
 	}
 
 	show(

@@ -20,6 +20,9 @@ importers:
       '@langchain/openai':
         specifier: ^0.6.3
         version: 0.6.3(@langchain/core@0.3.66(openai@5.11.0(ws@8.18.3)(zod@4.0.14)))(ws@8.18.3)
+      '@leeoniya/ufuzzy':
+        specifier: ^1.0.19
+        version: 1.0.19
       '@mozilla/readability':
         specifier: ^0.6.0
         version: 0.6.0
@@ -1076,6 +1079,9 @@ packages:
     engines: {node: '>=18'}
     peerDependencies:
       '@langchain/core': '>=0.2.21 <0.4.0'
+
+  '@leeoniya/ufuzzy@1.0.19':
+    resolution: {integrity: sha512-0pikDeYt0IHEUPza5RTCDXc/17S1pTrYnReEMp8Aa6k1ovzw5QdZLwicW8TjljwEZRb6oYag0xmALohrcq/yOQ==}
 
   '@mozilla/readability@0.6.0':
     resolution: {integrity: sha512-juG5VWh4qAivzTAeMzvY9xs9HY5rAcr2E4I7tiSSCokRFi7XIZCAu92ZkSTsIj1OPceCifL3cpfteP3pDT9/QQ==}
@@ -4472,6 +4478,8 @@ snapshots:
       weaviate-client: 3.8.0
     transitivePeerDependencies:
       - encoding
+
+  '@leeoniya/ufuzzy@1.0.19': {}
 
   '@mozilla/readability@0.6.0': {}
 

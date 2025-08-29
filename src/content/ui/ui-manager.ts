@@ -1,5 +1,4 @@
 import type { Content, ContentScraper } from "threads-harvester";
-import { getDisplayContent } from "../../shared/content-reconstruction";
 import {
 	borderRadius,
 	colors,
@@ -146,21 +145,14 @@ export class UIManager {
 		// Clear any existing highlights and sidebar
 		measureDOMOperation("clear_results", () => this.clearResults());
 
-		// Enhance nuggets with reconstructed full content if page content is available
-		const enhancedNuggets = nuggets.map((nugget) => {
-			if (pageContent) {
-				const fullContent = getDisplayContent(nugget, pageContent);
-				// Create an enhanced nugget with full content for display
-				return {
-					...nugget,
-					_fullContent: fullContent,
-					_hasReconstructedContent:
-						fullContent.length >
-						nugget.startContent.length + nugget.endContent.length + 10,
-				};
-			}
-			return nugget;
-		});
+		// With fullContent migration, nuggets already contain complete content
+		// No need for reconstruction - fullContent is directly available
+		const enhancedNuggets = nuggets.map((nugget) => ({
+			...nugget,
+			// For backward compatibility, add _fullContent alias
+			_fullContent: nugget.fullContent,
+			_hasReconstructedContent: true, // Always true with fullContent migration
+		}));
 
 		console.log("[UIManager] Enhanced nuggets:", {
 			enhancedNuggetsLength: enhancedNuggets.length,
@@ -180,13 +172,13 @@ export class UIManager {
 					`[UIManager] Processing nugget ${i + 1}/${enhancedNuggets.length}:`,
 					{
 						type: nugget.type,
-						startContent: `${nugget.startContent?.substring(0, 50)}...`,
-						endContent: `${nugget.endContent?.substring(0, 50)}...`,
+						fullContent: `${nugget.fullContent?.substring(0, 100)}...`,
+						contentLength: nugget.fullContent?.length || 0,
 					},
 				);
 
 				const highlighted = await measureHighlighting("nugget_highlight", () =>
-					this.highlighter.highlightNugget(originalNugget, pageContent),
+					this.highlighter.highlightNugget(originalNugget),
 				);
 				sidebarItems.push({
 					nugget: nugget, // Enhanced nugget already matches GoldenNugget type
@@ -1744,13 +1736,18 @@ export class UIManager {
 			const content = item.textContent || item.htmlContent || "";
 
 			if (content.trim()) {
+				// Generate startContent and endContent from fullContent for backend compatibility
+				const trimmedContent = content.trim();
+				const startContent = trimmedContent.substring(0, 100);
+				const endContent =
+					trimmedContent.length > 100
+						? trimmedContent.substring(trimmedContent.length - 100)
+						: trimmedContent;
+
 				missingContentFeedback.push({
 					id: feedbackId,
-					startContent: content.substring(0, 100), // First 100 chars
-					endContent:
-						content.length > 100
-							? content.substring(content.length - 100)
-							: content, // Last 100 chars
+					startContent,
+					endContent,
 					suggestedType: selectedType,
 					timestamp: Date.now(),
 					url: window.location.href,

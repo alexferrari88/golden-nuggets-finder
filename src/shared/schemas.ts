@@ -28,19 +28,20 @@ export const GOLDEN_NUGGET_SCHEMA = {
 						description: "The category of the extracted golden nugget.",
 						enum: ["tool", "media", "aha! moments", "analogy", "model"],
 					},
-					startContent: {
+					fullContent: {
 						type: "string",
 						description:
-							"The first few words (max 5) of the original content verbatim, without any changes to wording or symbols.",
+							"Complete verbatim text of the golden nugget from the original content",
 					},
-					endContent: {
-						type: "string",
-						description:
-							"The last few words (max 5) of the original content verbatim, without any changes to wording or symbols.",
+					confidence: {
+						type: "number",
+						description: "Confidence score from 0.0 to 1.0 for this extraction",
+						minimum: 0.0,
+						maximum: 1.0,
 					},
 				},
-				required: ["type", "startContent", "endContent"],
-				propertyOrdering: ["type", "startContent", "endContent"],
+				required: ["type", "fullContent", "confidence"],
+				propertyOrdering: ["type", "fullContent", "confidence"],
 			},
 		},
 	},
@@ -48,27 +49,28 @@ export const GOLDEN_NUGGET_SCHEMA = {
 	propertyOrdering: ["golden_nuggets"],
 };
 
-export function generateGoldenNuggetSchema(selectedTypes: GoldenNuggetType[]) {
+export function generateFullContentSchema(selectedTypes: GoldenNuggetType[]) {
 	const properties: Record<string, any> = {
 		type: {
 			type: "string",
 			description: "The category of the extracted golden nugget.",
 			enum: selectedTypes.length > 0 ? selectedTypes : ALL_NUGGET_TYPES,
 		},
-		startContent: {
+		fullContent: {
 			type: "string",
 			description:
-				"The first few words (max 5) of the original content verbatim, without any changes to wording or symbols.",
+				"Complete verbatim text of the golden nugget from the original content",
 		},
-		endContent: {
-			type: "string",
-			description:
-				"The last few words (max 5) of the original content verbatim, without any changes to wording or symbols.",
+		confidence: {
+			type: "number",
+			description: "Confidence score from 0.0 to 1.0 for this extraction",
+			minimum: 0.0,
+			maximum: 1.0,
 		},
 	};
 
-	const required = ["type", "startContent", "endContent"];
-	const propertyOrdering = ["type", "startContent", "endContent"];
+	const required = ["type", "fullContent", "confidence"];
+	const propertyOrdering = ["type", "fullContent", "confidence"];
 
 	return {
 		type: "object",
@@ -88,6 +90,11 @@ export function generateGoldenNuggetSchema(selectedTypes: GoldenNuggetType[]) {
 		required: ["golden_nuggets"],
 		propertyOrdering: ["golden_nuggets"],
 	};
+}
+
+// Legacy function name for backward compatibility
+export function generateGoldenNuggetSchema(selectedTypes: GoldenNuggetType[]) {
+	return generateFullContentSchema(selectedTypes);
 }
 
 // Phase 1: High Recall Schema with fullContent and confidence
@@ -175,102 +182,6 @@ export function generatePhase1HighRecallSchema(
 	};
 }
 
-// Phase 2: High Precision Schema for boundary detection
-export const PHASE_2_HIGH_PRECISION_SCHEMA = {
-	type: "object",
-	properties: {
-		golden_nuggets: {
-			type: "array",
-			description:
-				"An array of golden nuggets with precise start and end boundaries.",
-			minItems: 0,
-			items: {
-				type: "object",
-				properties: {
-					type: {
-						type: "string",
-						description: "The category of the extracted golden nugget.",
-						enum: ["tool", "media", "aha! moments", "analogy", "model"],
-					},
-					startContent: {
-						type: "string",
-						description:
-							"The first few words (max 5) of the original content verbatim, without any changes to wording or symbols.",
-					},
-					endContent: {
-						type: "string",
-						description:
-							"The last few words (max 5) of the original content verbatim, without any changes to wording or symbols.",
-					},
-					confidence: {
-						type: "number",
-						description:
-							"Confidence score for this boundary detection, from 0.0 to 1.0.",
-						minimum: 0,
-						maximum: 1,
-					},
-				},
-				required: ["type", "startContent", "endContent", "confidence"],
-				propertyOrdering: ["type", "startContent", "endContent", "confidence"],
-			},
-		},
-	},
-	required: ["golden_nuggets"],
-	propertyOrdering: ["golden_nuggets"],
-};
-
-export function generatePhase2HighPrecisionSchema(
-	selectedTypes: GoldenNuggetType[],
-) {
-	const properties: Record<string, any> = {
-		type: {
-			type: "string",
-			description: "The category of the extracted golden nugget.",
-			enum: selectedTypes.length > 0 ? selectedTypes : ALL_NUGGET_TYPES,
-		},
-		startContent: {
-			type: "string",
-			description:
-				"The first few words (max 5) of the original content verbatim, without any changes to wording or symbols.",
-		},
-		endContent: {
-			type: "string",
-			description:
-				"The last few words (max 5) of the original content verbatim, without any changes to wording or symbols.",
-		},
-		confidence: {
-			type: "number",
-			description:
-				"Confidence score for this boundary detection, from 0.0 to 1.0.",
-			minimum: 0,
-			maximum: 1,
-		},
-	};
-
-	const required = ["type", "startContent", "endContent", "confidence"];
-	const propertyOrdering = ["type", "startContent", "endContent", "confidence"];
-
-	return {
-		type: "object",
-		properties: {
-			golden_nuggets: {
-				type: "array",
-				description:
-					"An array of golden nuggets with precise start and end boundaries.",
-				minItems: 0,
-				items: {
-					type: "object",
-					properties,
-					required,
-					propertyOrdering,
-				},
-			},
-		},
-		required: ["golden_nuggets"],
-		propertyOrdering: ["golden_nuggets"],
-	};
-}
-
 // Gemini-specific schema functions using Gemini's uppercase type format
 
 /**
@@ -309,62 +220,6 @@ export function generateGeminiPhase1HighRecallSchema(
 				type: "ARRAY",
 				description:
 					"An array of extracted golden nuggets with full content and confidence scores.",
-				minItems: 0,
-				items: {
-					type: "OBJECT",
-					properties,
-					required,
-					propertyOrdering,
-				},
-			},
-		},
-		required: ["golden_nuggets"],
-		propertyOrdering: ["golden_nuggets"],
-	};
-}
-
-/**
- * Generate Gemini-specific Phase 2 schema for high precision boundary detection
- * Uses Gemini's structured output format with uppercase types (STRING, OBJECT, etc.)
- */
-export function generateGeminiPhase2HighPrecisionSchema(
-	selectedTypes: GoldenNuggetType[],
-) {
-	const properties: Record<string, any> = {
-		type: {
-			type: "STRING",
-			description: "The category of the extracted golden nugget.",
-			enum: selectedTypes.length > 0 ? selectedTypes : ALL_NUGGET_TYPES,
-		},
-		startContent: {
-			type: "STRING",
-			description:
-				"The first few words (max 5) of the original content verbatim, without any changes to wording or symbols.",
-		},
-		endContent: {
-			type: "STRING",
-			description:
-				"The last few words (max 5) of the original content verbatim, without any changes to wording or symbols.",
-		},
-		confidence: {
-			type: "NUMBER",
-			description:
-				"Confidence score for this boundary detection, from 0.0 to 1.0.",
-			minimum: 0,
-			maximum: 1,
-		},
-	};
-
-	const required = ["type", "startContent", "endContent", "confidence"];
-	const propertyOrdering = ["type", "startContent", "endContent", "confidence"];
-
-	return {
-		type: "OBJECT",
-		properties: {
-			golden_nuggets: {
-				type: "ARRAY",
-				description:
-					"An array of golden nuggets with precise start and end boundaries.",
 				minItems: 0,
 				items: {
 					type: "OBJECT",
