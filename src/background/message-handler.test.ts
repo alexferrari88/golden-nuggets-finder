@@ -125,8 +125,12 @@ describe("MessageHandler", () => {
 			providerId: "gemini",
 			modelName: "gemini-2.5-flash",
 			extractGoldenNuggets: vi.fn().mockResolvedValue(mockResponse),
-			extractPhase1HighRecall: vi.fn().mockResolvedValue({ golden_nuggets: [] }),
-			extractPhase2HighPrecision: vi.fn().mockResolvedValue({ golden_nuggets: [] }),
+			extractPhase1HighRecall: vi
+				.fn()
+				.mockResolvedValue({ golden_nuggets: [] }),
+			extractPhase2HighPrecision: vi
+				.fn()
+				.mockResolvedValue({ golden_nuggets: [] }),
 			validateApiKey: vi.fn().mockResolvedValue(true),
 		};
 		(
@@ -155,8 +159,12 @@ describe("MessageHandler", () => {
 			providerId: "gemini",
 			modelName: "gemini-2.5-flash",
 			extractGoldenNuggets: vi.fn().mockResolvedValue(mockResponseAfterClear),
-			extractPhase1HighRecall: vi.fn().mockResolvedValue({ golden_nuggets: [] }),
-			extractPhase2HighPrecision: vi.fn().mockResolvedValue({ golden_nuggets: [] }),
+			extractPhase1HighRecall: vi
+				.fn()
+				.mockResolvedValue({ golden_nuggets: [] }),
+			extractPhase2HighPrecision: vi
+				.fn()
+				.mockResolvedValue({ golden_nuggets: [] }),
 			validateApiKey: vi.fn().mockResolvedValue(true),
 		};
 

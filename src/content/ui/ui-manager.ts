@@ -17,7 +17,7 @@ import { ALL_NUGGET_TYPES, type GoldenNuggetType } from "../../shared/schemas";
 import { storage } from "../../shared/storage";
 import {
 	type AnalysisProgressMessage,
-	type GoldenNugget,
+	type EnhancedGoldenNugget,
 	MESSAGE_TYPES,
 	type MissingContentFeedback,
 	type ProviderId,
@@ -122,12 +122,17 @@ export class UIManager {
 	}
 
 	async displayResults(
-		nuggets: GoldenNugget[],
+		nuggets: EnhancedGoldenNugget[],
 		pageContent?: string,
 		providerMetadata?: {
 			providerId: ProviderId;
 			modelName: string;
 			responseTime: number;
+		},
+		extractionMetadata?: {
+			extractionMode?: "standard" | "two-phase" | "ensemble";
+			totalProcessingTime?: number;
+			[key: string]: any; // Allow for additional extraction-specific metadata
 		},
 	): Promise<void> {
 		console.log("[UIManager] displayResults called with:", {
@@ -215,6 +220,7 @@ export class UIManager {
 				this.highlighter,
 				pageContent,
 				providerMetadata,
+				extractionMetadata,
 			),
 		);
 

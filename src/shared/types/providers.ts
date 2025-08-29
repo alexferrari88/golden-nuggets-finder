@@ -97,6 +97,45 @@ export interface GoldenNuggetsResponse {
 	}>;
 }
 
+// Enhanced response format that preserves metadata from advanced extraction modes
+export interface EnhancedGoldenNuggetsResponse {
+	golden_nuggets: Array<{
+		type: "tool" | "media" | "aha! moments" | "analogy" | "model";
+		startContent: string;
+		endContent: string;
+		// Optional metadata from advanced extraction modes
+		confidence?: number;
+		extractionMethod?: "standard" | "fuzzy" | "llm" | "ensemble";
+		// Ensemble-specific metadata
+		runsSupportingThis?: number;
+		totalRuns?: number;
+		similarityMethod?: "embedding" | "word_overlap" | "fallback";
+	}>;
+	// Optional metadata about the extraction process
+	metadata?: {
+		// Two-phase metadata
+		phase1Count?: number;
+		phase1FilteredCount?: number;
+		phase2FuzzyCount?: number;
+		phase2LlmCount?: number;
+		confidenceThreshold?: number;
+		abortedDueToLowConfidence?: boolean;
+		noNuggetsPassed?: boolean;
+		// Ensemble metadata
+		totalRuns?: number;
+		successfulRuns?: number;
+		consensusReached?: number;
+		duplicatesRemoved?: number;
+		averageResponseTime?: number;
+		embeddingGenerationTime?: number;
+		embeddingCacheHits?: number;
+		similarityMethod?: "embedding" | "hybrid" | "word_overlap_only";
+		// General metadata
+		totalProcessingTime?: number;
+		extractionMode?: "standard" | "two-phase" | "ensemble";
+	};
+}
+
 // Phase 1 response format with fullContent and confidence
 export interface Phase1Response {
 	golden_nuggets: Array<{

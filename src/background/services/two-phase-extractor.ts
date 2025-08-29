@@ -35,6 +35,7 @@ export interface TwoPhaseExtractionResult {
 		totalProcessingTime: number;
 		confidenceThreshold: number;
 		abortedDueToLowConfidence?: boolean;
+		noNuggetsPassed?: boolean;
 	};
 }
 
@@ -131,27 +132,34 @@ export class TwoPhaseExtractor {
 				phase1Result.golden_nuggets.map((n) => n.confidence),
 			);
 
-			// Check for abort condition (too many low confidence nuggets)
+			// Check confidence quality for user feedback
 			const lowConfidenceRatio =
 				1 -
 				filteredNuggets.length /
 					Math.max(phase1Result.golden_nuggets.length, 1);
 
 			debugLogger.log(
-				`[TwoPhase] Abort check: lowConfidenceRatio=${lowConfidenceRatio.toFixed(3)}, threshold=0.6, phase1Count=${phase1Result.golden_nuggets.length}, filteredCount=${filteredNuggets.length}`,
+				`[TwoPhase] Quality check: lowConfidenceRatio=${lowConfidenceRatio.toFixed(3)}, phase1Count=${phase1Result.golden_nuggets.length}, filteredCount=${filteredNuggets.length}`,
 			);
 
 			if (lowConfidenceRatio > 0.6 && phase1Result.golden_nuggets.length > 0) {
-				// More than 60% of nuggets have low confidence - abort
+				// Many nuggets were filtered out due to low confidence - log warning but continue
 				console.log(
-					`Aborting extraction: ${Math.round(lowConfidenceRatio * 100)}% of nuggets have confidence < ${opts.confidenceThreshold}`,
+					`Quality Warning: ${Math.round(lowConfidenceRatio * 100)}% of nuggets had confidence < ${opts.confidenceThreshold}. Continuing with ${filteredNuggets.length} high-confidence nuggets.`,
 				);
 				debugLogger.log(
-					`[TwoPhase] ❌ ABORT: Returning empty results due to low confidence ratio`,
+					`[TwoPhase] ⚠️  WARNING: Low overall confidence, but proceeding with ${filteredNuggets.length} valid nuggets`,
 				);
+			}
 
+			// Check if we have any nuggets left to process
+			if (filteredNuggets.length === 0) {
+				// No nuggets met the confidence threshold
+				console.log(
+					`No nuggets met confidence threshold ${opts.confidenceThreshold}. Consider lowering the threshold.`,
+				);
 				debugLogger.log(
-					`[TwoPhase] ❌ ABORT: This is likely the issue - returning empty golden_nuggets array`,
+					`[TwoPhase] ❌ No nuggets passed confidence filtering - returning empty results`,
 				);
 
 				return {
@@ -163,7 +171,8 @@ export class TwoPhaseExtractor {
 						phase2LlmCount: 0,
 						totalProcessingTime: performance.now() - startTime,
 						confidenceThreshold: opts.confidenceThreshold,
-						abortedDueToLowConfidence: true,
+						abortedDueToLowConfidence: false,
+						noNuggetsPassed: true,
 					},
 				};
 			}
@@ -203,6 +212,7 @@ export class TwoPhaseExtractor {
 					phase2LlmCount: phase2Result.llmMatched.length,
 					totalProcessingTime,
 					confidenceThreshold: opts.confidenceThreshold,
+					abortedDueToLowConfidence: false,
 				},
 			};
 		} catch (error) {

@@ -19,7 +19,7 @@ import {
 	type TypeFilterOptions,
 } from "../shared/types";
 import type {
-	GoldenNuggetsResponse,
+	EnhancedGoldenNuggetsResponse,
 	ProviderConfig,
 	ProviderId,
 } from "../shared/types/providers";
@@ -620,7 +620,7 @@ export class MessageHandler {
 		useEnsemble = false,
 		ensembleRuns?: number,
 		useTwoPhase = false,
-	): Promise<GoldenNuggetsResponse> {
+	): Promise<EnhancedGoldenNuggetsResponse> {
 		let currentProviderId: ProviderId | null = null;
 		let attempts = 0;
 		const maxAttempts = 2; // Limit to 2 attempts to prevent infinite loops
@@ -666,7 +666,7 @@ export class MessageHandler {
 
 					// Extract golden nuggets
 					const startTime = performance.now();
-					let normalizedResponse: GoldenNuggetsResponse;
+					let normalizedResponse: EnhancedGoldenNuggetsResponse;
 
 					if (useTwoPhase) {
 						// Use two-phase extraction
@@ -684,13 +684,19 @@ export class MessageHandler {
 							},
 						);
 
-						// Convert two-phase result to standard response format
+						// Convert two-phase result to enhanced response format (preserving metadata)
 						normalizedResponse = {
 							golden_nuggets: twoPhaseResult.golden_nuggets.map((nugget) => ({
 								type: nugget.type,
 								startContent: nugget.startContent,
 								endContent: nugget.endContent,
+								confidence: nugget.confidence,
+								extractionMethod: nugget.extractionMethod,
 							})),
+							metadata: {
+								...twoPhaseResult.metadata,
+								extractionMode: "two-phase",
+							},
 						};
 
 						debugLogger.log(`[TwoPhase] Final normalized response:`, {
@@ -716,7 +722,7 @@ export class MessageHandler {
 							},
 						);
 
-						// Convert ensemble result to standard response format
+						// Convert ensemble result to enhanced response format (preserving metadata)
 						normalizedResponse = {
 							golden_nuggets: ensembleResult.golden_nuggets.map((nugget) => ({
 								type: nugget.type as
@@ -727,7 +733,16 @@ export class MessageHandler {
 									| "model",
 								startContent: nugget.startContent,
 								endContent: nugget.endContent,
+								confidence: nugget.confidence,
+								extractionMethod: "ensemble",
+								runsSupportingThis: nugget.runsSupportingThis,
+								totalRuns: nugget.totalRuns,
+								similarityMethod: nugget.similarityMethod,
 							})),
+							metadata: {
+								...ensembleResult.metadata,
+								extractionMode: "ensemble",
+							},
 						};
 
 						console.log(
@@ -740,11 +755,23 @@ export class MessageHandler {
 							prompt,
 						);
 
-						// Normalize response
-						normalizedResponse = normalizeResponse(
+						// Normalize response and convert to enhanced format
+						const standardResponse = normalizeResponse(
 							rawResponse,
 							providerConfig.providerId,
 						);
+
+						// Convert to enhanced format for consistency with other extraction modes
+						normalizedResponse = {
+							golden_nuggets: standardResponse.golden_nuggets.map((nugget) => ({
+								...nugget,
+								extractionMethod: "standard",
+							})),
+							metadata: {
+								extractionMode: "standard",
+								totalProcessingTime: performance.now() - startTime,
+							},
+						};
 					}
 
 					const responseTime = performance.now() - startTime;

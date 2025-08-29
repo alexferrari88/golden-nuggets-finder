@@ -10,6 +10,17 @@ export interface GoldenNugget {
 	endContent: string;
 }
 
+// Enhanced nugget interface with optional metadata for UI display
+export interface EnhancedGoldenNugget extends GoldenNugget {
+	// Optional metadata from advanced extraction modes
+	confidence?: number;
+	extractionMethod?: "standard" | "fuzzy" | "llm" | "ensemble";
+	// Ensemble-specific metadata
+	runsSupportingThis?: number;
+	totalRuns?: number;
+	similarityMethod?: "embedding" | "word_overlap" | "fallback";
+}
+
 export interface GeminiResponse {
 	golden_nuggets: GoldenNugget[];
 }
@@ -187,6 +198,17 @@ export interface AnalysisResponse {
 		providerId: ProviderId;
 		modelName: string;
 		responseTime: number;
+	};
+	// Optional metadata for two-phase extraction
+	metadata?: {
+		phase1Count: number;
+		phase1FilteredCount: number;
+		phase2FuzzyCount: number;
+		phase2LlmCount: number;
+		totalProcessingTime: number;
+		confidenceThreshold: number;
+		abortedDueToLowConfidence?: boolean;
+		noNuggetsPassed?: boolean;
 	};
 }
 

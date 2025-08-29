@@ -52,6 +52,16 @@ interface AnalysisResults {
 		modelName: string;
 		responseTime: number;
 	};
+	metadata?: {
+		phase1Count: number;
+		phase1FilteredCount: number;
+		phase2FuzzyCount: number;
+		phase2LlmCount: number;
+		totalProcessingTime: number;
+		confidenceThreshold: number;
+		abortedDueToLowConfidence?: boolean;
+		noNuggetsPassed?: boolean;
+	};
 }
 
 interface CustomAnalyzeEvent extends CustomEvent {
@@ -866,18 +876,40 @@ export default defineContentScript({
 				return;
 			}
 
-			// Try multiple possible data structures
+			// Extract nuggets from standardized response format
 			let nuggets: GoldenNugget[] = [];
 			if (Array.isArray(results.golden_nuggets)) {
 				nuggets = results.golden_nuggets;
-			} else if (Array.isArray(results.data?.golden_nuggets)) {
-				nuggets = results.data.golden_nuggets;
-			} else if (Array.isArray(results.nuggets)) {
-				nuggets = results.nuggets;
+			} else {
+				// Fallback for legacy response formats (should be rare after pipeline fixes)
+				console.warn(
+					"[Content Script] Non-standard response format detected, attempting fallback extraction:",
+					{
+						hasDataField: "data" in results,
+						hasNuggetsField: "nuggets" in results,
+						responseStructure: Object.keys(results),
+					},
+				);
+
+				if (Array.isArray(results.data?.golden_nuggets)) {
+					nuggets = results.data.golden_nuggets;
+					console.warn(
+						"[Content Script] Used fallback: results.data.golden_nuggets",
+					);
+				} else if (Array.isArray(results.nuggets)) {
+					nuggets = results.nuggets;
+					console.warn("[Content Script] Used fallback: results.nuggets");
+				} else {
+					console.error(
+						"[Content Script] Could not extract nuggets from response:",
+						results,
+					);
+				}
 			}
 
-			// Extract provider metadata
+			// Extract provider metadata and extraction metadata
 			const providerMetadata = results.providerMetadata || null;
+			const extractionMetadata = results.metadata || null;
 
 			console.log("[Content Script] Nuggets extraction attempt:", {
 				foundStructure: nuggets.length > 0 ? "success" : "failed",
@@ -904,6 +936,7 @@ export default defineContentScript({
 					[],
 					extractedPageContent || undefined,
 					providerMetadata || undefined,
+					extractionMetadata || undefined,
 				);
 				return;
 			}
@@ -918,6 +951,7 @@ export default defineContentScript({
 				nuggets,
 				extractedPageContent || undefined,
 				providerMetadata || undefined,
+				extractionMetadata || undefined,
 			);
 		}
 

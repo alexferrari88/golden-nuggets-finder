@@ -239,10 +239,13 @@ export class SecurityManager {
 					?.map((byte) => parseInt(byte, 16)) || [],
 			);
 			const iv = new Uint8Array(
-				encryptedData.iv.match(/.{1,2}/g)?.map((byte) => parseInt(byte, 16)) || [],
+				encryptedData.iv.match(/.{1,2}/g)?.map((byte) => parseInt(byte, 16)) ||
+					[],
 			);
 			const salt = new Uint8Array(
-				encryptedData.salt.match(/.{1,2}/g)?.map((byte) => parseInt(byte, 16)) || [],
+				encryptedData.salt
+					.match(/.{1,2}/g)
+					?.map((byte) => parseInt(byte, 16)) || [],
 			);
 
 			// Derive decryption key
@@ -323,7 +326,11 @@ export class SecurityManager {
 					);
 				}
 				// Fallback to original error if enhancement fails
-				enhancedError = error as Error & { code?: string; originalError?: Error; canRecover?: boolean };
+				enhancedError = error as Error & {
+					code?: string;
+					originalError?: Error;
+					canRecover?: boolean;
+				};
 			}
 
 			throw enhancedError;

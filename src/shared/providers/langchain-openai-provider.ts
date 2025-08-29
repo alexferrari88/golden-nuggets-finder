@@ -114,7 +114,10 @@ export class LangChainOpenAIProvider implements LLMProvider {
 			});
 			return response.ok; // 200 = valid, 401 = invalid key
 		} catch (error) {
-			console.warn(`OpenAI API key validation failed:`, error instanceof Error ? error.message : String(error));
+			console.warn(
+				`OpenAI API key validation failed:`,
+				error instanceof Error ? error.message : String(error),
+			);
 			return false;
 		}
 	}

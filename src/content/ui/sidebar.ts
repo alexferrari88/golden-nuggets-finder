@@ -27,10 +27,13 @@ import type { Highlighter } from "./highlighter";
 interface EnhancedGoldenNugget extends GoldenNugget {
 	_fullContent?: string; // Enhanced content from UIManager
 	content?: string; // Legacy content field during transition
-	// Ensemble properties (optional)
+	// Enhanced metadata from advanced extraction modes
 	confidence?: number;
+	extractionMethod?: "standard" | "fuzzy" | "llm" | "ensemble";
+	// Ensemble properties (optional)
 	runsSupportingThis?: number;
 	totalRuns?: number;
+	similarityMethod?: "embedding" | "word_overlap" | "fallback";
 }
 
 // Export data structure
@@ -194,6 +197,11 @@ export class Sidebar {
 			providerId: ProviderId;
 			modelName: string;
 			responseTime: number;
+		},
+		_extractionMetadata?: {
+			extractionMode?: "standard" | "two-phase" | "ensemble";
+			totalProcessingTime?: number;
+			[key: string]: any; // Allow for additional extraction-specific metadata
 		},
 	): void {
 		console.log("[Sidebar] show called with:", {
@@ -986,6 +994,86 @@ export class Sidebar {
 			consensusContainer.appendChild(consensusBadge);
 			consensusContainer.appendChild(agreementText);
 			leftContainer.appendChild(consensusContainer);
+		}
+
+		// Two-Phase and general confidence display (for non-ensemble nuggets)
+		if (
+			ensembleNugget.confidence !== undefined &&
+			ensembleNugget.runsSupportingThis === undefined // Not an ensemble nugget
+		) {
+			const confidenceContainer = document.createElement("div");
+			confidenceContainer.style.cssText = `
+        display: flex;
+        align-items: center;
+        gap: ${spacing.xs};
+        margin-left: ${spacing.sm};
+      `;
+
+			// Confidence score badge
+			const confidencePercent = Math.round(ensembleNugget.confidence * 100);
+			let badgeColor = colors.background.tertiary;
+			let textColor = colors.text.secondary;
+
+			// Determine styling based on confidence level
+			if (confidencePercent >= 85) {
+				badgeColor = colors.gray[100];
+				textColor = colors.text.primary;
+			} else if (confidencePercent >= 70) {
+				badgeColor = colors.background.tertiary;
+				textColor = colors.text.secondary;
+			} else {
+				badgeColor = colors.gray[50];
+				textColor = colors.text.tertiary;
+			}
+
+			const confidenceBadge = document.createElement("div");
+			confidenceBadge.textContent = `${confidencePercent}%`;
+			confidenceBadge.style.cssText = `
+        background: ${badgeColor};
+        color: ${textColor};
+        padding: ${spacing.xs} ${spacing.sm};
+        border-radius: ${borderRadius.sm};
+        font-size: ${typography.fontSize.xs};
+        font-weight: ${typography.fontWeight.medium};
+        min-width: 36px;
+        text-align: center;
+      `;
+
+			// Extraction method indicator
+			if (ensembleNugget.extractionMethod) {
+				const methodText = document.createElement("div");
+				let methodLabel = "";
+				switch (ensembleNugget.extractionMethod) {
+					case "standard":
+						methodLabel = "Standard";
+						break;
+					case "fuzzy":
+						methodLabel = "Fuzzy";
+						break;
+					case "llm":
+						methodLabel = "LLM";
+						break;
+					case "ensemble":
+						methodLabel = "Ensemble";
+						break;
+					default:
+						methodLabel = ensembleNugget.extractionMethod;
+				}
+
+				methodText.textContent = methodLabel;
+				methodText.style.cssText = `
+          font-size: ${typography.fontSize.xs};
+          color: ${colors.text.secondary};
+          font-weight: ${typography.fontWeight.medium};
+        `;
+
+				confidenceContainer.appendChild(confidenceBadge);
+				confidenceContainer.appendChild(methodText);
+			} else {
+				confidenceContainer.appendChild(confidenceBadge);
+			}
+
+			leftContainer.appendChild(confidenceContainer);
 		}
 
 		// Selection indicator and status
