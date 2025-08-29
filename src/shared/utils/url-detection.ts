@@ -3,17 +3,26 @@
  */
 
 /**
- * Comprehensive URL pattern that matches various URL formats
+ * Comprehensive URL pattern that matches entire strings that are URLs
  * Supports http/https, with/without www, IP addresses, ports, paths, query params, fragments
+ * Uses anchors (^ and $) to ensure the entire string is a URL, not just contains one
  */
 export const URL_PATTERN =
-	/https?:\/\/(?:www\.)?(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)*[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z]{2,})?(?::\d{1,5})?(?:[/?#][^\s]*)?/i;
+	/^https?:\/\/(?:www\.)?(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)*[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z]{2,})?(?::\d{1,5})?(?:[/?#][^\s]*)?$/i;
 
 /**
  * More relaxed URL pattern for edge cases and partial URLs
+ * Uses anchors (^ and $) to ensure the entire string is a URL, not just contains one
  */
 export const RELAXED_URL_PATTERN =
-	/(?:https?:\/\/)?(?:www\.)?[a-zA-Z0-9][a-zA-Z0-9-]*(?:\.[a-zA-Z0-9][a-zA-Z0-9-]*)*\.[a-zA-Z]{2,}(?:[/?#][^\s]*)*/i;
+	/^(?:https?:\/\/)?(?:www\.)?[a-zA-Z0-9][a-zA-Z0-9-]*(?:\.[a-zA-Z0-9][a-zA-Z0-9-]*)*\.[a-zA-Z]{2,}(?:[/?#][^\s]*)*$/i;
+
+/**
+ * URL pattern for extracting URLs from within text (without anchors)
+ * Used by extractUrl() to find URLs embedded in text
+ */
+export const URL_EXTRACTION_PATTERN =
+	/https?:\/\/(?:www\.)?(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)*[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z]{2,})?(?::\d{1,5})?(?:[/?#][^\s]*)?/i;
 
 /**
  * Interface for parsed URL components
@@ -27,10 +36,10 @@ export interface ParsedUrl {
 }
 
 /**
- * Detects if a string is a URL
+ * Detects if a string is entirely a URL (not text containing a URL)
  * @param text The text to check
  * @param strict Whether to use strict or relaxed pattern matching
- * @returns True if the text appears to be a URL
+ * @returns True if the entire text is a URL (not just contains one)
  */
 export function isUrl(text: string, strict = true): boolean {
 	const pattern = strict ? URL_PATTERN : RELAXED_URL_PATTERN;
@@ -44,8 +53,12 @@ export function isUrl(text: string, strict = true): boolean {
  * @returns The first URL found, or null if none found
  */
 export function extractUrl(text: string, strict = true): string | null {
-	const pattern = strict ? URL_PATTERN : RELAXED_URL_PATTERN;
-	const match = text.match(pattern);
+	// Use extraction pattern (no anchors) to find URLs within text
+	const pattern = strict
+		? URL_EXTRACTION_PATTERN
+		: RELAXED_URL_PATTERN.source.slice(1, -1); // Remove anchors
+	const extractPattern = new RegExp(pattern, "i");
+	const match = text.match(extractPattern);
 	return match ? match[0] : null;
 }
 

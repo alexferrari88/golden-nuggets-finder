@@ -34,6 +34,37 @@ describe("url-detection", () => {
 			expect(isUrl("")).toBe(false);
 		});
 
+		// Critical test case for the reported bug
+		it("rejects text that contains URLs but is not itself a URL", () => {
+			// The exact case from the bug report
+			expect(
+				isUrl(
+					"For reference, this is the https://en.wikipedia.org/wiki/Effect_size",
+				),
+			).toBe(false);
+
+			// Other similar cases
+			expect(isUrl("Check out https://example.com for more info")).toBe(false);
+			expect(isUrl("Visit https://www.google.com today")).toBe(false);
+			expect(isUrl("The link https://github.com/user/repo has the code")).toBe(
+				false,
+			);
+			expect(
+				isUrl(
+					"See https://stackoverflow.com/questions/123 and https://example.org",
+				),
+			).toBe(false);
+		});
+
+		it("handles URLs with whitespace correctly", () => {
+			// Pure URLs with whitespace should still be detected
+			expect(isUrl("  https://example.com  ")).toBe(true);
+			expect(isUrl("\t https://example.com/path \n")).toBe(true);
+
+			// But text with URLs and whitespace should not
+			expect(isUrl("  Check this: https://example.com  ")).toBe(false);
+		});
+
 		it("handles edge cases", () => {
 			expect(isUrl("http://localhost:3000")).toBe(true);
 			expect(isUrl("https://192.168.1.1:8080/path")).toBe(true);
@@ -48,6 +79,21 @@ describe("url-detection", () => {
 			expect(
 				extractUrl("Check out https://www.example.com/path?q=1 today"),
 			).toBe("https://www.example.com/path?q=1");
+		});
+
+		// Test the exact bug case to ensure extractUrl still works
+		it("extracts URLs from the bug report cases", () => {
+			expect(
+				extractUrl(
+					"For reference, this is the https://en.wikipedia.org/wiki/Effect_size",
+				),
+			).toBe("https://en.wikipedia.org/wiki/Effect_size");
+			expect(
+				extractUrl("The link https://github.com/user/repo has the code"),
+			).toBe("https://github.com/user/repo");
+			expect(
+				extractUrl("See https://stackoverflow.com/questions/123 and more info"),
+			).toBe("https://stackoverflow.com/questions/123");
 		});
 
 		it("returns null for text without URLs", () => {
@@ -136,6 +182,50 @@ describe("url-detection", () => {
 			expect(validateBoundaries(result.startContent, result.endContent)).toBe(
 				true,
 			);
+		});
+
+		// Critical test case for the bug fix
+		it("handles text containing URLs without corruption", () => {
+			// The exact case from the bug report
+			const bugCase =
+				"For reference, this is the https://en.wikipedia.org/wiki/Effect_size";
+			const result = generateUrlBoundaries(bugCase);
+
+			// Should NOT have URL encoding or mangling
+			expect(result.startContent).not.toContain("%20");
+			expect(result.endContent).not.toContain("%20");
+			expect(result.startContent).not.toContain("https://for");
+
+			// Should have valid different boundaries
+			expect(validateBoundaries(result.startContent, result.endContent)).toBe(
+				true,
+			);
+
+			// Should be reasonable word-based boundaries from the original text
+			expect(result.startContent.length).toBeGreaterThan(0);
+			expect(result.endContent.length).toBeGreaterThan(0);
+			expect(result.startContent).toMatch(/^[A-Za-z]/);
+		});
+
+		it("generates clean boundaries for mixed content types", () => {
+			const testCases = [
+				"Check out https://example.com for details",
+				"Visit https://www.google.com today",
+				"The article https://en.wikipedia.org/wiki/Test explains it",
+			];
+
+			for (const testCase of testCases) {
+				const result = generateUrlBoundaries(testCase);
+
+				// Should not have URL encoding corruption
+				expect(result.startContent).not.toContain("%20");
+				expect(result.endContent).not.toContain("%20");
+
+				// Should have valid boundaries
+				expect(validateBoundaries(result.startContent, result.endContent)).toBe(
+					true,
+				);
+			}
 		});
 	});
 
