@@ -12,6 +12,8 @@ import { calculateWordSimilarity } from "../../shared/utils/word-similarity";
  * Specialized service for finding exact boundaries of golden nuggets identified in Phase 1.
  */
 
+import { debugLogger } from "../../shared/debug";
+
 export interface Phase1Nugget {
 	type: GoldenNuggetType;
 	fullContent: string;
@@ -54,14 +56,59 @@ export class FuzzyBoundaryMatcher {
 		originalContent: string,
 		phase1Nuggets: Phase1Nugget[],
 	): Phase2NuggetResult[] {
+		debugLogger.log(
+			`[FuzzyMatcher] 🔍 Starting fuzzy boundary matching for ${phase1Nuggets.length} nuggets`,
+			{
+				contentLength: originalContent.length,
+				nuggetsToProcess: phase1Nuggets.map((n) => ({
+					type: n.type,
+					confidence: n.confidence,
+					fullContentLength: n.fullContent.length,
+					fullContentPreview: `${n.fullContent.substring(0, 100)}...`,
+				})),
+				matcherOptions: this.options,
+			},
+		);
+
 		const results: Phase2NuggetResult[] = [];
 
 		for (const nugget of phase1Nuggets) {
 			const result = this.findSingleBoundary(originalContent, nugget);
 			if (result.confidence >= this.options.minConfidenceThreshold) {
 				results.push(result);
+				debugLogger.log(
+					`[FuzzyMatcher] ✅ Nugget matched: ${result.matchMethod} (confidence: ${result.confidence})`,
+					{
+						type: nugget.type,
+						matchMethod: result.matchMethod,
+						confidence: result.confidence,
+						threshold: this.options.minConfidenceThreshold,
+						startContent: `${result.startContent?.substring(0, 50)}...`,
+						endContent: result.endContent?.substring(-50),
+					},
+				);
+			} else {
+				debugLogger.log(
+					`[FuzzyMatcher] ❌ Nugget below threshold: ${result.matchMethod} (confidence: ${result.confidence} < ${this.options.minConfidenceThreshold})`,
+					{
+						type: nugget.type,
+						matchMethod: result.matchMethod,
+						confidence: result.confidence,
+						threshold: this.options.minConfidenceThreshold,
+					},
+				);
 			}
 		}
+
+		debugLogger.log(
+			`[FuzzyMatcher] 🏁 Fuzzy matching complete: ${results.length}/${phase1Nuggets.length} nuggets matched`,
+			{
+				totalProcessed: phase1Nuggets.length,
+				successfulMatches: results.length,
+				matchMethods: results.map((r) => r.matchMethod),
+				confidenceScores: results.map((r) => r.confidence),
+			},
+		);
 
 		return results;
 	}
@@ -73,14 +120,37 @@ export class FuzzyBoundaryMatcher {
 		originalContent: string,
 		nugget: Phase1Nugget,
 	): Phase2NuggetResult {
+		debugLogger.log(
+			`[FuzzyMatcher] 🎯 Processing single nugget: ${nugget.type}`,
+			{
+				type: nugget.type,
+				confidence: nugget.confidence,
+				fullContentLength: nugget.fullContent.length,
+				fullContentPreview: `${nugget.fullContent.substring(0, 200)}...`,
+			},
+		);
+
 		// Try exact match first
 		const exactResult = this.tryExactMatch(originalContent, nugget);
 		if (exactResult.confidence >= this.options.minConfidenceThreshold) {
+			debugLogger.log(
+				`[FuzzyMatcher] ✅ Exact match succeeded for ${nugget.type}`,
+				{
+					confidence: exactResult.confidence,
+					threshold: this.options.minConfidenceThreshold,
+				},
+			);
 			return exactResult;
 		}
 
 		// Try fuzzy match if exact match fails
+		debugLogger.log(
+			`[FuzzyMatcher] 🔄 Exact match failed (confidence: ${exactResult.confidence}), trying fuzzy match for ${nugget.type}`,
+		);
 		const fuzzyResult = this.tryFuzzyMatch(originalContent, nugget);
+		debugLogger.log(
+			`[FuzzyMatcher] 🎯 Fuzzy match result for ${nugget.type}: ${fuzzyResult.matchMethod} (confidence: ${fuzzyResult.confidence})`,
+		);
 		return fuzzyResult;
 	}
 

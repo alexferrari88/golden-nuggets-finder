@@ -113,7 +113,7 @@ export class TwoPhaseExtractor {
 			);
 			debugLogger.log(
 				`[TwoPhase] Phase 1 raw nuggets:`,
-				JSON.stringify(phase1Result.golden_nuggets.slice(0, 3), null, 2),
+				JSON.stringify(phase1Result.golden_nuggets, null, 2),
 			);
 
 			// Filter by confidence threshold
@@ -126,7 +126,7 @@ export class TwoPhaseExtractor {
 			);
 			debugLogger.log(
 				`[TwoPhase] Filtered nuggets:`,
-				JSON.stringify(filteredNuggets.slice(0, 2), null, 2),
+				JSON.stringify(filteredNuggets, null, 2),
 			);
 			debugLogger.log(
 				`[TwoPhase] Confidence scores:`,
@@ -301,6 +301,15 @@ export class TwoPhaseExtractor {
 		fuzzyMatched: Phase2NuggetResult[];
 		llmMatched: Phase2NuggetResult[];
 	}> {
+		debugLogger.log(
+			`[TwoPhase] 🎯 Phase 2: Starting boundary detection for ${phase1Nuggets.length} nuggets`,
+			{
+				nuggetCount: phase1Nuggets.length,
+				nuggetTypes: phase1Nuggets.map((n) => n.type),
+				confidenceScores: phase1Nuggets.map((n) => n.confidence),
+			},
+		);
+
 		// Step 1: Try fuzzy matching for boundary detection
 		const fuzzyResults = this.fuzzyMatcher.findBoundaries(
 			originalContent,
@@ -309,6 +318,20 @@ export class TwoPhaseExtractor {
 
 		console.log(
 			`Fuzzy matching found boundaries for ${fuzzyResults.length} nuggets`,
+		);
+		debugLogger.log(
+			`[TwoPhase] 🔍 Fuzzy matching results: ${fuzzyResults.length} nuggets matched`,
+			{
+				matchedCount: fuzzyResults.length,
+				matchedNuggets: fuzzyResults.map((r) => ({
+					type: r.type,
+					matchMethod: r.matchMethod,
+					confidence: r.confidence,
+					startContent: `${r.startContent?.substring(0, 50)}...`,
+					endContent: r.endContent?.substring(-50),
+				})),
+				fuzzyOptions: options.fuzzyMatchOptions,
+			},
 		);
 
 		// Step 2: Get nuggets that couldn't be matched with fuzzy search
@@ -319,6 +342,17 @@ export class TwoPhaseExtractor {
 
 		console.log(
 			`${unmatchedNuggets.length} nuggets need LLM boundary detection`,
+		);
+		debugLogger.log(
+			`[TwoPhase] ⚡ Unmatched nuggets requiring LLM processing: ${unmatchedNuggets.length}`,
+			{
+				unmatchedCount: unmatchedNuggets.length,
+				unmatchedNuggets: unmatchedNuggets.map((n) => ({
+					type: n.type,
+					confidence: n.confidence,
+					fullContentPreview: `${n.fullContent.substring(0, 100)}...`,
+				})),
+			},
 		);
 
 		let llmResults: Phase2NuggetResult[] = [];
@@ -331,7 +365,23 @@ export class TwoPhaseExtractor {
 				provider,
 				options.phase2Temperature,
 			);
+		} else {
+			debugLogger.log(
+				`[TwoPhase] ✅ All nuggets matched via fuzzy matching - no LLM processing needed`,
+			);
 		}
+
+		debugLogger.log(
+			`[TwoPhase] 🏁 Phase 2 complete: ${fuzzyResults.length} fuzzy + ${llmResults.length} LLM = ${fuzzyResults.length + llmResults.length} total matches`,
+			{
+				phase2Summary: {
+					totalInput: phase1Nuggets.length,
+					fuzzyMatched: fuzzyResults.length,
+					llmMatched: llmResults.length,
+					totalMatched: fuzzyResults.length + llmResults.length,
+				},
+			},
+		);
 
 		return {
 			fuzzyMatched: fuzzyResults,
@@ -348,6 +398,20 @@ export class TwoPhaseExtractor {
 		provider: LLMProvider,
 		temperature: number,
 	): Promise<Phase2NuggetResult[]> {
+		debugLogger.log(
+			`[TwoPhase] 🤖 LLM boundary detection starting for ${unmatchedNuggets.length} nuggets`,
+			{
+				temperature: temperature,
+				contentLength: originalContent.length,
+				inputNuggets: unmatchedNuggets.map((n) => ({
+					type: n.type,
+					confidence: n.confidence,
+					fullContentLength: n.fullContent.length,
+					fullContentPreview: `${n.fullContent.substring(0, 150)}...`,
+				})),
+			},
+		);
+
 		try {
 			// NOW USING THE CORRECT PHASE 2 METHOD
 			const rawResponse = await provider.extractPhase2HighPrecision(
@@ -360,30 +424,67 @@ export class TwoPhaseExtractor {
 			debugLogger.log(
 				`[TwoPhase] ✅ Now using proper Phase 2 method with real confidence scores`,
 			);
-			debugLogger.log(`[TwoPhase] Phase 2 LLM boundary detection response:`, {
+			debugLogger.log(`[TwoPhase] 🤖 LLM boundary detection raw response:`, {
 				nuggetCount: rawResponse.golden_nuggets.length,
+				allNuggets: rawResponse.golden_nuggets.map((n) => ({
+					type: n.type,
+					confidence: n.confidence,
+					startContent: `${n.startContent?.substring(0, 50)}...`,
+					endContent: n.endContent?.substring(-50),
+					hasStartContent: !!n.startContent,
+					hasEndContent: !!n.endContent,
+				})),
 				confidenceScores: rawResponse.golden_nuggets.map((n) => n.confidence),
 			});
 
 			// Convert response to Phase2NuggetResult format, preserving original fullContent
-			return rawResponse.golden_nuggets.map((nugget, index) => {
-				// Find corresponding original nugget to preserve fullContent
-				const originalNugget =
-					unmatchedNuggets[index] ||
-					unmatchedNuggets.find((n) => n.type === nugget.type);
-				const fullContent = originalNugget?.fullContent || "";
+			const processedResults = rawResponse.golden_nuggets.map(
+				(nugget, index) => {
+					// Find corresponding original nugget to preserve fullContent
+					const originalNugget =
+						unmatchedNuggets[index] ||
+						unmatchedNuggets.find((n) => n.type === nugget.type);
+					const fullContent = originalNugget?.fullContent || "";
 
-				return {
-					type: nugget.type as GoldenNuggetType,
-					startContent: nugget.startContent,
-					endContent: nugget.endContent,
-					fullContent: fullContent, // Preserve the perfect Phase 1 fullContent
-					confidence: nugget.confidence, // Use actual LLM-provided confidence
-					matchMethod: "llm" as const,
-				};
-			});
+					return {
+						type: nugget.type as GoldenNuggetType,
+						startContent: nugget.startContent,
+						endContent: nugget.endContent,
+						fullContent: fullContent, // Preserve the perfect Phase 1 fullContent
+						confidence: nugget.confidence, // Use actual LLM-provided confidence
+						matchMethod: "llm" as const,
+					};
+				},
+			);
+
+			debugLogger.log(
+				`[TwoPhase] 🎯 LLM boundary detection complete: ${processedResults.length} nuggets processed`,
+				{
+					processedCount: processedResults.length,
+					processedResults: processedResults.map((r) => ({
+						type: r.type,
+						confidence: r.confidence,
+						matchMethod: r.matchMethod,
+						boundariesFound: !!(r.startContent && r.endContent),
+						startPreview: `${r.startContent?.substring(0, 30)}...`,
+						endPreview: r.endContent?.substring(-30),
+					})),
+				},
+			);
+
+			return processedResults;
 		} catch (error) {
 			console.error("LLM boundary detection failed:", error);
+			const errorMessage =
+				error instanceof Error ? error.message : String(error);
+			debugLogger.log(
+				`[TwoPhase] ❌ LLM boundary detection failed: ${errorMessage}`,
+				{
+					error: errorMessage,
+					inputNuggetCount: unmatchedNuggets.length,
+					provider: provider.providerId,
+				},
+			);
 			// Return empty results rather than throwing
 			return [];
 		}
