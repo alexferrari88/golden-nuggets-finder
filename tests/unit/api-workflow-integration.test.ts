@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { GeminiClient } from "../../src/background/gemini-client";
 import { MessageHandler } from "../../src/background/message-handler";
+import type { GoldenNuggetType } from "../../src/shared/schemas";
 import { MESSAGE_TYPES } from "../../src/shared/types";
 import { createMockMessageSenderWithTab } from "../utils/chrome-mocks";
 
@@ -109,8 +109,8 @@ describe("API Workflow Integration Tests", () => {
 			validateApiKey: vi.fn(),
 		};
 
-		// Create message handler with mocked client
-		messageHandler = new MessageHandler(mockGeminiClient as GeminiClient);
+		// Create message handler
+		messageHandler = new MessageHandler();
 
 		// Setup default storage data with proper encrypted format
 		mockStorageData.set("geminiApiKey", "test-api-key"); // Use plain text for testing
@@ -139,7 +139,7 @@ describe("API Workflow Integration Tests", () => {
 				promptId: "default-prompt",
 				content: "Test content for analysis",
 				url: "https://example.com/test",
-				source: "context-menu",
+				source: "context-menu" as const,
 				analysisId: "workflow_test_123",
 			};
 
@@ -147,8 +147,8 @@ describe("API Workflow Integration Tests", () => {
 				golden_nuggets: [
 					{
 						type: "tool",
-						startContent: "Test tool content",
-						endContent: "End of tool content",
+						fullContent: "Test tool content for analysis and evaluation",
+						confidence: 0.92,
 					},
 				],
 			};
@@ -164,7 +164,7 @@ describe("API Workflow Integration Tests", () => {
 
 			// Replace the original options parameter handling to capture progress callback
 			mockGeminiClient.analyzeContent.mockImplementationOnce(
-				async (_content, _prompt, options) => {
+				async (_content: any, _prompt: any, options: any) => {
 					// Simulate progress callbacks
 					options?.onProgress(
 						MESSAGE_TYPES.ANALYSIS_CONTENT_EXTRACTED,
@@ -239,7 +239,8 @@ describe("API Workflow Integration Tests", () => {
 				content: "Content with multiple nugget types",
 				url: "https://news.ycombinator.com/item?id=123",
 				typeFilter: {
-					selectedTypes: ["tool", "media"],
+					selectedTypes: ["tool", "media"] as GoldenNuggetType[],
+					analysisMode: "combination" as const,
 				},
 				analysisId: "type_filter_test",
 			};
@@ -248,8 +249,8 @@ describe("API Workflow Integration Tests", () => {
 				golden_nuggets: [
 					{
 						type: "tool",
-						startContent: "Filtered tool",
-						endContent: "End tool",
+						fullContent: "Filtered tool for specific analysis requirements",
+						confidence: 0.88,
 					},
 				],
 			};
@@ -303,8 +304,9 @@ describe("API Workflow Integration Tests", () => {
 				golden_nuggets: [
 					{
 						type: "aha! moments",
-						startContent: "Optimized aha! moments",
-						endContent: "End aha! moments",
+						fullContent:
+							"Optimized aha! moments from DSPy system with enhanced insights",
+						confidence: 0.94,
 					},
 				],
 			};
@@ -349,8 +351,9 @@ describe("API Workflow Integration Tests", () => {
 				golden_nuggets: [
 					{
 						type: "analogy",
-						startContent: "Fallback analogy",
-						endContent: "End analogy",
+						fullContent:
+							"Fallback analogy demonstrating resilient system behavior",
+						confidence: 0.85,
 					},
 				],
 			};
@@ -398,8 +401,9 @@ describe("API Workflow Integration Tests", () => {
 				golden_nuggets: [
 					{
 						type: "model",
-						startContent: "Selected mental model",
-						endContent: "End model",
+						fullContent:
+							"Selected mental model framework for understanding complex systems",
+						confidence: 0.91,
 					},
 				],
 			};
@@ -684,7 +688,8 @@ describe("API Workflow Integration Tests", () => {
 				content: "Test content",
 				url: "https://example.com",
 				typeFilter: {
-					selectedTypes: ["invalid-type", "another-invalid-type"],
+					selectedTypes: ["invalid-type", "another-invalid-type"] as any,
+					analysisMode: "combination" as const,
 				},
 				analysisId: "invalid_types_test",
 			};
@@ -705,14 +710,14 @@ describe("API Workflow Integration Tests", () => {
 
 		it.skip("should handle unknown message types", async () => {
 			const unknownRequest = {
-				type: "UNKNOWN_MESSAGE_TYPE",
+				type: "UNKNOWN_MESSAGE_TYPE" as any,
 				data: "test",
-			};
+			} as any;
 
 			const sendResponse = vi.fn();
 			await messageHandler.handleMessage(
 				unknownRequest,
-				{ tab: { id: 1 } },
+				createMockMessageSenderWithTab({ id: 1 }),
 				sendResponse,
 			);
 

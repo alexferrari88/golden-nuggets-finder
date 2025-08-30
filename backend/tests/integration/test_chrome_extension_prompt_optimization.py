@@ -47,9 +47,8 @@ class TestChromeExtensionPromptOptimization:
                             "golden_nuggets": [
                                 {
                                     "type": "tool",
-                                    "content": "I use Obsidian's daily notes feature to track my learning progress and connect new concepts to previous knowledge, which helps with retention in a way traditional todo apps don't.",
-                                    "startContent": "I use Obsidian's daily notes feature",
-                                    "endContent": "traditional todo apps don't",
+                                    "fullContent": "I use Obsidian's daily notes feature to track my learning progress and connect new concepts to previous knowledge, which helps with retention in a way traditional todo apps don't.",
+                                    "confidence": 0.9,
                                 }
                             ]
                         },
@@ -78,9 +77,8 @@ class TestChromeExtensionPromptOptimization:
                             "golden_nuggets": [
                                 {
                                     "type": "aha! moments",
-                                    "content": "The reason async/await in JavaScript is so powerful is that it's syntactic sugar over Promises, allowing you to write asynchronous code that reads like synchronous code, avoiding 'callback hell'.",
-                                    "startContent": "The reason async/await in JavaScript",
-                                    "endContent": "avoiding 'callback hell'",
+                                    "fullContent": "The reason async/await in JavaScript is so powerful is that it's syntactic sugar over Promises, allowing you to write asynchronous code that reads like synchronous code, avoiding 'callback hell'.",
+                                    "confidence": 0.95,
                                 }
                             ]
                         },
@@ -394,9 +392,8 @@ Your primary task is to find content matching one or more of the following categ
                             "golden_nuggets": [
                                 {
                                     "type": "tool",
-                                    "content": "Specific valuable technique",
-                                    "startContent": "Specific",
-                                    "endContent": "technique",
+                                    "fullContent": "Specific valuable technique",
+                                    "confidence": 0.85,
                                 }
                             ]
                         },

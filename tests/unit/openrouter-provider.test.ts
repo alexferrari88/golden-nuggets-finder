@@ -15,8 +15,8 @@ vi.mock("@langchain/openai", () => ({
 					golden_nuggets: [
 						{
 							type: "tool",
-							startContent: "Test start",
-							endContent: "Test end",
+							fullContent: "Test tool content for OpenRouter integration",
+							confidence: 0.9,
 						},
 					],
 				}),
@@ -75,8 +75,10 @@ describe("LangChainOpenRouterProvider", () => {
 			golden_nuggets: [
 				{
 					type: "tool",
-					startContent: "Test start",
-					endContent: "Test end",
+					fullContent: "Test tool content for OpenRouter integration",
+					confidence: 0.9,
+					extractionMethod: "validated",
+					validationScore: 0.9,
 				},
 			],
 		});
@@ -253,8 +255,8 @@ describe("LangChainOpenRouterProvider", () => {
 				golden_nuggets: [
 					{
 						type: "tool",
-						startContent: "Test start",
-						endContent: "Test end",
+						fullContent: "Test tool content with full extraction details",
+						confidence: 0.9,
 					},
 				],
 			};
@@ -278,8 +280,10 @@ describe("LangChainOpenRouterProvider", () => {
 			golden_nuggets: [
 				{
 					type: "tool",
-					startContent: "Test start",
-					endContent: "Test end",
+					fullContent: "Test tool content with full extraction details",
+					confidence: 0.9,
+					extractionMethod: "validated",
+					validationScore: 0.9,
 				},
 			],
 		});
@@ -361,13 +365,13 @@ describe("LangChainOpenRouterProvider", () => {
 		if (result.golden_nuggets.length > 0) {
 			const nugget = result.golden_nuggets[0];
 			expect(nugget).toHaveProperty("type");
-			expect(nugget).toHaveProperty("startContent");
-			expect(nugget).toHaveProperty("endContent");
+			expect(nugget).toHaveProperty("fullContent");
+			expect(nugget).toHaveProperty("confidence");
 			expect(["tool", "media", "aha! moments", "analogy", "model"]).toContain(
 				nugget.type,
 			);
-			expect(typeof nugget.startContent).toBe("string");
-			expect(typeof nugget.endContent).toBe("string");
+			expect(typeof nugget.fullContent).toBe("string");
+			expect(typeof nugget.confidence).toBe("number");
 		}
 	});
 
@@ -445,419 +449,5 @@ describe("LangChainOpenRouterProvider", () => {
 		await expect(provider.extractGoldenNuggets("test", "test")).rejects.toThrow(
 			"OpenRouter API error (unknown): Service temporarily unavailable",
 		);
-	});
-
-	describe("Phase 1 High Recall Extraction", () => {
-		it("should extract Phase 1 nuggets with confidence scores", async () => {
-			const { ChatOpenAI } = await import("@langchain/openai");
-
-			// Mock Phase 1 response with confidence scores
-			(ChatOpenAI as any).mockImplementationOnce(() => ({
-				withStructuredOutput: vi.fn().mockReturnValue({
-					invoke: vi.fn().mockResolvedValue({
-						golden_nuggets: [
-							{
-								type: "model",
-								fullContent:
-									"Complete mental model explanation with context and examples",
-								confidence: 0.86,
-							},
-							{
-								type: "aha! moments",
-								fullContent:
-									"Deep insight that clarifies a complex concept with clear reasoning",
-								confidence: 0.91,
-							},
-						],
-					}),
-				}),
-			}));
-
-			const provider = new LangChainOpenRouterProvider(mockConfig);
-
-			const result = await provider.extractPhase1HighRecall(
-				"Test content for Phase 1 high recall extraction",
-				"Test Phase 1 prompt",
-				0.7,
-			);
-
-			expect(result).toEqual({
-				golden_nuggets: [
-					{
-						type: "model",
-						fullContent:
-							"Complete mental model explanation with context and examples",
-						confidence: 0.86,
-					},
-					{
-						type: "aha! moments",
-						fullContent:
-							"Deep insight that clarifies a complex concept with clear reasoning",
-						confidence: 0.91,
-					},
-				],
-			});
-		});
-
-		it("should handle Phase 1 extraction errors", async () => {
-			const { ChatOpenAI } = await import("@langchain/openai");
-
-			// Mock Phase 1 error
-			(ChatOpenAI as any).mockImplementationOnce(() => ({
-				withStructuredOutput: vi.fn().mockReturnValue({
-					invoke: vi.fn().mockRejectedValue(new Error("Phase 1 API Error")),
-				}),
-			}));
-
-			const provider = new LangChainOpenRouterProvider(mockConfig);
-
-			await expect(
-				provider.extractPhase1HighRecall("test content", "test prompt", 0.7),
-			).rejects.toThrow(
-				"OpenRouter Phase 1 API call failed: Phase 1 API Error",
-			);
-		});
-
-		it("should use default temperature for Phase 1", async () => {
-			const { ChatOpenAI } = await import("@langchain/openai");
-
-			const mockChatOpenAI = vi.fn().mockReturnValue({
-				withStructuredOutput: vi.fn().mockReturnValue({
-					invoke: vi.fn().mockResolvedValue({
-						golden_nuggets: [],
-					}),
-				}),
-			});
-			(ChatOpenAI as any).mockImplementationOnce(mockChatOpenAI);
-
-			const provider = new LangChainOpenRouterProvider(mockConfig);
-
-			await provider.extractPhase1HighRecall("test content", "test prompt");
-
-			expect(mockChatOpenAI).toHaveBeenCalledWith({
-				apiKey: mockConfig.apiKey,
-				model: mockConfig.modelName,
-				temperature: 0.7, // Default temperature
-				maxRetries: 0,
-				configuration: {
-					baseURL: "https://openrouter.ai/api/v1",
-					defaultHeaders: expect.objectContaining({
-						"HTTP-Referer": "https://golden-nuggets-finder.com",
-						"X-Title": "Golden Nuggets Finder",
-					}),
-				},
-			});
-		});
-
-		it("should support type filtering in Phase 1", async () => {
-			const { ChatOpenAI } = await import("@langchain/openai");
-
-			// Mock successful response
-			(ChatOpenAI as any).mockImplementationOnce(() => ({
-				withStructuredOutput: vi.fn().mockReturnValue({
-					invoke: vi.fn().mockResolvedValue({
-						golden_nuggets: [
-							{
-								type: "model",
-								fullContent: "Only mental models should be extracted",
-								confidence: 0.9,
-							},
-						],
-					}),
-				}),
-			}));
-
-			const provider = new LangChainOpenRouterProvider(mockConfig);
-
-			const result = await provider.extractPhase1HighRecall(
-				"test content",
-				"test prompt",
-				0.7,
-				["model"], // Filter only models
-			);
-
-			expect(result.golden_nuggets).toHaveLength(1);
-			expect(result.golden_nuggets[0].type).toBe("model");
-		});
-
-		it("should retry on rate limiting during Phase 1", async () => {
-			const { ChatOpenAI } = await import("@langchain/openai");
-
-			let callCount = 0;
-			const mockInvoke = vi.fn().mockImplementation(() => {
-				callCount++;
-				if (callCount === 1) {
-					throw new Error("Rate limit exceeded");
-				}
-				return {
-					golden_nuggets: [
-						{
-							type: "model",
-							fullContent: "Successfully extracted after retry",
-							confidence: 0.88,
-						},
-					],
-				};
-			});
-
-			(ChatOpenAI as any).mockImplementationOnce(() => ({
-				withStructuredOutput: vi.fn().mockReturnValue({
-					invoke: mockInvoke,
-				}),
-			}));
-
-			const provider = new LangChainOpenRouterProvider(mockConfig);
-			vi.spyOn(provider as any, "sleep").mockResolvedValue(undefined);
-
-			const result = await provider.extractPhase1HighRecall(
-				"test content",
-				"test prompt",
-				0.7,
-			);
-
-			expect(mockInvoke).toHaveBeenCalledTimes(2);
-			expect(result.golden_nuggets[0].fullContent).toBe(
-				"Successfully extracted after retry",
-			);
-		});
-	});
-
-	describe("Phase 2 High Precision Extraction", () => {
-		it("should extract Phase 2 nuggets with boundary detection", async () => {
-			const { ChatOpenAI } = await import("@langchain/openai");
-
-			// Mock Phase 2 response with start/end boundaries
-			(ChatOpenAI as any).mockImplementationOnce(() => ({
-				withStructuredOutput: vi.fn().mockReturnValue({
-					invoke: vi.fn().mockResolvedValue({
-						golden_nuggets: [
-							{
-								type: "model",
-								startContent: "The framework for",
-								endContent: "decision making process",
-								confidence: 0.92,
-							},
-						],
-					}),
-				}),
-			}));
-
-			const provider = new LangChainOpenRouterProvider(mockConfig);
-
-			const nuggets = [
-				{
-					type: "model" as const,
-					fullContent:
-						"The framework for understanding complex systems involves a structured decision making process",
-					confidence: 0.85,
-				},
-			];
-
-			const result = await provider.extractPhase2HighPrecision(
-				"Original content: The framework for understanding complex systems involves a structured decision making process that guides analysis",
-				"Test Phase 2 prompt",
-				nuggets,
-				0.0,
-			);
-
-			expect(result).toEqual({
-				golden_nuggets: [
-					{
-						type: "model",
-						startContent: "The framework for",
-						endContent: "decision making process",
-						confidence: 0.92,
-					},
-				],
-			});
-		});
-
-		it("should handle Phase 2 extraction errors", async () => {
-			const { ChatOpenAI } = await import("@langchain/openai");
-
-			// Mock Phase 2 error
-			(ChatOpenAI as any).mockImplementationOnce(() => ({
-				withStructuredOutput: vi.fn().mockReturnValue({
-					invoke: vi.fn().mockRejectedValue(new Error("Phase 2 API Error")),
-				}),
-			}));
-
-			const provider = new LangChainOpenRouterProvider(mockConfig);
-
-			const nuggets = [
-				{
-					type: "model" as const,
-					fullContent: "test content",
-					confidence: 0.85,
-				},
-			];
-
-			await expect(
-				provider.extractPhase2HighPrecision(
-					"original content",
-					"test prompt",
-					nuggets,
-					0.0,
-				),
-			).rejects.toThrow(
-				"OpenRouter Phase 2 API call failed: Phase 2 API Error",
-			);
-		});
-
-		it("should use high precision temperature for Phase 2", async () => {
-			const { ChatOpenAI } = await import("@langchain/openai");
-
-			const mockChatOpenAI = vi.fn().mockReturnValue({
-				withStructuredOutput: vi.fn().mockReturnValue({
-					invoke: vi.fn().mockResolvedValue({
-						golden_nuggets: [],
-					}),
-				}),
-			});
-			(ChatOpenAI as any).mockImplementationOnce(mockChatOpenAI);
-
-			const provider = new LangChainOpenRouterProvider(mockConfig);
-
-			const nuggets = [
-				{
-					type: "model" as const,
-					fullContent: "test content",
-					confidence: 0.85,
-				},
-			];
-
-			await provider.extractPhase2HighPrecision(
-				"original content",
-				"test prompt",
-				nuggets,
-				0.0,
-			);
-
-			expect(mockChatOpenAI).toHaveBeenCalledWith({
-				apiKey: mockConfig.apiKey,
-				model: mockConfig.modelName,
-				temperature: 0.0, // High precision temperature
-				maxRetries: 0,
-				configuration: {
-					baseURL: "https://openrouter.ai/api/v1",
-					defaultHeaders: expect.objectContaining({
-						"HTTP-Referer": "https://golden-nuggets-finder.com",
-						"X-Title": "Golden Nuggets Finder",
-					}),
-				},
-			});
-		});
-
-		it("should handle empty nuggets array in Phase 2", async () => {
-			const { ChatOpenAI } = await import("@langchain/openai");
-
-			// Mock empty response
-			(ChatOpenAI as any).mockImplementationOnce(() => ({
-				withStructuredOutput: vi.fn().mockReturnValue({
-					invoke: vi.fn().mockResolvedValue({
-						golden_nuggets: [],
-					}),
-				}),
-			}));
-
-			const provider = new LangChainOpenRouterProvider(mockConfig);
-
-			const result = await provider.extractPhase2HighPrecision(
-				"original content",
-				"test prompt",
-				[], // Empty nuggets
-				0.0,
-			);
-
-			expect(result.golden_nuggets).toEqual([]);
-		});
-
-		it("should handle OpenRouter error responses in Phase 2", async () => {
-			const { ChatOpenAI } = await import("@langchain/openai");
-
-			// Mock OpenRouter 200 response with error object
-			const errorResponse = {
-				error: {
-					message: "Model temporarily unavailable",
-					code: 503,
-				},
-			};
-
-			(ChatOpenAI as any).mockImplementationOnce(() => ({
-				withStructuredOutput: vi.fn().mockReturnValue({
-					invoke: vi.fn().mockResolvedValue(errorResponse),
-				}),
-			}));
-
-			const provider = new LangChainOpenRouterProvider(mockConfig);
-
-			const nuggets = [
-				{
-					type: "model" as const,
-					fullContent: "test content",
-					confidence: 0.85,
-				},
-			];
-
-			await expect(
-				provider.extractPhase2HighPrecision(
-					"original content",
-					"test prompt",
-					nuggets,
-					0.0,
-				),
-			).rejects.toThrow(
-				"OpenRouter API error (503): Model temporarily unavailable",
-			);
-		});
-
-		it("should retry on rate limiting during Phase 2", async () => {
-			const { ChatOpenAI } = await import("@langchain/openai");
-
-			let callCount = 0;
-			const mockInvoke = vi.fn().mockImplementation(() => {
-				callCount++;
-				if (callCount === 1) {
-					throw new Error("429 Rate limit exceeded");
-				}
-				return {
-					golden_nuggets: [
-						{
-							type: "model",
-							startContent: "Successful boundary",
-							endContent: "after retry",
-							confidence: 0.89,
-						},
-					],
-				};
-			});
-
-			(ChatOpenAI as any).mockImplementationOnce(() => ({
-				withStructuredOutput: vi.fn().mockReturnValue({
-					invoke: mockInvoke,
-				}),
-			}));
-
-			const provider = new LangChainOpenRouterProvider(mockConfig);
-			vi.spyOn(provider as any, "sleep").mockResolvedValue(undefined);
-
-			const nuggets = [
-				{
-					type: "model" as const,
-					fullContent: "test content",
-					confidence: 0.85,
-				},
-			];
-
-			const result = await provider.extractPhase2HighPrecision(
-				"original content",
-				"test prompt",
-				nuggets,
-				0.0,
-			);
-
-			expect(mockInvoke).toHaveBeenCalledTimes(2);
-			expect(result.golden_nuggets[0].endContent).toBe("after retry");
-		});
 	});
 });

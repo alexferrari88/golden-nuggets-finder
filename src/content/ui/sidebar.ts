@@ -24,9 +24,8 @@ import type { Highlighter } from "./highlighter";
 interface EnhancedGoldenNugget extends GoldenNugget {
 	_fullContent?: string; // Enhanced content from UIManager
 	content?: string; // Legacy content field during transition
-	// Enhanced metadata from advanced extraction modes
-	confidence?: number;
-	extractionMethod?: "standard" | "fuzzy" | "llm" | "ensemble";
+	// Enhanced metadata from advanced extraction modes (confidence inherited from base)
+	// extractionMethod inherited from base GoldenNugget interface
 	// Ensemble properties (optional)
 	runsSupportingThis?: number;
 	totalRuns?: number;
@@ -36,8 +35,7 @@ interface EnhancedGoldenNugget extends GoldenNugget {
 // Export data structure
 interface ExportNuggetData {
 	type: string;
-	startContent: string;
-	endContent: string;
+	fullContent: string;
 }
 
 interface ExportData {
@@ -48,8 +46,7 @@ interface ExportData {
 // REST endpoint payload structures
 interface RestPayloadNugget {
 	type?: string;
-	startContent?: string;
-	endContent?: string;
+	fullContent?: string;
 }
 
 interface RestPayload {
@@ -177,9 +174,6 @@ export class Sidebar {
 		});
 
 		this.hide(); // Remove existing sidebar if any
-
-		// Store page content for reconstruction
-		this.pageContent = pageContent || null;
 
 		// Store provider metadata for display
 		this.providerMetadata = providerMetadata || null;
@@ -800,7 +794,8 @@ export class Sidebar {
 			if ((e.target as Element).tagName !== "INPUT") {
 				// If highlighted, scroll to highlight and mark as visited
 				if (item.status === "highlighted" && this.highlighter) {
-					this.highlighter.scrollToHighlight(item.nugget);
+					// Highlight the nugget (scrolling functionality removed)
+					this.highlighter.highlightNugget(item.nugget);
 					// Mark this highlighted item as visited
 					this.allItems[globalIndex].highlightVisited = true;
 					// Remove the highlight indicator immediately
@@ -981,14 +976,14 @@ export class Sidebar {
 
 			// Determine styling based on confidence level
 			if (confidencePercent >= 85) {
-				badgeColor = colors.gray[100];
-				textColor = colors.text.primary;
+				badgeColor = colors.gray?.[100] || "#F1F1F1";
+				textColor = colors.text?.primary || "#2A2A2A";
 			} else if (confidencePercent >= 70) {
-				badgeColor = colors.background.tertiary;
-				textColor = colors.text.secondary;
+				badgeColor = colors.background?.tertiary || "#F7F7F7";
+				textColor = colors.text?.secondary || "#6F6F6F";
 			} else {
-				badgeColor = colors.gray[50];
-				textColor = colors.text.tertiary;
+				badgeColor = colors.gray?.[50] || "#F7F7F7";
+				textColor = colors.text?.tertiary || "#A8A8A8";
 			}
 
 			const confidenceBadge = document.createElement("div");
@@ -1882,8 +1877,7 @@ export class Sidebar {
 			nuggets: nuggets.map((item) => {
 				const nugget: ExportNuggetData = {
 					type: item.nugget.type,
-					startContent: item.nugget.startContent,
-					endContent: item.nugget.endContent,
+					fullContent: this.getSidebarDisplayContent(item.nugget),
 				};
 
 				return nugget;
@@ -1915,7 +1909,7 @@ ${data.nuggets
 ## ${nugget.type.toUpperCase()}
 
 **Content:**
-${nugget.startContent}...${nugget.endContent}
+${nugget.fullContent}
 
 ---
 `,
@@ -2473,8 +2467,7 @@ ${nugget.startContent}...${nugget.endContent}
 				}
 
 				if (this.restEndpointConfig.nuggetParts.content) {
-					nugget.startContent = item.nugget.startContent;
-					nugget.endContent = item.nugget.endContent;
+					nugget.fullContent = this.getSidebarDisplayContent(item.nugget);
 				}
 
 				return nugget;
@@ -2775,17 +2768,11 @@ ${nugget.startContent}...${nugget.endContent}
 	 * @returns True if the nugget appears to contain URL content
 	 */
 	private isUrlNugget(nugget: GoldenNugget): boolean {
-		// Check if start or end content contains a URL
-		const startContent = nugget.startContent?.trim() || "";
-		const endContent = nugget.endContent?.trim() || "";
+		// Use fullContent only - no backward compatibility
+		const fullContent = this.getSidebarDisplayContent(
+			nugget as EnhancedGoldenNugget,
+		);
 
-		// Also check fullContent if available (from enhanced nuggets)
-		const enhancedNugget = nugget as EnhancedGoldenNugget;
-		const fullContent =
-			enhancedNugget._fullContent?.trim() ||
-			enhancedNugget.content?.trim() ||
-			"";
-
-		return isUrl(startContent) || isUrl(endContent) || isUrl(fullContent);
+		return fullContent ? isUrl(fullContent) : false;
 	}
 }

@@ -118,7 +118,7 @@ if DSPY_AVAILABLE:
             desc="Web content to analyze for valuable insights and golden nuggets"
         )
         golden_nuggets = dspy.OutputField(
-            desc="JSON object containing extracted golden nuggets with type, startContent, and endContent fields. Each nugget should have startContent (first few words) and endContent (last few words) for precise location marking, limited to 5 words each."
+            desc="JSON object containing extracted golden nuggets with type and fullContent fields. Each nugget should have fullContent containing the complete verbatim text of the golden nugget."
         )
 
     class GoldenNuggetExtractor(dspy.Module):
@@ -203,13 +203,13 @@ class OptimizationMetrics:
             type_union = len(expected_types.union(predicted_types))
             type_score = type_intersection / type_union if type_union > 0 else 0.0
 
-            # Calculate content relevance (basic keyword overlap using startContent and endContent)
+            # Calculate content relevance (basic keyword overlap using fullContent)
             expected_content = " ".join(
-                f"{nugget.get('startContent', '')} {nugget.get('endContent', '')}"
+                nugget.get('fullContent', '')
                 for nugget in expected_nuggets
             ).lower()
             predicted_content = " ".join(
-                f"{nugget.get('startContent', '')} {nugget.get('endContent', '')}"
+                nugget.get('fullContent', '')
                 for nugget in pred_nuggets
             ).lower()
 
@@ -344,7 +344,8 @@ def generate_mock_feedback_data(count: int = 50) -> list:
                 nuggets.append(
                     {
                         "type": random.choice(nugget_types),
-                        "content": f"Mock nugget content {i}_{j} with valuable insight",
+                        "fullContent": f"Mock nugget content {i}_{j} with valuable insight",
+                        "confidence": random.uniform(0.8, 1.0),
                     }
                 )
 

@@ -8,39 +8,39 @@ This document covers the shared utilities, multi-provider system, types, storage
 The extension supports multiple AI providers through a unified interface:
 
 #### Gemini Direct Provider (`providers/gemini-direct-provider.ts`)
-Direct REST API integration with Google Gemini with full two-phase extraction support:
+Direct REST API integration with Google Gemini with fullContent extraction:
 - **API Integration**: Direct REST calls without SDK dependencies
 - **Structured Output**: Uses Gemini's structured output capabilities with schema enforcement
-- **Two-Phase Methods**: Native support for both `extractPhase1HighRecall` and `extractPhase2HighPrecision`
+- **FullContent Method**: Native support for `extractGoldenNuggets` with fullContent response
 - **Thinking Budget**: Configurable thinking budget for complex analysis
 - **Caching**: Built-in response caching for improved performance
 - **Error Handling**: Gemini-specific error patterns and retry logic
-- **Temperature Control**: Supports different temperature settings for Phase 1 (0.7) and Phase 2 (0.0)
+- **Temperature Control**: Configurable temperature settings for optimal extraction quality
 
 #### LangChain Anthropic Provider (`providers/langchain-anthropic-provider.ts`)
-Anthropic Claude integration via LangChain with comprehensive two-phase extraction:
+Anthropic Claude integration via LangChain with fullContent extraction:
 - **LangChain Integration**: Leverages LangChain's Anthropic adapter
 - **Model Support**: Supports Claude Sonnet 4 and other Claude models
 - **Structured Output**: Tool calling for consistent response formatting
-- **Two-Phase Methods**: Full implementation of Phase 1 high-recall and Phase 2 precision extraction
+- **FullContent Method**: Complete implementation of `extractGoldenNuggets` with fullContent response
 - **Advanced Reasoning**: Optimized for complex analytical tasks with confidence scoring
-- **Temperature Management**: Supports phase-specific temperature settings for optimal extraction quality
+- **Temperature Management**: Configurable temperature settings for optimal extraction quality
 
 #### LangChain OpenAI Provider (`providers/langchain-openai-provider.ts`)
-OpenAI integration via LangChain with full two-phase extraction capabilities:
+OpenAI integration via LangChain with fullContent extraction capabilities:
 - **Model Range**: Supports GPT-4o, GPT-4, and other OpenAI models
 - **Tool Calling**: Uses OpenAI's function calling for structured responses
-- **Two-Phase Implementation**: Complete support for Phase 1 high-recall and Phase 2 precision methods
-- **Cost Optimization**: Efficient token usage and model selection with phase-aware processing
+- **FullContent Implementation**: Complete support for `extractGoldenNuggets` with fullContent format
+- **Cost Optimization**: Efficient token usage and model selection
 - **Reliability**: Robust error handling and retry mechanisms
 - **Confidence Integration**: Built-in confidence scoring for quality assessment
 
 #### LangChain OpenRouter Provider (`providers/langchain-openrouter-provider.ts`)
-OpenRouter integration providing access to multiple models with two-phase extraction:
+OpenRouter integration providing access to multiple models with fullContent extraction:
 - **Multi-Model Access**: Access to various models through single API
-- **Two-Phase Support**: Complete implementation of both extraction phases across all supported models
-- **Cost Comparison**: Enables cost comparison across different providers with phase-aware analysis
-- **Model Variety**: Supports both open-source and proprietary models with consistent two-phase interface
+- **FullContent Support**: Complete implementation of `extractGoldenNuggets` across all supported models
+- **Cost Comparison**: Enables cost comparison across different providers
+- **Model Variety**: Supports both open-source and proprietary models with consistent fullContent interface
 - **Fallback Option**: Serves as fallback when primary providers are unavailable
 - **Universal Compatibility**: Two-phase methods work consistently across all OpenRouter model options
 
@@ -84,11 +84,7 @@ Manages user-selected models for each provider:
 - **Provider Configuration**: Selected provider and provider-specific settings
 - **Type Filtering**: User preferences for nugget type filtering
 - **Ensemble Settings**: Configuration for ensemble mode (enabled, defaultRuns, defaultMode)
-- **Two-Phase Settings**: Configuration for two-phase extraction system
-  - `enabled`: Boolean flag to enable/disable two-phase extraction
-  - `confidenceThreshold`: Minimum confidence score for Phase 1 nuggets (default 0.85)
-  - `phase1Temperature`: Temperature setting for Phase 1 high-recall extraction (default 0.7)
-  - `phase2Temperature`: Temperature setting for Phase 2 precision boundary detection (default 0.0)
+- **Analysis Settings**: Configuration for extraction preferences and quality settings
   - Stored securely using same encryption system as other extension settings
 
 ### Storage Best Practices
@@ -147,8 +143,8 @@ Integration layer connecting enhanced matching with content reconstruction:
 Advanced text reconstruction utilities enhanced with modern matching:
 - **Enhanced Matching Integration**: Now uses enhanced text matching for improved accuracy
 - **Unicode Normalization**: Handles all common Unicode character variants for reliable matching
-- **Text Reconstruction**: Rebuilds full content from startContent and endContent snippets
-- **Improved Matching**: Enhanced start/end matching algorithm with detailed error reporting
+- **Text Highlighting**: Modern CSS Custom Highlight API with mark.js fallback for accurate fullContent highlighting
+- **Improved Matching**: Enhanced fullContent matching algorithm with detailed error reporting
 - **Display Optimization**: Smart content display based on reconstruction success
 
 ### Text Matching Features
@@ -174,7 +170,7 @@ Tolerance-based content matching system integrated with enhanced matching:
 ## Schema System
 
 ### Schema Definitions (`schemas.ts`)
-Comprehensive JSON schema definitions for both standard and two-phase extraction workflows:
+Comprehensive JSON schema definitions for fullContent extraction workflows:
 
 #### Standard Schema Functions
 - **Golden Nugget Schema**: Complete schema for nugget validation and API responses
@@ -182,17 +178,17 @@ Comprehensive JSON schema definitions for both standard and two-phase extraction
 - **Dynamic Schema Generation**: Configurable schemas based on selected nugget types
 - **Validation Support**: Integration with JSON schema validation libraries
 
-#### Two-Phase Schema Functions
-- **`generatePhase1HighRecallSchema(selectedTypes)`**: Schema for Phase 1 high-recall extraction
+#### Advanced Schema Functions
+- **`generateGoldenNuggetSchema(selectedTypes)`**: Schema for fullContent extraction
   - Uses `fullContent` field for complete verbatim content capture
   - Includes `confidence` field for scoring extracted nuggets (0.0-1.0)
-  - Optimized for generous extraction with quality assessment
+  - Optimized for direct extraction with quality assessment
   - Properties: `type`, `fullContent`, `confidence`
-- **`generatePhase2HighPrecisionSchema(selectedTypes)`**: Schema for Phase 2 boundary detection
-  - Uses `startContent` and `endContent` fields for precise text boundaries
-  - Includes `confidence` field for boundary detection accuracy (0.0-1.0)
-  - Optimized for precise text location and highlighting
-  - Properties: `type`, `startContent`, `endContent`, `confidence`
+- **Simplified Schema Generation**: Unified schema generation for fullContent extraction
+  - Uses `fullContent` field for complete text capture
+  - Includes `confidence` field for extraction quality assessment (0.0-1.0)
+  - Optimized for direct content extraction and highlighting
+  - Properties: `type`, `fullContent`, `confidence`
 
 ### Schema Features
 - **Strict Validation**: Enforced required fields and data types across all schema variants
@@ -287,16 +283,11 @@ Development and production logging system:
 ## Type System
 
 ### Core Types (`types.ts`)
-Comprehensive TypeScript interfaces for all extension data structures including two-phase extraction:
+Comprehensive TypeScript interfaces for all extension data structures with fullContent extraction:
 - **Core Data Models**: GoldenNugget, SavedPrompt, ExtensionConfig with multi-provider support
 - **UI State Management**: NuggetDisplayState, SidebarNuggetItem, TypeFilterOptions
 - **Analysis System**: AnalysisRequest, AnalysisResponse, AnalysisProgressMessage with provider metadata
 - **Ensemble System**: EnsembleOptions, EnhancedGoldenNugget, EnsembleSettings with consensus metadata
-- **Two-Phase System**: Comprehensive type support for two-phase extraction workflow
-  - `TwoPhaseExtractionOptions`: Configuration options for two-phase analysis
-  - `TwoPhaseExtractionResult`: Complete result structure with metadata and performance metrics
-  - `Phase2NuggetResult`: Individual nugget result from Phase 2 boundary detection
-  - Integration with storage system for persistent two-phase preferences
 - **Feedback System**: NuggetFeedback, MissingContentFeedback, FeedbackStats
 - **Export System**: ExportData, ExportOptions with multiple format support
 - **Message System**: Complete MessageTypes enum for inter-component communication
@@ -307,18 +298,15 @@ Comprehensive TypeScript interfaces for all extension data structures including 
 Specialized type definitions for the multi-provider system:
 
 #### Provider Types (`types/providers.ts`)
-Core provider system types with comprehensive two-phase extraction support:
+Core provider system types with fullContent extraction support:
 - **Provider IDs**: `ProviderId` union type for all supported providers
 - **Provider Configuration**: `ProviderConfig` interface for provider setup
-- **LLM Interface**: `LLMProvider` interface ensuring consistent provider API with two-phase methods
-  - `extractPhase1HighRecall()`: High-recall extraction with confidence scoring
-  - `extractPhase2HighPrecision()`: Precise boundary detection for specific nuggets
+- **LLM Interface**: `LLMProvider` interface ensuring consistent provider API
+  - `extractGoldenNuggets()`: FullContent extraction with confidence scoring
 - **Response Formats**: 
-  - `GoldenNuggetsResponse` for standard single-phase extraction
-  - `Phase1Response` for high-recall extraction with fullContent and confidence
-  - `Phase2Response` for boundary detection with startContent/endContent and confidence
+  - `GoldenNuggetsResponse` for fullContent extraction with confidence scores
 - **Storage Schema**: `ProviderStorageSchema` for provider data persistence
-- **Two-Phase Types**: Specialized interfaces for two-phase workflow integration
+- **FullContent Types**: Specialized interfaces for fullContent workflow integration
 
 ### Advanced Type Features
 - **Feedback Integration**: Complete feedback system types for prompt optimization
@@ -415,16 +403,14 @@ element.style.cssText = `
 ## Constants and Configuration
 
 ### Constants (`constants.ts`)
-Core configuration values and defaults including two-phase extraction system:
+Core configuration values and defaults for fullContent extraction system:
 - **Storage Keys**: Centralized key definitions for Chrome storage (`STORAGE_KEYS`)
-  - `TWO_PHASE_SETTINGS`: Storage key for two-phase extraction configuration
 - **Gemini Configuration**: API model selection and thinking budget settings (`GEMINI_CONFIG`)
 - **Default Prompts**: Complete default prompt system with sophisticated persona-based analysis
-- **Two-Phase Prompts**: Specialized prompts for two-phase extraction workflow
-  - `PHASE_1_HIGH_RECALL_PROMPT`: High-recall extraction prompt emphasizing comprehensive detection
-  - `PHASE_2_HIGH_PRECISION_PROMPT`: Precision boundary detection prompt for accurate text location
-- **Template Processing**: `processPromptTemplate()` function for dynamic prompt handling
-- **Confidence Thresholds**: Default confidence thresholds for two-phase filtering and quality control
+- **FullContent Prompts**: Optimized prompts for direct fullContent extraction
+  - **Default Prompt**: High-quality extraction emphasizing precision over recall
+  - **Template Processing**: `processPromptTemplate()` function for dynamic prompt handling
+- **Confidence Thresholds**: Default confidence thresholds for quality control and filtering
 
 ### Default Prompt System
 The extension includes a comprehensive default prompt that implements:
@@ -638,10 +624,9 @@ The shared utilities include comprehensive unit tests:
 - **Storage System Tests** (`storage.test.ts`): Tests for storage operations and error handling
 - **Chrome Extension Utils Tests** (`chrome-extension-utils.test.ts`): Tests for content script injection and analysis ID generation
 - **Provider Validation Tests** (`provider-validation-utils.test.ts`): Tests for provider configuration validation and error handling
-- **Content Reconstruction Tests** (`content-reconstruction.test.ts`): Tests for text matching and reconstruction algorithms
-- **Enhanced Text Matching Tests** (`enhanced-text-matching.test.ts`): Tests for advanced text matching strategies
-- **Enhanced Text Matching Adapter Tests** (`enhanced-text-matching-adapter.test.ts`): Tests for strategy coordination and fallback logic
-- **Enhanced Text Matching Integration Tests** (`enhanced-text-matching.integration.test.ts`): End-to-end testing of text matching system
+- **Text Highlighting Tests**: Tests for modern CSS Custom Highlight API and mark.js fallback
+- **uFuzzy Integration Tests**: Tests for advanced text matching with uFuzzy.js
+- **Content Validation Tests**: Tests for fullContent response validation and quality assessment
 - **Model Storage Tests** (`storage/model-storage.test.ts`): Tests for provider model selection and storage
 
 ### Test Coverage Areas
@@ -650,8 +635,8 @@ The shared utilities include comprehensive unit tests:
 - **Storage**: CRUD operations, error handling, data integrity validation
 - **Chrome Extension Operations**: Content script injection, deduplication, retry logic
 - **Provider Validation**: Configuration checks, error scenarios, fallback handling
-- **Content Processing**: Text reconstruction, enhanced text matching, fuzzy matching, normalization
-- **Enhanced Text Matching**: Multi-strategy matching, adapter coordination, performance optimization
+- **Content Processing**: FullContent extraction, text highlighting, content validation
+- **Modern Text Highlighting**: CSS Custom Highlight API, mark.js fallback, uFuzzy.js integration
 - **Performance**: Timing validation, memory usage monitoring
 - **Error Handling**: Edge cases, malformed data, security failures
 

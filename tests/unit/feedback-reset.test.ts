@@ -25,12 +25,12 @@ global.fetch = vi.fn();
 
 describe("Feedback Reset Functionality", () => {
 	let messageHandler: MessageHandler;
-	let mockGeminiClient: GeminiClient;
+	let _mockGeminiClient: GeminiClient;
 
 	beforeEach(() => {
 		vi.clearAllMocks();
-		mockGeminiClient = new GeminiClient();
-		messageHandler = new MessageHandler(mockGeminiClient);
+		_mockGeminiClient = new GeminiClient();
+		messageHandler = new MessageHandler();
 	});
 
 	afterEach(() => {
@@ -101,8 +101,8 @@ describe("Feedback Reset Functionality", () => {
 		it("should return error when feedback ID is not provided", async () => {
 			const request = {
 				type: MESSAGE_TYPES.DELETE_NUGGET_FEEDBACK,
-				// feedbackId missing
-			};
+				// feedbackId intentionally missing for this test
+			} as any; // Use 'as any' to test the error case
 
 			const sender = createMockMessageSenderWithTab({ id: 1 });
 			const sendResponse = vi.fn();
@@ -343,7 +343,7 @@ describe("Feedback Reset Functionality", () => {
 
 			// Mock Chrome tabs.sendMessage
 			const mockTabsSendMessage = vi.fn();
-			global.chrome.tabs = { sendMessage: mockTabsSendMessage };
+			(global.chrome.tabs as any) = { sendMessage: mockTabsSendMessage };
 
 			// Mock backend failure
 			(global.fetch as ReturnType<typeof vi.fn>).mockRejectedValueOnce(

@@ -220,6 +220,13 @@ describe("EmbeddingService", () => {
 		});
 
 		it("should use cache efficiently for partial matches", async () => {
+			// Setup mock for single embedding call first
+			mockFetch.mockResolvedValueOnce({
+				ok: true,
+				json: vi
+					.fn()
+					.mockResolvedValue({ embedding: { values: [0.1, 0.2, 0.3] } }),
+			});
 			// Pre-cache one text
 			await embeddingService.generateEmbedding("cached-text");
 			mockFetch.mockClear();
@@ -227,10 +234,11 @@ describe("EmbeddingService", () => {
 			// Request batch including cached text
 			const texts = ["cached-text", "new-text"];
 
+			// Since only one text is uncached, it will use single API endpoint
 			mockFetch.mockResolvedValue({
 				ok: true,
 				json: vi.fn().mockResolvedValue({
-					embeddings: [{ values: [0.4, 0.5, 0.6] }],
+					embedding: { values: [0.4, 0.5, 0.6] },
 				}),
 			});
 
@@ -264,7 +272,7 @@ describe("EmbeddingService", () => {
 				.mockResolvedValue({
 					ok: true,
 					json: vi.fn().mockResolvedValue({
-						embeddings: [{ values: [0.1, 0.2, 0.3] }],
+						embedding: { values: [0.1, 0.2, 0.3] },
 					}),
 				});
 
@@ -294,7 +302,7 @@ describe("EmbeddingService", () => {
 			});
 
 			await expect(embeddingService.generateEmbedding("test")).rejects.toThrow(
-				"Invalid response format from Gemini embedding API",
+				"Invalid single response format from Gemini embedding API",
 			);
 		}, 10000);
 	});
@@ -304,7 +312,7 @@ describe("EmbeddingService", () => {
 			mockFetch.mockResolvedValue({
 				ok: true,
 				json: vi.fn().mockResolvedValue({
-					embeddings: [{ values: [0.1, 0.2, 0.3] }],
+					embedding: { values: [0.1, 0.2, 0.3] },
 				}),
 			});
 		});
@@ -366,7 +374,7 @@ describe("EmbeddingService", () => {
 			mockFetch.mockResolvedValue({
 				ok: true,
 				json: vi.fn().mockResolvedValue({
-					embeddings: [{ values: [0.1, 0.2, 0.3] }],
+					embedding: { values: [0.1, 0.2, 0.3] },
 				}),
 			});
 		});
@@ -410,7 +418,7 @@ describe("EmbeddingService", () => {
 			mockFetch.mockResolvedValue({
 				ok: true,
 				json: vi.fn().mockResolvedValue({
-					embeddings: [{ values: [0.1, 0.2, 0.3] }],
+					embedding: { values: [0.1, 0.2, 0.3] },
 				}),
 			});
 		});
@@ -442,7 +450,7 @@ describe("EmbeddingService", () => {
 			mockFetch.mockResolvedValue({
 				ok: true,
 				json: vi.fn().mockResolvedValue({
-					embeddings: [{ values: [0, 0, 0] }],
+					embedding: { values: [0, 0, 0] },
 				}),
 			});
 
@@ -500,12 +508,12 @@ describe("EmbeddingService", () => {
 		it("should work with ensemble extractor style batching", async () => {
 			// Simulate ensemble extractor workflow
 			const nuggets = [
-				{ startContent: "API", endContent: "throttling" },
-				{ startContent: "Rate", endContent: "limiting" },
-				{ startContent: "Database", endContent: "indexing" },
+				{ fullContent: "API throttling" },
+				{ fullContent: "Rate limiting" },
+				{ fullContent: "Database indexing" },
 			];
 
-			const texts = nuggets.map((n) => `${n.startContent} ${n.endContent}`);
+			const texts = nuggets.map((n) => n.fullContent);
 
 			const embeddings = await embeddingService.generateEmbeddings(texts, {
 				taskType: "CLUSTERING",
@@ -514,19 +522,36 @@ describe("EmbeddingService", () => {
 
 			expect(embeddings).toHaveLength(3);
 			expect(mockFetch).toHaveBeenCalledWith(
-				"https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent",
-				expect.objectContaining({
-					headers: expect.objectContaining({
+				"https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:batchEmbedContents",
+				{
+					method: "POST",
+					headers: {
 						"Content-Type": "application/json",
 						"x-goog-api-key": "test-api-key",
-					}),
+					},
 					body: JSON.stringify({
-						model: "models/gemini-embedding-001",
-						content: texts.map((text) => ({ parts: [{ text }] })),
-						taskType: "CLUSTERING",
-						outputDimensionality: 768,
+						requests: [
+							{
+								model: "models/gemini-embedding-001",
+								content: { parts: [{ text: "API throttling" }] },
+								taskType: "CLUSTERING",
+								outputDimensionality: 768,
+							},
+							{
+								model: "models/gemini-embedding-001",
+								content: { parts: [{ text: "Rate limiting" }] },
+								taskType: "CLUSTERING",
+								outputDimensionality: 768,
+							},
+							{
+								model: "models/gemini-embedding-001",
+								content: { parts: [{ text: "Database indexing" }] },
+								taskType: "CLUSTERING",
+								outputDimensionality: 768,
+							},
+						],
 					}),
-				}),
+				},
 			);
 		});
 	});

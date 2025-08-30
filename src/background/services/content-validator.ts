@@ -80,13 +80,27 @@ export class ContentValidator {
 					confidence: n.confidence,
 					fullContentLength: n.fullContent?.length || 0,
 					fullContentPreview: `${n.fullContent?.substring(0, 100)}...`,
+					fullContentExists: !!n.fullContent,
+					fullContentType: typeof n.fullContent,
 				})),
+				rawResponse: response,
 			});
 
 			// Validate content exists in source using uFuzzy
 			const validatedNuggets = response.golden_nuggets.map((nugget) => {
+				// Ensure fullContent is properly preserved
+				if (!nugget.fullContent) {
+					debugLogger.log(
+						`[ContentValidator] ⚠️ Missing fullContent for nugget:`,
+						{
+							type: nugget.type,
+							nugget: nugget,
+						},
+					);
+				}
+
 				const validationScore = this.validateContentExists(
-					nugget.fullContent,
+					nugget.fullContent || "",
 					content,
 				);
 				const isValidated =
@@ -96,13 +110,16 @@ export class ContentValidator {
 					type: nugget.type,
 					validationScore: validationScore.toFixed(3),
 					isValidated,
-					fullContentPreview: `${nugget.fullContent?.substring(0, 50)}...`,
+					fullContentPreview: `${(nugget.fullContent || "MISSING")?.substring(0, 50)}...`,
+					fullContentLength: nugget.fullContent?.length || 0,
 				});
 
 				return {
 					...nugget,
+					// Explicitly preserve fullContent to prevent data loss
+					fullContent: nugget.fullContent || "",
 					validationScore,
-					extractionMethod: isValidated ? "fuzzy" : "llm", // Use existing GoldenNugget extractionMethod types
+					extractionMethod: isValidated ? ("fuzzy" as const) : ("llm" as const),
 				};
 			});
 
@@ -110,7 +127,7 @@ export class ContentValidator {
 			const processingTime = endTime - startTime;
 
 			const validatedCount = validatedNuggets.filter(
-				(n) => n.extractionMethod === "validated",
+				(n) => n.validationScore >= (options.validationThreshold ?? 0.8),
 			).length;
 			const averageValidationScore =
 				this.calculateAverageScore(validatedNuggets);
@@ -142,7 +159,7 @@ export class ContentValidator {
 	}
 
 	/**
-	 * Validate that fullContent exists in source using uFuzzy.js
+	 * Validate that fullContent exists in source content
 	 * Returns a score from 0.0 to 1.0 indicating match quality
 	 */
 	private validateContentExists(
@@ -154,28 +171,43 @@ export class ContentValidator {
 		}
 
 		try {
-			// Use uFuzzy for content validation instead of complex boundary matching
-			const haystack = [sourceContent]; // Source content as single item
 			const needle = fullContent.trim();
 
-			// Search for the content
-			const indices = this.fuzzyValidator.search(haystack, [needle]);
+			// First try exact string match - highest confidence
+			if (sourceContent.includes(needle)) {
+				return 1.0;
+			}
 
-			if (indices && indices.length > 0) {
-				// uFuzzy returns match indices - convert to quality score
-				// For exact matches, this should be very high
-				const score = Math.min(1.0, Math.max(0.5, 1.0 - indices[0] * 0.01)); // Higher index = lower score
-				return score;
+			// Try case-insensitive exact match
+			if (sourceContent.toLowerCase().includes(needle.toLowerCase())) {
+				return 0.95;
+			}
+
+			// Use uFuzzy for fuzzy matching - split source into chunks for better matching
+			const chunkSize = Math.max(needle.length * 2, 200);
+			const sourceChunks: string[] = [];
+
+			// Create overlapping chunks to avoid missing content at boundaries
+			for (let i = 0; i < sourceContent.length; i += chunkSize / 2) {
+				const chunk = sourceContent.substring(i, i + chunkSize);
+				if (chunk.length > needle.length / 2) {
+					sourceChunks.push(chunk);
+				}
+			}
+
+			// Search for needle in chunks using uFuzzy
+			const searchResults = this.fuzzyValidator.search(sourceChunks, needle);
+
+			if (searchResults && searchResults.length > 0) {
+				// uFuzzy found matches - return good score based on match quality
+				return 0.8;
 			}
 
 			// Try partial matching for very long content
 			if (needle.length > 100) {
 				const shortNeedle = needle.substring(0, 100);
-				const shortIndices = this.fuzzyValidator.search(haystack, [
-					shortNeedle,
-				]);
-				if (shortIndices && shortIndices.length > 0) {
-					return Math.min(0.7, Math.max(0.3, 0.7 - shortIndices[0] * 0.01));
+				if (sourceContent.includes(shortNeedle)) {
+					return 0.6;
 				}
 			}
 

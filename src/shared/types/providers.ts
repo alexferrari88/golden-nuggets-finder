@@ -66,7 +66,12 @@ export interface GoldenNuggetsResponse {
 		fullContent: string;
 		confidence: number;
 		validationScore?: number;
-		extractionMethod?: "validated" | "unverified" | "fuzzy" | "llm";
+		extractionMethod?:
+			| "validated"
+			| "unverified"
+			| "fuzzy"
+			| "llm"
+			| "ensemble";
 	}>;
 }
 
@@ -91,14 +96,6 @@ export interface EnhancedGoldenNuggetsResponse {
 	}>;
 	// Optional metadata about the extraction process
 	metadata?: {
-		// Two-phase metadata
-		phase1Count?: number;
-		phase1FilteredCount?: number;
-		phase2FuzzyCount?: number;
-		phase2LlmCount?: number;
-		confidenceThreshold?: number;
-		abortedDueToLowConfidence?: boolean;
-		noNuggetsPassed?: boolean;
 		// Ensemble metadata
 		totalRuns?: number;
 		successfulRuns?: number;
@@ -110,7 +107,7 @@ export interface EnhancedGoldenNuggetsResponse {
 		similarityMethod?: "embedding" | "hybrid" | "word_overlap_only";
 		// General metadata
 		totalProcessingTime?: number;
-		extractionMode?: "standard" | "two-phase" | "ensemble";
+		extractionMode?: "standard" | "ensemble";
 	};
 }
 

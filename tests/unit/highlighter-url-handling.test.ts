@@ -29,285 +29,131 @@ describe("Highlighter URL Handling", () => {
 			const urlNuggets: GoldenNugget[] = [
 				{
 					type: "media" as GoldenNuggetType,
-					startContent: "https://pmc.ncbi.nlm.nih.gov/articles/PMC3444174/",
-					endContent: "https://pmc.ncbi.nlm.nih.gov/articles/PMC3444174/",
+					fullContent: "https://pmc.ncbi.nlm.nih.gov/articles/PMC3444174/",
+					confidence: 0.9,
 				},
 				{
 					type: "media" as GoldenNuggetType,
-					startContent: "https://www.youtube.com/watch?v=lG4VkPoG3ko",
-					endContent: "https://www.youtube.com/watch?v=lG4VkPoG3ko",
+					fullContent: "https://www.youtube.com/watch?v=lG4VkPoG3ko",
+					confidence: 0.9,
 				},
 			];
 
 			urlNuggets.forEach((nugget) => {
-				expect(isUrl(nugget.startContent)).toBe(true);
-				expect(isUrl(nugget.endContent)).toBe(true);
+				expect(isUrl(nugget.fullContent)).toBe(true);
 			});
 		});
 
 		it("should not detect non-URL nuggets as URLs", async () => {
 			const { isUrl } = await import("../../src/shared/utils/url-detection");
 
-			const textNuggets: GoldenNugget[] = [
+			const nonUrlNuggets: GoldenNugget[] = [
 				{
 					type: "tool" as GoldenNuggetType,
-					startContent: "This is regular text content",
-					endContent: "that should not be detected as URL",
+					fullContent:
+						"This is a regular text-based tool description with no URLs",
+					confidence: 0.9,
 				},
 				{
 					type: "aha! moments" as GoldenNuggetType,
-					startContent: "Some insight about technology",
-					endContent: "that provides valuable understanding",
+					fullContent:
+						"An insight about problem-solving without any web references",
+					confidence: 0.85,
 				},
 			];
 
-			textNuggets.forEach((nugget) => {
-				expect(isUrl(nugget.startContent)).toBe(false);
-				expect(isUrl(nugget.endContent)).toBe(false);
-			});
-		});
-	});
-
-	describe("Identical boundary detection", () => {
-		it("should detect when startContent equals endContent", () => {
-			const identicalBoundaryNuggets: GoldenNugget[] = [
-				{
-					type: "media" as GoldenNuggetType,
-					startContent: "https://pmc.ncbi.nlm.nih.gov/articles/PMC3444174/",
-					endContent: "https://pmc.ncbi.nlm.nih.gov/articles/PMC3444174/", // Same as start
-				},
-				{
-					type: "tool" as GoldenNuggetType,
-					startContent: "identical text",
-					endContent: "identical text", // Same as start
-				},
-			];
-
-			identicalBoundaryNuggets.forEach((nugget) => {
-				expect(nugget.startContent).toBe(nugget.endContent);
+			nonUrlNuggets.forEach((nugget) => {
+				expect(isUrl(nugget.fullContent)).toBe(false);
 			});
 		});
 
-		it("should not flag different boundaries as identical", () => {
-			const differentBoundaryNuggets: GoldenNugget[] = [
-				{
-					type: "media" as GoldenNuggetType,
-					startContent: "https://example.com",
-					endContent: "/path/to/resource", // Different from start
-				},
-				{
-					type: "tool" as GoldenNuggetType,
-					startContent: "This is the beginning",
-					endContent: "and this is the end", // Different from start
-				},
-			];
-
-			differentBoundaryNuggets.forEach((nugget) => {
-				expect(nugget.startContent).not.toBe(nugget.endContent);
-			});
-		});
-	});
-
-	describe("Highlighting failure diagnosis", () => {
-		const createDiagnosticFunction = () => {
-			return async (
-				nugget: GoldenNugget,
-			): Promise<{
-				reason: string;
-				details: {
-					isUrl: boolean;
-					identicalBoundaries: boolean;
-					emptyBoundaries: boolean;
-					contentLength: number;
-					startLength: number;
-					endLength: number;
-				};
-			}> => {
-				const { isUrl } = await import("../../src/shared/utils/url-detection");
-				const startTrimmed = nugget.startContent.trim();
-				const endTrimmed = nugget.endContent.trim();
-				const isUrlContent = isUrl(startTrimmed) || isUrl(endTrimmed);
-				const identicalBoundaries = nugget.startContent === nugget.endContent;
-				const emptyBoundaries = !startTrimmed || !endTrimmed;
-
-				let reason = "Unknown highlighting failure";
-
-				if (identicalBoundaries) {
-					reason = isUrlContent
-						? "URL nugget has identical start/end boundaries (boundary generation issue)"
-						: "Nugget has identical start/end content (content processing issue)";
-				} else if (emptyBoundaries) {
-					reason = "Nugget has empty start or end content";
-				} else if (isUrlContent) {
-					reason =
-						"URL content not found on page (may be in href attributes or hidden)";
-				} else {
-					reason = "Content not found on page (text matching failed)";
-				}
-
-				return {
-					reason,
-					details: {
-						isUrl: isUrlContent,
-						identicalBoundaries,
-						emptyBoundaries,
-						contentLength:
-							nugget.startContent.length + nugget.endContent.length,
-						startLength: nugget.startContent.length,
-						endLength: nugget.endContent.length,
-					},
-				};
-			};
-		};
-
-		it("should diagnose URL nuggets with identical boundaries", async () => {
-			const diagnoseFailure = createDiagnosticFunction();
-
-			const urlNuggetWithIdenticalBoundaries: GoldenNugget = {
-				type: "media" as GoldenNuggetType,
-				startContent: "https://pmc.ncbi.nlm.nih.gov/articles/PMC3444174/",
-				endContent: "https://pmc.ncbi.nlm.nih.gov/articles/PMC3444174/",
-			};
-
-			const diagnosis = await diagnoseFailure(urlNuggetWithIdenticalBoundaries);
-
-			expect(diagnosis.details.isUrl).toBe(true);
-			expect(diagnosis.details.identicalBoundaries).toBe(true);
-			expect(diagnosis.details.emptyBoundaries).toBe(false);
-			expect(diagnosis.reason).toContain(
-				"URL nugget has identical start/end boundaries",
-			);
-		});
-
-		it("should diagnose non-URL nuggets with identical boundaries", async () => {
-			const diagnoseFailure = createDiagnosticFunction();
-
-			const textNuggetWithIdenticalBoundaries: GoldenNugget = {
-				type: "tool" as GoldenNuggetType,
-				startContent: "identical content",
-				endContent: "identical content",
-			};
-
-			const diagnosis = await diagnoseFailure(
-				textNuggetWithIdenticalBoundaries,
-			);
-
-			expect(diagnosis.details.isUrl).toBe(false);
-			expect(diagnosis.details.identicalBoundaries).toBe(true);
-			expect(diagnosis.details.emptyBoundaries).toBe(false);
-			expect(diagnosis.reason).toContain("identical start/end content");
-		});
-
-		it("should diagnose empty boundaries", async () => {
-			const diagnoseFailure = createDiagnosticFunction();
-
-			const emptyBoundaryNugget: GoldenNugget = {
-				type: "tool" as GoldenNuggetType,
-				startContent: "",
-				endContent: "some content",
-			};
-
-			const diagnosis = await diagnoseFailure(emptyBoundaryNugget);
-
-			expect(diagnosis.details.emptyBoundaries).toBe(true);
-			expect(diagnosis.reason).toContain("empty start or end content");
-		});
-
-		it("should diagnose URL content not found on page", async () => {
-			const diagnoseFailure = createDiagnosticFunction();
-
-			const urlNuggetNotOnPage: GoldenNugget = {
-				type: "media" as GoldenNuggetType,
-				startContent: "https://example.com",
-				endContent: "/path/to/resource",
-			};
-
-			const diagnosis = await diagnoseFailure(urlNuggetNotOnPage);
-
-			expect(diagnosis.details.isUrl).toBe(true);
-			expect(diagnosis.details.identicalBoundaries).toBe(false);
-			expect(diagnosis.details.emptyBoundaries).toBe(false);
-			expect(diagnosis.reason).toContain("URL content not found on page");
-		});
-
-		it("should provide detailed metrics in diagnosis", async () => {
-			const diagnoseFailure = createDiagnosticFunction();
-
-			const nugget: GoldenNugget = {
-				type: "tool" as GoldenNuggetType,
-				startContent: "Start content",
-				endContent: "End content",
-			};
-
-			const diagnosis = await diagnoseFailure(nugget);
-
-			expect(diagnosis.details.startLength).toBe(nugget.startContent.length);
-			expect(diagnosis.details.endLength).toBe(nugget.endContent.length);
-			expect(diagnosis.details.contentLength).toBe(
-				nugget.startContent.length + nugget.endContent.length,
-			);
-		});
-	});
-
-	describe("Integration scenarios", () => {
-		it("should handle the original problematic URLs from the issue", async () => {
-			const { isUrl } = await import("../../src/shared/utils/url-detection");
-
-			const problematicNuggets: GoldenNugget[] = [
-				{
-					type: "media" as GoldenNuggetType,
-					startContent: "https://pmc.ncbi.nlm.nih.gov/articles/PMC3444174/",
-					endContent: "https://pmc.ncbi.nlm.nih.gov/articles/PMC3444174/",
-				},
-				{
-					type: "media" as GoldenNuggetType,
-					startContent: "https://www.youtube.com/watch?v=lG4VkPoG3ko",
-					endContent: "https://www.youtube.com/watch?v=lG4VkPoG3ko",
-				},
-			];
-
-			problematicNuggets.forEach((nugget) => {
-				// These should be detected as URLs
-				expect(isUrl(nugget.startContent)).toBe(true);
-				expect(isUrl(nugget.endContent)).toBe(true);
-
-				// And they have identical boundaries (the original problem)
-				expect(nugget.startContent).toBe(nugget.endContent);
-			});
-		});
-
-		it("should handle mixed URL and text nuggets in the same batch", async () => {
-			const { isUrl } = await import("../../src/shared/utils/url-detection");
-
+		it("should handle mixed content with URLs", async () => {
 			const mixedNuggets: GoldenNugget[] = [
 				{
 					type: "media" as GoldenNuggetType,
-					startContent: "https://example.com",
-					endContent: "https://example.com", // URL with identical boundaries
+					fullContent:
+						"Check out this resource: https://example.com/resource - very helpful",
+					confidence: 0.9,
 				},
 				{
 					type: "tool" as GoldenNuggetType,
-					startContent: "This is regular text",
-					endContent: "with different boundaries", // Text with different boundaries
-				},
-				{
-					type: "aha! moments" as GoldenNuggetType,
-					startContent: "Same text content",
-					endContent: "Same text content", // Text with identical boundaries
+					fullContent:
+						"Tool description with embedded link https://github.com/user/repo for reference",
+					confidence: 0.8,
 				},
 			];
 
-			// First should be URL
-			expect(isUrl(mixedNuggets[0].startContent)).toBe(true);
-			expect(mixedNuggets[0].startContent).toBe(mixedNuggets[0].endContent);
+			// For mixed content, we test if the fullContent contains a URL
+			mixedNuggets.forEach((nugget) => {
+				const containsUrl = /https?:\/\/[^\s]+/i.test(nugget.fullContent);
+				expect(containsUrl).toBe(true);
+			});
+		});
 
-			// Second should be text with different boundaries
-			expect(isUrl(mixedNuggets[1].startContent)).toBe(false);
-			expect(mixedNuggets[1].startContent).not.toBe(mixedNuggets[1].endContent);
+		it("should handle various URL formats", async () => {
+			const { isUrl } = await import("../../src/shared/utils/url-detection");
 
-			// Third should be text with identical boundaries
-			expect(isUrl(mixedNuggets[2].startContent)).toBe(false);
-			expect(mixedNuggets[2].startContent).toBe(mixedNuggets[2].endContent);
+			const urlFormats = [
+				"https://example.com",
+				"http://example.com",
+				"https://subdomain.example.com/path",
+				"https://example.com/path/to/resource?query=value",
+				"https://example.com:8080/secure/path",
+			];
+
+			urlFormats.forEach((url) => {
+				expect(isUrl(url)).toBe(true);
+			});
+
+			const invalidUrls = [
+				"not-a-url",
+				"ftp://example.com",
+				"mailto:test@example.com",
+				"javascript:alert('test')",
+				"",
+			];
+
+			invalidUrls.forEach((url) => {
+				expect(isUrl(url)).toBe(false);
+			});
+		});
+	});
+
+	describe("URL handling in nugget processing", () => {
+		it("should properly categorize URL-based nuggets", () => {
+			const nuggets: GoldenNugget[] = [
+				{
+					type: "media" as GoldenNuggetType,
+					fullContent: "https://www.youtube.com/watch?v=example",
+					confidence: 0.95,
+				},
+				{
+					type: "tool" as GoldenNuggetType,
+					fullContent: "Regular tool description without URLs",
+					confidence: 0.9,
+				},
+			];
+
+			const urlBasedNuggets = nuggets.filter((nugget) => {
+				const urlPattern = /https?:\/\/[^\s]+/i;
+				return urlPattern.test(nugget.fullContent);
+			});
+
+			expect(urlBasedNuggets).toHaveLength(1);
+			expect(urlBasedNuggets[0].type).toBe("media");
+		});
+
+		it("should handle empty fullContent gracefully", () => {
+			const emptyNugget: GoldenNugget = {
+				type: "tool" as GoldenNuggetType,
+				fullContent: "",
+				confidence: 0.5,
+			};
+
+			expect(() => {
+				const urlPattern = /https?:\/\/[^\s]+/i;
+				return urlPattern.test(emptyNugget.fullContent);
+			}).not.toThrow();
 		});
 	});
 });

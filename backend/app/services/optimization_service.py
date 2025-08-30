@@ -131,8 +131,8 @@ Instructions for extracting and formatting golden nuggets:
 Additional instructions and constraints:
 
 1. Extract a maximum of one golden nugget per type.
-2. Ensure that the startContent and endContent fields contain the exact words from the original text, up to a maximum of 5 words each.
-3. Do not modify or paraphrase the original text in the startContent and endContent fields.
+2. Ensure that the fullContent field contains the complete verbatim text of the golden nugget.
+3. Do not modify or paraphrase the original text in the fullContent field.
 4. If no golden nuggets are found for any type, return an empty array for the golden_nuggets field.
 5. Focus on extracting the most valuable and relevant information for the specified persona.
 6. Ensure that the extracted golden nuggets are concise and impactful.

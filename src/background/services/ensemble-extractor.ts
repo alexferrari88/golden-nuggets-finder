@@ -15,7 +15,6 @@ interface EnsembleExtractionOptions {
 	temperature: number;
 	parallelExecution: boolean;
 	similarityOptions?: Partial<SimilarityOptions>;
-	usePhase1?: boolean;
 	selectedTypes?: any[];
 }
 
@@ -51,7 +50,6 @@ export class EnsembleExtractor {
 					provider,
 					runIndex,
 					options.temperature,
-					options.usePhase1,
 					options.selectedTypes,
 				),
 			);
@@ -88,52 +86,18 @@ export class EnsembleExtractor {
 		provider: LLMProvider,
 		runIndex: number,
 		temperature?: number,
-		usePhase1?: boolean,
 		selectedTypes?: any[],
 	): Promise<GoldenNuggetsResponse> {
 		try {
 			console.log(`Executing run ${runIndex + 1} for ${provider.providerId}`);
 
-			let rawResponse: GoldenNuggetsResponse;
-
-			if (usePhase1) {
-				// Use Phase 1 method for proper high-recall extraction with confidence scores
-				const phase1Response = await provider.extractPhase1HighRecall(
-					content,
-					prompt,
-					temperature,
-					selectedTypes,
-				);
-
-				// Convert Phase1Response (fullContent) back to GoldenNuggetsResponse (startContent/endContent)
-				// for ensemble similarity matching - extract boundaries from fullContent
-				rawResponse = {
-					golden_nuggets: phase1Response.golden_nuggets.map((nugget) => {
-						// Simple boundary extraction - take first/last few words
-						const words = nugget.fullContent.trim().split(/\s+/);
-						const startWords = words.slice(
-							0,
-							Math.min(5, Math.ceil(words.length / 2)),
-						);
-						const endWords = words.slice(Math.max(0, words.length - 5));
-
-						return {
-							type: nugget.type,
-							startContent: startWords.join(" "),
-							endContent: endWords.join(" "),
-							// Store Phase 1 confidence for later use in consensus building
-							phase1Confidence: nugget.confidence,
-						};
-					}),
-				};
-			} else {
-				// Fallback to old method for backward compatibility
-				rawResponse = await provider.extractGoldenNuggets(
-					content,
-					prompt,
-					temperature,
-				);
-			}
+			// Use standard extraction method
+			const rawResponse = await provider.extractGoldenNuggets(
+				content,
+				prompt,
+				temperature || 0.7,
+				selectedTypes,
+			);
 
 			return normalize(rawResponse, provider.providerId);
 		} catch (error) {
@@ -195,8 +159,7 @@ export class EnsembleExtractor {
 				| "aha! moments"
 				| "analogy"
 				| "model",
-			startContent: group[0].startContent,
-			endContent: group[0].endContent,
+			fullContent: group[0].fullContent,
 			confidence: group.length / metadata.successfulRuns,
 			runsSupportingThis: group.length,
 			totalRuns: metadata.totalRuns,
@@ -221,8 +184,8 @@ export class EnsembleExtractor {
 	}
 
 	private groupBySimilarity(nuggets: any[]): any[][] {
-		// Simplified similarity grouping for Phase 1
-		// Groups nuggets by exact type and similar startContent
+		// Simplified similarity grouping for fallback
+		// Groups nuggets by exact type and similar fullContent
 		const groups: any[][] = [];
 
 		for (const nugget of nuggets) {
@@ -230,8 +193,8 @@ export class EnsembleExtractor {
 				(group) =>
 					group[0].type === nugget.type &&
 					this.calculateSimpleSimilarity(
-						group[0].startContent,
-						nugget.startContent,
+						group[0].fullContent,
+						nugget.fullContent,
 					) > 0.8,
 			);
 
@@ -285,7 +248,10 @@ export class EnsembleExtractor {
 	}
 
 	private calculateSimpleSimilarity(text1: string, text2: string): number {
-		// Simplified similarity for Phase 1 - just check overlap
+		// Handle null/undefined inputs
+		if (!text1 || !text2) return 0;
+
+		// Simplified similarity for fallback - just check overlap
 		const words1 = text1.toLowerCase().split(/\s+/);
 		const words2 = text2.toLowerCase().split(/\s+/);
 

@@ -59,8 +59,7 @@ interface EnsembleExtractionOptions {
 
 interface EnsembleNugget {
   type: string;
-  startContent: string;
-  endContent: string;
+  fullContent: string;
   confidence: number; // 0-1 based on agreement
   runsSupportingThis: number; // How many runs extracted this
   totalRuns: number; // Total runs performed
@@ -167,8 +166,7 @@ export class EnsembleExtractor {
     // Step 3: Apply majority voting and confidence scoring
     const consensusNuggets = nuggetGroups.map(group => ({
       type: group[0].type,
-      startContent: group[0].startContent,
-      endContent: group[0].endContent,
+      fullContent: group[0].fullContent,
       confidence: group.length / metadata.successfulRuns,
       runsSupportingThis: group.length,
       totalRuns: metadata.totalRuns
@@ -190,13 +188,13 @@ export class EnsembleExtractor {
   
   private groupBySimilarity(nuggets: any[]): any[][] {
     // Simplified similarity grouping for Phase 1
-    // Groups nuggets by exact type and similar startContent
+    // Groups nuggets by exact type and similar fullContent
     const groups: any[][] = [];
     
     for (const nugget of nuggets) {
       const existingGroup = groups.find(group => 
         group[0].type === nugget.type && 
-        this.calculateSimpleSimilarity(group[0].startContent, nugget.startContent) > 0.8
+        this.calculateSimpleSimilarity(group[0].fullContent, nugget.fullContent) > 0.8
       );
       
       if (existingGroup) {
@@ -469,7 +467,7 @@ function renderNuggetWithConfidence(nugget: EnsembleNugget): string {
   return `
     <div class="nugget-item" data-confidence="${nugget.confidence}">
       <div class="nugget-type">${getTypeEmoji(nugget.type)} ${nugget.type}</div>
-      <div class="nugget-content">${nugget.startContent}...</div>
+      <div class="nugget-content">${nugget.fullContent.substring(0, 100)}...</div>
       <div class="nugget-confidence">
         <span class="confidence-stars">${confidenceStars}</span>
         <span class="confidence-text">(${agreementText})</span>
@@ -772,8 +770,8 @@ export class SemanticDeduplicator {
     for (const nugget of nuggets) {
       const similarGroup = groups.find(group => 
         this.calculateSemanticSimilarity(
-          group[0].startContent, 
-          nugget.startContent
+          group[0].fullContent, 
+          nugget.fullContent
         ) > options.similarityThreshold
       );
       
@@ -1050,7 +1048,7 @@ function renderConsortiumNugget(nugget: ConsensusNugget): string {
           <span class="confidence-score">${Math.round(nugget.confidence * 100)}%</span>
         </div>
       </div>
-      <div class="nugget-content">${nugget.startContent}...</div>
+      <div class="nugget-content">${nugget.fullContent.substring(0, 100)}...</div>
       <div class="nugget-meta">
         <span class="agreement-level">${confidenceLevel} agreement</span>
         <span class="cross-model-confidence">Cross-model: ${Math.round(modelAgreement.crossModelConfidence * 100)}%</span>
@@ -1345,7 +1343,7 @@ export class QualityRanker {
     // Higher score for nuggets that are semantically distinct from others
     const similarities = allNuggets
       .filter(other => other !== nugget)
-      .map(other => this.calculateContentSimilarity(nugget.startContent, other.startContent));
+      .map(other => this.calculateContentSimilarity(nugget.fullContent, other.fullContent));
     
     if (similarities.length === 0) return 1.0;
     

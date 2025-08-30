@@ -6,18 +6,16 @@ import type { GoldenNuggetType } from "../schemas";
 import type {
 	GoldenNuggetsResponse,
 	LLMProvider,
-	Phase1Response,
-	Phase2Response,
 	ProviderConfig,
 } from "../types/providers";
 
-// Schema definition for golden nuggets (synthesis removed)
+// Schema definition for golden nuggets with fullContent approach
 const GoldenNuggetsSchema = z.object({
 	golden_nuggets: z.array(
 		z.object({
 			type: z.enum(["tool", "media", "aha! moments", "analogy", "model"]),
-			startContent: z.string(),
-			endContent: z.string(),
+			fullContent: z.string(),
+			confidence: z.number().min(0).max(1),
 		}),
 	),
 });
@@ -172,6 +170,7 @@ export class LangChainOpenRouterProvider implements LLMProvider {
 		content: string,
 		prompt: string,
 		temperature?: number,
+		_selectedTypes?: GoldenNuggetType[],
 	): Promise<GoldenNuggetsResponse> {
 		// Use provided temperature or fallback to default (0.2)
 		const effectiveTemperature = temperature ?? 0.2;
@@ -238,7 +237,16 @@ export class LangChainOpenRouterProvider implements LLMProvider {
 				success: true,
 			});
 
-			return response as GoldenNuggetsResponse;
+			// Transform response to include required fields
+			return {
+				golden_nuggets: response.golden_nuggets.map((nugget) => ({
+					type: nugget.type,
+					fullContent: nugget.fullContent,
+					confidence: nugget.confidence,
+					validationScore: nugget.confidence, // Use confidence as validation score
+					extractionMethod: "validated" as const,
+				})),
+			};
 		} catch (error) {
 			const errorMessage = this.getErrorMessage(error);
 
@@ -281,216 +289,6 @@ export class LangChainOpenRouterProvider implements LLMProvider {
 				error instanceof Error ? error.message : String(error);
 			console.warn(`OpenRouter API key validation failed:`, errorMessage);
 			return false;
-		}
-	}
-
-	async extractPhase1HighRecall(
-		content: string,
-		prompt: string,
-		temperature = 0.7,
-		_selectedTypes?: GoldenNuggetType[],
-	): Promise<Phase1Response> {
-		// Create Phase 1 schema for high recall extraction
-		const Phase1Schema = z.object({
-			golden_nuggets: z.array(
-				z.object({
-					type: z.enum(["tool", "media", "aha! moments", "analogy", "model"]),
-					fullContent: z.string(),
-					confidence: z.number().min(0).max(1),
-				}),
-			),
-		});
-
-		// Create model with Phase 1 temperature (high recall)
-		const model = new ChatOpenAI({
-			apiKey: this.config.apiKey,
-			model: this.modelName,
-			temperature: temperature,
-			maxRetries: 0, // Disable ChatOpenAI's built-in retry logic - we handle retries ourselves
-			configuration: {
-				baseURL: "https://openrouter.ai/api/v1",
-				defaultHeaders: {
-					"HTTP-Referer": "https://golden-nuggets-finder.com",
-					"X-Title": "Golden Nuggets Finder",
-				},
-			},
-		});
-
-		// Log the request
-		debugLogger.logLLMRequest(
-			`https://openrouter.ai/api/v1/chat/completions (${this.modelName}) - Phase 1`,
-			{
-				model: this.modelName,
-				messages: [
-					{ role: "system", content: prompt },
-					{ role: "user", content: `${content.substring(0, 500)}...` },
-				],
-				provider: "openrouter",
-				temperature: temperature,
-				phase: "1-high-recall",
-			},
-		);
-
-		try {
-			const response = await this.executeWithRetry(async () => {
-				const structuredModel = model.withStructuredOutput(Phase1Schema, {
-					name: "extract_golden_nuggets_phase1",
-					method: "functionCalling",
-				});
-
-				const result = await structuredModel.invoke([
-					new SystemMessage(prompt),
-					new HumanMessage(content),
-				]);
-
-				// Validate response for error objects
-				this.validateOpenRouterResponse(result);
-				return result;
-			});
-
-			// Response already validated by schema - no normalization needed
-
-			// Log the response
-			debugLogger.logLLMResponse({
-				provider: "openrouter",
-				model: this.modelName,
-				phase: "1-high-recall",
-				success: true,
-			});
-
-			return response as Phase1Response;
-		} catch (error) {
-			const errorMessage = this.getErrorMessage(error);
-
-			// Log the error
-			debugLogger.logLLMResponse({
-				provider: "openrouter",
-				model: this.modelName,
-				phase: "1-high-recall",
-				success: false,
-				error: errorMessage,
-			});
-
-			// Re-throw rate limit retry exhausted errors as-is for UI to handle
-			if (errorMessage.startsWith("RATE_LIMIT_RETRY_EXHAUSTED:")) {
-				throw error;
-			}
-
-			// For other errors, wrap with provider context
-			throw new Error(`OpenRouter Phase 1 API call failed: ${errorMessage}`);
-		}
-	}
-
-	async extractPhase2HighPrecision(
-		content: string,
-		prompt: string,
-		nuggets: Array<{
-			type: GoldenNuggetType;
-			fullContent: string;
-			confidence: number;
-		}>,
-		temperature = 0.0,
-	): Promise<Phase2Response> {
-		// Create Phase 2 schema for boundary detection
-		const Phase2Schema = z.object({
-			golden_nuggets: z.array(
-				z.object({
-					type: z.enum(["tool", "media", "aha! moments", "analogy", "model"]),
-					startContent: z.string(),
-					endContent: z.string(),
-					confidence: z.number().min(0).max(1),
-				}),
-			),
-		});
-
-		// Create model with Phase 2 temperature (high precision)
-		const model = new ChatOpenAI({
-			apiKey: this.config.apiKey,
-			model: this.modelName,
-			temperature: temperature,
-			maxRetries: 0, // Disable ChatOpenAI's built-in retry logic - we handle retries ourselves
-			configuration: {
-				baseURL: "https://openrouter.ai/api/v1",
-				defaultHeaders: {
-					"HTTP-Referer": "https://golden-nuggets-finder.com",
-					"X-Title": "Golden Nuggets Finder",
-				},
-			},
-		});
-
-		// Build the Phase 2 prompt with nuggets context
-		const nuggetsList = nuggets
-			.map(
-				(nugget, index) =>
-					`${index + 1}. Type: ${nugget.type}\n   Content: "${nugget.fullContent}"\n   Confidence: ${nugget.confidence}`,
-			)
-			.join("\n\n");
-
-		const phase2PromptWithContext = `${prompt}\n\nNUGGETS TO PROCESS:\n${nuggetsList}\n\nORIGINAL CONTENT:\n${content}`;
-
-		// Log the request
-		debugLogger.logLLMRequest(
-			`https://openrouter.ai/api/v1/chat/completions (${this.modelName}) - Phase 2`,
-			{
-				model: this.modelName,
-				messages: [
-					{ role: "system", content: phase2PromptWithContext },
-					{ role: "user", content: `${content.substring(0, 500)}...` },
-				],
-				provider: "openrouter",
-				temperature: temperature,
-				phase: "2-high-precision",
-				nuggetCount: nuggets.length,
-			},
-		);
-
-		try {
-			const response = await this.executeWithRetry(async () => {
-				const structuredModel = model.withStructuredOutput(Phase2Schema, {
-					name: "extract_golden_nuggets_phase2",
-					method: "functionCalling",
-				});
-
-				const result = await structuredModel.invoke([
-					new SystemMessage(phase2PromptWithContext),
-					new HumanMessage(content),
-				]);
-
-				// Validate response for error objects
-				this.validateOpenRouterResponse(result);
-				return result;
-			});
-
-			// Response already validated by schema - no normalization needed
-
-			// Log the response
-			debugLogger.logLLMResponse({
-				provider: "openrouter",
-				model: this.modelName,
-				phase: "2-high-precision",
-				success: true,
-			});
-
-			return response as Phase2Response;
-		} catch (error) {
-			const errorMessage = this.getErrorMessage(error);
-
-			// Log the error
-			debugLogger.logLLMResponse({
-				provider: "openrouter",
-				model: this.modelName,
-				phase: "2-high-precision",
-				success: false,
-				error: errorMessage,
-			});
-
-			// Re-throw rate limit retry exhausted errors as-is for UI to handle
-			if (errorMessage.startsWith("RATE_LIMIT_RETRY_EXHAUSTED:")) {
-				throw error;
-			}
-
-			// For other errors, wrap with provider context
-			throw new Error(`OpenRouter Phase 2 API call failed: ${errorMessage}`);
 		}
 	}
 }

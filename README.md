@@ -335,19 +335,25 @@ frontend/
 
 ### AI Provider Response Schema
 
-All AI providers (Gemini, Claude, OpenAI, OpenRouter) return responses in this standardized format:
+All AI providers (Gemini, Claude, OpenAI, OpenRouter) return responses in this standardized fullContent format:
 
 ```json
 {
   "golden_nuggets": [
     {
       "type": "tool|media|aha! moments|analogy|model",
-      "startContent": "First few words of original text",
-      "endContent": "Last few words of original text"
+      "fullContent": "Complete text of the golden nugget",
+      "confidence": 0.85
     }
   ]
 }
 ```
+
+**Schema Features:**
+- **fullContent**: Complete verbatim text of the golden nugget
+- **confidence**: AI-assigned quality score (0.0-1.0) for quality assessment
+- **type**: Categorization for filtering and organization
+- **Consistent Format**: Same structure across all AI providers for reliable processing
 
 ### Backend API Endpoints
 

@@ -46,9 +46,8 @@ class TestProviderSpecificOptimization:
                             "golden_nuggets": [
                                 {
                                     "type": "aha! moments",
-                                    "content": "The key insight about async/await is that it's syntactic sugar over Promises, making asynchronous code readable while avoiding callback hell.",
-                                    "startContent": "The key insight about async/await",
-                                    "endContent": "avoiding callback hell",
+                                    "fullContent": "The key insight about async/await is that it's syntactic sugar over Promises, making asynchronous code readable while avoiding callback hell.",
+                                    "confidence": 0.9,
                                 }
                             ]
                         },
@@ -68,9 +67,8 @@ class TestProviderSpecificOptimization:
                             "golden_nuggets": [
                                 {
                                     "type": "tool",
-                                    "content": "I use Notion's database templates with rollup properties to automatically track project progress across multiple workspaces, which eliminates manual status updates.",
-                                    "startContent": "I use Notion's database templates",
-                                    "endContent": "manual status updates",
+                                    "fullContent": "I use Notion's database templates with rollup properties to automatically track project progress across multiple workspaces, which eliminates manual status updates.",
+                                    "confidence": 0.85,
                                 }
                             ]
                         },
@@ -90,9 +88,8 @@ class TestProviderSpecificOptimization:
                             "golden_nuggets": [
                                 {
                                     "type": "model",
-                                    "content": "The 'Inversion' mental model works by asking 'What would guarantee failure?' before starting a project, helping identify risks proactively instead of just planning for success.",
-                                    "startContent": "The 'Inversion' mental model works",
-                                    "endContent": "planning for success",
+                                    "fullContent": "The 'Inversion' mental model works by asking 'What would guarantee failure?' before starting a project, helping identify risks proactively instead of just planning for success.",
+                                    "confidence": 0.95,
                                 }
                             ]
                         },

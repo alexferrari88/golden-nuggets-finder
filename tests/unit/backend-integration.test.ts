@@ -1,5 +1,4 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { GeminiClient } from "../../src/background/gemini-client";
 import { MessageHandler } from "../../src/background/message-handler";
 import { MESSAGE_TYPES } from "../../src/shared/types";
 import { createMockMessageSenderWithTab } from "../utils/chrome-mocks";
@@ -8,7 +7,7 @@ describe("Backend Integration Tests", () => {
 	let mockFetch: any;
 	let mockChrome: any;
 	let messageHandler: MessageHandler;
-	let mockGeminiClient: any;
+	let _mockGeminiClient: any;
 
 	beforeEach(() => {
 		// Setup fetch mock
@@ -42,24 +41,33 @@ describe("Backend Integration Tests", () => {
 		global.chrome = mockChrome;
 
 		// Create mock Gemini client
-		mockGeminiClient = {
+		_mockGeminiClient = {
 			analyzeContent: vi.fn(),
 		};
 
 		// Create message handler
-		messageHandler = new MessageHandler(mockGeminiClient as GeminiClient);
+		messageHandler = new MessageHandler();
 	});
 
 	describe("Feedback Submission Integration", () => {
 		it("should handle successful nugget feedback submission with backend response", async () => {
 			const feedbackData = {
 				id: "feedback_123",
-				nuggetId: "nugget_456",
-				isHelpful: true,
-				reason: "Very useful tool recommendation",
+				nuggetContent: "This is a great tool for productivity",
+				originalType: "tool" as const,
+				rating: "positive" as const,
 				timestamp: Date.now(),
 				url: "https://example.com/article",
-				nuggetType: "tool",
+				context: "The surrounding context of the nugget",
+				modelProvider: "gemini" as const,
+				modelName: "gemini-2.0-flash-thinking-exp",
+				prompt: {
+					id: "test-prompt",
+					version: "original",
+					content: "Test prompt content",
+					type: "default" as const,
+					name: "Test Prompt",
+				},
 			};
 
 			const backendResponse = {
@@ -82,7 +90,7 @@ describe("Backend Integration Tests", () => {
 				feedback: feedbackData,
 			};
 
-			const sender = { tab: { id: 123 } };
+			const sender = createMockMessageSenderWithTab({ id: 123 });
 			const sendResponse = vi.fn();
 
 			await messageHandler.handleMessage(request, sender, sendResponse);
@@ -135,12 +143,21 @@ describe("Backend Integration Tests", () => {
 		it("should handle feedback submission with deduplication notification", async () => {
 			const feedbackData = {
 				id: "duplicate_feedback_789",
-				nuggetId: "nugget_456",
-				isHelpful: false,
-				reason: "Already saw this recommendation",
+				nuggetContent: "This is a duplicate tool recommendation",
+				originalType: "tool" as const,
+				rating: "negative" as const,
 				timestamp: Date.now(),
 				url: "https://example.com/article",
-				nuggetType: "tool",
+				context: "Already saw this recommendation",
+				modelProvider: "gemini" as const,
+				modelName: "gemini-2.0-flash-thinking-exp",
+				prompt: {
+					id: "test-prompt",
+					version: "original",
+					content: "Test prompt content",
+					type: "default" as const,
+					name: "Test Prompt",
+				},
 			};
 
 			const backendResponse = {
@@ -164,7 +181,7 @@ describe("Backend Integration Tests", () => {
 				feedback: feedbackData,
 			};
 
-			const sender = { tab: { id: 456 } };
+			const sender = createMockMessageSenderWithTab({ id: 456 });
 			const sendResponse = vi.fn();
 
 			await messageHandler.handleMessage(request, sender, sendResponse);
@@ -185,12 +202,21 @@ describe("Backend Integration Tests", () => {
 		it("should handle feedback submission with backend failure and local fallback", async () => {
 			const feedbackData = {
 				id: "fallback_feedback_101",
-				nuggetId: "nugget_789",
-				isHelpful: true,
-				reason: "Excellent aha! moments",
+				nuggetContent: "Excellent insight about productivity",
+				originalType: "aha! moments" as const,
+				rating: "positive" as const,
 				timestamp: Date.now(),
 				url: "https://reddit.com/r/test",
-				nuggetType: "aha! moments",
+				context: "Excellent aha! moments",
+				modelProvider: "gemini" as const,
+				modelName: "gemini-2.0-flash-thinking-exp",
+				prompt: {
+					id: "test-prompt",
+					version: "original",
+					content: "Test prompt content",
+					type: "default" as const,
+					name: "Test Prompt",
+				},
 			};
 
 			// Mock backend failure
@@ -201,7 +227,7 @@ describe("Backend Integration Tests", () => {
 				feedback: feedbackData,
 			};
 
-			const sender = { tab: { id: 789 } };
+			const sender = createMockMessageSenderWithTab({ id: 789 });
 			const sendResponse = vi.fn();
 
 			await messageHandler.handleMessage(request, sender, sendResponse);
@@ -236,19 +262,37 @@ describe("Backend Integration Tests", () => {
 			const missingContentFeedback = [
 				{
 					id: "missing_123",
-					selectedText: "This important concept was missed",
-					suggestedType: "aha! moments",
+					fullContent: "This important concept was missed",
+					suggestedType: "aha! moments" as const,
 					url: "https://example.com/deep-article",
 					timestamp: Date.now(),
 					context: "Analysis failed to identify this key insight",
+					modelProvider: "gemini" as const,
+					modelName: "gemini-2.0-flash-thinking-exp",
+					prompt: {
+						id: "test-prompt",
+						version: "original",
+						content: "Test prompt content",
+						type: "default" as const,
+						name: "Test Prompt",
+					},
 				},
 				{
 					id: "missing_456",
-					selectedText: "Useful tool reference overlooked",
-					suggestedType: "tool",
+					fullContent: "Useful tool reference overlooked",
+					suggestedType: "tool" as const,
 					url: "https://example.com/deep-article",
 					timestamp: Date.now(),
 					context: "Tool was mentioned but not extracted",
+					modelProvider: "gemini" as const,
+					modelName: "gemini-2.0-flash-thinking-exp",
+					prompt: {
+						id: "test-prompt",
+						version: "original",
+						content: "Test prompt content",
+						type: "default" as const,
+						name: "Test Prompt",
+					},
 				},
 			];
 
@@ -272,7 +316,7 @@ describe("Backend Integration Tests", () => {
 				missingContentFeedback,
 			};
 
-			const sender = { tab: { id: 202 } };
+			const sender = createMockMessageSenderWithTab({ id: 202 });
 			const sendResponse = vi.fn();
 
 			await messageHandler.handleMessage(request, sender, sendResponse);
@@ -439,7 +483,7 @@ describe("Backend Integration Tests", () => {
 
 			const request = {
 				type: MESSAGE_TYPES.TRIGGER_OPTIMIZATION,
-				mode: "cheap",
+				mode: "cheap" as const,
 			};
 
 			const sendResponse = vi.fn();
@@ -477,7 +521,7 @@ describe("Backend Integration Tests", () => {
 
 			const request = {
 				type: MESSAGE_TYPES.TRIGGER_OPTIMIZATION,
-				mode: "thorough",
+				mode: "expensive" as const,
 			};
 
 			const sendResponse = vi.fn();
@@ -504,7 +548,7 @@ describe("Backend Integration Tests", () => {
 
 			const request = {
 				type: MESSAGE_TYPES.TRIGGER_OPTIMIZATION,
-				mode: "cheap",
+				mode: "cheap" as const,
 			};
 
 			const sendResponse = vi.fn();
@@ -746,13 +790,25 @@ describe("Backend Integration Tests", () => {
 					type: MESSAGE_TYPES.SUBMIT_NUGGET_FEEDBACK,
 					feedback: {
 						id: "error_test",
-						nuggetId: "test",
-						isHelpful: true,
+						nuggetContent: "Test nugget content",
+						originalType: "tool" as const,
+						rating: "positive" as const,
 						timestamp: Date.now(),
+						url: "https://example.com",
+						context: "Test context",
+						modelProvider: "gemini" as const,
+						modelName: "gemini-2.0-flash-thinking-exp",
+						prompt: {
+							id: "test-prompt",
+							version: "original",
+							content: "Test prompt content",
+							type: "default" as const,
+							name: "Test Prompt",
+						},
 					},
 				};
 
-				const sender = { tab: { id: 123 } };
+				const sender = createMockMessageSenderWithTab({ id: 123 });
 				const sendResponse = vi.fn();
 
 				await messageHandler.handleMessage(request, sender, sendResponse);
@@ -795,13 +851,25 @@ describe("Backend Integration Tests", () => {
 				type: MESSAGE_TYPES.SUBMIT_NUGGET_FEEDBACK,
 				feedback: {
 					id: "timeout_test",
-					nuggetId: "test",
-					isHelpful: true,
+					nuggetContent: "Test nugget content",
+					originalType: "tool" as const,
+					rating: "positive" as const,
 					timestamp: Date.now(),
+					url: "https://example.com",
+					context: "Test context",
+					modelProvider: "gemini" as const,
+					modelName: "gemini-2.0-flash-thinking-exp",
+					prompt: {
+						id: "test-prompt",
+						version: "original",
+						content: "Test prompt content",
+						type: "default" as const,
+						name: "Test Prompt",
+					},
 				},
 			};
 
-			const sender = { tab: { id: 123 } };
+			const sender = createMockMessageSenderWithTab({ id: 123 });
 			const sendResponse = vi.fn();
 
 			await messageHandler.handleMessage(request, sender, sendResponse);
@@ -833,16 +901,32 @@ describe("Backend Integration Tests", () => {
 				type: MESSAGE_TYPES.SUBMIT_NUGGET_FEEDBACK,
 				feedback: {
 					id: `concurrent_${index + 1}`,
-					nuggetId: `test_${index + 1}`,
-					isHelpful: true,
+					nuggetContent: `Test nugget content ${index + 1}`,
+					originalType: "tool" as const,
+					rating: "positive" as const,
 					timestamp: Date.now(),
+					url: "https://example.com",
+					context: `Test context ${index + 1}`,
+					modelProvider: "gemini" as const,
+					modelName: "gemini-2.0-flash-thinking-exp",
+					prompt: {
+						id: "test-prompt",
+						version: "original",
+						content: "Test prompt content",
+						type: "default" as const,
+						name: "Test Prompt",
+					},
 				},
 			}));
 
 			const promises = requests.map((request) => {
 				const sendResponse = vi.fn();
 				return messageHandler
-					.handleMessage(request, { tab: { id: 123 } }, sendResponse)
+					.handleMessage(
+						request,
+						createMockMessageSenderWithTab({ id: 123 }),
+						sendResponse,
+					)
 					.then(() => sendResponse);
 			});
 

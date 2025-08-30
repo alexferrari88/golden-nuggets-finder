@@ -7,9 +7,9 @@ export * from "./types/providers";
 export interface GoldenNugget {
 	type: GoldenNuggetType;
 	fullContent: string; // Primary content field
-	confidence?: number; // Optional confidence from Phase 1
+	confidence: number; // Required confidence score (from LLM analysis or validation)
 	validationScore?: number; // Optional validation score
-	extractionMethod?: "fuzzy" | "llm"; // Optional extraction method metadata
+	extractionMethod?: "validated" | "unverified" | "fuzzy" | "llm" | "ensemble"; // Optional extraction method metadata
 }
 
 // Enhanced nugget interface with optional metadata for UI display
@@ -72,25 +72,6 @@ export interface ExtensionConfig {
 		defaultMode: "fast" | "balanced" | "comprehensive";
 		enabled: boolean;
 	};
-
-	// Two-phase extraction settings
-	twoPhaseSettings?: {
-		enabled: boolean;
-		confidenceThreshold: number;
-		phase1Temperature: number;
-		phase2Temperature: number;
-		maxNuggetsPerType: {
-			"aha! moments": number;
-			analogy: number;
-			model: number;
-			tool: number; // -1 means unlimited
-			media: number; // -1 means unlimited
-		};
-		fuzzyMatchOptions: {
-			tolerance: number;
-			minConfidenceThreshold: number;
-		};
-	};
 }
 
 // Separate type definitions for Ensemble
@@ -137,8 +118,6 @@ export interface AnalysisRequest {
 	typeFilter?: TypeFilterOptions; // Type filtering options
 	// NEW: Full prompt metadata for analysis context tracking
 	promptMetadata?: PromptMetadata; // Optional - will be resolved from promptId if not provided
-	// Two-phase extraction parameter
-	useTwoPhase?: boolean;
 }
 
 // New ensemble analysis request
@@ -169,6 +148,7 @@ export interface SelectedContentAnalysisRequest {
 	url: string;
 	selectedComments: string[];
 	typeFilter?: TypeFilterOptions; // Type filtering options
+	analysisId?: string; // Optional analysis ID for tracking
 	// NEW: Full prompt metadata for analysis context tracking
 	promptMetadata?: PromptMetadata; // Optional - will be resolved from promptId if not provided
 }
@@ -280,8 +260,7 @@ export interface NuggetFeedback {
 
 export interface MissingContentFeedback {
 	id: string;
-	startContent: string;
-	endContent: string;
+	fullContent: string;
 	suggestedType: GoldenNuggetType;
 	timestamp: number;
 	url: string;

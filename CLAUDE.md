@@ -123,9 +123,10 @@ The extension follows a standard Chrome extension architecture with three main c
 
 #### Key Features
 - **Multi-Provider AI Support**: Seamlessly switch between Gemini, OpenAI, Anthropic, and OpenRouter
-- **Two-Phase Extraction**: Advanced accuracy system with Phase 1 (high-recall, confidence scoring) and Phase 2 (high-precision, boundary detection)
+- **Intelligent Content Extraction**: Advanced AI analysis with fullContent capture and confidence scoring
 - **Ensemble Mode**: Research-backed multi-run analysis for 3-5% accuracy improvement at 3x cost
 - **Type Filtering**: Filter analysis by nugget types (tool, media, aha! moments, analogy, model)
+- **Modern Text Highlighting**: CSS Custom Highlight API with mark.js fallback for enhanced performance
 - **Dynamic Content Injection**: Content scripts injected only when needed, not on all pages
 - **Secure Storage**: API keys encrypted with device-specific fingerprinting
 
@@ -145,54 +146,40 @@ The extension follows a standard Chrome extension architecture with three main c
    - **Popup** (`src/entrypoints/popup.tsx`): Quick access to prompt selection
    - **Options** (`src/entrypoints/options.tsx`): Configuration for API keys and prompt management
 
-## Two-Phase Extraction System
+## Golden Nugget Extraction System
 
 ### Overview
-The two-phase extraction system is an advanced analysis approach that maximizes accuracy through a two-step process: high-recall extraction followed by high-precision boundary detection. This method significantly improves golden nugget detection quality by separating content identification from precise text boundary location.
+The extension uses a streamlined fullContent extraction approach that maximizes accuracy and simplicity. The system directly captures complete golden nuggets with confidence scoring, eliminating the complexity of boundary-based text matching while maintaining high precision.
 
-### How Two-Phase Extraction Works
+### How FullContent Extraction Works
 
-#### Phase 1: High-Recall Extraction (Temperature 0.7)
-- **Purpose**: Cast a wide net to identify all potential golden nuggets
-- **Output**: Nuggets with `fullContent` and confidence scores (0.0-1.0)
-- **Temperature**: 0.7 for creative, expansive analysis
-- **Filtering**: Only nuggets above confidence threshold (default 0.85) proceed to Phase 2
-- **Abort Mechanism**: Extraction stops if >60% of nuggets have low confidence
+#### Single-Phase Analysis
+- **Purpose**: Direct identification and capture of complete golden nuggets
+- **Output**: Nuggets with `fullContent` (complete text) and confidence scores (0.0-1.0)
+- **Temperature**: Configurable per provider for optimal results
+- **Quality Control**: Built-in confidence scoring ensures high-quality extractions
+- **Performance**: Simplified architecture with 93% reduction in code complexity
 
-#### Phase 2: High-Precision Boundary Detection (Temperature 0.0)
-- **Purpose**: Find exact `startContent` and `endContent` boundaries for Phase 1 nuggets
-- **Methods**: 
-  - **Fuzzy Matching**: Advanced text matching with Levenshtein distance algorithms
-  - **LLM Fallback**: AI-powered boundary detection for complex cases
-- **Temperature**: 0.0 for deterministic, precise results
-- **Output**: Nuggets with precise text boundaries and extraction method metadata
+#### Modern Text Highlighting
+- **CSS Custom Highlight API**: Uses browser-native highlighting for superior performance
+- **mark.js Fallback**: Graceful degradation for older browsers
+- **uFuzzy.js Integration**: Advanced text matching for accurate highlighting
+- **Minimal Visual Impact**: Ultra-subtle design system styling
 
 ### User Interface Integration
-- **Popup Toggle**: Two-phase extraction toggle in extension popup
-- **Context Menu**: "Two-Phase Analysis" option for right-click activation
-- **Options Configuration**: Full two-phase settings in options page including confidence thresholds
-- **Progress Notifications**: Specialized progress messages during two-phase extraction
-- **Result Display**: Enhanced UI showing extraction methods (fuzzy vs LLM) and confidence scores
-
-### Configuration Options
-- **Enable/Disable**: Master toggle for two-phase functionality
-- **Confidence Threshold**: Minimum confidence for Phase 1 nuggets (default: 0.85)
-- **Temperature Settings**: Configurable temperatures for both phases
-- **Fuzzy Matching Options**: Tolerance and confidence thresholds for boundary detection
-- **Ensemble Integration**: Two-phase extraction works seamlessly with ensemble mode
+- **Popup Interface**: Clean, streamlined analysis controls
+- **Context Menu**: Direct analysis options with type filtering
+- **Options Configuration**: Provider settings, type filtering, and prompt management
+- **Progress Notifications**: Real-time progress updates during analysis
+- **Results Display**: Enhanced UI with confidence indicators and provider metadata
 
 ### Technical Benefits
-- **Higher Accuracy**: Separates content identification from boundary detection
-- **Intelligent Filtering**: Confidence-based filtering eliminates low-quality extractions
-- **Hybrid Matching**: Combines algorithmic fuzzy matching with AI boundary detection
-- **Quality Assurance**: Abort mechanism prevents poor-quality results from proceeding
-- **Provider Agnostic**: Works across all AI providers (Gemini, OpenAI, Anthropic, OpenRouter)
-
-### When to Use Two-Phase Extraction
-- **Complex Content**: Dense technical or academic material requiring precise extraction
-- **Quality-Critical Analysis**: When accuracy is more important than speed
-- **Research Applications**: Scholarly or professional content analysis
-- **Long-Form Content**: Articles, papers, or documents with nuanced golden nuggets
+- **Simplified Architecture**: Direct fullContent capture eliminates complex boundary detection
+- **Enhanced Performance**: CSS Custom Highlight API provides native browser performance
+- **Robust Text Matching**: uFuzzy.js provides reliable content highlighting
+- **Quality Assurance**: Confidence scoring ensures high-quality results
+- **Provider Agnostic**: Works consistently across all AI providers (Gemini, OpenAI, Anthropic, OpenRouter)
+- **Maintainable Codebase**: 93% reduction in complexity improves reliability and maintainability
 
 ## Ensemble Mode
 
@@ -249,7 +236,7 @@ Ensemble mode is an advanced analysis feature that runs multiple AI analysis pas
 1. Run tests after changes: `pnpm test && pnpm test:e2e`
 2. Check build succeeds: `pnpm build`
 3. Test in browser with `pnpm dev`
-4. Test two-phase extraction with different confidence thresholds and content types
+4. Test content analysis with different providers and type filtering options
 
 ### Code Quality Enforcement
 - **ALWAYS** use the `code-quality-enforcer` agent at the end of any task involving code changes
@@ -285,15 +272,14 @@ For detailed information about specific components, refer to the CLAUDE.md files
 4. Background script sends content to AI provider API
 5. Results are displayed via content script UI components
 
-#### Two-Phase Analysis Flow
-1. User enables two-phase mode via popup toggle or context menu
-2. Background script receives two-phase request with configuration
+#### FullContent Analysis Flow
+1. User triggers analysis via popup or context menu
+2. Background script receives analysis request with provider and type filter configuration
 3. Content script extracts page content using specialized extractors
-4. **Phase 1**: Background script executes high-recall extraction (temp 0.7) with confidence scoring
-5. **Confidence Filtering**: Only nuggets above threshold proceed; extraction aborts if too many low-confidence results
-6. **Phase 2**: FuzzyBoundaryMatcher attempts algorithmic boundary detection for filtered nuggets
-7. **LLM Fallback**: Unmatched nuggets use AI boundary detection (temp 0.0) for precise startContent/endContent
-8. Results with extraction method metadata are displayed via content script UI
+4. **AI Analysis**: Background script sends content to selected AI provider for fullContent extraction
+5. **Content Validation**: ContentValidator ensures response quality and format consistency
+6. **Text Highlighting**: Modern highlighting system uses CSS Custom Highlight API + mark.js
+7. Results with confidence scores and provider metadata are displayed via content script UI
 
 #### Ensemble Analysis Flow
 1. User enables ensemble mode via popup toggle or context menu
@@ -321,24 +307,9 @@ The backend (`backend/`) provides feedback collection and DSPy-based prompt opti
 See `backend/MONITORING_GUIDE.md` for comprehensive monitoring documentation.
 
 ### AI Provider Response Schema
-All AI providers (Gemini, Claude, OpenAI, OpenRouter) support both standard and two-phase extraction schemas:
+All AI providers (Gemini, Claude, OpenAI, OpenRouter) return responses in the standardized fullContent format:
 
-#### Standard Extraction Schema
-```json
-{
-  "golden_nuggets": [
-    {
-      "type": "tool|media|aha! moments|analogy|model",
-      "startContent": "First few words of original text",
-      "endContent": "Last few words of original text"
-    }
-  ]
-}
-```
-
-#### Two-Phase Extraction Schemas
-
-**Phase 1: High-Recall Schema (fullContent + confidence)**
+#### FullContent Extraction Schema
 ```json
 {
   "golden_nuggets": [
@@ -351,19 +322,11 @@ All AI providers (Gemini, Claude, OpenAI, OpenRouter) support both standard and 
 }
 ```
 
-**Phase 2: High-Precision Schema (boundary detection)**
-```json
-{
-  "golden_nuggets": [
-    {
-      "type": "tool|media|aha! moments|analogy|model",
-      "startContent": "First few words of original text",
-      "endContent": "Last few words of original text",
-      "confidence": 0.88
-    }
-  ]
-}
-```
+**Schema Features:**
+- **fullContent**: Complete verbatim text of the golden nugget
+- **confidence**: AI-assigned confidence score (0.0-1.0) for quality assessment
+- **type**: Categorization for filtering and organization
+- **Consistent Format**: Same structure across all AI providers for reliable processing
 
 ### Storage Structure
 
@@ -381,7 +344,6 @@ All AI providers (Gemini, Claude, OpenAI, OpenRouter) support both standard and 
   - `defaultPrompt`: User's default prompt selection
   - `typeFilters`: Selected nugget types for analysis
   - `ensembleSettings`: Ensemble mode configuration (enabled, defaultRuns, defaultMode)
-  - `twoPhaseSettings`: Two-phase extraction configuration (enabled, confidenceThreshold, phase1Temperature, phase2Temperature)
 
 #### Backend Storage (SQLite)
 - **Feedback Tables**: User ratings, corrections, and missing content feedback
@@ -440,17 +402,17 @@ The project consists of three integrated components working together:
 - **Environment Management**: Separate development, staging, and production environments
 
 ### Provider-Specific Considerations
-- **Google Gemini**: Direct API integration with thinking budget configuration and native two-phase extraction methods
-- **Anthropic Claude**: LangChain integration with advanced reasoning capabilities and two-phase extraction support
-- **OpenAI GPT**: LangChain integration with creative analysis strengths and two-phase extraction support
-- **OpenRouter**: LangChain integration providing access to multiple models via single API with two-phase extraction support
+- **Google Gemini**: Direct API integration with thinking budget configuration and structured output
+- **Anthropic Claude**: LangChain integration with advanced reasoning capabilities and confidence scoring
+- **OpenAI GPT**: LangChain integration with creative analysis strengths and reliable fullContent extraction
+- **OpenRouter**: LangChain integration providing access to multiple models via single API with consistent fullContent format
 
-### Multi-Provider Two-Phase System
-- All providers implement `extractPhase1HighRecall()` and `extractPhase2HighPrecision()` methods
-- Phase 1 methods use higher temperature (0.7) for expansive content identification
-- Phase 2 methods use lower temperature (0.0) for precise boundary detection
-- Confidence scoring is consistent across all providers
-- Fallback mechanisms ensure graceful degradation when two-phase extraction fails
+### Multi-Provider FullContent System
+- All providers implement unified `extractGoldenNuggets()` method
+- Consistent fullContent + confidence response format across providers
+- Provider-specific temperature and model configurations
+- Confidence scoring standardized across all providers
+- Fallback mechanisms ensure graceful degradation when providers are unavailable
 
 ### Provider Selection Logic
 - Users can switch providers in real-time via Options page

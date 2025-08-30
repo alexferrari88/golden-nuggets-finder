@@ -98,10 +98,10 @@ pnpm playwright test tests/e2e/extension-basics.spec.ts tests/e2e/popup.spec.ts 
 # Run all E2E tests (includes skipped ones - they'll show as skipped)
 pnpm test:e2e
 
-# Run two-phase extraction specific tests
-pnpm vitest run --grep="two-phase|TwoPhase|Phase1|Phase2|fuzzy|boundary"
+# Run fullContent extraction specific tests
+pnpm vitest run --grep="fullContent|content-validator|highlighting"
 
-# Run provider tests including two-phase methods
+# Run provider tests including fullContent methods
 pnpm vitest run tests/unit/*-provider.test.ts
 ```
 
@@ -116,10 +116,10 @@ These test files contain `test.skip()` for some tests due to Playwright content 
 The `tests/unit/` directory contains integration-focused unit tests that test cross-component workflows:
 
 **Provider Tests:**
-- `anthropic-provider.test.ts` - Anthropic Claude provider integration with LangChain, including two-phase extraction methods
-- `gemini-direct-provider.test.ts` - Google Gemini direct API provider testing with Phase 1/Phase 2 extraction
-- `openai-provider.test.ts` - OpenAI GPT provider integration with LangChain and two-phase extraction support
-- `openrouter-provider.test.ts` - OpenRouter multi-model provider testing including Phase 1/Phase 2 methods
+- `anthropic-provider.test.ts` - Anthropic Claude provider integration with LangChain, including fullContent extraction methods
+- `gemini-direct-provider.test.ts` - Google Gemini direct API provider testing with fullContent extraction
+- `openai-provider.test.ts` - OpenAI GPT provider integration with LangChain and fullContent extraction support
+- `openrouter-provider.test.ts` - OpenRouter multi-model provider testing including fullContent methods
 
 **Integration Workflows:**
 - `api-workflow-integration.test.ts` - End-to-end API workflow testing
@@ -144,19 +144,19 @@ The `tests/unit/` directory contains integration-focused unit tests that test cr
 - `feedback-reset.test.ts` - Feedback reset workflow testing
 
 **Advanced AI Features:**
-- `ensemble-extractor-embeddings.test.ts` - Ensemble content extraction with embedding analysis and two-phase integration
+- `ensemble-extractor-embeddings.test.ts` - Ensemble content extraction with embedding analysis and fullContent integration
 - Tests include:
-  - Two-phase workflow in ensemble mode (Phase 1 for consensus building)
-  - Confidence threshold filtering before Phase 2 boundary detection
-  - Error scenario testing for confidence threshold aborts
-  - Ensemble metadata validation with two-phase extraction results
+  - FullContent workflow in ensemble mode for consensus building
+  - Confidence scoring and quality assessment
+  - Error scenario testing for content validation failures
+  - Ensemble metadata validation with fullContent extraction results
 
 ### Component Test Coverage (`src/` directories)
 
 Component tests provide coverage for individual modules:
 
 **Shared Utilities:**
-- `src/shared/schemas.test.ts` - Data validation schemas including Phase 1 and Phase 2 schema validation
+- `src/shared/schemas.test.ts` - Data validation schemas including fullContent schema validation
 - `src/shared/security.test.ts` - Security utilities and encryption
 - `src/shared/storage.test.ts` - Storage utilities and management
 - `src/shared/chrome-extension-utils.test.ts` - Chrome extension utility functions
@@ -167,7 +167,7 @@ Component tests provide coverage for individual modules:
 - `src/shared/enhanced-text-matching.integration.test.ts` - Integration tests for enhanced text matching
 - `src/shared/utils/cosine-similarity.test.ts` - Cosine similarity utility functions
 - `src/shared/storage/model-storage.test.ts` - Model-specific storage utilities
-- `src/shared/fuzzy-matching.test.ts` - Fuzzy text matching algorithms used in boundary detection
+- Text highlighting and uFuzzy.js integration tests for modern content highlighting
 
 **Background Services:**
 - `src/background/gemini-client.test.ts` - Gemini API client functionality
@@ -179,8 +179,8 @@ Component tests provide coverage for individual modules:
 - `src/background/services/embedding-service.test.ts` - Text embedding service
 - `src/background/services/ensemble-extractor.test.ts` - Ensemble content extraction service
 - `src/background/services/hybrid-similarity.test.ts` - Hybrid similarity measurement service
-- `src/background/services/two-phase-extractor.test.ts` - Two-phase extraction system with confidence filtering
-- `src/background/services/fuzzy-boundary-matcher.test.ts` - Fuzzy boundary detection and matching algorithms
+- Content validation service tests for fullContent response processing
+- Text highlighting service tests for CSS Custom Highlight API integration
 
 **Content Script UI:**
 - `src/content/ui/notifications.test.ts` - Notification UI components
@@ -190,12 +190,12 @@ Component tests provide coverage for individual modules:
 ### Integration Test Directory (`tests/integration/`)
 
 Integration tests that make real API calls to validate cross-provider functionality:
-- `multi-provider-schema-validation.test.ts` - Validates that all AI providers return responses conforming to standard, Phase 1, and Phase 2 schemas
+- `multi-provider-schema-validation.test.ts` - Validates that all AI providers return responses conforming to fullContent schema
 - Tests include validation of:
-  - Standard `extractGoldenNuggets` responses against `GOLDEN_NUGGET_SCHEMA`
-  - Phase 1 `extractPhase1HighRecall` responses against `PHASE_1_HIGH_RECALL_SCHEMA`
-  - Phase 2 `extractPhase2HighPrecision` responses against `PHASE_2_HIGH_PRECISION_SCHEMA`
-  - Cross-phase workflow integration and confidence score consistency
+  - FullContent `extractGoldenNuggets` responses against `GOLDEN_NUGGET_SCHEMA`
+  - Confidence score consistency across providers
+  - Content quality and format validation
+  - Cross-provider fullContent response compatibility
 
 ### Manual Test Directory (`tests/manual/`)
 
@@ -355,10 +355,10 @@ The test setup file provides comprehensive mocking for the testing environment:
 - Data transformation and validation
 - API integration and error handling
 - User interaction workflows
-- Two-phase extraction workflows and confidence filtering
-- Boundary detection algorithms and fuzzy matching
-- Phase 1 → Phase 2 pipeline integration
-- Schema validation for all extraction phases
+- FullContent extraction workflows and confidence scoring
+- Modern text highlighting with CSS Custom Highlight API and mark.js
+- uFuzzy.js integration for accurate text matching
+- Schema validation for fullContent extraction
 
 ### What to Exclude
 - UI entry points and boilerplate code
@@ -366,40 +366,40 @@ The test setup file provides comprehensive mocking for the testing environment:
 - Simple getter/setter functions
 - Configuration files
 
-### Two-Phase Extraction Testing Focus Areas
+### FullContent Extraction Testing Focus Areas
 
 **Unit Test Coverage:**
-- `TwoPhaseExtractor` service logic and confidence threshold handling
-- `FuzzyBoundaryMatcher` algorithms and boundary detection accuracy
-- Phase 1 and Phase 2 schema validation and response formatting
-- Confidence scoring algorithms and threshold-based filtering
-- Error handling for low-confidence extractions and threshold aborts
+- `ContentValidator` service logic and response validation
+- Text highlighting algorithms with CSS Custom Highlight API and mark.js fallback
+- FullContent schema validation and response formatting
+- Confidence scoring algorithms and quality assessment
+- Error handling for malformed responses and content validation failures
 
 **Provider Testing:**
-- All providers implement `extractPhase1HighRecall` and `extractPhase2HighPrecision` methods
-- Phase 1 responses conform to `PHASE_1_HIGH_RECALL_SCHEMA` with confidence scores
-- Phase 2 responses conform to `PHASE_2_HIGH_PRECISION_SCHEMA` with boundary data
-- Temperature parameter handling (0.7 for Phase 1 recall, 0.0 for Phase 2 precision)
-- Selected nugget types filtering in both phases
+- All providers implement unified `extractGoldenNuggets` method
+- FullContent responses conform to `GOLDEN_NUGGET_SCHEMA` with confidence scores
+- Temperature parameter handling for optimal extraction quality
+- Selected nugget types filtering in fullContent extraction
+- Provider-specific response normalization and validation
 
 **Integration Testing:**
-- End-to-end two-phase workflow: Phase 1 → confidence filtering → Phase 2 → boundary detection
-- Cross-provider consistency in two-phase extraction behavior
-- Integration with ensemble mode (using Phase 1 for consensus building)
-- Performance testing of two-phase vs single-phase extraction
-- Error recovery scenarios when Phase 1 or Phase 2 fails
+- End-to-end fullContent workflow: extraction → validation → highlighting → display
+- Cross-provider consistency in fullContent extraction behavior
+- Integration with ensemble mode (using fullContent for consensus building)
+- Performance testing of modern highlighting vs legacy systems
+- Error recovery scenarios when providers fail or return malformed data
 
 **Schema Validation Testing:**
-- `PHASE_1_HIGH_RECALL_SCHEMA` validation with fullContent and confidence fields
-- `PHASE_2_HIGH_PRECISION_SCHEMA` validation with startContent, endContent, and confidence
-- Schema generation functions `generatePhase1HighRecallSchema` and `generatePhase2HighPrecisionSchema`
-- Type filtering integration with phase-specific schemas
+- `GOLDEN_NUGGET_SCHEMA` validation with fullContent and confidence fields
+- Schema generation function `generateGoldenNuggetSchema`
+- Type filtering integration with fullContent schemas
+- Response normalization and format consistency
 
 **Error Scenario Testing:**
-- Confidence threshold aborts when Phase 1 results are below minimum confidence
-- Graceful degradation when Phase 2 boundary detection fails
-- Provider-specific error handling in two-phase workflows
-- Timeout handling for extended two-phase extraction operations
+- Content validation failures when responses are incomplete
+- Graceful degradation when text highlighting fails
+- Provider-specific error handling in fullContent workflows
+- Timeout handling for extraction operations
 
 ## Testing Different Components
 

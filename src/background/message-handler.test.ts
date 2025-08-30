@@ -125,12 +125,6 @@ describe("MessageHandler", () => {
 			providerId: "gemini",
 			modelName: "gemini-2.5-flash",
 			extractGoldenNuggets: vi.fn().mockResolvedValue(mockResponse),
-			extractPhase1HighRecall: vi
-				.fn()
-				.mockResolvedValue({ golden_nuggets: [] }),
-			extractPhase2HighPrecision: vi
-				.fn()
-				.mockResolvedValue({ golden_nuggets: [] }),
 			validateApiKey: vi.fn().mockResolvedValue(true),
 		};
 		(
@@ -159,12 +153,6 @@ describe("MessageHandler", () => {
 			providerId: "gemini",
 			modelName: "gemini-2.5-flash",
 			extractGoldenNuggets: vi.fn().mockResolvedValue(mockResponseAfterClear),
-			extractPhase1HighRecall: vi
-				.fn()
-				.mockResolvedValue({ golden_nuggets: [] }),
-			extractPhase2HighPrecision: vi
-				.fn()
-				.mockResolvedValue({ golden_nuggets: [] }),
 			validateApiKey: vi.fn().mockResolvedValue(true),
 		};
 
@@ -245,6 +233,8 @@ describe("MessageHandler", () => {
 			expect(mockProvider.extractGoldenNuggets).toHaveBeenCalledWith(
 				"Test content",
 				"Analyze this HackerNews thread for insights.",
+				0.7, // temperature
+				undefined, // selectedTypes
 			);
 		});
 
@@ -266,6 +256,8 @@ describe("MessageHandler", () => {
 			expect(mockProvider.extractGoldenNuggets).toHaveBeenCalledWith(
 				"Test content",
 				"Analyze this Reddit thread for insights.",
+				0.7, // temperature
+				undefined, // selectedTypes
 			);
 		});
 
@@ -287,6 +279,8 @@ describe("MessageHandler", () => {
 			expect(mockProvider.extractGoldenNuggets).toHaveBeenCalledWith(
 				"Test content",
 				"Analyze this Twitter thread for insights.",
+				0.7, // temperature
+				undefined, // selectedTypes
 			);
 		});
 
@@ -308,6 +302,8 @@ describe("MessageHandler", () => {
 			expect(mockProvider.extractGoldenNuggets).toHaveBeenCalledWith(
 				"Test content",
 				"Analyze this Twitter thread for insights.",
+				0.7, // temperature
+				undefined, // selectedTypes
 			);
 		});
 
@@ -329,6 +325,8 @@ describe("MessageHandler", () => {
 			expect(mockProvider.extractGoldenNuggets).toHaveBeenCalledWith(
 				"Test content",
 				"Analyze this text for insights.",
+				0.7, // temperature
+				undefined, // selectedTypes
 			);
 		});
 
@@ -360,6 +358,8 @@ describe("MessageHandler", () => {
 			expect(mockProvider.extractGoldenNuggets).toHaveBeenCalledWith(
 				"Test content",
 				"First analyze this HackerNews thread and then review the HackerNews thread again.",
+				0.7, // temperature
+				undefined, // selectedTypes
 			);
 		});
 
@@ -390,6 +390,8 @@ describe("MessageHandler", () => {
 			expect(mockProvider.extractGoldenNuggets).toHaveBeenCalledWith(
 				"Test content",
 				"Analyze this content for insights.",
+				0.7, // temperature
+				undefined, // selectedTypes
 			);
 		});
 
@@ -421,6 +423,8 @@ describe("MessageHandler", () => {
 			expect(mockProvider.extractGoldenNuggets).toHaveBeenCalledWith(
 				"Test content",
 				"Analyze this Reddit thread and this Reddit thread for insights.",
+				0.7, // temperature
+				undefined, // selectedTypes
 			);
 		});
 	});
@@ -625,6 +629,8 @@ describe("MessageHandler", () => {
 				expect(mockProvider.extractGoldenNuggets).toHaveBeenCalledWith(
 					"Test content",
 					"As a experienced software architect, analyze this text for insights.",
+					0.7, // temperature
+					undefined, // selectedTypes
 				);
 			});
 
@@ -699,6 +705,8 @@ describe("MessageHandler", () => {
 				expect(mockProvider.extractGoldenNuggets).toHaveBeenCalledWith(
 					"Test content",
 					"You are a data analyst. Analyze this HackerNews thread and find data analyst-relevant insights.",
+					0.7, // temperature
+					undefined, // selectedTypes
 				);
 			});
 
@@ -729,6 +737,8 @@ describe("MessageHandler", () => {
 				expect(mockProvider.extractGoldenNuggets).toHaveBeenCalledWith(
 					"Test content",
 					"Analyze this Twitter thread for insights.",
+					0.7, // temperature
+					undefined, // selectedTypes
 				);
 			});
 
@@ -759,6 +769,8 @@ describe("MessageHandler", () => {
 				expect(mockProvider.extractGoldenNuggets).toHaveBeenCalledWith(
 					"Test content",
 					"As a data analyst, analyze this content.",
+					0.7, // temperature
+					undefined, // selectedTypes
 				);
 			});
 		});
@@ -834,6 +846,8 @@ describe("MessageHandler", () => {
 			expect(mockProvider.extractGoldenNuggets).toHaveBeenCalledWith(
 				"Test content",
 				"Provider-specific optimized prompt",
+				0.7, // temperature
+				undefined, // selectedTypes
 			);
 		});
 
@@ -899,6 +913,8 @@ describe("MessageHandler", () => {
 			expect(mockProvider.extractGoldenNuggets).toHaveBeenCalledWith(
 				"Test content",
 				"Generic optimized prompt",
+				0.7, // temperature
+				undefined, // selectedTypes
 			);
 		});
 
@@ -961,6 +977,8 @@ describe("MessageHandler", () => {
 			expect(mockProvider.extractGoldenNuggets).toHaveBeenCalledWith(
 				"Test content",
 				"Generic fallback prompt",
+				0.7, // temperature
+				undefined, // selectedTypes
 			);
 		});
 
@@ -1007,6 +1025,8 @@ describe("MessageHandler", () => {
 			expect(mockProvider.extractGoldenNuggets).toHaveBeenCalledWith(
 				"Test content",
 				"Original prompt text",
+				0.7, // temperature
+				undefined, // selectedTypes
 			);
 		});
 
@@ -1057,6 +1077,8 @@ describe("MessageHandler", () => {
 			expect(mockProvider.extractGoldenNuggets).toHaveBeenCalledWith(
 				"Test content",
 				"Original prompt text",
+				0.7, // temperature
+				undefined, // selectedTypes
 			);
 		});
 
@@ -1105,6 +1127,8 @@ describe("MessageHandler", () => {
 			expect(mockProvider.extractGoldenNuggets).toHaveBeenCalledWith(
 				"Test content",
 				"Original prompt text",
+				0.7, // temperature
+				undefined, // selectedTypes
 			);
 		});
 
@@ -1161,6 +1185,8 @@ describe("MessageHandler", () => {
 			expect(mockProvider.extractGoldenNuggets).toHaveBeenCalledWith(
 				"Test content",
 				"Original prompt text",
+				0.7, // temperature
+				undefined, // selectedTypes
 			);
 		});
 
@@ -1217,6 +1243,8 @@ describe("MessageHandler", () => {
 			expect(mockProvider.extractGoldenNuggets).toHaveBeenCalledWith(
 				"Test content",
 				"Original prompt text",
+				0.7, // temperature
+				undefined, // selectedTypes
 			);
 		});
 	});

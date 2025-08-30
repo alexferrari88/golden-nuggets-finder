@@ -11,11 +11,13 @@ import {
 	type ExtensionConfig,
 	type FeedbackStats,
 	type FeedbackSubmission,
+	type GoldenNugget,
 	MESSAGE_TYPES,
 	type MissingContentFeedback,
 	type NuggetFeedback,
 	type OptimizedPrompt,
 	type SavedPrompt,
+	type SelectedContentAnalysisRequest,
 	type TypeFilterOptions,
 } from "../shared/types";
 import type {
@@ -39,7 +41,6 @@ import {
 	switchProvider,
 	switchToFallbackProvider,
 } from "./services/provider-switcher";
-import { normalize as normalizeResponse } from "./services/response-normalizer";
 import {
 	generateFilteredPrompt,
 	validateSelectedTypes,
@@ -619,7 +620,6 @@ export class MessageHandler {
 		tabId?: number,
 		useEnsemble = false,
 		ensembleRuns?: number,
-		useTwoPhase = false,
 		typeFilter?: TypeFilterOptions,
 	): Promise<EnhancedGoldenNuggetsResponse> {
 		let currentProviderId: ProviderId | null = null;
@@ -669,51 +669,8 @@ export class MessageHandler {
 					const startTime = performance.now();
 					let normalizedResponse: EnhancedGoldenNuggetsResponse;
 
-					if (useTwoPhase) {
-						// Use content validation (replaces complex two-phase system)
-						const contentValidator = new ContentValidator();
-						const validationResult =
-							await contentValidator.extractWithValidation(
-								content,
-								prompt,
-								provider,
-								{
-									temperature: 0.7,
-									selectedTypes: typeFilter?.selectedTypes,
-									validationThreshold: 0.8,
-								},
-							);
-
-						// Convert validation result to enhanced response format
-						normalizedResponse = {
-							golden_nuggets: validationResult.golden_nuggets.map((nugget) => ({
-								type: nugget.type,
-								fullContent: nugget.fullContent,
-								confidence: nugget.confidence || 0,
-								validationScore: nugget.validationScore,
-								extractionMethod: nugget.extractionMethod,
-							})),
-							metadata: {
-								totalNuggets: validationResult.metadata.totalNuggets,
-								validatedCount: validationResult.metadata.validatedCount,
-								averageValidationScore:
-									validationResult.metadata.averageValidationScore,
-								totalProcessingTime: validationResult.metadata.processingTime,
-								extractionMode: "validated",
-							},
-						};
-
-						debugLogger.log(`[ContentValidator] Final normalized response:`, {
-							golden_nuggets_count: normalizedResponse.golden_nuggets.length,
-							all_nuggets: normalizedResponse.golden_nuggets,
-							validation_metadata: validationResult.metadata,
-						});
-
-						console.log(
-							`Content validation completed: ${validationResult.golden_nuggets.length} nuggets (${validationResult.metadata.validatedCount} validated)`,
-						);
-					} else if (useEnsemble) {
-						// Use ensemble extraction
+					if (useEnsemble) {
+						// Use ensemble extraction with EnsembleExtractor
 						const ensembleExtractor = new EnsembleExtractor();
 						const ensembleResult = await ensembleExtractor.extractWithEnsemble(
 							content,
@@ -735,9 +692,9 @@ export class MessageHandler {
 									| "aha! moments"
 									| "analogy"
 									| "model",
-								startContent: nugget.startContent,
-								endContent: nugget.endContent,
+								fullContent: nugget.fullContent,
 								confidence: nugget.confidence,
+								validationScore: nugget.validationScore,
 								extractionMethod: "ensemble",
 								runsSupportingThis: nugget.runsSupportingThis,
 								totalRuns: nugget.totalRuns,
@@ -753,32 +710,68 @@ export class MessageHandler {
 							`Ensemble extraction completed: ${ensembleResult.metadata.consensusReached} nuggets with ${ensembleResult.metadata.duplicatesRemoved} duplicates removed`,
 						);
 					} else {
-						// Use single extraction (existing logic)
-						const rawResponse = await provider.extractGoldenNuggets(
-							content,
-							prompt,
-						);
+						// Use content validation as default with ContentValidator
+						const contentValidator = new ContentValidator();
+						const validationResult =
+							await contentValidator.extractWithValidation(
+								content,
+								prompt,
+								provider,
+								{
+									temperature: 0.7,
+									selectedTypes: typeFilter?.selectedTypes,
+									validationThreshold: 0.8,
+								},
+							);
 
-						// Log the parsed response from the LLM
-						debugLogger.logLLMResponse({ rawResponse }, rawResponse);
-
-						// Normalize response and convert to enhanced format
-						const standardResponse = normalizeResponse(
-							rawResponse,
-							providerConfig.providerId,
-						);
-
-						// Convert to enhanced format for consistency with other extraction modes
+						// Convert validation result to enhanced response format
 						normalizedResponse = {
-							golden_nuggets: standardResponse.golden_nuggets.map((nugget) => ({
-								...nugget,
-								extractionMethod: "standard",
-							})),
+							golden_nuggets: validationResult.golden_nuggets.map(
+								(nugget: GoldenNugget) => {
+									// Defensive check for fullContent preservation
+									if (!nugget.fullContent) {
+										debugLogger.log(
+											`[MessageHandler] ⚠️ Missing fullContent in normalized response for nugget:`,
+											{
+												type: nugget.type,
+												nugget: nugget,
+											},
+										);
+									}
+
+									return {
+										type: nugget.type,
+										// Explicitly preserve fullContent with fallback
+										fullContent: nugget.fullContent || "",
+										confidence: nugget.confidence || 0,
+										validationScore: nugget.validationScore,
+										extractionMethod: nugget.extractionMethod,
+									};
+								},
+							),
 							metadata: {
+								totalProcessingTime: validationResult.metadata.processingTime,
 								extractionMode: "standard",
-								totalProcessingTime: performance.now() - startTime,
 							},
 						};
+
+						debugLogger.log(`[ContentValidator] Final normalized response:`, {
+							golden_nuggets_count: normalizedResponse.golden_nuggets.length,
+							all_nuggets: normalizedResponse.golden_nuggets,
+							validation_metadata: validationResult.metadata,
+							// Additional fullContent debugging
+							fullContent_debug: normalizedResponse.golden_nuggets.map((n) => ({
+								type: n.type,
+								hasFullContent: !!n.fullContent,
+								fullContentLength: n.fullContent?.length || 0,
+								fullContentPreview:
+									n.fullContent?.substring(0, 100) || "MISSING",
+							})),
+						});
+
+						console.log(
+							`Content validation completed: ${validationResult.golden_nuggets.length} nuggets (${validationResult.metadata.validatedCount} validated)`,
+						);
 					}
 
 					const responseTime = performance.now() - startTime;
@@ -1225,7 +1218,6 @@ export class MessageHandler {
 				sender.tab?.id,
 				false, // useEnsemble - not used for regular content analysis
 				undefined, // ensembleRuns - not used for regular content analysis
-				request.useTwoPhase, // useTwoPhase - pass through from request
 				request.typeFilter, // typeFilter - pass through from request
 			);
 
@@ -1628,7 +1620,6 @@ export class MessageHandler {
 				sender.tab?.id,
 				false, // useEnsemble - not used for selected content analysis
 				undefined, // ensembleRuns - not used for selected content analysis
-				false, // useTwoPhase - not used for selected content analysis
 				request.typeFilter, // typeFilter - pass through from request
 			);
 

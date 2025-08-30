@@ -3,8 +3,6 @@ import type { GoldenNuggetType } from "../schemas";
 import type {
 	GoldenNuggetsResponse,
 	LLMProvider,
-	Phase1Response,
-	Phase2Response,
 	ProviderConfig,
 } from "../types/providers";
 
@@ -22,22 +20,25 @@ export class GeminiDirectProvider implements LLMProvider {
 		content: string,
 		prompt: string,
 		temperature?: number,
+		_selectedTypes?: GoldenNuggetType[],
 	): Promise<GoldenNuggetsResponse> {
-		// Use existing GeminiClient implementation with the selected model
+		// Use GeminiClient with fullContent approach
 		const geminiResponse = await this.geminiClient.analyzeContent(
 			content,
 			prompt,
 			undefined, // progressOptions
-			temperature,
-			this.modelName, // Pass the correct model name
+			temperature || 0.7,
+			this.modelName,
 		);
 
-		// Pass through the correct GeminiResponse format without synthesis
+		// Return fullContent format with confidence scoring
 		return {
 			golden_nuggets: geminiResponse.golden_nuggets.map((nugget) => ({
 				type: nugget.type,
-				startContent: nugget.startContent,
-				endContent: nugget.endContent,
+				fullContent: nugget.fullContent,
+				confidence: nugget.confidence || 0.8,
+				validationScore: nugget.validationScore,
+				extractionMethod: nugget.extractionMethod || "validated",
 			})),
 		};
 	}
@@ -51,41 +52,5 @@ export class GeminiDirectProvider implements LLMProvider {
 			console.warn(`Gemini API key validation failed:`, message);
 			return false;
 		}
-	}
-
-	async extractPhase1HighRecall(
-		content: string,
-		prompt: string,
-		temperature = 0.7,
-		selectedTypes?: GoldenNuggetType[],
-	): Promise<Phase1Response> {
-		// Directly call the new GeminiClient Phase 1 method
-		return this.geminiClient.extractPhase1HighRecall(
-			content,
-			prompt,
-			temperature,
-			selectedTypes,
-			this.modelName,
-		);
-	}
-
-	async extractPhase2HighPrecision(
-		content: string,
-		prompt: string,
-		nuggets: Array<{
-			type: GoldenNuggetType;
-			fullContent: string;
-			confidence: number;
-		}>,
-		temperature = 0.0,
-	): Promise<Phase2Response> {
-		// Directly call the new GeminiClient Phase 2 method
-		return this.geminiClient.extractPhase2HighPrecision(
-			content,
-			prompt,
-			nuggets,
-			temperature,
-			this.modelName,
-		);
 	}
 }

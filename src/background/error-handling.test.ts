@@ -385,8 +385,7 @@ describe("MessageHandler Error Handling", () => {
 					missingContentFeedback: [
 						{
 							id: "missing-test-id",
-							startContent: "Missing content start",
-							endContent: "Missing content end",
+							fullContent: "Missing content that should have been extracted",
 							suggestedType: "aha! moments" as const,
 							timestamp: Date.now(),
 							url: "https://example.com",

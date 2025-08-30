@@ -407,7 +407,6 @@ export default defineContentScript({
 							request.source,
 							request.analysisId || "",
 							request.typeFilter,
-							(request as any).useTwoPhase,
 						);
 						sendResponse({ success: true });
 						break;
@@ -522,7 +521,6 @@ export default defineContentScript({
 			source?: string,
 			providedAnalysisId?: string,
 			typeFilter?: TypeFilterOptions,
-			useTwoPhase?: boolean,
 		): Promise<void> {
 			try {
 				performanceMonitor.startTimer("total_analysis");
@@ -569,7 +567,6 @@ export default defineContentScript({
 					analysisId: analysisId,
 					source: source as "popup" | "context-menu",
 					typeFilter: typeFilter,
-					useTwoPhase: useTwoPhase,
 				};
 
 				performanceMonitor.startTimer("api_request");

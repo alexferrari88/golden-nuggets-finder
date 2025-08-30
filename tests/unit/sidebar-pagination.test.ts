@@ -117,23 +117,15 @@ vi.mock("../../src/shared/design-system", () => ({
 	},
 }));
 
-// Mock content reconstruction
-vi.mock("../../src/shared/content-reconstruction", () => ({
-	getDisplayContent: vi.fn(
-		(nugget) => `${nugget.startContent}...${nugget.endContent}`,
-	),
-	reconstructFullContent: vi.fn(
-		(nugget) => `${nugget.startContent}...${nugget.endContent}`,
-	),
-}));
+// No longer need content reconstruction module - using fullContent directly
 
 // Create mock nugget items
 function createMockNuggetItems(count: number): SidebarNuggetItem[] {
 	return Array.from({ length: count }, (_, i) => ({
 		nugget: {
 			type: "aha! moments" as const,
-			startContent: `Start content ${i + 1}`,
-			endContent: `End content ${i + 1}`,
+			fullContent: `Full content for aha moment ${i + 1} with detailed explanation`,
+			confidence: 0.9,
 		} as GoldenNugget,
 		status: "highlighted" as "highlighted" | "not-found",
 		selected: false,
@@ -242,15 +234,15 @@ describe("Sidebar Pagination", () => {
 		let nuggetItems = document.querySelectorAll(".nugget-item");
 		expect(nuggetItems).toHaveLength(20);
 
-		// First item should be "Start content 1...End content 1"
+		// First item should contain the full content
 		const firstItem = nuggetItems[0];
-		expect(firstItem.textContent).toContain("Start content 1");
-		expect(firstItem.textContent).toContain("End content 1");
+		expect(firstItem.textContent).toContain("Full content for aha moment 1");
 
-		// Last item on page 1 should be "Start content 20...End content 20"
+		// Last item on page 1 should contain the full content
 		const lastItemPage1 = nuggetItems[19];
-		expect(lastItemPage1.textContent).toContain("Start content 20");
-		expect(lastItemPage1.textContent).toContain("End content 20");
+		expect(lastItemPage1.textContent).toContain(
+			"Full content for aha moment 20",
+		);
 
 		// Navigate to page 2
 		const pagination = document.querySelector(".nugget-pagination");
@@ -267,15 +259,15 @@ describe("Sidebar Pagination", () => {
 		nuggetItems = document.querySelectorAll(".nugget-item");
 		expect(nuggetItems).toHaveLength(4);
 
-		// First item on page 2 should be "Start content 21...End content 21"
+		// First item on page 2 should contain the full content
 		const firstItemPage2 = nuggetItems[0];
-		expect(firstItemPage2.textContent).toContain("Start content 21");
-		expect(firstItemPage2.textContent).toContain("End content 21");
+		expect(firstItemPage2.textContent).toContain(
+			"Full content for aha moment 21",
+		);
 
-		// Last item should be "Start content 24...End content 24"
+		// Last item should contain the full content
 		const lastItem = nuggetItems[3];
-		expect(lastItem.textContent).toContain("Start content 24");
-		expect(lastItem.textContent).toContain("End content 24");
+		expect(lastItem.textContent).toContain("Full content for aha moment 24");
 	});
 
 	it("should maintain pagination state when refreshing page", () => {

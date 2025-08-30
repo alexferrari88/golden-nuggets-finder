@@ -137,140 +137,19 @@ consensusElement.textContent = `${runsSupportingThis}/${totalRuns} agreement`
 - **Enhanced Cards**: Additional metadata sections for ensemble-specific information
 - **Cost Awareness**: Clear visual indicators when ensemble mode is active
 
-### Two-Phase Extraction UI Integration
-
-Content script UI components include comprehensive integration for two-phase extraction mode, which provides higher precision by using a two-step analysis process:
-
-#### User Interface Integration
-
-**Popup Toggle Switch**
-- **Quick Toggle**: Prominent "✨ Two-Phase Mode (Higher Precision)" toggle in extension popup
-- **Visual Feedback**: Toggle switch with accent color highlighting when enabled
-- **Cost Indication**: Tooltip warns "Toggle two-phase extraction for higher precision results (higher cost)"
-- **State Persistence**: Toggle state is remembered across popup sessions
-- **Mode Selection**: Can be used alongside type filtering and analysis modes
-
-#### Options Page Integration
-
-**Comprehensive Settings Configuration**
-The options page provides detailed two-phase extraction settings:
-
-- **Master Enable Toggle**: Primary checkbox to enable/disable two-phase extraction
-- **Confidence Threshold Slider**: Adjustable range from 0.5 to 0.95 (default: 0.85)
-  - Controls when Phase 1 results are considered high-confidence enough to proceed to Phase 2
-  - Lower values allow more nuggets through to Phase 2 (higher recall, higher cost)
-  - Higher values require more confident Phase 1 results (lower recall, lower cost)
-- **Phase 1 Temperature Slider**: Range from 0.0 to 1.0 (default: 0.7)
-  - Controls creativity vs consistency in initial nugget discovery
-  - Higher values encourage more diverse nugget detection
-- **Advanced Configuration**: Additional settings stored but not exposed in UI:
-  - Phase 2 Temperature (always 0.0 for maximum precision)
-  - Maximum nuggets per type limits
-  - Fuzzy matching tolerance settings
-
-**Auto-Save Functionality**
-- **Immediate Persistence**: Settings save automatically when changed
-- **Visual Feedback**: Success/error indicators with checkmarks or warning icons
-- **Setting Validation**: Invalid configurations are prevented with UI constraints
-
-#### User Workflow Updates
-
-**Analysis Process Changes**
-When two-phase mode is enabled, the analysis workflow differs significantly:
-
-1. **Phase 1 - High Recall Discovery**: 
-   - Uses higher temperature (0.7) for creative nugget discovery
-   - Focuses on finding all potential nuggets with confidence scores
-   - Returns nuggets with `fullContent` and confidence metadata
-
-2. **Confidence Filtering**: 
-   - Nuggets below confidence threshold are filtered out
-   - If insufficient high-confidence nuggets found, analysis may abort early
-
-3. **Phase 2 - High Precision Boundary Detection**: 
-   - Uses lower temperature (0.0) for precise text boundary identification
-   - Converts `fullContent` to exact `startContent` and `endContent` boundaries
-   - Applies fuzzy matching for improved text reconstruction
-
-**User Experience Impact**
-- **Longer Processing Time**: Two AI API calls instead of one
-- **Higher API Costs**: Approximately 1.5-2x the cost of standard analysis
-- **Improved Accuracy**: Better text boundary precision and reduced false positives
-- **Quality Indicators**: Results include two-phase metadata for transparency
-
-#### Progress Tracking
-
-**Enhanced Progress Messages**
-Two-phase extraction includes specialized progress notifications:
-
-- **Phase 1 Start**: "🔍 Phase 1: Discovering potential nuggets..."
-- **Confidence Filtering**: "🎯 Filtering nuggets by confidence threshold..."
-- **Phase 2 Start**: "✨ Phase 2: Refining boundaries with high precision..."
-- **Boundary Detection**: "📍 Locating exact text boundaries..."
-- **Fuzzy Matching**: "🔗 Applying fuzzy matching for precise reconstruction..."
-
-**Progress Phase Integration**
-Two-phase extraction integrates with the existing three-phase popup progress system:
-- **Setup Phase**: Content extraction and preparation
-- **AI Thinking Phase**: Extended to show two-phase processing stages
-- **Finalize Phase**: Results processing and display
-
-#### Error Handling
-
-**Confidence Threshold Failures**
-When Phase 1 results don't meet confidence requirements:
-
-- **Early Abort**: Analysis stops after Phase 1 if no nuggets meet confidence threshold
-- **User Notification**: Clear error message: "Two-phase analysis found insufficient high-confidence nuggets. Try lowering the confidence threshold in settings or using standard analysis mode."
-- **Fallback Suggestion**: UI suggests either adjusting settings or switching to standard mode
-- **Settings Link**: Error message includes direct link to options page for threshold adjustment
-
-**Phase 2 Boundary Detection Failures**
-When Phase 2 cannot locate precise boundaries:
-
-- **Fuzzy Fallback**: Automatic fallback to fuzzy matching algorithms
-- **Partial Results**: Returns nuggets that could be precisely located
-- **Quality Indicators**: Marks results that used fuzzy vs LLM boundary detection
-- **Metadata Transparency**: Shows success rates for both phases in results
-
-#### Analysis Options Integration
-
-**Context Menu Integration**
-- **Standard Menu**: "Analyze with Two-Phase Mode" appears when two-phase is enabled in settings
-- **Quick Analysis**: Two-phase toggle in popup affects all triggered analyses
-- **Selection Mode**: Two-phase works with both quick analysis and custom content selection
-
-**Type Filter Compatibility**
-- **Full Integration**: Two-phase mode works with all nugget type filters
-- **Per-Type Limits**: Advanced settings allow maximum nugget limits per type
-- **Quality Preservation**: Type filtering applied after both phases complete
-
-#### Two-Phase Mode Visual Design
-
-**Result Display Enhancements**
-- **Precision Indicators**: Visual badges showing "High Precision" for two-phase results
-- **Phase Metadata**: Small indicators showing which nuggets used fuzzy vs LLM boundary detection
-- **Quality Scores**: Subtle confidence indicators based on Phase 1 confidence scores
-- **Cost Awareness**: Clear visual indication that two-phase mode was used (higher cost)
-
-**Settings UI Design**
-- **Progressive Disclosure**: Basic toggle with expandable advanced settings
-- **Real-time Preview**: Confidence threshold changes show immediate impact
-- **Help Integration**: Contextual help text explaining each setting's impact
-- **Visual Hierarchy**: Clear separation between basic and advanced configurations
 
 #### Technical Integration Notes
 
-**Content Script Modifications**
-Two-phase extraction requires minimal content script changes:
-- Analysis requests include `useTwoPhase: boolean` parameter
+**Content Script Architecture**
+FullContent extraction uses a simplified, efficient architecture:
+- Analysis requests use standard message format with provider and type filter parameters
 - Progress messages handled through existing notification system
-- Results displayed through standard UI components with enhanced metadata
+- Results displayed through enhanced UI components with confidence indicators
 
 **Background Script Communication**
-- Standard message passing with additional two-phase parameters
-- `TwoPhaseExtractor` service handles complex orchestration
-- Results normalized to standard format with additional metadata fields
+- Standard message passing with provider and configuration parameters
+- `ContentValidator` service ensures response quality and consistency
+- Results provided in normalized fullContent format with metadata
 
 ### Design System Integration
 Content script UI components follow the shared design system:

@@ -42,8 +42,7 @@ export interface SimilarityResult {
 
 export interface NuggetWithEmbedding {
 	type: string;
-	startContent: string;
-	endContent: string;
+	fullContent: string;
 	runId?: string;
 	embedding?: EmbeddingVector;
 }

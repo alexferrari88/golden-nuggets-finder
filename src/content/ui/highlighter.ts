@@ -50,14 +50,19 @@ export class Highlighter {
 		try {
 			// Direct text search using fullContent - no boundary reconstruction needed
 			const fullContent = nugget.fullContent?.trim();
+			console.log("fullContent:", JSON.stringify(fullContent));
+			console.log("cssHighlightSupported:", this.cssHighlightSupported);
+
 			if (!fullContent) {
 				console.warn("No fullContent available for nugget:", nugget);
 				return false;
 			}
 
 			if (this.cssHighlightSupported) {
+				console.log("Using CSS Highlight API");
 				return this.highlightWithCSSAPI(fullContent, nugget);
 			} else {
+				console.log("Using Mark.js fallback");
 				return this.highlightWithMarkJS(fullContent, nugget);
 			}
 		} catch (error) {
@@ -79,7 +84,7 @@ export class Highlighter {
 			const highlight = new window.Highlight(...ranges);
 
 			if (CSS?.highlights) {
-				CSS.highlights.set(highlightId, highlight);
+				CSS.highlights.set(highlightId, highlight as any);
 
 				// Store for cleanup
 				ranges.forEach((range) => {
@@ -102,17 +107,47 @@ export class Highlighter {
 		fullContent: string,
 		_nugget: GoldenNugget,
 	): boolean {
+		console.log(
+			"Searching for:",
+			JSON.stringify(fullContent.substring(0, 100)),
+		);
+		console.log(
+			"DOM text content:",
+			JSON.stringify(document.body.textContent?.substring(0, 200) || ""),
+		);
+
 		if (this.markInstance) {
 			try {
+				// Check if text exists in DOM first
+				const bodyText = document.body.textContent || "";
+				const found = bodyText
+					.toLowerCase()
+					.includes(fullContent.toLowerCase());
+
+				if (!found) {
+					console.log("Text not found in DOM for Mark.js:", fullContent);
+					return false;
+				}
+
+				console.log("Text found in DOM, proceeding with Mark.js highlighting");
+
+				console.log(
+					"Initial highlightedElements count:",
+					this.highlightedElements.length,
+				);
+				const initialElementCount = this.highlightedElements.length;
+
 				this.markInstance.mark(fullContent, {
 					className: this.highlightClassName,
 					element: "span",
 					separateWordSearch: false, // Exact phrase matching
-					accuracy: "exactly",
+					accuracy: "complementary", // More flexible matching than "exactly"
+					caseSensitive: false, // Enable case-insensitive matching
 					each: (element) => {
+						console.log("Mark.js each callback called for element:", element);
 						// Apply design system styling
-						element.style.cssText = `
-							background: ${colors.background.highlight};
+						(element as HTMLElement).style.cssText = `
+							background: ${colors.highlight.background};
 							color: ${colors.text.primary};
 							border-radius: 2px;
 							padding: 0 2px;
@@ -120,13 +155,45 @@ export class Highlighter {
 
 						// Add to tracked elements for cleanup
 						this.highlightedElements.push(element as HTMLElement);
+						console.log(
+							"Added element to tracking, new total:",
+							this.highlightedElements.length,
+							"Array contents:",
+							this.highlightedElements.map((el) => el.tagName).join(", "),
+						);
+					},
+					done: (totalMarks) => {
+						console.log("Mark.js completed with", totalMarks, "marks");
+						console.log(
+							"Final highlightedElements count after mark:",
+							this.highlightedElements.length,
+						);
+						if (totalMarks === 0) {
+							console.log("Mark.js found no matches for:", fullContent);
+						}
 					},
 				});
 
-				console.log(`Mark.js highlighted "${fullContent.substring(0, 50)}..."`);
-				return true;
+				console.log(
+					"Immediately after mark call, highlightedElements count:",
+					this.highlightedElements.length,
+				);
+				const newElementsAdded =
+					this.highlightedElements.length - initialElementCount;
+				console.log(
+					`Mark.js highlighted "${fullContent.substring(0, 50)}..." with ${newElementsAdded} new elements`,
+				);
+
+				// Also check by querying the DOM
+				const domElements = document.querySelectorAll(
+					`.${this.highlightClassName}`,
+				);
+				console.log("DOM elements with highlight class:", domElements.length);
+
+				return newElementsAdded > 0; // Return success based on elements added
 			} catch (error) {
 				console.error("Mark.js highlighting failed:", error);
+				console.error("Error details:", error);
 				return false;
 			}
 		}
@@ -135,10 +202,22 @@ export class Highlighter {
 
 	/**
 	 * Find text ranges for CSS Custom Highlight API
-	 * Simple text search - no complex normalization strategies needed
+	 * Handles case-insensitive partial matching within text nodes
 	 */
 	private findTextRanges(searchText: string): Range[] {
 		const ranges: Range[] = [];
+		const searchTextLower = searchText.toLowerCase();
+
+		// Get all text content and search for the phrase
+		const bodyText = document.body.textContent || "";
+		const bodyTextLower = bodyText.toLowerCase();
+		const startIndex = bodyTextLower.indexOf(searchTextLower);
+
+		if (startIndex === -1) {
+			console.log("Text not found in body:", searchText);
+			return ranges;
+		}
+
 		const walker = document.createTreeWalker(
 			document.body,
 			NodeFilter.SHOW_TEXT,
@@ -157,20 +236,57 @@ export class Highlighter {
 			},
 		);
 
+		// Create a combined text from all text nodes to find accurate positions
+		const textNodes: Text[] = [];
+		const textOffsets: number[] = [];
+		let currentOffset = 0;
+
 		let node: Text | null;
 		while ((node = walker.nextNode() as Text | null)) {
 			const text = node.textContent || "";
-			const index = text.indexOf(searchText);
-			if (index !== -1) {
+			textNodes.push(node);
+			textOffsets.push(currentOffset);
+			currentOffset += text.length;
+		}
+
+		// Find all occurrences in the combined text
+		const allText = textNodes.map((n) => n.textContent || "").join("");
+		const allTextLower = allText.toLowerCase();
+
+		let searchIndex = 0;
+		while (
+			(searchIndex = allTextLower.indexOf(searchTextLower, searchIndex)) !== -1
+		) {
+			// Find which text node contains this position
+			let nodeIndex = 0;
+			let nodeStartOffset = textOffsets[0];
+
+			for (let i = 1; i < textOffsets.length; i++) {
+				if (textOffsets[i] <= searchIndex) {
+					nodeIndex = i;
+					nodeStartOffset = textOffsets[i];
+				} else {
+					break;
+				}
+			}
+
+			const textNode = textNodes[nodeIndex];
+			const localStart = searchIndex - nodeStartOffset;
+			const localEnd = localStart + searchText.length;
+
+			// Check if the match spans multiple text nodes
+			if (localEnd <= (textNode.textContent?.length || 0)) {
 				try {
 					const range = document.createRange();
-					range.setStart(node, index);
-					range.setEnd(node, index + searchText.length);
+					range.setStart(textNode, localStart);
+					range.setEnd(textNode, localEnd);
 					ranges.push(range);
 				} catch (error) {
 					console.warn("Failed to create range for text:", error);
 				}
 			}
+
+			searchIndex++;
 		}
 
 		return ranges;
@@ -237,7 +353,7 @@ export class Highlighter {
 		// Use design system colors for consistent styling
 		styleElement.textContent = `
 			::highlight(golden-nugget) {
-				background-color: ${colors.background.highlight};
+				background-color: ${colors.highlight.background};
 				color: ${colors.text.primary};
 			}
 		`;
@@ -251,6 +367,11 @@ export class Highlighter {
 		domHighlights: number;
 		supported: boolean;
 	} {
+		console.log("Highlight stats:", {
+			cssHighlights: this.cssHighlights.size,
+			domHighlights: this.highlightedElements.length,
+			supported: this.cssHighlightSupported,
+		});
 		return {
 			cssHighlights: this.cssHighlights.size,
 			domHighlights: this.highlightedElements.length,

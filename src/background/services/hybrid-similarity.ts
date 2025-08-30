@@ -110,9 +110,7 @@ export class HybridSimilarityMatcher {
 
 		try {
 			// Extract text content for embedding generation
-			const texts = nuggets.map((nugget) =>
-				`${nugget.startContent} ${nugget.endContent}`.trim(),
-			);
+			const texts = nuggets.map((nugget) => nugget.fullContent.trim());
 
 			debugLogger.log(
 				`[HybridSimilarityMatcher] Generating embeddings for ${texts.length} nuggets`,
@@ -212,8 +210,8 @@ export class HybridSimilarityMatcher {
 							error,
 						);
 						// Fall back to word overlap
-						const currentText = `${currentNugget.startContent} ${currentNugget.endContent}`;
-						const candidateText = `${candidateNugget.startContent} ${candidateNugget.endContent}`;
+						const currentText = currentNugget.fullContent;
+						const candidateText = candidateNugget.fullContent;
 						const wordOverlapScore = this.calculateWordOverlapSimilarity(
 							currentText,
 							candidateText,
@@ -222,8 +220,8 @@ export class HybridSimilarityMatcher {
 					}
 				} else {
 					// Use word overlap similarity
-					const currentText = `${currentNugget.startContent} ${currentNugget.endContent}`;
-					const candidateText = `${candidateNugget.startContent} ${candidateNugget.endContent}`;
+					const currentText = currentNugget.fullContent;
+					const candidateText = candidateNugget.fullContent;
 					const wordOverlapScore = this.calculateWordOverlapSimilarity(
 						currentText,
 						candidateText,
@@ -270,7 +268,7 @@ export class HybridSimilarityMatcher {
 		let bestSimilarity = -1;
 		let bestMethod = "none";
 
-		const queryText = `${queryNugget.startContent} ${queryNugget.endContent}`;
+		const queryText = queryNugget.fullContent;
 
 		for (let i = 0; i < candidateNuggets.length; i++) {
 			const candidate = candidateNuggets[i];
@@ -280,7 +278,7 @@ export class HybridSimilarityMatcher {
 				continue;
 			}
 
-			const candidateText = `${candidate.startContent} ${candidate.endContent}`;
+			const candidateText = candidate.fullContent;
 			let similarity = 0;
 			let method = "word_overlap";
 

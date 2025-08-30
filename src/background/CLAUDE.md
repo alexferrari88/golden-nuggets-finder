@@ -20,7 +20,7 @@ The extension supports multiple AI providers through a unified interface:
 - **LangChain Providers**: OpenAI, Anthropic, and OpenRouter via LangChain
 - **Provider Factory**: Creates appropriate provider instances based on configuration
 - **Provider Switching**: Automatic fallback and manual provider switching
-- **Two-Phase Support**: All providers implement both Phase 1 and Phase 2 extraction methods
+- **FullContent Support**: All providers implement unified fullContent extraction with confidence scoring
 
 ### Provider Factory (`services/provider-factory.ts`)
 Central factory for creating provider instances:
@@ -51,36 +51,32 @@ Manages provider availability and switching:
 - **Default Model**: `gemini-2.5-flash`
 - **Features**: Structured JSON output, thinking budget configuration
 - **Caching**: 5-minute response caching
-- **Two-Phase Methods**:
-  - `extractPhase1HighRecall()`: High-recall extraction with temperature 0.7
-  - `extractPhase2HighPrecision()`: Boundary detection with temperature 0.0
+- **FullContent Method**:
+  - `extractGoldenNuggets()`: Direct fullContent extraction with confidence scoring
 
 ### OpenAI (LangChain Integration)
 - **Implementation**: `shared/providers/langchain-openai-provider.ts`
 - **API**: LangChain OpenAI integration
 - **Default Model**: `gpt-4.1-mini`
 - **Features**: Chat completion models, structured output via tool calling
-- **Two-Phase Methods**:
-  - `extractPhase1HighRecall()`: Returns `Phase1Response` with fullContent and confidence
-  - `extractPhase2HighPrecision()`: Returns `Phase2Response` with startContent/endContent boundaries
+- **FullContent Method**:
+  - `extractGoldenNuggets()`: Returns standardized response with fullContent and confidence
 
 ### Anthropic Claude (LangChain Integration)
 - **Implementation**: `shared/providers/langchain-anthropic-provider.ts`
 - **API**: LangChain Anthropic integration
 - **Default Model**: `claude-sonnet-4-20250514`
 - **Features**: Advanced reasoning capabilities, structured output
-- **Two-Phase Methods**:
-  - `extractPhase1HighRecall()`: High-recall extraction optimized for discovery
-  - `extractPhase2HighPrecision()`: Precise boundary detection for text matching
+- **FullContent Method**:
+  - `extractGoldenNuggets()`: Advanced reasoning-based fullContent extraction
 
 ### OpenRouter (LangChain Integration)
 - **Implementation**: `shared/providers/langchain-openrouter-provider.ts`
 - **API**: LangChain OpenRouter integration providing access to multiple models
 - **Default Model**: `openai/gpt-3.5-turbo`
 - **Features**: Access to multiple providers through single API
-- **Two-Phase Methods**:
-  - `extractPhase1HighRecall()`: Multi-model high-recall extraction
-  - `extractPhase2HighPrecision()`: Precise boundary detection across model types
+- **FullContent Method**:
+  - `extractGoldenNuggets()`: Multi-model fullContent extraction with consistent formatting
 
 ## Ensemble Mode Integration
 
@@ -93,7 +89,7 @@ Advanced multi-run analysis service that provides improved accuracy through cons
 - **Embedding Analysis**: Semantic similarity analysis for duplicate detection
 - **Confidence Scoring**: Assigns confidence metrics based on run agreement
 - **Result Consolidation**: Merges multiple runs into consensus results with metadata
-- **Two-Phase Integration**: Uses Phase 1 high-recall extraction for consensus building, then converts back to standard format for ensemble similarity matching
+- **FullContent Integration**: Uses fullContent extraction for consensus building with hybrid similarity matching
 
 #### Key Methods
 - `extractWithEnsemble(content, provider, prompt, options)`: Main ensemble extraction method
@@ -139,24 +135,8 @@ Ensemble preferences stored securely using the same encryption system:
 
 ## Golden Nugget Response Schema
 
-### Standard Response Format
-All AI providers are normalized to return responses in this standardized format:
-```json
-{
-  "golden_nuggets": [
-    {
-      "type": "tool|media|aha! moments|analogy|model",
-      "startContent": "Original text verbatim (start)",
-      "endContent": "Original text verbatim (end)"
-    }
-  ]
-}
-```
-
-### Two-Phase Response Formats
-
-#### Phase 1 Response (`Phase1Response`)
-High-recall extraction with confidence scoring:
+### FullContent Response Format
+All AI providers are normalized to return responses in this standardized fullContent format:
 ```json
 {
   "golden_nuggets": [
@@ -169,23 +149,11 @@ High-recall extraction with confidence scoring:
 }
 ```
 
-#### Phase 2 Response (`Phase2Response`)
-Boundary detection for precise text matching:
-```json
-{
-  "golden_nuggets": [
-    {
-      "type": "tool|media|aha! moments|analogy|model",
-      "startContent": "Original text verbatim (start)",
-      "endContent": "Original text verbatim (end)"
-    }
-  ]
-}
-```
-
-**Temperature Differences**:
-- **Phase 1**: Higher temperature (0.7) for creative, high-recall extraction
-- **Phase 2**: Lower temperature (0.0) for precise, deterministic boundary detection
+**Response Features**:
+- **fullContent**: Complete verbatim text of the golden nugget
+- **confidence**: AI-assigned quality score (0.0-1.0)
+- **type**: Categorization for filtering and organization
+- **Provider Agnostic**: Consistent format across all AI providers
 
 **Note**: Response normalization is handled by `services/response-normalizer.ts` to ensure consistent data structure across all providers.
 
@@ -196,8 +164,8 @@ Uses typed message system with `MESSAGE_TYPES` constants for communication betwe
 
 ### Core Message Types
 - **Analysis Flow**: 
-  - `ANALYZE_CONTENT`: Trigger content analysis (supports `useTwoPhase` parameter)
-  - `ANALYZE_SELECTED_CONTENT`: Analyze user-selected content (supports `useTwoPhase` parameter)
+  - `ANALYZE_CONTENT`: Trigger content analysis
+  - `ANALYZE_SELECTED_CONTENT`: Analyze user-selected content
   - `ANALYZE_CONTENT_ENSEMBLE`: Trigger ensemble analysis with multiple runs
   - `ANALYSIS_COMPLETE`: Analysis finished successfully
   - `ANALYSIS_ERROR`: Analysis failed with error
@@ -330,32 +298,18 @@ Comprehensive error handling across all providers:
 - **Retry Logic**: Implements intelligent retry with exponential backoff
 - **Error Recovery**: Automatic provider switching on persistent failures
 
-#### TwoPhaseExtractor (`services/two-phase-extractor.ts`)
-Main orchestrator for two-phase extraction workflow:
-- **Phase 1 Execution**: High-recall extraction using `extractPhase1HighRecall()` method
-- **Confidence Filtering**: Filters nuggets based on configurable confidence threshold (default: 0.85)
-- **Phase 2 Execution**: Boundary detection using fuzzy matching and LLM fallback
-- **Abort Logic**: Aborts extraction when >60% of nuggets have low confidence
-- **Performance Monitoring**: Tracks processing times and extraction method statistics
+#### ContentValidator (`services/content-validator.ts`)
+Content quality and format validation service:
+- **Response Validation**: Ensures AI provider responses conform to expected schema
+- **Content Quality**: Validates fullContent completeness and confidence scores
+- **Format Normalization**: Standardizes responses across different providers
+- **Error Handling**: Graceful handling of malformed or incomplete responses
+- **Performance Monitoring**: Tracks validation success rates and processing times
 - **Key Methods**:
-  - `extractWithTwoPhase()`: Main orchestration method
-  - `executePhase1()`: Phase 1 high-recall extraction
-  - `executePhase2()`: Phase 2 boundary detection
-  - `llmBoundaryDetection()`: Fallback LLM boundary detection
-
-#### FuzzyBoundaryMatcher (`services/fuzzy-boundary-matcher.ts`)
-Advanced text matching service for boundary extraction:
-- **Exact Match Strategy**: Direct text matching for identical content
-- **Fuzzy Match Strategy**: Levenshtein distance-based matching with configurable tolerance
-- **Word Boundary Detection**: Ensures matches respect word boundaries
-- **Confidence Scoring**: Assigns confidence based on match quality and strategy
-- **Similarity Calculation**: Advanced word-level similarity for fuzzy matching
-- **Key Methods**:
-  - `findBoundaries()`: Main boundary detection method
-  - `tryExactMatch()`: Exact text matching
-  - `tryFuzzyMatch()`: Fuzzy matching with Levenshtein distance
-  - `extractBoundariesFromIndex()`: Boundary extraction from match indices
-  - `getUnmatchedNuggets()`: Returns nuggets that couldn't be matched
+  - `validateResponse()`: Main response validation method
+  - `normalizeContent()`: Content format standardization
+  - `assessQuality()`: Content quality assessment
+  - `handleValidationErrors()`: Error recovery and reporting
 
 #### Response Normalizer (`services/response-normalizer.ts`)
 Ensures consistent data structure across providers:
@@ -372,11 +326,11 @@ Ensures consistent data structure across providers:
 - **Retry Logic**: Intelligent retry with exponential backoff and provider-specific limits
 - **User-Friendly Messages**: Technical errors converted to actionable guidance
 
-### Two-Phase Error Handling
-- **Confidence Threshold Abort**: Automatically aborts when >60% of Phase 1 nuggets have low confidence
-- **Phase Isolation**: Failures in one phase don't affect the other
-- **Fuzzy Match Fallback**: LLM boundary detection as fallback when fuzzy matching fails
-- **Graceful Degradation**: Returns partial results when possible
+### FullContent Error Handling
+- **Content Validation**: Validates fullContent completeness and format consistency
+- **Confidence Assessment**: Quality control through confidence score analysis
+- **Provider Fallback**: Automatic switching to alternative providers on failures
+- **Graceful Degradation**: Returns best available results when possible
 
 ### Network and Connectivity
 - **Timeout Handling**: Provider-specific timeout configurations
@@ -414,11 +368,12 @@ Ensures consistent data structure across providers:
 
 ### Adding New AI Providers
 1. **Create Provider Implementation**: Add new provider class in `shared/providers/`
-2. **Update Provider Factory**: Add provider to factory and default model configuration
-3. **Update Provider Types**: Extend `ProviderId` union and related types
-4. **Add Model Service**: Implement model fetching for the new provider
-5. **Update Error Handling**: Add provider-specific error patterns
-6. **Test Integration**: Comprehensive testing across all provider scenarios
+2. **Implement FullContent Method**: Ensure `extractGoldenNuggets()` returns fullContent format
+3. **Update Provider Factory**: Add provider to factory and default model configuration
+4. **Update Provider Types**: Extend `ProviderId` union and related types
+5. **Add Model Service**: Implement model fetching for the new provider
+6. **Update Error Handling**: Add provider-specific error patterns
+7. **Test Integration**: Comprehensive testing including fullContent response validation
 
 ### Service Development
 1. **Service Modularity**: Keep services focused and testable

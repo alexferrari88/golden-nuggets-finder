@@ -15,13 +15,13 @@ describe("Response Normalizer Functions", () => {
 				golden_nuggets: [
 					{
 						type: "tool" as const,
-						startContent: "Test content 1",
-						endContent: "Test content 1",
+						fullContent: "Test content 1",
+						confidence: 0.9,
 					},
 					{
 						type: "aha! moments" as const,
-						startContent: "Test content 2",
-						endContent: "Test content 2",
+						fullContent: "Test content 2",
+						confidence: 0.8,
 					},
 				],
 			};
@@ -32,13 +32,17 @@ describe("Response Normalizer Functions", () => {
 				golden_nuggets: [
 					{
 						type: "tool",
-						startContent: "Test content 1",
-						endContent: "Test content 1",
+						fullContent: "Test content 1",
+						confidence: 0.9,
+						validationScore: undefined,
+						extractionMethod: "llm",
 					},
 					{
 						type: "aha! moments",
-						startContent: "Test content 2",
-						endContent: "Test content 2",
+						fullContent: "Test content 2",
+						confidence: 0.8,
+						validationScore: undefined,
+						extractionMethod: "llm",
 					},
 				],
 			});
@@ -49,16 +53,15 @@ describe("Response Normalizer Functions", () => {
 				golden_nuggets: [
 					{
 						type: "tool" as const,
-						startContent: "  Test start content  ",
-						endContent: "  Test end content  ",
+						fullContent: "  Test full content  ",
+						confidence: 0.9,
 					},
 				],
 			};
 
 			const result = normalize(responseWithWhitespace, "anthropic");
 
-			expect(result.golden_nuggets[0].startContent).toBe("Test start content");
-			expect(result.golden_nuggets[0].endContent).toBe("Test end content");
+			expect(result.golden_nuggets[0].fullContent).toBe("Test full content");
 		});
 
 		it("should filter out nuggets with empty content", () => {
@@ -66,23 +69,18 @@ describe("Response Normalizer Functions", () => {
 				golden_nuggets: [
 					{
 						type: "tool" as const,
-						startContent: "Valid start",
-						endContent: "Valid end",
+						fullContent: "Valid full content",
+						confidence: 0.9,
 					},
 					{
 						type: "aha! moments" as const,
-						startContent: "",
-						endContent: "Has end but no start",
+						fullContent: "",
+						confidence: 0.5,
 					},
 					{
 						type: "analogy" as const,
-						startContent: "Has start but no end",
-						endContent: "",
-					},
-					{
-						type: "media" as const,
-						startContent: "   ",
-						endContent: "Content is just whitespace",
+						fullContent: "   ",
+						confidence: 0.3,
 					},
 				],
 			};
@@ -92,8 +90,10 @@ describe("Response Normalizer Functions", () => {
 			expect(result.golden_nuggets).toHaveLength(1);
 			expect(result.golden_nuggets[0]).toEqual({
 				type: "tool",
-				startContent: "Valid start",
-				endContent: "Valid end",
+				fullContent: "Valid full content",
+				confidence: 0.9,
+				validationScore: undefined,
+				extractionMethod: "llm",
 			});
 		});
 
@@ -102,16 +102,15 @@ describe("Response Normalizer Functions", () => {
 				golden_nuggets: [
 					{
 						type: "model" as const,
-						startContent: 123,
-						endContent: true,
+						fullContent: 123,
+						confidence: 0.8,
 					},
 				],
 			};
 
 			const result = normalize(responseWithNonStrings, "openrouter");
 
-			expect(result.golden_nuggets[0].startContent).toBe("123");
-			expect(result.golden_nuggets[0].endContent).toBe("true");
+			expect(result.golden_nuggets[0].fullContent).toBe("123");
 		});
 
 		it("should return empty array for invalid response structure", () => {
@@ -130,8 +129,8 @@ describe("Response Normalizer Functions", () => {
 				golden_nuggets: [
 					{
 						type: "invalid_type",
-						startContent: "Test content",
-						endContent: "Test content",
+						fullContent: "Test content",
+						confidence: 0.8,
 					},
 				],
 			};
@@ -151,28 +150,29 @@ describe("Response Normalizer Functions", () => {
 			});
 		});
 
-		it("should handle responses with missing required fields", () => {
-			const responseWithMissingFields = {
+		it("should reject legacy boundary format (no backward compatibility)", () => {
+			const responseWithBoundaries = {
 				golden_nuggets: [
 					{
 						type: "tool" as const,
-						startContent: "Has start content",
-						// endContent field missing
+						startContent: "Use advanced debugging",
+						endContent: "techniques for complex problems",
+						confidence: 0.8,
+						// NO fullContent - should be rejected
 					},
 					{
 						type: "aha! moments" as const,
-						// startContent field missing
-						endContent: "Has end content",
+						// NO fullContent - should be rejected
+						startContent: "Complete explanation content",
+						confidence: 0.7,
 					},
 				],
 			};
 
-			const result = normalize(responseWithMissingFields, "openrouter");
+			const result = normalize(responseWithBoundaries, "openrouter");
 
-			// After preprocessing, missing fields become empty strings and get filtered out
-			expect(result).toEqual({ golden_nuggets: [] });
-			// Console should not be called since preprocessing handles this case gracefully
-			expect(consoleSpy).not.toHaveBeenCalled();
+			// Should return empty array - NO backward compatibility
+			expect(result.golden_nuggets).toEqual([]);
 		});
 
 		it("should handle all valid nugget types", () => {
@@ -180,28 +180,28 @@ describe("Response Normalizer Functions", () => {
 				golden_nuggets: [
 					{
 						type: "tool" as const,
-						startContent: "Tool start",
-						endContent: "Tool end",
+						fullContent: "Tool content",
+						confidence: 0.9,
 					},
 					{
 						type: "media" as const,
-						startContent: "Media start",
-						endContent: "Media end",
+						fullContent: "Media content",
+						confidence: 0.8,
 					},
 					{
 						type: "aha! moments" as const,
-						startContent: "Explanation start",
-						endContent: "Explanation end",
+						fullContent: "Explanation content",
+						confidence: 0.7,
 					},
 					{
 						type: "analogy" as const,
-						startContent: "Analogy start",
-						endContent: "Analogy end",
+						fullContent: "Analogy content",
+						confidence: 0.6,
 					},
 					{
 						type: "model" as const,
-						startContent: "Model start",
-						endContent: "Model end",
+						fullContent: "Model content",
+						confidence: 0.5,
 					},
 				],
 			};
@@ -225,8 +225,8 @@ describe("Response Normalizer Functions", () => {
 				golden_nuggets: [
 					{
 						type: "tool" as const,
-						startContent: "Test start content",
-						endContent: "Test end content",
+						fullContent: "Test full content",
+						confidence: 0.8,
 					},
 				],
 			};
@@ -247,8 +247,8 @@ describe("Response Normalizer Functions", () => {
 				golden_nuggets: [
 					{
 						type: "invalid_type",
-						startContent: "Test start content",
-						endContent: "Test end content",
+						fullContent: "Test full content",
+						confidence: 0.8,
 					},
 				],
 			};
@@ -261,8 +261,8 @@ describe("Response Normalizer Functions", () => {
 				golden_nuggets: [
 					{
 						type: "tool" as const,
-						startContent: "Has start content",
-						endContent: "Has end content",
+						fullContent: "Has full content",
+						confidence: 0.9,
 					},
 				],
 			};

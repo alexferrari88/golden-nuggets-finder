@@ -186,14 +186,12 @@ describe("HybridSimilarityMatcher", () => {
 		const mockNuggets: NuggetWithEmbedding[] = [
 			{
 				type: "tool",
-				startContent: "API",
-				endContent: "throttling",
+				fullContent: "API throttling",
 				runId: "run1",
 			},
 			{
 				type: "tool",
-				startContent: "Rate",
-				endContent: "limiting",
+				fullContent: "Rate limiting",
 				runId: "run2",
 			},
 		];
@@ -244,20 +242,17 @@ describe("HybridSimilarityMatcher", () => {
 		const mockNuggets: NuggetWithEmbedding[] = [
 			{
 				type: "tool",
-				startContent: "API",
-				endContent: "throttling",
+				fullContent: "API throttling",
 				runId: "run1",
 			},
 			{
 				type: "tool",
-				startContent: "Rate",
-				endContent: "limiting",
+				fullContent: "Rate limiting",
 				runId: "run2",
 			},
 			{
 				type: "media",
-				startContent: "Database",
-				endContent: "indexing",
+				fullContent: "Database indexing",
 				runId: "run3",
 			},
 		];
@@ -281,8 +276,8 @@ describe("HybridSimilarityMatcher", () => {
 			mockCalculateCosineSimilarity.mockReturnValue(0.95);
 
 			const mixedTypeNuggets: NuggetWithEmbedding[] = [
-				{ type: "tool", startContent: "API", endContent: "throttling" },
-				{ type: "media", startContent: "API", endContent: "throttling" }, // Same content, different type
+				{ type: "tool", fullContent: "API throttling" },
+				{ type: "media", fullContent: "API throttling" }, // Same content, different type
 			];
 
 			const groups = await hybridMatcher.groupSimilarNuggets(mixedTypeNuggets);
@@ -310,25 +305,22 @@ describe("HybridSimilarityMatcher", () => {
 	describe("findMostSimilar", () => {
 		const queryNugget: NuggetWithEmbedding = {
 			type: "tool",
-			startContent: "API",
-			endContent: "throttling",
+			fullContent: "API throttling",
 			embedding: mockEmbedding1,
 		};
 
 		const candidateNuggets: NuggetWithEmbedding[] = [
 			{
 				type: "tool",
-				startContent: "Rate",
-				endContent: "limiting",
+				fullContent: "Rate limiting",
 				embedding: mockEmbedding2,
 			},
 			{
 				type: "tool",
-				startContent: "Database",
-				endContent: "indexing",
+				fullContent: "Database indexing",
 				embedding: mockEmbedding3,
 			},
-			{ type: "media", startContent: "API", endContent: "throttling" }, // Different type
+			{ type: "media", fullContent: "API throttling" }, // Different type
 		];
 
 		it("should find most similar nugget using embeddings", async () => {
@@ -350,8 +342,7 @@ describe("HybridSimilarityMatcher", () => {
 		it("should skip different types", async () => {
 			const differentTypeQuery: NuggetWithEmbedding = {
 				type: "media",
-				startContent: "Test",
-				endContent: "content",
+				fullContent: "Test content",
 			};
 
 			const result = await hybridMatcher.findMostSimilar(
@@ -372,7 +363,7 @@ describe("HybridSimilarityMatcher", () => {
 
 		it("should fall back to word overlap", async () => {
 			const nuggetsWithoutEmbeddings: NuggetWithEmbedding[] = [
-				{ type: "tool", startContent: "API", endContent: "throttling" },
+				{ type: "tool", fullContent: "API throttling" },
 			];
 
 			const result = await hybridMatcher.findMostSimilar(
@@ -422,20 +413,17 @@ describe("HybridSimilarityMatcher", () => {
 			const technicalNuggets: NuggetWithEmbedding[] = [
 				{
 					type: "tool",
-					startContent: "API",
-					endContent: "throttling",
+					fullContent: "API throttling",
 					runId: "run1",
 				},
 				{
 					type: "tool",
-					startContent: "Request",
-					endContent: "throttling",
+					fullContent: "Request throttling",
 					runId: "run2",
 				},
 				{
 					type: "tool",
-					startContent: "Database",
-					endContent: "indexing",
+					fullContent: "Database indexing",
 					runId: "run3",
 				},
 			];
@@ -458,20 +446,17 @@ describe("HybridSimilarityMatcher", () => {
 			const ensembleNuggets: NuggetWithEmbedding[] = [
 				{
 					type: "tool",
-					startContent: "Use",
-					endContent: "Chrome DevTools",
+					fullContent: "Use Chrome DevTools",
 					runId: "run1",
 				},
 				{
 					type: "tool",
-					startContent: "Chrome",
-					endContent: "DevTools debugging",
+					fullContent: "Chrome DevTools debugging",
 					runId: "run2",
 				},
 				{
 					type: "tool",
-					startContent: "Visual",
-					endContent: "Studio debugger",
+					fullContent: "Visual Studio debugger",
 					runId: "run3",
 				},
 			];

@@ -1736,18 +1736,12 @@ export class UIManager {
 			const content = item.textContent || item.htmlContent || "";
 
 			if (content.trim()) {
-				// Generate startContent and endContent from fullContent for backend compatibility
+				// Use fullContent directly - no need for boundary generation with fullContent migration
 				const trimmedContent = content.trim();
-				const startContent = trimmedContent.substring(0, 100);
-				const endContent =
-					trimmedContent.length > 100
-						? trimmedContent.substring(trimmedContent.length - 100)
-						: trimmedContent;
 
 				missingContentFeedback.push({
 					id: feedbackId,
-					startContent,
-					endContent,
+					fullContent: trimmedContent,
 					suggestedType: selectedType,
 					timestamp: Date.now(),
 					url: window.location.href,

@@ -32,8 +32,8 @@ This document defines all interface changes, new services, and data structures r
 // Base nugget (existing) 
 interface BaseGoldenNugget {
   type: GoldenNuggetType;
-  startContent: string;
-  endContent: string;
+  fullContent: string;
+  confidence: number;
 }
 
 // Enhanced nugget with ensemble metadata
