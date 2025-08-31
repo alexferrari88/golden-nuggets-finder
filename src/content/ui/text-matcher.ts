@@ -19,10 +19,9 @@ export class TextMatcher {
 	constructor() {
 		this.ufuzzy = new uFuzzy({
 			intraMode: 1, // Enable fuzzy matching
-			interMode: 1, // Enable inter-term matching
-			intraSub: 0.6, // Substitution tolerance
-			intraTrn: 0.4, // Transposition tolerance
-			intraDel: 0.3, // Deletion tolerance
+			intraSub: 1, // Substitution tolerance (0 or 1)
+			intraTrn: 1, // Transposition tolerance (0 or 1)
+			intraDel: 1, // Deletion tolerance (0 or 1)
 		});
 	}
 
@@ -253,15 +252,21 @@ export class TextMatcher {
 
 			// Use uFuzzy to find the best matching window
 			const searchQuery = searchWords.join(" ");
-			const searchResults = this.ufuzzy.search(windows, [searchQuery]);
+			const searchResults = this.ufuzzy.search(windows, searchQuery);
 
-			if (!searchResults || searchResults.length === 0) {
+			// uFuzzy search returns [indexes, info, order] or null
+			if (!searchResults || !searchResults[0] || searchResults[0].length === 0) {
 				// Try partial matching with individual words
 				return this.findPartialWordMatch(searchWords, bodyText);
 			}
 
 			// Get the best match (first result is highest ranked)
-			const bestMatchIndex = searchResults[0];
+			const matchIndexes = searchResults[0];
+			const bestMatchIndex = matchIndexes[0];
+			if (bestMatchIndex === null || bestMatchIndex === undefined) {
+				return this.findPartialWordMatch(searchWords, bodyText);
+			}
+			
 			const windowPos = windowPositions[bestMatchIndex];
 			const matchedWindow = windows[bestMatchIndex];
 
@@ -294,8 +299,12 @@ export class TextMatcher {
 		const bodyLower = bodyText.toLowerCase();
 
 		// First try to find individual words and create a match that encompasses them
-		const wordPositions: Array<{ word: string; index: number; length: number }> = [];
-		
+		const wordPositions: Array<{
+			word: string;
+			index: number;
+			length: number;
+		}> = [];
+
 		for (const word of searchWords) {
 			const index = bodyLower.indexOf(word);
 			if (index !== -1) {
@@ -307,7 +316,7 @@ export class TextMatcher {
 		if (wordPositions.length >= Math.ceil(searchWords.length * 0.6)) {
 			// Sort by position to find the span
 			wordPositions.sort((a, b) => a.index - b.index);
-			
+
 			const firstWord = wordPositions[0];
 			const lastWord = wordPositions[wordPositions.length - 1];
 			const startIndex = firstWord.index;

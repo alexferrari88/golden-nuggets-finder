@@ -7,6 +7,7 @@
 import Mark from "mark.js";
 import { colors } from "../../shared/design-system";
 import type { GoldenNugget } from "../../shared/types";
+import { DOMPositionMapper } from "./dom-position-mapper";
 import { TextMatcher } from "./text-matcher";
 
 // Type declarations for CSS Custom Highlight API
@@ -151,6 +152,7 @@ export class Highlighter {
 				this.markInstance.mark(textToHighlight, {
 					className: this.highlightClassName,
 					element: "span",
+					acrossElements: true, // Enable cross-node highlighting
 					separateWordSearch: false, // Exact phrase matching
 					accuracy: "complementary", // More flexible matching than "exactly"
 					caseSensitive: false, // Enable case-insensitive matching
@@ -262,89 +264,15 @@ export class Highlighter {
 	}
 
 	/**
-	 * Convert global text positions to DOM Ranges
-	 * Phase 1: Basic implementation for single-node text
-	 * Phase 2 will enhance this for cross-node text spanning
+	 * Convert global text positions to DOM Ranges using DOMPositionMapper
+	 * Phase 2: Enhanced implementation for cross-node text spanning
 	 */
 	private convertPositionToRanges(
 		startIndex: number,
 		endIndex: number,
 	): Range[] {
-		const ranges: Range[] = [];
-
-		const walker = document.createTreeWalker(
-			document.body,
-			NodeFilter.SHOW_TEXT,
-			{
-				acceptNode: (node: Text) => {
-					// Skip script and style elements
-					const parent = node.parentElement;
-					if (
-						parent &&
-						(parent.tagName === "SCRIPT" || parent.tagName === "STYLE")
-					) {
-						return NodeFilter.FILTER_REJECT;
-					}
-					return NodeFilter.FILTER_ACCEPT;
-				},
-			},
-		);
-
-		// Build text node mapping with offsets
-		const textNodes: Text[] = [];
-		const textOffsets: number[] = [];
-		let currentOffset = 0;
-
-		let node: Text | null;
-		while ((node = walker.nextNode() as Text | null)) {
-			const text = node.textContent || "";
-			textNodes.push(node);
-			textOffsets.push(currentOffset);
-			currentOffset += text.length;
-		}
-
-		// Find which text node(s) contain our target range
-		for (let i = 0; i < textNodes.length; i++) {
-			const nodeStartOffset = textOffsets[i];
-			const nodeEndOffset =
-				nodeStartOffset + (textNodes[i].textContent?.length || 0);
-
-			// Check if this node overlaps with our target range
-			if (nodeStartOffset < endIndex && nodeEndOffset > startIndex) {
-				const localStart = Math.max(0, startIndex - nodeStartOffset);
-				const localEnd = Math.min(
-					textNodes[i].textContent?.length || 0,
-					endIndex - nodeStartOffset,
-				);
-
-				// Only create range if we have valid positions within this node
-				if (
-					localStart < localEnd &&
-					localEnd <= (textNodes[i].textContent?.length || 0)
-				) {
-					try {
-						const range = document.createRange();
-						range.setStart(textNodes[i], localStart);
-						range.setEnd(textNodes[i], localEnd);
-						ranges.push(range);
-
-						console.log("[Highlighter] Created range in node:", {
-							nodeText: textNodes[i].textContent?.substring(0, 30),
-							localStart,
-							localEnd,
-							rangeText: textNodes[i].textContent?.substring(
-								localStart,
-								localEnd,
-							),
-						});
-					} catch (error) {
-						console.warn("[Highlighter] Failed to create range:", error);
-					}
-				}
-			}
-		}
-
-		return ranges;
+		// Use the new DOMPositionMapper service for enhanced cross-node support
+		return DOMPositionMapper.convertOffsetToRange(startIndex, endIndex);
 	}
 
 	/**
