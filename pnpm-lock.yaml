@@ -29,6 +29,9 @@ importers:
       diff:
         specifier: ^8.0.2
         version: 8.0.2
+      dom-anchor-text-quote:
+        specifier: ^4.0.2
+        version: 4.0.2
       fuse.js:
         specifier: ^7.1.0
         version: 7.1.0
@@ -1435,6 +1438,9 @@ packages:
     resolution: {integrity: sha512-kja8j7PjmncONqaTsB8fQ+wE2mSU2DJ9D4XKoJ5PFWIdRMa6SLSN1ff4mOr4jCbfRSsxR4keIiySJU0N9T5hIQ==}
     engines: {node: '>= 8.0.0'}
 
+  ancestors@0.0.3:
+    resolution: {integrity: sha512-hWePu8BinW3M5wSo2++ahS6mb3ZZcYWFIxrmOfJI4990DRQnM/OrMNWorjVotrrAkVxldBdF17TCKenwin4XzA==}
+
   ansi-align@3.0.1:
     resolution: {integrity: sha512-IOfwwBF5iczOjp/WeY4YxyjqAFMQoZufdQWDd19SEExbVLNXqvpzSJ/M7Za4/sCPmQ0+GRquoA7bGcINcxew6w==}
 
@@ -1845,9 +1851,24 @@ packages:
     resolution: {integrity: sha512-3UDv+G9CsCKO1WKMGw9fwq/SWJYbI0c5Y7LU1AXYoDdbhE2AHQ6N6Nb34sG8Fj7T5APy8qXDCKuuIHd1BR0tVA==}
     engines: {node: '>=8'}
 
+  diff-match-patch@1.0.5:
+    resolution: {integrity: sha512-IayShXAgj/QMXgB0IWmKx+rOPuGMhqm5w6jvFxmVenXKIzRqTAAsbBPT3kWQeGANj3jGgvcvv4yK6SxqYmikgw==}
+
   diff@8.0.2:
     resolution: {integrity: sha512-sSuxWU5j5SR9QQji/o2qMvqRNYRDOcBTgsJ/DeCf4iSN4gW+gNMXM7wFIP+fdXZxoNiAnHUTGjCr+TSWXdRDKg==}
     engines: {node: '>=0.3.1'}
+
+  dom-anchor-text-position@4.0.0:
+    resolution: {integrity: sha512-McGwz4XUK2ttClhYTMoeSuu5sCYYKG2UilW9rJg5n39byIpKtFQMviGPmjRuCWE4JWO8IIjCbAXQgGFVMCuUww==}
+
+  dom-anchor-text-quote@4.0.2:
+    resolution: {integrity: sha512-yM1Z/PYgh8hEnfijmTA14Z1XWvlN8P9wD6srBvRaTSktmtI+z5f2zr0r9hqr7ZMpmokW71MeDyOHBRqbXu0VXA==}
+
+  dom-node-iterator@3.5.3:
+    resolution: {integrity: sha512-B61Q0KVg/86rIT9C3zwq9ud495TI/4B/V0psFMNcNEn9UFVpG1JjY04jP57MUGUb6FRMozPzSSVXJvFyF0PQ+g==}
+
+  dom-seek@4.0.3:
+    resolution: {integrity: sha512-Tx9l8RmRkbqfIW0EXPPeKS5+2AJ2+9s2Sam+G+xi9JgPoYEwnSRg+6knLswI66QRD7DaVTI/GRS9qDWAMi/SPg==}
 
   dom-serializer@2.0.0:
     resolution: {integrity: sha512-wIkAryiqt/nV5EQKqQpo3SToSOV9J0DnbJqwK7Wv/Trc92zIAYZ4FlMu+JPFW1DfGFt81ZTCGgDEabffXeLyJg==}
@@ -2266,6 +2287,10 @@ packages:
 
   import-meta-resolve@4.2.0:
     resolution: {integrity: sha512-Iqv2fzaTQN28s/FwZAoFq0ZSs/7hMAHJVX+w8PZl3cY19Pxk6jFFalxQoIfW2826i/fDLXv8IiEZRIT0lDuWcg==}
+
+  index-of@0.2.0:
+    resolution: {integrity: sha512-VkoJmFW85R0il3IJJYCD7wdQ8pQgTtVoCSqu/BI/ZMy51qDJ618nQsiWmQ6tnyKZShEG2nLt7i7o3YJmEPJSyg==}
+    engines: {node: '>=0.10.0'}
 
   inflight@1.0.6:
     resolution: {integrity: sha512-k92I/b08q4wvFscXCLvqfsHCrjrF7yiXsQuIVvVE7N82W3+aqpzuUdBbfhWcy/FZR3/4IgflMgKLOsvPDrGCJA==}
@@ -4784,6 +4809,8 @@ snapshots:
     dependencies:
       humanize-ms: 1.2.1
 
+  ancestors@0.0.3: {}
+
   ansi-align@3.0.1:
     dependencies:
       string-width: 4.2.3
@@ -5182,7 +5209,26 @@ snapshots:
 
   detect-libc@2.0.4: {}
 
+  diff-match-patch@1.0.5: {}
+
   diff@8.0.2: {}
+
+  dom-anchor-text-position@4.0.0:
+    dependencies:
+      dom-node-iterator: 3.5.3
+      dom-seek: 4.0.3
+
+  dom-anchor-text-quote@4.0.2:
+    dependencies:
+      diff-match-patch: 1.0.5
+      dom-anchor-text-position: 4.0.0
+
+  dom-node-iterator@3.5.3: {}
+
+  dom-seek@4.0.3:
+    dependencies:
+      ancestors: 0.0.3
+      index-of: 0.2.0
 
   dom-serializer@2.0.0:
     dependencies:
@@ -5620,7 +5666,7 @@ snapshots:
       isstream: 0.1.2
       jsonwebtoken: 9.0.2
       mime-types: 2.1.35
-      retry-axios: 2.6.0(axios@1.11.0(debug@4.4.1))
+      retry-axios: 2.6.0(axios@1.11.0)
       tough-cookie: 4.1.4
     transitivePeerDependencies:
       - supports-color
@@ -5634,6 +5680,8 @@ snapshots:
   immediate@3.0.6: {}
 
   import-meta-resolve@4.2.0: {}
+
+  index-of@0.2.0: {}
 
   inflight@1.0.6:
     dependencies:
@@ -6521,7 +6569,7 @@ snapshots:
       onetime: 7.0.0
       signal-exit: 4.1.0
 
-  retry-axios@2.6.0(axios@1.11.0(debug@4.4.1)):
+  retry-axios@2.6.0(axios@1.11.0):
     dependencies:
       axios: 1.11.0(debug@4.4.1)
 

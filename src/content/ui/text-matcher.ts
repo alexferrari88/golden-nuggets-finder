@@ -255,7 +255,11 @@ export class TextMatcher {
 			const searchResults = this.ufuzzy.search(windows, searchQuery);
 
 			// uFuzzy search returns [indexes, info, order] or null
-			if (!searchResults || !searchResults[0] || searchResults[0].length === 0) {
+			if (
+				!searchResults ||
+				!searchResults[0] ||
+				searchResults[0].length === 0
+			) {
 				// Try partial matching with individual words
 				return this.findPartialWordMatch(searchWords, bodyText);
 			}
@@ -266,7 +270,7 @@ export class TextMatcher {
 			if (bestMatchIndex === null || bestMatchIndex === undefined) {
 				return this.findPartialWordMatch(searchWords, bodyText);
 			}
-			
+
 			const windowPos = windowPositions[bestMatchIndex];
 			const matchedWindow = windows[bestMatchIndex];
 

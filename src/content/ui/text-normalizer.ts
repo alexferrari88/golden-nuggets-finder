@@ -27,7 +27,7 @@ export class TextNormalizer {
 				.replace(/\.{4,}/g, "...") // Multiple periods (4+) to ellipsis
 				.replace(/[!?]{2,}/g, "!") // Multiple exclamation/question marks to single
 
-				// Step 4: Other character normalizations  
+				// Step 4: Other character normalizations
 				.replace(/[‒–—―]/g, "-") // Normalize all dash types to hyphen
 				.replace(/[‹›«»]/g, '"') // Normalize fancy quotes to regular quotes
 				.replace(/[‚„]/g, '"') // Normalize low quotes to regular quotes
@@ -101,10 +101,7 @@ export class TextNormalizer {
 			.map((word) => word.replace(/[^a-z0-9]/g, "")) // Remove all punctuation from words
 			.filter((word) => {
 				// Remove very short words and common stop words
-				return (
-					word.length > 2 &&
-					!TextNormalizer.isStopWord(word)
-				);
+				return word.length > 2 && !TextNormalizer.isStopWord(word);
 			});
 
 		return words;

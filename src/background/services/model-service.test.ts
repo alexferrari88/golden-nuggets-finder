@@ -350,10 +350,7 @@ describe("ModelService", () => {
 			const models = ModelService.getFallbackModels("openai");
 
 			expect(models).toHaveLength(2);
-			expect(models.map((m) => m.id)).toEqual([
-				"gpt-5",
-				"gpt-5-mini",
-			]);
+			expect(models.map((m) => m.id)).toEqual(["gpt-5", "gpt-5-mini"]);
 		});
 
 		it("should return Anthropic fallback models", () => {

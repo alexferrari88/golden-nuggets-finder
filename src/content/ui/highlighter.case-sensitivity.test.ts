@@ -43,7 +43,7 @@ describe.skip("Highlighter Case Sensitivity Tests", () => {
 	beforeEach(() => {
 		// Reset mocks
 		vi.clearAllMocks();
-		
+
 		// Set up a clean DOM for each test
 		document.body.innerHTML = `
       <div class="content">
@@ -217,7 +217,7 @@ describe.skip("Highlighter Case Sensitivity Tests", () => {
 	});
 
 	describe("Multiple Highlights with Case Variations", () => {
-		test("should handle multiple highlights with different case patterns", () => {
+		test("should handle multiple highlights with different case patterns", async () => {
 			const nuggets: GoldenNugget[] = [
 				{
 					type: "aha! moments",
@@ -233,7 +233,8 @@ describe.skip("Highlighter Case Sensitivity Tests", () => {
 
 			let successCount = 0;
 			for (const nugget of nuggets) {
-				if (highlighter.highlightNugget(nugget)) {
+				const result = await highlighter.highlightNugget(nugget);
+				if (result) {
 					successCount++;
 				}
 			}
@@ -243,7 +244,7 @@ describe.skip("Highlighter Case Sensitivity Tests", () => {
 			expect(stats.cssHighlights + stats.domHighlights).toBe(2);
 		});
 
-		test("should not create duplicate highlights for same text with different cases", () => {
+		test("should not create duplicate highlights for same text with different cases", async () => {
 			// Highlight the same text twice with different cases
 			const nugget1: GoldenNugget = {
 				type: "aha! moments",
@@ -257,8 +258,8 @@ describe.skip("Highlighter Case Sensitivity Tests", () => {
 				confidence: 0.9,
 			};
 
-			const success1 = highlighter.highlightNugget(nugget1);
-			const success2 = highlighter.highlightNugget(nugget2);
+			const success1 = await highlighter.highlightNugget(nugget1);
+			const success2 = await highlighter.highlightNugget(nugget2);
 
 			expect(success1).toBe(true);
 			expect(success2).toBe(true); // Should return true but not create duplicate
@@ -268,7 +269,7 @@ describe.skip("Highlighter Case Sensitivity Tests", () => {
 	});
 
 	describe("Clear Highlights", () => {
-		test("should clear all highlights regardless of case used for creation", () => {
+		test("should clear all highlights regardless of case used for creation", async () => {
 			const nuggets: GoldenNugget[] = [
 				{
 					type: "aha! moments",
@@ -284,7 +285,7 @@ describe.skip("Highlighter Case Sensitivity Tests", () => {
 
 			// Create highlights
 			for (const nugget of nuggets) {
-				highlighter.highlightNugget(nugget);
+				await highlighter.highlightNugget(nugget);
 			}
 
 			const stats = highlighter.getHighlightStats();
