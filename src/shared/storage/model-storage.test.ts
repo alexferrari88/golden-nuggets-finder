@@ -38,6 +38,9 @@ describe("ModelStorage", () => {
 	describe("store", () => {
 		it("should store model selection for a provider", async () => {
 			mockStorageLocal.set.mockResolvedValueOnce(undefined);
+			mockStorageLocal.get.mockResolvedValueOnce({
+				selected_model_gemini: "gemini-2.5-pro",
+			});
 
 			await ModelStorage.storeModel("gemini", "gemini-2.5-pro");
 
@@ -48,6 +51,9 @@ describe("ModelStorage", () => {
 
 		it("should store model selection for different providers", async () => {
 			mockStorageLocal.set.mockResolvedValueOnce(undefined);
+			mockStorageLocal.get.mockResolvedValueOnce({
+				selected_model_openai: "gpt-4o",
+			});
 
 			await ModelStorage.storeModel("openai", "gpt-4o");
 
@@ -103,9 +109,8 @@ describe("ModelStorage", () => {
 		it("should handle storage errors", async () => {
 			mockStorageLocal.get.mockRejectedValueOnce(new Error("Storage error"));
 
-			await expect(ModelStorage.getModel("gemini")).rejects.toThrow(
-				"Storage error",
-			);
+			const result = await ModelStorage.getModel("gemini");
+			expect(result).toBe(null);
 		});
 	});
 
@@ -163,9 +168,13 @@ describe("ModelStorage", () => {
 				})
 				.mockResolvedValueOnce({});
 
-			await expect(ModelStorage.getAllModels()).rejects.toThrow(
-				"Storage error",
-			);
+			const result = await ModelStorage.getAllModels();
+			expect(result).toEqual({
+				gemini: "gemini-2.5-pro",
+				openai: null, // Failed to load, so null
+				anthropic: "claude-3-5-sonnet-20241022",
+				openrouter: null, // Empty result, so null
+			});
 		});
 	});
 
@@ -328,6 +337,11 @@ describe("ModelStorage", () => {
 
 		it("should handle concurrent operations", async () => {
 			mockStorageLocal.set.mockResolvedValue(undefined);
+			// Mock the verification get calls
+			mockStorageLocal.get
+				.mockResolvedValueOnce({ selected_model_gemini: "gemini-2.5-pro" })
+				.mockResolvedValueOnce({ selected_model_openai: "gpt-4o" })
+				.mockResolvedValueOnce({ selected_model_anthropic: "claude-3-5-sonnet-20241022" });
 
 			// Start multiple store operations simultaneously
 			const promises = [
@@ -344,6 +358,9 @@ describe("ModelStorage", () => {
 		it("should handle very long model names", async () => {
 			const longModelName = "a".repeat(1000); // Very long model name
 			mockStorageLocal.set.mockResolvedValueOnce(undefined);
+			mockStorageLocal.get.mockResolvedValueOnce({
+				selected_model_gemini: longModelName,
+			});
 
 			await ModelStorage.storeModel("gemini", longModelName);
 

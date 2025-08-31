@@ -25,7 +25,6 @@ import type {
 	ProviderConfig,
 	ProviderId,
 } from "../shared/types/providers";
-import { ContentValidator } from "./services/content-validator";
 import { EnsembleExtractor } from "./services/ensemble-extractor";
 import {
 	getUserFriendlyMessage,
@@ -710,28 +709,36 @@ export class MessageHandler {
 							`Ensemble extraction completed: ${ensembleResult.metadata.consensusReached} nuggets with ${ensembleResult.metadata.duplicatesRemoved} duplicates removed`,
 						);
 					} else {
-						// Use content validation as default with ContentValidator
-						const contentValidator = new ContentValidator();
-						const validationResult =
-							await contentValidator.extractWithValidation(
-								content,
-								prompt,
-								provider,
-								{
-									temperature: 0.7,
-									selectedTypes: typeFilter?.selectedTypes,
-									validationThreshold: 0.8,
-								},
-							);
+						// Direct provider extraction without validation layer
+						const response = await provider.extractGoldenNuggets(
+							content,
+							prompt,
+							0.7, // temperature
+							typeFilter?.selectedTypes,
+						);
 
-						// Convert validation result to enhanced response format
+						debugLogger.log(
+							`[MessageHandler] 🤖 Direct LLM extraction complete`,
+							{
+								nuggetCount: response.golden_nuggets.length,
+								nuggets: response.golden_nuggets.map((n) => ({
+									type: n.type,
+									confidence: n.confidence,
+									fullContentLength: n.fullContent?.length || 0,
+									fullContentPreview: `${n.fullContent?.substring(0, 100)}...`,
+									fullContentExists: !!n.fullContent,
+								})),
+							},
+						);
+
+						// Convert direct provider response to enhanced response format
 						normalizedResponse = {
-							golden_nuggets: validationResult.golden_nuggets.map(
+							golden_nuggets: response.golden_nuggets.map(
 								(nugget: GoldenNugget) => {
 									// Defensive check for fullContent preservation
 									if (!nugget.fullContent) {
 										debugLogger.log(
-											`[MessageHandler] ⚠️ Missing fullContent in normalized response for nugget:`,
+											`[MessageHandler] ⚠️ Missing fullContent in direct response for nugget:`,
 											{
 												type: nugget.type,
 												nugget: nugget,
@@ -744,21 +751,21 @@ export class MessageHandler {
 										// Explicitly preserve fullContent with fallback
 										fullContent: nugget.fullContent || "",
 										confidence: nugget.confidence || 0,
-										validationScore: nugget.validationScore,
-										extractionMethod: nugget.extractionMethod,
+										// No validation score - highlighter will do natural filtering
+										validationScore: undefined,
+										extractionMethod: "llm",
 									};
 								},
 							),
 							metadata: {
-								totalProcessingTime: validationResult.metadata.processingTime,
+								totalProcessingTime: performance.now() - startTime,
 								extractionMode: "standard",
 							},
 						};
 
-						debugLogger.log(`[ContentValidator] Final normalized response:`, {
+						debugLogger.log(`[MessageHandler] Final direct response:`, {
 							golden_nuggets_count: normalizedResponse.golden_nuggets.length,
 							all_nuggets: normalizedResponse.golden_nuggets,
-							validation_metadata: validationResult.metadata,
 							// Additional fullContent debugging
 							fullContent_debug: normalizedResponse.golden_nuggets.map((n) => ({
 								type: n.type,
@@ -770,7 +777,7 @@ export class MessageHandler {
 						});
 
 						console.log(
-							`Content validation completed: ${validationResult.golden_nuggets.length} nuggets (${validationResult.metadata.validatedCount} validated)`,
+							`Direct extraction completed: ${response.golden_nuggets.length} nuggets`,
 						);
 					}
 

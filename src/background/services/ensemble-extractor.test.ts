@@ -192,6 +192,7 @@ describe("EnsembleExtractor", () => {
 
 		expect(result.metadata).toEqual({
 			totalRuns: 3,
+			successfulRuns: 3,
 			consensusReached: 3, // 3 unique nuggets found
 			duplicatesRemoved: 1, // 4 total nuggets - 3 unique = 1 duplicate
 			averageResponseTime: expect.any(Number),
@@ -270,6 +271,7 @@ describe("EnsembleExtractor", () => {
 			"test content",
 			"test prompt",
 			0.8,
+			undefined, // selectedTypes parameter
 		);
 	});
 
@@ -290,6 +292,7 @@ describe("EnsembleExtractor", () => {
 			"test content",
 			"test prompt",
 			0.5,
+			undefined, // selectedTypes parameter
 		);
 	});
 });

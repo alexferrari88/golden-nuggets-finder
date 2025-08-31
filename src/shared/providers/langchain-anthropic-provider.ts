@@ -94,8 +94,7 @@ export class LangChainAnthropicProvider implements LLMProvider {
 					type: nugget.type,
 					fullContent: nugget.fullContent,
 					confidence: nugget.confidence,
-					validationScore: nugget.confidence, // Use confidence as validation score
-					extractionMethod: "validated" as const,
+					extractionMethod: "llm" as const,
 				})),
 			};
 		} catch (error) {

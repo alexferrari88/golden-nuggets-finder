@@ -67,8 +67,7 @@ describe("LangChainOpenAIProvider", () => {
 					type: "tool",
 					fullContent: "Test content for golden nugget extraction",
 					confidence: 0.9,
-					extractionMethod: "validated",
-					validationScore: 0.9,
+					extractionMethod: "llm",
 				},
 			],
 		});

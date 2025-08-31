@@ -17,7 +17,7 @@ const mockChrome = {
 	},
 };
 
-// @ts-ignore
+// @ts-expect-error
 global.chrome = mockChrome;
 
 // Mock fetch for backend calls

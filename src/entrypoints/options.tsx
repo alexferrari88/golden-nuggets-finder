@@ -2400,7 +2400,7 @@ function OptionsPage() {
 								value={ensembleSettings.defaultRuns}
 								onChange={(e) =>
 									handleEnsembleSettingsUpdate({
-										defaultRuns: parseInt(e.target.value),
+										defaultRuns: parseInt(e.target.value, 10),
 									})
 								}
 								disabled={!ensembleSettings.enabled}

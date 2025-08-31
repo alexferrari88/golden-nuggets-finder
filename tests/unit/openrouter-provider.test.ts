@@ -77,8 +77,7 @@ describe("LangChainOpenRouterProvider", () => {
 					type: "tool",
 					fullContent: "Test tool content for OpenRouter integration",
 					confidence: 0.9,
-					extractionMethod: "validated",
-					validationScore: 0.9,
+					extractionMethod: "llm",
 				},
 			],
 		});
@@ -282,8 +281,7 @@ describe("LangChainOpenRouterProvider", () => {
 					type: "tool",
 					fullContent: "Test tool content with full extraction details",
 					confidence: 0.9,
-					extractionMethod: "validated",
-					validationScore: 0.9,
+					extractionMethod: "llm",
 				},
 			],
 		});

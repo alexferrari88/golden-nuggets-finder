@@ -333,7 +333,7 @@ describe("ModelService", () => {
 		it("should return Gemini fallback models", () => {
 			const models = ModelService.getFallbackModels("gemini");
 
-			expect(models).toHaveLength(3);
+			expect(models).toHaveLength(2);
 			expect(models[0]).toEqual({
 				id: "gemini-2.5-flash",
 				name: "Gemini 2.5 Flash",
@@ -344,21 +344,15 @@ describe("ModelService", () => {
 				name: "Gemini 2.5 Pro",
 				description: "Most capable model with enhanced reasoning",
 			});
-			expect(models[2]).toEqual({
-				id: "gemini-2.0-flash",
-				name: "Gemini 2.0 Flash",
-				description: "Next-gen capabilities with superior speed",
-			});
 		});
 
 		it("should return OpenAI fallback models", () => {
 			const models = ModelService.getFallbackModels("openai");
 
-			expect(models).toHaveLength(3);
+			expect(models).toHaveLength(2);
 			expect(models.map((m) => m.id)).toEqual([
-				"gpt-4o",
-				"gpt-4",
-				"gpt-3.5-turbo",
+				"gpt-5",
+				"gpt-5-mini",
 			]);
 		});
 

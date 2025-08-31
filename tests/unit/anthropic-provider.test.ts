@@ -78,8 +78,7 @@ describe("LangChainAnthropicProvider", () => {
 					type: "tool",
 					fullContent: "Test content for Anthropic provider analysis",
 					confidence: 0.9,
-					validationScore: 0.9,
-					extractionMethod: "validated",
+					extractionMethod: "llm",
 				},
 			],
 		});
