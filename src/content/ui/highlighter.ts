@@ -7,7 +7,7 @@
 import Mark from "mark.js";
 import { colors } from "../../shared/design-system";
 import type { GoldenNugget } from "../../shared/types";
-import { DOMPositionMapper } from "./dom-position-mapper";
+import { AnchorTextMatcher } from "./anchor-text-matcher";
 import { TextMatcher } from "./text-matcher";
 
 // Type declarations for CSS Custom Highlight API
@@ -33,12 +33,13 @@ export class Highlighter {
 	private cssHighlightSupported: boolean;
 	private markInstance: Mark | null = null;
 	private highlightClassName = "golden-nugget-highlight";
-	private textMatcher: TextMatcher;
+	private anchorTextMatcher: AnchorTextMatcher;
 
 	constructor() {
 		this.cssHighlightSupported = this.checkCSSHighlightSupport();
 		this.setupCSSHighlightStyles();
 		this.textMatcher = new TextMatcher(); // Add fuzzy matching
+		this.anchorTextMatcher = new AnchorTextMatcher(); // Add anchor-based matching
 
 		// Initialize mark.js for fallback
 		if (!this.cssHighlightSupported) {
@@ -47,10 +48,12 @@ export class Highlighter {
 	}
 
 	/**
-	 * Highlight a golden nugget using direct fullContent search
-	 * No boundary reconstruction needed - uses fullContent directly
+	 * Highlight a golden nugget using progressive matching strategy
+	 * 1. Try anchor-based matching with context
+	 * 2. Fallback to fuzzy matching
+	 * 3. Fallback to exact matching
 	 */
-	highlightNugget(nugget: GoldenNugget): boolean {
+	async highlightNugget(nugget: GoldenNugget): Promise<boolean> {
 		try {
 			// Direct text search using fullContent - no boundary reconstruction needed
 			const fullContent = nugget.fullContent?.trim();
@@ -63,11 +66,11 @@ export class Highlighter {
 			}
 
 			if (this.cssHighlightSupported) {
-				console.log("Using CSS Highlight API");
-				return this.highlightWithCSSAPI(fullContent, nugget);
+				console.log("Using CSS Highlight API with progressive matching");
+				return await this.highlightWithCSSAPI(fullContent, nugget);
 			} else {
-				console.log("Using Mark.js fallback");
-				return this.highlightWithMarkJS(fullContent, nugget);
+				console.log("Using Mark.js fallback with progressive matching");
+				return await this.highlightWithMarkJS(fullContent, nugget);
 			}
 		} catch (error) {
 			console.error("Failed to highlight nugget:", error);
@@ -76,13 +79,13 @@ export class Highlighter {
 	}
 
 	/**
-	 * Highlight using CSS Custom Highlight API (modern browsers)
+	 * Highlight using CSS Custom Highlight API (modern browsers) with progressive matching
 	 */
-	private highlightWithCSSAPI(
+	private async highlightWithCSSAPI(
 		fullContent: string,
 		_nugget: GoldenNugget,
-	): boolean {
-		const ranges = this.findTextRanges(fullContent);
+	): Promise<boolean> {
+		const ranges = await this.findTextRangesProgressive(fullContent);
 		if (ranges.length > 0) {
 			const highlightId = `nugget-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 			const highlight = new window.Highlight(...ranges);
@@ -105,12 +108,12 @@ export class Highlighter {
 	}
 
 	/**
-	 * Highlight using mark.js (fallback support) with enhanced fuzzy matching
+	 * Highlight using mark.js (fallback support) with progressive matching strategy
 	 */
-	private highlightWithMarkJS(
+	private async highlightWithMarkJS(
 		fullContent: string,
 		_nugget: GoldenNugget,
-	): boolean {
+	): Promise<boolean> {
 		console.log(
 			"[Highlighter] Mark.js searching for:",
 			JSON.stringify(fullContent.substring(0, 100)),
@@ -122,25 +125,27 @@ export class Highlighter {
 
 		if (this.markInstance) {
 			try {
-				// Use fuzzy matching first to find the best match
-				const bodyText = document.body.textContent || "";
-				const match = this.textMatcher.findBestMatch(fullContent, bodyText);
+				// Use progressive matching strategy
+				const matchResult =
+					await this.anchorTextMatcher.findTextWithContext(fullContent);
 
-				if (!match || !this.textMatcher.isValidMatch(match)) {
+				if (!this.anchorTextMatcher.isValidMatch(matchResult)) {
 					console.log(
-						"[Highlighter] No valid fuzzy match found for Mark.js:",
+						"[Highlighter] No valid match found with progressive strategy for Mark.js:",
 						fullContent.substring(0, 50),
 					);
 					return false;
 				}
 
-				console.log("[Highlighter] Fuzzy match found for Mark.js:", {
-					confidence: match.confidence,
-					matchedText: match.matchedText.substring(0, 50),
+				console.log("[Highlighter] Progressive match found for Mark.js:", {
+					matchType: matchResult.matchType,
+					confidence: matchResult.confidence,
+					matchedText: matchResult.matchedText?.substring(0, 50),
+					rangeCount: matchResult.ranges.length,
 				});
 
 				// Use the actual matched text for mark.js highlighting
-				const textToHighlight = match.matchedText;
+				const textToHighlight = matchResult.matchedText || fullContent;
 
 				console.log(
 					"[Highlighter] Initial highlightedElements count:",
@@ -224,55 +229,40 @@ export class Highlighter {
 	}
 
 	/**
-	 * Find text ranges for CSS Custom Highlight API using enhanced fuzzy matching
-	 * Uses TextMatcher for improved LLM text variation handling
+	 * Find text ranges using progressive matching strategy:
+	 * 1. Try anchor-based matching with context (dom-anchor-text-quote)
+	 * 2. Fallback to fuzzy matching (TextMatcher + DOMPositionMapper)
+	 * 3. Fallback to exact matching (legacy)
 	 */
-	private findTextRanges(searchText: string): Range[] {
-		const ranges: Range[] = [];
-		const bodyText = document.body.textContent || "";
-
+	private async findTextRangesProgressive(
+		searchText: string,
+	): Promise<Range[]> {
 		console.log(
-			"[Highlighter] Finding ranges for:",
+			"[Highlighter] Finding ranges with progressive matching for:",
 			JSON.stringify(searchText.substring(0, 100)),
 		);
 
-		// Use fuzzy matching instead of simple indexOf
-		const match = this.textMatcher.findBestMatch(searchText, bodyText);
-		if (!match) {
+		// Use progressive matching strategy from AnchorTextMatcher
+		const matchResult =
+			await this.anchorTextMatcher.findTextWithContext(searchText);
+
+		if (!this.anchorTextMatcher.isValidMatch(matchResult)) {
 			console.log(
-				"[Highlighter] No fuzzy match found for:",
+				"[Highlighter] No valid match found with progressive strategy:",
 				searchText.substring(0, 50),
 			);
-			return ranges;
+			return [];
 		}
 
-		console.log("[Highlighter] Fuzzy match found:", {
-			confidence: match.confidence,
-			matchedText: match.matchedText.substring(0, 50),
-			startIndex: match.startIndex,
-			endIndex: match.endIndex,
+		console.log("[Highlighter] Progressive match found:", {
+			matchType: matchResult.matchType,
+			confidence: matchResult.confidence,
+			matchedText: matchResult.matchedText?.substring(0, 50),
+			rangeCount: matchResult.ranges.length,
 		});
 
-		// Convert fuzzy match position to DOM Range(s)
-		const domRanges = this.convertPositionToRanges(
-			match.startIndex,
-			match.endIndex,
-		);
-		ranges.push(...domRanges);
-
-		return ranges;
-	}
-
-	/**
-	 * Convert global text positions to DOM Ranges using DOMPositionMapper
-	 * Phase 2: Enhanced implementation for cross-node text spanning
-	 */
-	private convertPositionToRanges(
-		startIndex: number,
-		endIndex: number,
-	): Range[] {
-		// Use the new DOMPositionMapper service for enhanced cross-node support
-		return DOMPositionMapper.convertOffsetToRange(startIndex, endIndex);
+		// Return the ranges from the progressive matching strategy
+		return matchResult.ranges;
 	}
 
 	/**

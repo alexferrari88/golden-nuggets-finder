@@ -341,7 +341,9 @@ describe("ModelStorage", () => {
 			mockStorageLocal.get
 				.mockResolvedValueOnce({ selected_model_gemini: "gemini-2.5-pro" })
 				.mockResolvedValueOnce({ selected_model_openai: "gpt-4o" })
-				.mockResolvedValueOnce({ selected_model_anthropic: "claude-3-5-sonnet-20241022" });
+				.mockResolvedValueOnce({
+					selected_model_anthropic: "claude-3-5-sonnet-20241022",
+				});
 
 			// Start multiple store operations simultaneously
 			const promises = [

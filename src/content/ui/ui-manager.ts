@@ -159,45 +159,39 @@ export class UIManager {
 			firstEnhancedNugget: enhancedNuggets[0] || "none",
 		});
 
-		// Highlight nuggets on the page (pass page content for reconstruction)
-		const sidebarItems: SidebarNuggetItem[] = [];
+		// Extract context for each nugget for anchor matching and batch highlight
+		const nuggetsWithContext = enhancedNuggets.map((nugget, index) => ({
+			nugget,
+			originalNugget: nuggets[index],
+			prefix: this.extractPrefix(nugget.fullContent, pageContent, index),
+			suffix: this.extractSuffix(nugget.fullContent, pageContent, index),
+		}));
 
-		performanceMonitor.startTimer("highlight_nuggets");
-		try {
-			for (let i = 0; i < enhancedNuggets.length; i++) {
-				const nugget = enhancedNuggets[i];
-				const originalNugget = nuggets[i];
+		console.log("[UIManager] Nuggets with context prepared:", {
+			nuggetsLength: nuggetsWithContext.length,
+			firstNuggetContext: nuggetsWithContext[0]
+				? {
+						prefix: nuggetsWithContext[0].prefix?.substring(0, 20),
+						suffix: nuggetsWithContext[0].suffix?.substring(0, 20),
+					}
+				: "none",
+		});
 
-				console.log(
-					`[UIManager] Processing nugget ${i + 1}/${enhancedNuggets.length}:`,
-					{
-						type: nugget.type,
-						fullContent: `${nugget.fullContent?.substring(0, 100)}...`,
-						contentLength: nugget.fullContent?.length || 0,
-					},
-				);
+		// Batch highlight with context-aware processing
+		const sidebarItems = await this.batchHighlightNuggets(nuggetsWithContext);
 
-				const highlighted = await measureHighlighting("nugget_highlight", () =>
-					this.highlighter.highlightNugget(originalNugget),
-				);
-				sidebarItems.push({
-					nugget: nugget, // Enhanced nugget already matches GoldenNugget type
-					status: highlighted ? "highlighted" : "not-found",
-					selected: false,
-				});
-			}
-		} catch (error) {
-			console.error("[UIManager] Error during nugget highlighting:", error);
-		}
-
-		console.log("[UIManager] Created sidebar items:", {
+		console.log("[UIManager] Batch highlighting completed:", {
 			sidebarItemsLength: sidebarItems.length,
-			firstSidebarItem: sidebarItems[0] || "none",
+			highlightedCount: sidebarItems.filter(
+				(item) => item.status === "highlighted",
+			).length,
+			notFoundCount: sidebarItems.filter((item) => item.status === "not-found")
+				.length,
 		});
 
 		performanceMonitor.logTimer(
 			"highlight_nuggets",
-			`Highlighted ${nuggets.length} nuggets`,
+			`Batch highlighted ${nuggets.length} nuggets with progressive matching`,
 		);
 
 		// Show sidebar with all nuggets (pass page content for reconstruction)
@@ -1144,6 +1138,152 @@ export class UIManager {
 	private startFallbackAnimation(): void {
 		// Use the original fake timing as fallback
 		this.startStepProgression();
+	}
+
+	/**
+	 * Extract prefix context for anchor-based text matching
+	 * @param fullContent The nugget's full content
+	 * @param pageContent The complete page content (optional)
+	 * @param nuggetIndex Index of the nugget for position-based context
+	 * @returns Prefix context string (up to 32 characters)
+	 */
+	private extractPrefix(
+		fullContent?: string,
+		pageContent?: string,
+		_nuggetIndex?: number,
+	): string | undefined {
+		if (!fullContent) return undefined;
+
+		// If we have pageContent, try to find the nugget within it and extract context
+		if (pageContent) {
+			const nuggetStart = pageContent.indexOf(fullContent);
+			if (nuggetStart > 0) {
+				const contextStart = Math.max(0, nuggetStart - 32);
+				return pageContent.substring(contextStart, nuggetStart);
+			}
+		}
+
+		// Fallback: try to extract context from the current page's text content
+		const bodyText = document.body.textContent || "";
+		if (bodyText) {
+			const nuggetStart = bodyText.indexOf(fullContent);
+			if (nuggetStart > 0) {
+				const contextStart = Math.max(0, nuggetStart - 32);
+				return bodyText.substring(contextStart, nuggetStart);
+			}
+		}
+
+		// No reliable context found
+		return undefined;
+	}
+
+	/**
+	 * Extract suffix context for anchor-based text matching
+	 * @param fullContent The nugget's full content
+	 * @param pageContent The complete page content (optional)
+	 * @param nuggetIndex Index of the nugget for position-based context
+	 * @returns Suffix context string (up to 32 characters)
+	 */
+	private extractSuffix(
+		fullContent?: string,
+		pageContent?: string,
+		_nuggetIndex?: number,
+	): string | undefined {
+		if (!fullContent) return undefined;
+
+		// If we have pageContent, try to find the nugget within it and extract context
+		if (pageContent) {
+			const nuggetStart = pageContent.indexOf(fullContent);
+			if (nuggetStart !== -1) {
+				const nuggetEnd = nuggetStart + fullContent.length;
+				const contextEnd = Math.min(pageContent.length, nuggetEnd + 32);
+				return pageContent.substring(nuggetEnd, contextEnd);
+			}
+		}
+
+		// Fallback: try to extract context from the current page's text content
+		const bodyText = document.body.textContent || "";
+		if (bodyText) {
+			const nuggetStart = bodyText.indexOf(fullContent);
+			if (nuggetStart !== -1) {
+				const nuggetEnd = nuggetStart + fullContent.length;
+				const contextEnd = Math.min(bodyText.length, nuggetEnd + 32);
+				return bodyText.substring(nuggetEnd, contextEnd);
+			}
+		}
+
+		// No reliable context found
+		return undefined;
+	}
+
+	/**
+	 * Batch process nuggets with context-aware highlighting using progressive matching
+	 * @param nuggetsWithContext Array of nuggets with extracted context
+	 * @returns Promise resolving to sidebar items with highlighting status
+	 */
+	private async batchHighlightNuggets(
+		nuggetsWithContext: Array<{
+			nugget: EnhancedGoldenNugget;
+			originalNugget: EnhancedGoldenNugget;
+			prefix?: string;
+			suffix?: string;
+		}>,
+	): Promise<SidebarNuggetItem[]> {
+		const sidebarItems: SidebarNuggetItem[] = [];
+
+		performanceMonitor.startTimer("highlight_nuggets");
+		try {
+			for (let i = 0; i < nuggetsWithContext.length; i++) {
+				const { nugget, originalNugget, prefix, suffix } =
+					nuggetsWithContext[i];
+
+				console.log(
+					`[UIManager] Processing nugget ${i + 1}/${nuggetsWithContext.length} with context:`,
+					{
+						type: nugget.type,
+						fullContent: `${nugget.fullContent?.substring(0, 50)}...`,
+						contentLength: nugget.fullContent?.length || 0,
+						hasPrefix: !!prefix,
+						hasSuffix: !!suffix,
+						prefix: prefix?.substring(0, 20),
+						suffix: suffix?.substring(0, 20),
+					},
+				);
+
+				// Create a context-aware nugget for the highlighter
+				const contextAwareNugget = {
+					...originalNugget,
+					_context: { prefix, suffix },
+				};
+
+				// Use progressive matching with context
+				const highlighted = await measureHighlighting(
+					"nugget_highlight_with_context",
+					() => this.highlighter.highlightNugget(contextAwareNugget),
+				);
+
+				sidebarItems.push({
+					nugget: nugget, // Enhanced nugget already matches GoldenNugget type
+					status: highlighted ? "highlighted" : "not-found",
+					selected: false,
+				});
+			}
+		} catch (error) {
+			console.error(
+				"[UIManager] Error during batch nugget highlighting:",
+				error,
+			);
+			// Ensure we return partial results even if some highlighting fails
+			for (let i = sidebarItems.length; i < nuggetsWithContext.length; i++) {
+				sidebarItems.push({
+					nugget: nuggetsWithContext[i].nugget,
+					status: "not-found",
+					selected: false,
+				});
+			}
+		}
+
+		return sidebarItems;
 	}
 
 	cleanup(): void {

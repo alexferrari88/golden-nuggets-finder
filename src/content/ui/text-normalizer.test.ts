@@ -192,7 +192,7 @@ describe("TextNormalizer", () => {
 
 			expect(similarity).toBeGreaterThan(0.0);
 			expect(similarity).toBeLessThan(1.0);
-			// Should have some overlap due to "learning", "algorithms"  
+			// Should have some overlap due to "learning", "algorithms"
 			expect(similarity).toBeGreaterThan(0.2);
 		});
 
