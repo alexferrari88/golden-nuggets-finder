@@ -7,6 +7,7 @@
 import Mark from "mark.js";
 import { colors } from "../../shared/design-system";
 import type { GoldenNugget } from "../../shared/types";
+import { TextMatcher } from "./text-matcher";
 
 // Type declarations for CSS Custom Highlight API
 declare global {
@@ -31,10 +32,12 @@ export class Highlighter {
 	private cssHighlightSupported: boolean;
 	private markInstance: Mark | null = null;
 	private highlightClassName = "golden-nugget-highlight";
+	private textMatcher: TextMatcher;
 
 	constructor() {
 		this.cssHighlightSupported = this.checkCSSHighlightSupport();
 		this.setupCSSHighlightStyles();
+		this.textMatcher = new TextMatcher(); // Add fuzzy matching
 
 		// Initialize mark.js for fallback
 		if (!this.cssHighlightSupported) {
@@ -101,43 +104,51 @@ export class Highlighter {
 	}
 
 	/**
-	 * Highlight using mark.js (fallback support)
+	 * Highlight using mark.js (fallback support) with enhanced fuzzy matching
 	 */
 	private highlightWithMarkJS(
 		fullContent: string,
 		_nugget: GoldenNugget,
 	): boolean {
 		console.log(
-			"Searching for:",
+			"[Highlighter] Mark.js searching for:",
 			JSON.stringify(fullContent.substring(0, 100)),
 		);
 		console.log(
-			"DOM text content:",
+			"[Highlighter] DOM text content:",
 			JSON.stringify(document.body.textContent?.substring(0, 200) || ""),
 		);
 
 		if (this.markInstance) {
 			try {
-				// Check if text exists in DOM first
+				// Use fuzzy matching first to find the best match
 				const bodyText = document.body.textContent || "";
-				const found = bodyText
-					.toLowerCase()
-					.includes(fullContent.toLowerCase());
+				const match = this.textMatcher.findBestMatch(fullContent, bodyText);
 
-				if (!found) {
-					console.log("Text not found in DOM for Mark.js:", fullContent);
+				if (!match || !this.textMatcher.isValidMatch(match)) {
+					console.log(
+						"[Highlighter] No valid fuzzy match found for Mark.js:",
+						fullContent.substring(0, 50),
+					);
 					return false;
 				}
 
-				console.log("Text found in DOM, proceeding with Mark.js highlighting");
+				console.log("[Highlighter] Fuzzy match found for Mark.js:", {
+					confidence: match.confidence,
+					matchedText: match.matchedText.substring(0, 50),
+				});
+
+				// Use the actual matched text for mark.js highlighting
+				const textToHighlight = match.matchedText;
 
 				console.log(
-					"Initial highlightedElements count:",
+					"[Highlighter] Initial highlightedElements count:",
 					this.highlightedElements.length,
 				);
 				const initialElementCount = this.highlightedElements.length;
 
-				this.markInstance.mark(fullContent, {
+				// Highlight the fuzzy-matched text instead of the original fullContent
+				this.markInstance.mark(textToHighlight, {
 					className: this.highlightClassName,
 					element: "span",
 					separateWordSearch: false, // Exact phrase matching
@@ -163,37 +174,47 @@ export class Highlighter {
 						);
 					},
 					done: (totalMarks) => {
-						console.log("Mark.js completed with", totalMarks, "marks");
 						console.log(
-							"Final highlightedElements count after mark:",
+							"[Highlighter] Mark.js completed with",
+							totalMarks,
+							"marks",
+						);
+						console.log(
+							"[Highlighter] Final highlightedElements count after mark:",
 							this.highlightedElements.length,
 						);
 						if (totalMarks === 0) {
-							console.log("Mark.js found no matches for:", fullContent);
+							console.log(
+								"[Highlighter] Mark.js found no matches for:",
+								textToHighlight,
+							);
 						}
 					},
 				});
 
 				console.log(
-					"Immediately after mark call, highlightedElements count:",
+					"[Highlighter] Immediately after mark call, highlightedElements count:",
 					this.highlightedElements.length,
 				);
 				const newElementsAdded =
 					this.highlightedElements.length - initialElementCount;
 				console.log(
-					`Mark.js highlighted "${fullContent.substring(0, 50)}..." with ${newElementsAdded} new elements`,
+					`[Highlighter] Mark.js highlighted "${textToHighlight.substring(0, 50)}..." with ${newElementsAdded} new elements`,
 				);
 
 				// Also check by querying the DOM
 				const domElements = document.querySelectorAll(
 					`.${this.highlightClassName}`,
 				);
-				console.log("DOM elements with highlight class:", domElements.length);
+				console.log(
+					"[Highlighter] DOM elements with highlight class:",
+					domElements.length,
+				);
 
 				return newElementsAdded > 0; // Return success based on elements added
 			} catch (error) {
-				console.error("Mark.js highlighting failed:", error);
-				console.error("Error details:", error);
+				console.error("[Highlighter] Mark.js highlighting failed:", error);
+				console.error("[Highlighter] Error details:", error);
 				return false;
 			}
 		}
@@ -201,22 +222,55 @@ export class Highlighter {
 	}
 
 	/**
-	 * Find text ranges for CSS Custom Highlight API
-	 * Handles case-insensitive partial matching within text nodes
+	 * Find text ranges for CSS Custom Highlight API using enhanced fuzzy matching
+	 * Uses TextMatcher for improved LLM text variation handling
 	 */
 	private findTextRanges(searchText: string): Range[] {
 		const ranges: Range[] = [];
-		const searchTextLower = searchText.toLowerCase();
-
-		// Get all text content and search for the phrase
 		const bodyText = document.body.textContent || "";
-		const bodyTextLower = bodyText.toLowerCase();
-		const startIndex = bodyTextLower.indexOf(searchTextLower);
 
-		if (startIndex === -1) {
-			console.log("Text not found in body:", searchText);
+		console.log(
+			"[Highlighter] Finding ranges for:",
+			JSON.stringify(searchText.substring(0, 100)),
+		);
+
+		// Use fuzzy matching instead of simple indexOf
+		const match = this.textMatcher.findBestMatch(searchText, bodyText);
+		if (!match) {
+			console.log(
+				"[Highlighter] No fuzzy match found for:",
+				searchText.substring(0, 50),
+			);
 			return ranges;
 		}
+
+		console.log("[Highlighter] Fuzzy match found:", {
+			confidence: match.confidence,
+			matchedText: match.matchedText.substring(0, 50),
+			startIndex: match.startIndex,
+			endIndex: match.endIndex,
+		});
+
+		// Convert fuzzy match position to DOM Range(s)
+		const domRanges = this.convertPositionToRanges(
+			match.startIndex,
+			match.endIndex,
+		);
+		ranges.push(...domRanges);
+
+		return ranges;
+	}
+
+	/**
+	 * Convert global text positions to DOM Ranges
+	 * Phase 1: Basic implementation for single-node text
+	 * Phase 2 will enhance this for cross-node text spanning
+	 */
+	private convertPositionToRanges(
+		startIndex: number,
+		endIndex: number,
+	): Range[] {
+		const ranges: Range[] = [];
 
 		const walker = document.createTreeWalker(
 			document.body,
@@ -236,7 +290,7 @@ export class Highlighter {
 			},
 		);
 
-		// Create a combined text from all text nodes to find accurate positions
+		// Build text node mapping with offsets
 		const textNodes: Text[] = [];
 		const textOffsets: number[] = [];
 		let currentOffset = 0;
@@ -249,44 +303,45 @@ export class Highlighter {
 			currentOffset += text.length;
 		}
 
-		// Find all occurrences in the combined text
-		const allText = textNodes.map((n) => n.textContent || "").join("");
-		const allTextLower = allText.toLowerCase();
+		// Find which text node(s) contain our target range
+		for (let i = 0; i < textNodes.length; i++) {
+			const nodeStartOffset = textOffsets[i];
+			const nodeEndOffset =
+				nodeStartOffset + (textNodes[i].textContent?.length || 0);
 
-		let searchIndex = 0;
-		while (
-			(searchIndex = allTextLower.indexOf(searchTextLower, searchIndex)) !== -1
-		) {
-			// Find which text node contains this position
-			let nodeIndex = 0;
-			let nodeStartOffset = textOffsets[0];
+			// Check if this node overlaps with our target range
+			if (nodeStartOffset < endIndex && nodeEndOffset > startIndex) {
+				const localStart = Math.max(0, startIndex - nodeStartOffset);
+				const localEnd = Math.min(
+					textNodes[i].textContent?.length || 0,
+					endIndex - nodeStartOffset,
+				);
 
-			for (let i = 1; i < textOffsets.length; i++) {
-				if (textOffsets[i] <= searchIndex) {
-					nodeIndex = i;
-					nodeStartOffset = textOffsets[i];
-				} else {
-					break;
+				// Only create range if we have valid positions within this node
+				if (
+					localStart < localEnd &&
+					localEnd <= (textNodes[i].textContent?.length || 0)
+				) {
+					try {
+						const range = document.createRange();
+						range.setStart(textNodes[i], localStart);
+						range.setEnd(textNodes[i], localEnd);
+						ranges.push(range);
+
+						console.log("[Highlighter] Created range in node:", {
+							nodeText: textNodes[i].textContent?.substring(0, 30),
+							localStart,
+							localEnd,
+							rangeText: textNodes[i].textContent?.substring(
+								localStart,
+								localEnd,
+							),
+						});
+					} catch (error) {
+						console.warn("[Highlighter] Failed to create range:", error);
+					}
 				}
 			}
-
-			const textNode = textNodes[nodeIndex];
-			const localStart = searchIndex - nodeStartOffset;
-			const localEnd = localStart + searchText.length;
-
-			// Check if the match spans multiple text nodes
-			if (localEnd <= (textNode.textContent?.length || 0)) {
-				try {
-					const range = document.createRange();
-					range.setStart(textNode, localStart);
-					range.setEnd(textNode, localEnd);
-					ranges.push(range);
-				} catch (error) {
-					console.warn("Failed to create range for text:", error);
-				}
-			}
-
-			searchIndex++;
 		}
 
 		return ranges;
