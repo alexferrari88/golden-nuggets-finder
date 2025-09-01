@@ -69,6 +69,46 @@ CSS.highlights.set(Highlighter.HIGHLIGHT_ID, highlight);
 
 **This architectural constraint exists because CSS Custom Highlight API requires the CSS selector ID to match the JavaScript highlight registration ID exactly.**
 
+## ⚠️ CRITICAL WARNING - WXT Bundler Template Literal Variable References
+
+**NEVER reference design system variables directly inside template literals in content scripts.**
+
+The WXT bundler has a known issue where design system variables get renamed during compilation, breaking template literal references. This causes CSS styling to fail when variables are used inside template strings.
+
+**FORBIDDEN pattern:**
+```typescript
+// ❌ NEVER DO THIS - Variables get renamed during bundling
+element.style.cssText = `
+  background: ${colors.highlight.background};
+  color: ${colors.text.primary};
+`;
+```
+
+**REQUIRED pattern:**
+```typescript
+// ✅ ALWAYS DO THIS - Extract variables before template literals
+const highlightBg = colors.highlight.background;
+const primaryText = colors.text.primary;
+element.style.cssText = `
+  background: ${highlightBg};
+  color: ${primaryText};
+`;
+```
+
+**Why this happens:**
+- WXT's bundling process renames variables during compilation
+- Template literals capture the renamed variable names
+- CSS properties receive the renamed identifiers instead of actual values
+- Styling silently fails with no visual feedback
+
+**Files that MUST use this pattern:**
+- `ui/highlighter.ts` - All CSS template literals
+- `ui/sidebar.ts` - All dynamic styling
+- `ui/notifications.ts` - All banner styling
+- Any content script that generates CSS via template literals
+
+**This warning exists because this exact issue broke visual highlighting and took significant debugging time to identify.**
+
 ## Content Script Overview
 
 Content scripts are injected dynamically only when needed (not on all pages) and handle:
@@ -78,6 +118,78 @@ Content scripts are injected dynamically only when needed (not on all pages) and
 - Communication with background scripts via message passing
 - Multi-provider analysis support with provider metadata display
 - Ensemble mode UI integration with confidence scoring and consensus visualization
+
+## Progressive Text Matching Services
+
+The extension uses a sophisticated 3-phase progressive text matching system for accurate golden nugget highlighting, especially when dealing with LLM-generated content variations and cross-node text spans.
+
+### TextMatcher (`ui/text-matcher.ts`) - Phase 1: Fuzzy Text Matching
+Centralized fuzzy text matching service using uFuzzy.js for handling LLM text variations:
+- **uFuzzy.js Integration**: Advanced fuzzy string matching with configurable tolerance levels
+- **Multi-Strategy Approach**: Exact → Normalized → Fuzzy → Partial word matching progression
+- **Text Normalization**: Uses `TextNormalizer` for comprehensive text variation handling
+- **Confidence Scoring**: Returns confidence metrics (0.0-1.0) for match quality assessment
+- **Performance Optimized**: Exact matching first, fuzzy matching only when needed
+- **Word-Based Matching**: Intelligent word sequence matching for better LLM content handling
+- **Sliding Window Approach**: Creates overlapping text windows for comprehensive coverage
+
+### DOMPositionMapper (`ui/dom-position-mapper.ts`) - Phase 2: Cross-Node Text Highlighting
+Converts global text positions to DOM Ranges that can span multiple nodes:
+- **Cross-Node Support**: Handles text that spans multiple DOM elements
+- **Text Node Mapping**: Builds comprehensive mapping of visible text nodes
+- **Range Optimization**: Merges adjacent ranges for better performance
+- **Visibility Filtering**: Excludes hidden elements and script/style tags
+- **Position Accuracy**: Precise global-to-local position conversion
+- **Range Merging**: Combines adjacent ranges to reduce highlight objects
+- **Debug Utilities**: Text node mapping visualization for troubleshooting
+
+### AnchorTextMatcher (`ui/anchor-text-matcher.ts`) - Phase 3: Context-Aware Text Matching
+Wrapper for dom-anchor-text-quote with progressive fallback strategy:
+- **Context-Aware Matching**: Uses prefix/suffix context for disambiguation
+- **dom-anchor-text-quote Integration**: Leverages robust academic text anchoring library
+- **Progressive Fallback**: Anchor → Fuzzy → Exact matching progression
+- **Hint-Based Positioning**: Prioritizes matches near expected positions
+- **Confidence Integration**: Unified confidence scoring across all match types
+- **Error Recovery**: Graceful fallback when advanced methods fail
+- **Match Validation**: Comprehensive validation with configurable thresholds
+- **Context Extraction**: Automatic context extraction for future anchor-based matches
+
+### TextNormalizer (`ui/text-normalizer.ts`) - Enhanced Text Normalization
+Comprehensive text normalization for improved fuzzy matching accuracy:
+- **Unicode Normalization**: Handles smart quotes, dashes, brackets, and full-width characters
+- **Punctuation Standardization**: Normalizes ellipsis, multiple punctuation, and spacing
+- **Math Symbol Conversion**: Converts Unicode math symbols to ASCII equivalents
+- **Whitespace Collapse**: Intelligent whitespace normalization while preserving meaning
+- **Stop Word Filtering**: Removes common stop words for better key word extraction
+- **Similarity Calculation**: Jaccard similarity scoring for text comparison
+- **Equivalence Testing**: Aggressive equivalence checking for exact match detection
+- **Debug Utilities**: Normalization diff tracking for troubleshooting
+
+### Progressive Matching Strategy
+
+The system uses a 3-phase approach for maximum reliability:
+
+```typescript
+// Phase 1: Try anchor-based matching with context
+const anchorResult = await tryAnchorMatching(searchText, prefix, suffix);
+if (anchorResult.ranges.length > 0) return anchorResult;
+
+// Phase 2: Try fuzzy matching with DOM position mapping
+const fuzzyResult = await tryFuzzyMatching(searchText, minConfidence);
+if (fuzzyResult.ranges.length > 0) return fuzzyResult;
+
+// Phase 3: Fallback to exact matching
+const exactResult = await tryExactMatching(searchText);
+return exactResult;
+```
+
+**Benefits of Progressive Matching:**
+- **High Accuracy**: Context-aware matching handles ambiguous text
+- **LLM Variation Handling**: Fuzzy matching handles AI-generated content variations
+- **Cross-Node Support**: Position mapping handles text spanning multiple elements
+- **Performance Optimized**: Fast exact matching first, complex methods only when needed
+- **Graceful Degradation**: Always provides fallback options
+- **Confidence Metrics**: Each match includes quality assessment
 
 ## Content Extraction System
 
@@ -106,21 +218,29 @@ The threads-harvester library handles site-specific extraction internally:
 ## UI Management
 
 ### UI Manager (`ui/ui-manager.ts`)
-Orchestrates all UI interactions and coordinates between components:
-- Manages lifecycle of UI components
-- Handles state synchronization
-- Coordinates highlighting and sidebar display
+Orchestrates all UI interactions and coordinates between components with enhanced text matching integration:
+- **Component Lifecycle Management**: Manages highlighter, sidebar, and notification components
+- **Progressive Matching Integration**: Uses async progressive matching strategy for optimal accuracy
+- **State Synchronization**: Coordinates between highlighting, sidebar, and notification states
+- **Context Extraction**: Extracts page content and processes it for golden nugget reconstruction
+- **Batch Processing**: Efficiently processes multiple nuggets with performance monitoring
+- **Error Recovery**: Graceful handling of text matching failures with fallback strategies
+- **Real-Time Progress**: Displays progress updates during async progressive matching operations
+- **Performance Monitoring**: Tracks highlighting performance and DOM operation timing
 
 ### Highlighter (`ui/highlighter.ts`)
-Modern text highlighting using CSS Custom Highlight API with DOM fallback and enhanced text matching:
+Modern text highlighting using CSS Custom Highlight API with mark.js fallback and **3-phase progressive text matching**:
 - **CSS Custom Highlight API**: Uses modern browser API for performance and native behavior
-- **DOM Fallback**: Graceful degradation to DOM-based highlighting for older browsers
-- **Enhanced Text Matching Integration**: Uses `EnhancedTextMatchingAdapter` for improved accuracy and reliability
-- **Multi-Strategy Matching**: Combines exact matching, fuzzy matching, and content reconstruction for robust highlighting
+- **mark.js Fallback**: Graceful degradation to DOM-based highlighting for older browsers
+- **Progressive Text Matching**: 3-phase strategy for maximum accuracy and reliability:
+  - **Phase 1 - Anchor Matching**: Uses `dom-anchor-text-quote` with context for precise positioning
+  - **Phase 2 - Fuzzy Matching**: Uses `TextMatcher` + `DOMPositionMapper` for LLM text variations
+  - **Phase 3 - Exact Matching**: Fallback to simple string matching with position mapping
+- **Cross-Node Text Support**: Handles text that spans multiple DOM nodes via `DOMPositionMapper`
+- **Enhanced Text Normalization**: Uses `TextNormalizer` for comprehensive text variation handling
 - **Ultra-Subtle Styling**: Uses design system's minimal gray overlays for sophisticated highlighting
-- **Minimal Visual Impact**: Small, unobtrusive indicators with hover states using design system colors
 - **Performance Optimized**: CSS-based highlighting with intelligent caching avoids DOM manipulation overhead
-- **Accessibility**: Maintains proper contrast while being visually minimal using neutral grays
+- **Confidence Scoring**: Each match includes confidence metrics for quality assessment
 
 ### Sidebar (`ui/sidebar.ts`)
 Displays results in right sidebar with Notion-inspired design:
@@ -277,19 +397,54 @@ The threads-harvester library provides automatic site detection and optimized ex
 - Maintains consistent content quality across different site types
 - Adapts to various DOM structures and layouts
 
+## New Dependencies and Integration
+
+### dom-anchor-text-quote (v4.0.2)
+Robust text anchoring library for precise text positioning:
+- **Academic-Grade Accuracy**: Based on W3C Web Annotation standards
+- **Context-Aware Matching**: Uses prefix/suffix context for disambiguation
+- **Hint-Based Positioning**: Prioritizes matches near expected locations
+- **Cross-Browser Support**: Handles various DOM structures and edge cases
+- **Performance Optimized**: Efficient range creation and text search algorithms
+- **Integration Point**: Used by `AnchorTextMatcher` as Phase 1 matching strategy
+
+### uFuzzy.js (@leeoniya/ufuzzy v1.0.19)
+Advanced fuzzy string matching library:
+- **Configurable Tolerance**: Adjustable substitution, transposition, and deletion tolerance
+- **High Performance**: Optimized for large text corpus searching
+- **Multiple Match Modes**: Supports different matching strategies and scoring
+- **Unicode Support**: Handles international characters and symbols
+- **Integration Point**: Used by `TextMatcher` for Phase 2 fuzzy matching
+
+### Enhanced Text Matching Capabilities
+- **3-Phase Progressive Strategy**: Anchor → Fuzzy → Exact matching for maximum coverage
+- **Cross-Node Text Support**: Handles text spanning multiple DOM elements
+- **LLM Variation Handling**: Specialized support for AI-generated content variations
+- **Confidence Scoring**: Quality metrics for all match types
+- **Context Preservation**: Maintains semantic context during text matching
+
 ## Performance Considerations
+
+### Progressive Text Matching Optimization
+- **Phase-Based Performance**: Fast exact matching first, complex algorithms only when needed
+- **Range Optimization**: Adjacent DOM ranges are merged for better CSS Highlight API performance
+- **Text Node Caching**: Efficient text node mapping with intelligent caching
+- **Confidence Thresholds**: Configurable quality thresholds to balance accuracy vs performance
+- **Memory Management**: Proper cleanup of ranges and text matching resources
 
 ### Content Extraction Optimization
 - Content extraction timing is measured using `measureContentExtraction()`
 - ThreadsHarvester library operations are monitored for performance
 - DOM operations are batched and measured with `measureDOMOperation()`
 - Memory usage is tracked during analysis with `performanceMonitor.measureMemory()`
+- **Text Matching Performance**: Progressive matching operations are monitored and optimized
 
 ### Dynamic Injection
 - Content scripts are injected dynamically only when needed
 - Uses `chrome.scripting.executeScript()` from background script
 - ContentScraper is initialized on-demand to prevent unnecessary loading
 - Prevents performance impact on all pages by using restrictive matches pattern
+- **Progressive Services**: Text matching services are initialized only when highlighting is needed
 
 ## Error Handling
 
@@ -310,13 +465,43 @@ The threads-harvester library provides automatic site detection and optimized ex
 - Test across different site types and structures
 - Verify UI component interactions
 
+### Working with Progressive Text Matching Services
+
+#### TextMatcher Integration
+1. **Fuzzy Matching Configuration**: Configure uFuzzy.js tolerance levels for different content types
+2. **Confidence Thresholds**: Set appropriate confidence levels based on content quality requirements
+3. **Word-Based Matching**: Leverage word sequence matching for better LLM content handling
+4. **Performance Optimization**: Use exact matching first, fuzzy matching only when needed
+5. **Error Handling**: Handle fuzzy matching failures gracefully with fallback strategies
+
+#### DOMPositionMapper Usage
+1. **Cross-Node Ranges**: Use for text that spans multiple DOM elements
+2. **Range Optimization**: Enable optimized range merging for better performance
+3. **Text Node Filtering**: Configure visibility filters for different site types
+4. **Position Accuracy**: Validate global-to-local position conversion accuracy
+5. **Debug Mode**: Use debug utilities to troubleshoot cross-node highlighting issues
+
+#### AnchorTextMatcher Best Practices
+1. **Context Extraction**: Extract meaningful prefix/suffix context for disambiguation
+2. **Progressive Strategy**: Trust the phase-based fallback approach (anchor → fuzzy → exact)
+3. **Confidence Validation**: Use appropriate confidence thresholds for different use cases
+4. **Error Recovery**: Handle all match types gracefully with proper error messages
+5. **Performance Monitoring**: Track match success rates and timing across different strategies
+
+#### TextNormalizer Guidelines
+1. **Matching vs Display**: Use `normalizeForMatching()` for fuzzy matching, `normalizeForDisplay()` for UI
+2. **Key Word Extraction**: Leverage key word extraction for similarity calculations
+3. **Equivalence Testing**: Use `areTextsEquivalent()` for high-confidence match validation
+4. **Debug Analysis**: Use normalization diff tracking to understand match failures
+5. **Stop Word Management**: Configure stop word filtering based on content domain
+
 ### Working with ContentScraper
 1. **Automatic Detection**: ContentScraper automatically detects site types - no manual configuration needed
 2. **Design System Integration**: Configure extraction with design-system-compliant checkbox styling
 3. **Performance Monitoring**: Use `measureContentExtraction()` to monitor extraction performance
 4. **Multi-Mode Support**: Supports both analysis mode and selection mode with checkboxes
 5. **Site Types**: Test extraction across Reddit, Hacker News, and generic websites
-6. **Content Reconstruction**: Extracted content is stored for golden nugget text reconstruction
+6. **Content Reconstruction**: Extracted content is stored for golden nugget text reconstruction via progressive matching
 
 ### UI Component Guidelines
 - **Design System Compliance**: Always use design system variables for styling
@@ -326,8 +511,32 @@ The threads-harvester library provides automatic site detection and optimized ex
 - **Error Handling**: Graceful degradation for provider failures and network issues
 - **Memory Management**: Proper cleanup on page navigation and component destruction
 
+### Progressive Text Matching Testing
+
+#### Testing Strategy
+1. **Multi-Phase Testing**: Test all phases of progressive matching (anchor → fuzzy → exact)
+2. **Cross-Node Scenarios**: Test text that spans multiple DOM elements
+3. **LLM Variation Testing**: Test with AI-generated content variations and paraphrases
+4. **Confidence Validation**: Validate confidence scores across different match qualities
+5. **Performance Benchmarking**: Monitor progressive matching performance on large pages
+6. **Context Testing**: Test anchor matching with various prefix/suffix context patterns
+
+#### Debugging Progressive Matching
+1. **Match Strategy Analysis**: Use `debugAllStrategies()` to compare all matching approaches
+2. **Text Node Mapping**: Use `DOMPositionMapper.debugTextNodeMapping()` for cross-node issues
+3. **Normalization Debugging**: Use `TextNormalizer.getNormalizationDiff()` for text variation issues
+4. **Confidence Metrics**: Monitor confidence scores to identify match quality issues
+5. **Range Validation**: Verify DOM range creation and positioning accuracy
+
+#### WXT Bundler Considerations
+- **Template Literal Variables**: Always extract design system variables before template literals
+- **Bundler Testing**: Test CSS styling in development and production builds
+- **Variable Renaming**: Verify that CSS template literals receive actual color values
+- **Content Script Isolation**: Test styling in various website contexts to ensure isolation
+
 ### Code Quality Enforcement
 - **ALWAYS** use the `code-quality-enforcer` agent at the end of any content script development task
 - When working with todo lists, add "Run code quality enforcement" as the **last** todo item
 - This ensures all content script code passes formatting, linting, type checking, and testing
 - Critical for content scripts since they inject into arbitrary websites and must be reliable
+- **Progressive Matching Testing**: Ensure all new text matching features are comprehensively tested

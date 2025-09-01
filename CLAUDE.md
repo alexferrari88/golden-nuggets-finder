@@ -149,21 +149,25 @@ The extension follows a standard Chrome extension architecture with three main c
 ## Golden Nugget Extraction System
 
 ### Overview
-The extension uses a streamlined fullContent extraction approach that maximizes accuracy and simplicity. The system directly captures complete golden nuggets with confidence scoring, eliminating the complexity of boundary-based text matching while maintaining high precision.
+The extension uses a high recall extraction approach with confidence filtering that maximizes accuracy and simplicity. The system captures golden nuggets with a high recall strategy, then applies a 0.85 confidence threshold filter to ensure quality results, eliminating the complexity of boundary-based text matching while maintaining high precision.
 
 ### How FullContent Extraction Works
 
-#### Single-Phase Analysis
-- **Purpose**: Direct identification and capture of complete golden nuggets
+#### High Recall Extraction with Confidence Filtering
+- **Purpose**: High recall identification and capture of complete golden nuggets
+- **Strategy**: Prioritizes recall over precision during AI extraction phase
+- **Filtering**: Post-extraction confidence threshold filtering at 0.85 to ensure quality
 - **Output**: Nuggets with `fullContent` (complete text) and confidence scores (0.0-1.0)
 - **Temperature**: Configurable per provider for optimal results
-- **Quality Control**: Built-in confidence scoring ensures high-quality extractions
-- **Performance**: Simplified architecture with 93% reduction in code complexity
+- **Performance**: Simplified architecture with enhanced accuracy
 
-#### Modern Text Highlighting
+#### Progressive Text Matching
+- **Phase 1**: uFuzzy.js integration for fuzzy text matching with configurable scoring
+- **Phase 2**: Cross-node text highlighting with DOMPositionMapper for complex layouts
+- **Phase 3**: dom-anchor-text-quote integration with AnchorTextMatcher for robust positioning
 - **CSS Custom Highlight API**: Uses browser-native highlighting for superior performance
 - **mark.js Fallback**: Graceful degradation for older browsers
-- **uFuzzy.js Integration**: Advanced text matching for accurate highlighting
+- **Enhanced Matching**: Multiple fallback strategies ensure reliable text highlighting
 - **Minimal Visual Impact**: Ultra-subtle design system styling
 
 ### User Interface Integration
@@ -174,12 +178,14 @@ The extension uses a streamlined fullContent extraction approach that maximizes 
 - **Results Display**: Enhanced UI with confidence indicators and provider metadata
 
 ### Technical Benefits
-- **Simplified Architecture**: Direct fullContent capture eliminates complex boundary detection
+- **High Recall Strategy**: Maximizes nugget detection with post-extraction confidence filtering
+- **Progressive Text Matching**: Multi-phase highlighting system with robust fallback strategies
 - **Enhanced Performance**: CSS Custom Highlight API provides native browser performance
-- **Robust Text Matching**: uFuzzy.js provides reliable content highlighting
-- **Quality Assurance**: Confidence scoring ensures high-quality results
+- **Reliable Positioning**: dom-anchor-text-quote integration ensures accurate text anchoring
+- **Cross-Node Highlighting**: DOMPositionMapper handles complex text spans across multiple elements
+- **Quality Assurance**: 0.85 confidence threshold filtering ensures high-quality results
 - **Provider Agnostic**: Works consistently across all AI providers (Gemini, OpenAI, Anthropic, OpenRouter)
-- **Maintainable Codebase**: 93% reduction in complexity improves reliability and maintainability
+- **Maintainable Codebase**: Simplified architecture improves reliability and maintainability
 
 ## Ensemble Mode
 
@@ -276,9 +282,9 @@ For detailed information about specific components, refer to the CLAUDE.md files
 1. User triggers analysis via popup or context menu
 2. Background script receives analysis request with provider and type filter configuration
 3. Content script extracts page content using specialized extractors
-4. **AI Analysis**: Background script sends content to selected AI provider for fullContent extraction
-5. **Content Validation**: ContentValidator ensures response quality and format consistency
-6. **Text Highlighting**: Modern highlighting system uses CSS Custom Highlight API + mark.js
+4. **AI Analysis**: Background script sends content to selected AI provider for high recall fullContent extraction
+5. **Confidence Filtering**: Post-extraction filtering applies 0.85 confidence threshold to ensure quality
+6. **Text Highlighting**: Progressive text matching system with uFuzzy.js, cross-node highlighting, and dom-anchor-text-quote integration
 7. Results with confidence scores and provider metadata are displayed via content script UI
 
 #### Ensemble Analysis Flow

@@ -6,11 +6,13 @@ This document covers the background script architecture, AI integration, multi-p
 
 The background script (`entrypoints/background.ts`) operates as a service worker that handles:
 - Multi-provider AI integration (Gemini, OpenAI, Anthropic, OpenRouter)
+- High recall extraction with confidence filtering (0.85 threshold)
 - Context menu creation and interactions with type filtering
 - Dynamic content script injection to prevent auto-loading on all pages
 - Communication with content scripts via message passing
 - Tab state tracking for analysis completion and missed nugget reporting
 - Provider switching and API key management
+- Simplified architecture with direct provider calls and natural validation
 
 ## Multi-Provider AI Integration
 
@@ -131,7 +133,8 @@ Ensemble preferences stored securely using the same encryption system:
 3. **Provider Setup**: Creates appropriate AI provider instance
 4. **Ensemble Execution**: EnsembleExtractor performs multi-run analysis
 5. **Result Processing**: Hybrid similarity matching builds consensus
-6. **Response**: Enhanced response with confidence scores and metadata
+6. **Confidence Filtering**: Apply 0.85 confidence threshold to filter high-quality nuggets
+7. **Response**: Enhanced response with confidence scores and filtering metadata
 
 ## Golden Nugget Response Schema
 
@@ -151,11 +154,69 @@ All AI providers are normalized to return responses in this standardized fullCon
 
 **Response Features**:
 - **fullContent**: Complete verbatim text of the golden nugget
-- **confidence**: AI-assigned quality score (0.0-1.0)
+- **confidence**: AI-assigned quality score (0.0-1.0) with 0.85 threshold filtering
 - **type**: Categorization for filtering and organization
 - **Provider Agnostic**: Consistent format across all AI providers
 
+**High Recall Approach**:
+- AI providers use generous extraction with confidence scoring
+- Background script applies 0.85 confidence threshold filtering
+- Natural validation through highlighter success/failure
+- Simplified architecture eliminates expensive validation layer
+- ~50% performance improvement over previous precision-focused approach
+
 **Note**: Response normalization is handled by `services/response-normalizer.ts` to ensure consistent data structure across all providers.
+
+## High Recall Extraction with Confidence Filtering
+
+### Overview
+The system uses a high recall extraction approach that maximizes nugget capture by encouraging AI providers to be generous in their extraction, then applies post-processing confidence filtering to ensure quality.
+
+### Architecture Change (Breaking)
+**Before (Precision-Focused)**:
+```
+AI extracts → ContentValidator validates → Highlighter highlights
+```
+
+**After (High Recall + Filtering)**:
+```
+AI extracts → Confidence filtering (≥0.85) → Highlighter highlights
+```
+
+### Implementation Details
+
+#### Confidence Filtering (`filterByConfidence()`)
+- **Threshold**: Fixed 0.85 confidence threshold for quality assurance
+- **Location**: `MessageHandler.filterByConfidence()` method
+- **Application**: Applied to both standard and ensemble analysis results
+- **Purpose**: Filter out low-confidence extractions while maintaining high recall
+
+#### Benefits
+- **Performance**: ~50% improvement with elimination of ContentValidator
+- **Simplicity**: Reduced architecture complexity with direct provider calls
+- **Quality**: Natural validation through highlighter success/failure
+- **Consistency**: Same 0.85 threshold applied across all analysis modes
+
+#### Filtering Metadata
+Analysis responses include filtering statistics:
+```typescript
+{
+  golden_nuggets: [...],
+  metadata: {
+    preFilterCount: 12,    // Nuggets before confidence filtering
+    postFilterCount: 8,    // Nuggets after confidence filtering  
+    confidenceThreshold: 0.85,
+    filteringApplied: true
+  }
+}
+```
+
+### Provider Integration
+All providers support the high recall approach:
+- **Gemini**: Uses structured output with confidence scoring
+- **OpenAI**: LangChain integration with tool-based confidence assignment
+- **Anthropic**: Advanced reasoning with confidence assessment
+- **OpenRouter**: Multi-model access with consistent confidence formatting
 
 ## Message Passing System
 
@@ -196,11 +257,13 @@ Uses typed message system with `MESSAGE_TYPES` constants for communication betwe
 ### Message Handler (`message-handler.ts`)
 Centralized message processing with:
 - Multi-provider analysis orchestration
+- High recall extraction with 0.85 confidence threshold filtering
 - Comprehensive error handling with provider-specific error recovery
 - Progress tracking with 4-step analysis workflow
 - Type filtering support for nugget extraction
 - Provider switching and fallback mechanisms
 - API key management and validation across providers
+- Direct provider calls with simplified architecture (no validation layer)
 
 ## Content Script Injection
 
@@ -298,19 +361,6 @@ Comprehensive error handling across all providers:
 - **Retry Logic**: Implements intelligent retry with exponential backoff
 - **Error Recovery**: Automatic provider switching on persistent failures
 
-#### ContentValidator (`services/content-validator.ts`)
-Content quality and format validation service:
-- **Response Validation**: Ensures AI provider responses conform to expected schema
-- **Content Quality**: Validates fullContent completeness and confidence scores
-- **Format Normalization**: Standardizes responses across different providers
-- **Error Handling**: Graceful handling of malformed or incomplete responses
-- **Performance Monitoring**: Tracks validation success rates and processing times
-- **Key Methods**:
-  - `validateResponse()`: Main response validation method
-  - `normalizeContent()`: Content format standardization
-  - `assessQuality()`: Content quality assessment
-  - `handleValidationErrors()`: Error recovery and reporting
-
 #### Response Normalizer (`services/response-normalizer.ts`)
 Ensures consistent data structure across providers:
 - **Schema Normalization**: Converts all provider responses to unified format
@@ -327,10 +377,11 @@ Ensures consistent data structure across providers:
 - **User-Friendly Messages**: Technical errors converted to actionable guidance
 
 ### FullContent Error Handling
-- **Content Validation**: Validates fullContent completeness and format consistency
-- **Confidence Assessment**: Quality control through confidence score analysis
+- **Simplified Architecture**: Direct provider calls with natural filtering through highlighting
+- **Confidence Filtering**: High recall extraction with 0.85 confidence threshold filtering
 - **Provider Fallback**: Automatic switching to alternative providers on failures
 - **Graceful Degradation**: Returns best available results when possible
+- **Performance Improvement**: ~50% faster response times with elimination of validation layer
 
 ### Network and Connectivity
 - **Timeout Handling**: Provider-specific timeout configurations
@@ -354,11 +405,14 @@ Ensures consistent data structure across providers:
 
 ### Testing Background Scripts
 - **Multi-Provider Testing**: Test all providers (Gemini, OpenAI, Anthropic, OpenRouter) with mock services
+- **Confidence Filtering**: Test 0.85 threshold filtering across all providers and analysis modes
+- **High Recall Validation**: Verify generous extraction with quality filtering
 - **Provider Switching**: Verify automatic fallback and manual provider switching
 - **Message Passing**: Test message handling between scripts including provider-specific messages
 - **Context Menu**: Test context menu functionality with type filtering across providers
 - **Model Management**: Test model fetching and selection for all providers
 - **Error Scenarios**: Test provider failures, API key issues, and network problems
+- **Performance**: Verify ~50% performance improvements with simplified architecture
 
 ### API Key Management
 - **Multi-Provider Storage**: Secure storage for all provider API keys using SecurityManager
@@ -368,19 +422,22 @@ Ensures consistent data structure across providers:
 
 ### Adding New AI Providers
 1. **Create Provider Implementation**: Add new provider class in `shared/providers/`
-2. **Implement FullContent Method**: Ensure `extractGoldenNuggets()` returns fullContent format
+2. **Implement FullContent Method**: Ensure `extractGoldenNuggets()` returns fullContent format with confidence scores
 3. **Update Provider Factory**: Add provider to factory and default model configuration
 4. **Update Provider Types**: Extend `ProviderId` union and related types
 5. **Add Model Service**: Implement model fetching for the new provider
 6. **Update Error Handling**: Add provider-specific error patterns
-7. **Test Integration**: Comprehensive testing including fullContent response validation
+7. **High Recall Integration**: Configure provider for generous extraction with confidence scoring
+8. **Test Integration**: Comprehensive testing including confidence filtering and response validation
 
 ### Service Development
 1. **Service Modularity**: Keep services focused and testable
 2. **Provider Agnostic**: Ensure services work across all providers
-3. **Error Recovery**: Implement graceful degradation and fallback mechanisms
-4. **Testing Coverage**: Unit tests for all service methods and error cases
-5. **Documentation**: Update service documentation for API changes
+3. **Simplified Architecture**: Direct provider calls without intermediate validation layers
+4. **Confidence Integration**: Implement confidence scoring and filtering where applicable
+5. **Error Recovery**: Implement graceful degradation and fallback mechanisms
+6. **Testing Coverage**: Unit tests for all service methods and error cases
+7. **Documentation**: Update service documentation for API changes
 
 ### Multi-Provider Considerations
 - **Provider Parity**: Ensure feature parity across all supported providers

@@ -123,49 +123,64 @@ Comprehensive security system for API key protection and access control:
 ### Enhanced Text Matching System
 The extension uses a sophisticated multi-strategy text matching system for accurate golden nugget highlighting:
 
-#### Enhanced Text Matching (`enhanced-text-matching.ts`)
-Advanced text matching engine with multiple fallback strategies:
-- **Multi-Strategy Approach**: Combines exact matching, fuzzy matching, and content reconstruction
-- **Unicode Normalization**: Handles all common Unicode character variants for reliable matching
-- **Performance Optimization**: Intelligent caching and memoization for repeated queries
-- **Configurable Thresholds**: Adjustable matching sensitivity for different content types
-- **Detailed Reporting**: Comprehensive match results with confidence scores and failure reasons
+#### TextMatcher Service (`content/ui/text-matcher.ts`)
+Centralized fuzzy text matching service using uFuzzy.js:
+- **Multi-Strategy Approach**: Combines exact matching, normalized matching, and fuzzy matching
+- **uFuzzy.js Integration**: Uses uFuzzy library for handling LLM text variations
+- **Unicode Normalization**: Handles common Unicode character variants via TextNormalizer
+- **Performance Optimization**: Progressive matching with exact match first for best performance
+- **Confidence Scoring**: Returns confidence scores (0.0-1.0) for match quality assessment
+- **Word-Level Fuzzy Matching**: Uses configurable tolerance for handling minor text variations
+- **Partial Matching**: Fallback to subsequence matching when full matches fail
 
-#### Enhanced Text Matching Adapter (`enhanced-text-matching-adapter.ts`)
-Integration layer connecting enhanced matching with content reconstruction:
-- **Strategy Coordination**: Orchestrates multiple matching strategies in priority order
-- **Fallback Logic**: Graceful degradation when primary matching strategies fail
-- **Content Integration**: Seamless integration with content reconstruction system
-- **Performance Monitoring**: Built-in timing and success rate tracking
-- **Error Recovery**: Robust error handling with detailed failure context
+#### TextNormalizer Service (`content/ui/text-normalizer.ts`)
+Text normalization for consistent matching across character variants:
+- **Character Normalization**: Handles apostrophes, quotes, dashes, ellipses variations
+- **Whitespace Normalization**: Standardizes spacing and line breaks
+- **Unicode Handling**: Normalizes various Unicode character forms
+- **Performance Optimized**: Fast text processing for real-time matching
+
+#### AnchorTextMatcher Service (`content/ui/anchor-text-matcher.ts`)
+Wrapper for dom-anchor-text-quote with progressive matching strategy:
+- **dom-anchor-text-quote Integration**: Uses context-aware anchor matching as primary strategy
+- **Progressive Fallback**: Falls back to fuzzy matching, then exact matching
+- **DOMPositionMapper Integration**: Converts text positions to DOM ranges for highlighting
+- **Match Result Metadata**: Provides detailed match type, confidence, and error information
+- **Context Extraction**: Can extract prefix/suffix context for future anchor matching
+
+#### DOMPositionMapper Service (`content/ui/dom-position-mapper.ts`)
+Converts global text positions to DOM Ranges across multiple nodes:
+- **Cross-Node Highlighting**: Enables highlighting text that spans multiple DOM nodes
+- **Text Node Filtering**: Accepts visible text nodes while rejecting script/style content
+- **Range Optimization**: Provides optimized version that merges adjacent ranges
+- **Position Mapping**: Builds mapping of text nodes to global text offsets
+- **Debug Utilities**: Tools for troubleshooting cross-node highlighting issues
 
 ### Content Reconstruction (`content-reconstruction.ts`)
-Advanced text reconstruction utilities enhanced with modern matching:
-- **Enhanced Matching Integration**: Now uses enhanced text matching for improved accuracy
+Advanced text reconstruction utilities with progressive text matching integration:
+- **Progressive Matching Integration**: Uses AnchorTextMatcher for multi-strategy text finding
 - **Unicode Normalization**: Handles all common Unicode character variants for reliable matching
 - **Text Highlighting**: Modern CSS Custom Highlight API with mark.js fallback for accurate fullContent highlighting
-- **Improved Matching**: Enhanced fullContent matching algorithm with detailed error reporting
+- **FullContent Processing**: Direct fullContent highlighting without boundary-based complexity
 - **Display Optimization**: Smart content display based on reconstruction success
+- **Cross-Node Support**: Handles text that spans multiple DOM nodes via DOMPositionMapper
 
-### Text Matching Features
+### Progressive Text Matching Features
+- **Multi-Strategy Approach**: Anchor matching → fuzzy matching → exact matching progression
 - **Advanced Normalization**: Handles apostrophes, quotes, dashes, ellipses, and whitespace variants
-- **Multi-Strategy Matching**: Combines exact matching, enhanced text matching, fuzzy matching, and partial word matching
-- **Error Reporting**: Detailed match results with failure reasons and indices
-- **Content Validation**: Length-based validation to ensure reconstruction quality
-- **Performance Caching**: Intelligent caching system for improved response times
+- **uFuzzy.js Integration**: Professional fuzzy matching library for LLM text variations
+- **Cross-Node Highlighting**: Supports text that spans multiple DOM elements
+- **Confidence Scoring**: All matches include confidence scores for quality assessment
+- **Context-Aware Matching**: Uses prefix/suffix context when available for disambiguation
+- **Performance Optimized**: Progressive fallback ensures optimal performance
 
-### Fuzzy Matching (`fuzzy-matching.ts`)
-Tolerance-based content matching system integrated with enhanced matching:
-- **Word-Level Matching**: Uses Levenshtein distance for handling minor text variations
-- **Enhanced Integration**: Now works as part of the enhanced text matching strategy pipeline
-- **Configurable Tolerance**: Adjustable match threshold (default 0.8) for different use cases
-- **Performance Optimized**: Efficient algorithms for real-time content highlighting
-
-### Fuzzy Matching Features
-- **Levenshtein Distance**: Single-character edit distance calculation
-- **Word Filtering**: Smart word filtering to improve match accuracy
-- **Tolerance Control**: Fine-tuned matching thresholds for different content types
-- **Strategy Integration**: Seamless integration with enhanced text matching system
+### Enhanced Text Matching Benefits
+- **Improved Accuracy**: Multi-strategy approach increases successful highlighting rate
+- **LLM Variation Handling**: Robust handling of AI-generated text variations
+- **Performance**: Optimized matching with exact match prioritization
+- **Cross-Node Support**: Handles complex DOM structures with text spanning nodes
+- **Maintainable Architecture**: Clear separation of concerns across matching services
+- **Debug Support**: Comprehensive logging and debug utilities for troubleshooting
 
 ## Schema System
 
@@ -197,6 +212,7 @@ Comprehensive JSON schema definitions for fullContent extraction workflows:
 - **Extensibility**: Easy addition of new nugget types and validation rules
 - **Two-Phase Support**: Specialized schemas for different extraction phases with optimized field structures
 - **Confidence Integration**: Built-in confidence scoring for quality assessment and filtering
+- **Post-Processing**: Responses undergo confidence filtering (≥0.85 threshold) after extraction
 
 ## Ensemble Support
 
@@ -406,19 +422,22 @@ element.style.cssText = `
 Core configuration values and defaults for fullContent extraction system:
 - **Storage Keys**: Centralized key definitions for Chrome storage (`STORAGE_KEYS`)
 - **Gemini Configuration**: API model selection and thinking budget settings (`GEMINI_CONFIG`)
+- **Embedding Configuration**: Complete embedding settings for ensemble similarity (`EMBEDDING_CONFIG`)
+- **Similarity Defaults**: Default configuration for hybrid similarity matching (`SIMILARITY_DEFAULTS`)
 - **Default Prompts**: Complete default prompt system with sophisticated persona-based analysis
-- **FullContent Prompts**: Optimized prompts for direct fullContent extraction
-  - **Default Prompt**: High-recall extraction with confidence filtering (≥0.85 threshold)
-  - **Template Processing**: `processPromptTemplate()` function for dynamic prompt handling
-- **Confidence Filtering**: 0.85 threshold filtering applied after AI extraction for quality control
+- **High Recall Strategy**: Optimized prompts for direct fullContent extraction with confidence scoring
+  - **Confidence Threshold**: 0.85 threshold used for post-extraction quality filtering (hardcoded in `background/message-handler.ts`)
+  - **Template Processing**: Dynamic prompt variables like `{{ persona }}` for personalization
+  - **Quality Control**: Multi-layer validation with confidence scoring and content filtering
 
-### Default Prompt System
-The extension includes a comprehensive default prompt that implements:
-- **High Recall with Confidence Filtering**: Generous extraction approach followed by 0.85 confidence threshold filtering
-- **Persona-Based Analysis**: Tailored for "Pragmatic Processor" with ADHD and INTP cognitive patterns
-- **Anti-Pattern Detection**: Sophisticated filtering to avoid meta-summaries and feature lists
-- **Extraction Categories**: Tools, Media, Explanations, Analogies, and Mental Models
-- **Quality Control**: Multiple validation layers with strict signal-to-noise requirements
+### High Recall Extraction Strategy
+The extension implements a two-phase quality control approach:
+- **Phase 1: High Recall Extraction**: AI providers use generous extraction with confidence scoring
+- **Phase 2: Confidence Filtering**: Post-processing applies 0.85 threshold for quality control
+- **Persona Integration**: Dynamic prompt personalization via template variables
+- **Category-Based Extraction**: Supports filtering by nugget types (tools, media, aha moments, analogies, models)
+- **Quality Assurance**: Multi-layer validation combining AI confidence scores with threshold filtering
+- **Content Validation**: Ensures extracted nuggets meet minimum quality and relevance standards
 
 ### Configuration Features
 - **Immutable Constants**: Using `as const` assertions for type safety
@@ -625,8 +644,9 @@ The shared utilities include comprehensive unit tests:
 - **Chrome Extension Utils Tests** (`chrome-extension-utils.test.ts`): Tests for content script injection and analysis ID generation
 - **Provider Validation Tests** (`provider-validation-utils.test.ts`): Tests for provider configuration validation and error handling
 - **Text Highlighting Tests**: Tests for modern CSS Custom Highlight API and mark.js fallback
-- **uFuzzy Integration Tests**: Tests for advanced text matching with uFuzzy.js
-- **Content Validation Tests**: Tests for fullContent response validation and quality assessment
+- **Progressive Text Matching Tests**: Tests for TextMatcher, AnchorTextMatcher, and DOMPositionMapper services
+- **Text Normalization Tests** (`content/ui/text-normalizer.test.ts`): Tests for Unicode and character variant handling
+- **Cross-Node Highlighting Tests** (`content/ui/dom-position-mapper.test.ts`): Tests for text spanning multiple DOM nodes
 - **Model Storage Tests** (`storage/model-storage.test.ts`): Tests for provider model selection and storage
 
 ### Test Coverage Areas
@@ -635,10 +655,13 @@ The shared utilities include comprehensive unit tests:
 - **Storage**: CRUD operations, error handling, data integrity validation
 - **Chrome Extension Operations**: Content script injection, deduplication, retry logic
 - **Provider Validation**: Configuration checks, error scenarios, fallback handling
-- **Content Processing**: FullContent extraction, text highlighting, content validation
-- **Modern Text Highlighting**: CSS Custom Highlight API, mark.js fallback, uFuzzy.js integration
-- **Performance**: Timing validation, memory usage monitoring
-- **Error Handling**: Edge cases, malformed data, security failures
+- **Content Processing**: FullContent extraction, text highlighting, progressive matching
+- **Enhanced Text Matching**: TextMatcher with uFuzzy.js, confidence scoring, fallback strategies
+- **Cross-Node Highlighting**: DOMPositionMapper for text spanning multiple elements
+- **Text Normalization**: Unicode handling, character variant normalization
+- **Progressive Matching**: Anchor → fuzzy → exact matching strategy validation
+- **Performance**: Timing validation, memory usage monitoring, match confidence assessment
+- **Error Handling**: Edge cases, malformed data, security failures, matching failures
 
 ### Testing Best Practices
 - Focus on unit testing for utility functions
@@ -665,8 +688,8 @@ The shared utilities are organized into specialized modules for maintainability:
 - **`provider-validation-utils.ts`**: Provider configuration validation and error handling
 - **`storage.ts`**: Chrome storage abstraction with caching and security
 - **`security.ts`**: Encryption, access control, and audit logging
-- **`content-reconstruction.ts`**: Text matching and content reconstruction
-- **`fuzzy-matching.ts`**: Tolerance-based content matching algorithms
+- **`content-reconstruction.ts`**: Text matching and content reconstruction with progressive matching
+- **`constants.ts`**: Configuration values including confidence thresholds and embedding settings
 
 #### Utility Integration Patterns
 When creating new utilities, follow these established patterns:

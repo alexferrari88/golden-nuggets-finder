@@ -10,7 +10,7 @@ This document covers the testing strategy, setup, and best practices for the Gol
 - **Focus**: Individual components and utilities
 - **Coverage**: Excludes UI entry points, config files, and test directories but covers core logic
 - **Locations**: Tests exist in both `src/` directories (component tests) and `tests/unit/` (integration unit tests)
-- **Test Counts**: 23 component tests in `src/` directories, 19 integration unit tests in `tests/unit/`
+- **Test Counts**: 23 component tests in `src/` directories, 21 integration unit tests in `tests/unit/`
 
 ### End-to-End Testing
 - **Framework**: Playwright
@@ -29,7 +29,7 @@ This document covers the testing strategy, setup, and best practices for the Gol
 
 ### Integration Testing
 - **Framework**: Vitest with real HTTP calls
-- **Focus**: Multi-provider integration, API response validation, schema compliance
+- **Focus**: Multi-provider integration, direct provider calls, schema compliance
 - **Coverage**: Cross-component workflows and provider interoperability
 - **Location**: Tests located in `tests/integration/` directory
 - **Test Count**: 1 integration test file with real API validation
@@ -98,8 +98,8 @@ pnpm playwright test tests/e2e/extension-basics.spec.ts tests/e2e/popup.spec.ts 
 # Run all E2E tests (includes skipped ones - they'll show as skipped)
 pnpm test:e2e
 
-# Run fullContent extraction specific tests
-pnpm vitest run --grep="fullContent|content-validator|highlighting"
+# Run fullContent extraction and text matching tests
+pnpm vitest run --grep="fullContent|text-matcher|highlighting|anchor-text"
 
 # Run provider tests including fullContent methods
 pnpm vitest run tests/unit/*-provider.test.ts
@@ -148,7 +148,7 @@ The `tests/unit/` directory contains integration-focused unit tests that test cr
 - Tests include:
   - FullContent workflow in ensemble mode for consensus building
   - Confidence scoring and quality assessment
-  - Error scenario testing for content validation failures
+  - Error scenario testing for direct provider call failures
   - Ensemble metadata validation with fullContent extraction results
 
 ### Component Test Coverage (`src/` directories)
@@ -169,6 +169,12 @@ Component tests provide coverage for individual modules:
 - `src/shared/storage/model-storage.test.ts` - Model-specific storage utilities
 - Text highlighting and uFuzzy.js integration tests for modern content highlighting
 
+**Text Matching Services:**
+- `src/content/ui/text-matcher.test.ts` - TextMatcher service with uFuzzy.js fuzzy matching
+- `src/content/ui/text-normalizer.test.ts` - TextNormalizer service for text preprocessing
+- `src/content/ui/dom-position-mapper.test.ts` - DOMPositionMapper service for cross-node text highlighting
+- Progressive matching algorithm tests covering exact → anchor → fuzzy → cross-node fallback strategies
+
 **Background Services:**
 - `src/background/gemini-client.test.ts` - Gemini API client functionality
 - `src/background/message-handler.test.ts` - Message handling logic
@@ -179,13 +185,18 @@ Component tests provide coverage for individual modules:
 - `src/background/services/embedding-service.test.ts` - Text embedding service
 - `src/background/services/ensemble-extractor.test.ts` - Ensemble content extraction service
 - `src/background/services/hybrid-similarity.test.ts` - Hybrid similarity measurement service
-- Content validation service tests for fullContent response processing
+- Direct provider integration tests for fullContent response processing
 - Text highlighting service tests for CSS Custom Highlight API integration
 
 **Content Script UI:**
 - `src/content/ui/notifications.test.ts` - Notification UI components
 - `src/content/ui/highlighter.normalization.test.ts` - Text normalization for highlighting
 - `src/content/ui/highlighter.case-sensitivity.test.ts` - Case sensitivity handling for highlighting
+
+**Text Matching and Highlighting:**
+- `src/content/ui/text-matcher.test.ts` - uFuzzy.js-based fuzzy text matching
+- `src/content/ui/text-normalizer.test.ts` - Text preprocessing and normalization
+- `src/content/ui/dom-position-mapper.test.ts` - Cross-node text positioning and highlighting
 
 ### Integration Test Directory (`tests/integration/`)
 
@@ -194,8 +205,8 @@ Integration tests that make real API calls to validate cross-provider functional
 - Tests include validation of:
   - FullContent `extractGoldenNuggets` responses against `GOLDEN_NUGGET_SCHEMA`
   - Confidence score consistency across providers
-  - Content quality and format validation
-  - Cross-provider fullContent response compatibility
+  - Direct provider call response format validation
+  - Cross-provider fullContent response compatibility without validation layer
 
 ### Manual Test Directory (`tests/manual/`)
 
@@ -369,24 +380,26 @@ The test setup file provides comprehensive mocking for the testing environment:
 ### FullContent Extraction Testing Focus Areas
 
 **Unit Test Coverage:**
-- `ContentValidator` service logic and response validation
+- Direct provider integration without validation layer
 - Text highlighting algorithms with CSS Custom Highlight API and mark.js fallback
+- Progressive text matching with fallback strategies (exact → anchor → fuzzy → cross-node)
 - FullContent schema validation and response formatting
 - Confidence scoring algorithms and quality assessment
-- Error handling for malformed responses and content validation failures
+- Error handling for malformed responses and direct provider call failures
 
 **Provider Testing:**
-- All providers implement unified `extractGoldenNuggets` method
+- All providers implement unified `extractGoldenNuggets` method with direct API calls
 - FullContent responses conform to `GOLDEN_NUGGET_SCHEMA` with confidence scores
 - Temperature parameter handling for optimal extraction quality
 - Selected nugget types filtering in fullContent extraction
-- Provider-specific response normalization and validation
+- Provider-specific response normalization without validation layer
 
 **Integration Testing:**
-- End-to-end fullContent workflow: extraction → validation → highlighting → display
-- Cross-provider consistency in fullContent extraction behavior
+- End-to-end fullContent workflow: extraction → highlighting → display
+- Cross-provider consistency in fullContent extraction behavior with direct API calls
 - Integration with ensemble mode (using fullContent for consensus building)
-- Performance testing of modern highlighting vs legacy systems
+- Performance testing of progressive text matching strategies
+- Modern CSS Custom Highlight API performance vs mark.js fallback
 - Error recovery scenarios when providers fail or return malformed data
 
 **Schema Validation Testing:**
@@ -396,8 +409,9 @@ The test setup file provides comprehensive mocking for the testing environment:
 - Response normalization and format consistency
 
 **Error Scenario Testing:**
-- Content validation failures when responses are incomplete
-- Graceful degradation when text highlighting fails
+- Direct provider call failures when responses are incomplete
+- Graceful degradation when progressive text matching fails
+- Text matching fallback strategy testing (exact → anchor → fuzzy → cross-node)
 - Provider-specific error handling in fullContent workflows
 - Timeout handling for extraction operations
 
