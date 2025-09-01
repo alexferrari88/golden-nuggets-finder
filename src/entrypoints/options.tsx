@@ -433,6 +433,7 @@ function OptionsPage() {
 		timestamp: number;
 	} | null>(null);
 
+	// biome-ignore lint/correctness/useExhaustiveDependencies: fetchModelsForProvider is stable and doesn't need to be a dependency
 	const loadData = useCallback(async () => {
 		try {
 			setLoading(true);
@@ -498,6 +499,17 @@ function OptionsPage() {
 				keyMap[providerId] = key;
 			});
 			setApiKeys(keyMap);
+
+			// Auto-fetch models for providers with API keys
+			const modelFetchPromises = Object.entries(keyMap)
+				.filter(([_, apiKey]) => apiKey && apiKey.trim() !== "")
+				.map(([providerId, apiKey]) =>
+					fetchModelsForProvider(providerId as ProviderId, apiKey),
+				);
+
+			if (modelFetchPromises.length > 0) {
+				await Promise.allSettled(modelFetchPromises);
+			}
 
 			// Load selected models for all providers
 			const selectedModelsMap = await ModelStorage.getAllModels();
