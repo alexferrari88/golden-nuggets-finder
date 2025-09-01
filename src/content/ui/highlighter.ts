@@ -8,7 +8,6 @@ import Mark from "mark.js";
 import { colors } from "../../shared/design-system";
 import type { GoldenNugget } from "../../shared/types";
 import { AnchorTextMatcher } from "./anchor-text-matcher";
-import { TextMatcher } from "./text-matcher";
 
 // Type declarations for CSS Custom Highlight API
 declare global {
@@ -29,16 +28,16 @@ declare global {
 
 export class Highlighter {
 	private highlightedElements: HTMLElement[] = [];
-	private cssHighlights: Map<string, Range> = new Map();
+	private cssHighlights: Map<string, Range[]> = new Map();
 	private cssHighlightSupported: boolean;
 	private markInstance: Mark | null = null;
 	private highlightClassName = "golden-nugget-highlight";
 	private anchorTextMatcher: AnchorTextMatcher;
+	private static readonly HIGHLIGHT_ID = "golden-nugget";
 
 	constructor() {
 		this.cssHighlightSupported = this.checkCSSHighlightSupport();
 		this.setupCSSHighlightStyles();
-		this.textMatcher = new TextMatcher(); // Add fuzzy matching
 		this.anchorTextMatcher = new AnchorTextMatcher(); // Add anchor-based matching
 
 		// Initialize mark.js for fallback
@@ -52,8 +51,11 @@ export class Highlighter {
 	 * 1. Try anchor-based matching with context
 	 * 2. Fallback to fuzzy matching
 	 * 3. Fallback to exact matching
+	 * Returns ranges for scrolling functionality
 	 */
-	async highlightNugget(nugget: GoldenNugget): Promise<boolean> {
+	async highlightNugget(
+		nugget: GoldenNugget,
+	): Promise<{ success: boolean; ranges: Range[] }> {
 		try {
 			// Direct text search using fullContent - no boundary reconstruction needed
 			const fullContent = nugget.fullContent?.trim();
@@ -62,7 +64,7 @@ export class Highlighter {
 
 			if (!fullContent) {
 				console.warn("No fullContent available for nugget:", nugget);
-				return false;
+				return { success: false, ranges: [] };
 			}
 
 			if (this.cssHighlightSupported) {
@@ -74,7 +76,7 @@ export class Highlighter {
 			}
 		} catch (error) {
 			console.error("Failed to highlight nugget:", error);
-			return false;
+			return { success: false, ranges: [] };
 		}
 	}
 
@@ -84,27 +86,28 @@ export class Highlighter {
 	private async highlightWithCSSAPI(
 		fullContent: string,
 		_nugget: GoldenNugget,
-	): Promise<boolean> {
+	): Promise<{ success: boolean; ranges: Range[] }> {
 		const ranges = await this.findTextRangesProgressive(fullContent);
 		if (ranges.length > 0) {
-			const highlightId = `nugget-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 			const highlight = new window.Highlight(...ranges);
 
 			if (CSS?.highlights) {
-				CSS.highlights.set(highlightId, highlight as any);
+				// Clear previous highlights to prevent conflicts
+				CSS.highlights.delete(Highlighter.HIGHLIGHT_ID);
 
-				// Store for cleanup
-				ranges.forEach((range) => {
-					this.cssHighlights.set(highlightId, range);
-				});
+				// Use static highlight ID to match CSS selector
+				CSS.highlights.set(Highlighter.HIGHLIGHT_ID, highlight as any);
+
+				// Store ranges for cleanup and scrolling
+				this.cssHighlights.set(Highlighter.HIGHLIGHT_ID, ranges);
 
 				console.log(
 					`CSS Highlighted "${fullContent.substring(0, 50)}..." with ${ranges.length} ranges`,
 				);
-				return true;
+				return { success: true, ranges };
 			}
 		}
-		return false;
+		return { success: false, ranges: [] };
 	}
 
 	/**
@@ -113,7 +116,7 @@ export class Highlighter {
 	private async highlightWithMarkJS(
 		fullContent: string,
 		_nugget: GoldenNugget,
-	): Promise<boolean> {
+	): Promise<{ success: boolean; ranges: Range[] }> {
 		console.log(
 			"[Highlighter] Mark.js searching for:",
 			JSON.stringify(fullContent.substring(0, 100)),
@@ -134,7 +137,7 @@ export class Highlighter {
 						"[Highlighter] No valid match found with progressive strategy for Mark.js:",
 						fullContent.substring(0, 50),
 					);
-					return false;
+					return { success: false, ranges: [] };
 				}
 
 				console.log("[Highlighter] Progressive match found for Mark.js:", {
@@ -218,14 +221,16 @@ export class Highlighter {
 					domElements.length,
 				);
 
-				return newElementsAdded > 0; // Return success based on elements added
+				// Return success and ranges from the match result
+				const success = newElementsAdded > 0;
+				return { success, ranges: success ? matchResult.ranges : [] };
 			} catch (error) {
 				console.error("[Highlighter] Mark.js highlighting failed:", error);
 				console.error("[Highlighter] Error details:", error);
-				return false;
+				return { success: false, ranges: [] };
 			}
 		}
-		return false;
+		return { success: false, ranges: [] };
 	}
 
 	/**
@@ -266,12 +271,53 @@ export class Highlighter {
 	}
 
 	/**
+	 * Scroll to highlighted ranges
+	 */
+	scrollToRanges(ranges: Range[]): void {
+		if (ranges.length === 0) {
+			console.warn("No ranges provided for scrolling");
+			return;
+		}
+
+		try {
+			// Use the first range for scrolling
+			const firstRange = ranges[0];
+			const rect = firstRange.getBoundingClientRect();
+
+			if (rect.height === 0 && rect.width === 0) {
+				console.warn(
+					"Range has no dimensions, trying alternative scrolling method",
+				);
+				// Try to get a container element
+				const container = firstRange.commonAncestorContainer;
+				if (container.nodeType === Node.TEXT_NODE && container.parentElement) {
+					container.parentElement.scrollIntoView({
+						behavior: "smooth",
+						block: "center",
+					});
+				}
+			} else {
+				// Scroll to the range position with some offset for better visibility
+				const scrollY = window.scrollY + rect.top - window.innerHeight / 3;
+				window.scrollTo({
+					top: scrollY,
+					behavior: "smooth",
+				});
+			}
+
+			console.log(`Scrolled to highlight at position: ${rect.top}`);
+		} catch (error) {
+			console.error("Failed to scroll to highlight:", error);
+		}
+	}
+
+	/**
 	 * Clear all highlights
 	 */
 	clearHighlights(): void {
 		// Clear CSS Custom Highlights
 		if (this.cssHighlightSupported && CSS && CSS.highlights) {
-			CSS.highlights.clear();
+			CSS.highlights.delete(Highlighter.HIGHLIGHT_ID);
 		}
 		this.cssHighlights.clear();
 
@@ -282,7 +328,7 @@ export class Highlighter {
 			});
 		}
 
-		// Clear tracked DOM elements
+		// Clear tracked DOM elements (only for mark.js)
 		this.highlightedElements.forEach((element) => {
 			try {
 				element.remove();

@@ -789,13 +789,26 @@ export class Sidebar {
 		}
 
 		// Click handler for scrolling to highlight (not selection)
-		nuggetDiv.addEventListener("click", (e) => {
+		nuggetDiv.addEventListener("click", async (e) => {
 			// Only handle highlighting if not clicking on checkbox
 			if ((e.target as Element).tagName !== "INPUT") {
 				// If highlighted, scroll to highlight and mark as visited
 				if (item.status === "highlighted" && this.highlighter) {
-					// Highlight the nugget (scrolling functionality removed)
-					this.highlighter.highlightNugget(item.nugget);
+					// Highlight the nugget and get ranges for scrolling
+					const result = await this.highlighter.highlightNugget(item.nugget);
+
+					if (result.success && result.ranges.length > 0) {
+						// Scroll to the highlighted content
+						this.highlighter.scrollToRanges(result.ranges);
+						console.log(
+							`[Sidebar] Scrolled to nugget: ${item.nugget.fullContent?.substring(0, 50)}...`,
+						);
+					} else {
+						console.warn(
+							`[Sidebar] Failed to highlight and scroll to nugget: ${item.nugget.fullContent?.substring(0, 50)}...`,
+						);
+					}
+
 					// Mark this highlighted item as visited
 					this.allItems[globalIndex].highlightVisited = true;
 					// Remove the highlight indicator immediately
