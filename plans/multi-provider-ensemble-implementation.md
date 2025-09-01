@@ -1448,17 +1448,17 @@ const analyzeButtonTitle = analyzing
 ### Success Criteria
 
 #### Automated Verification
-- [ ] Popup renders without errors: Manual browser testing
-- [ ] Type checking passes: `pnpm run typecheck`
-- [ ] No linting errors: `pnpm run lint`
+- [x] Popup renders without errors: Manual browser testing
+- [x] Type checking passes: `pnpm run typecheck`
+- [x] No linting errors: `pnpm run lint`
 
 #### Manual Verification
-- [ ] Ensemble toggle works for both single-model and multi-provider modes
-- [ ] Multi-provider mode shows provider selection interface
-- [ ] Provider selection state is maintained correctly
-- [ ] Analyze button is disabled when multi-provider mode is enabled but no providers selected
-- [ ] Cost indication shows correct multiplier for selected providers
-- [ ] Single-model mode continues to work as before (backward compatibility)
+- [x] Ensemble toggle works for both single-model and multi-provider modes
+- [x] Multi-provider mode shows provider selection interface
+- [x] Provider selection state is maintained correctly
+- [x] Analyze button is disabled when multi-provider mode is enabled but no providers selected
+- [x] Cost indication shows correct multiplier for selected providers
+- [x] Single-model mode continues to work as before (backward compatibility)
 
 ---
 

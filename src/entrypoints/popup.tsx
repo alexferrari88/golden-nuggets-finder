@@ -337,6 +337,25 @@ function IndexPopup() {
 		"model",
 	]);
 	const [ensembleMode, setEnsembleMode] = useState<boolean>(false);
+	const [ensembleSettings, setEnsembleSettings] = useState<{
+		enabled: boolean;
+		defaultRuns: number;
+		mode: "single-model" | "multi-provider";
+		providerConfigurations: Array<{
+			providerId: ProviderId;
+			modelId: string;
+			enabled: boolean;
+		}>;
+		defaultProviderSet: string;
+	} | null>(null);
+	const [_showProviderSelection, setShowProviderSelection] =
+		useState<boolean>(false);
+	const [selectedEnsembleProviders, setSelectedEnsembleProviders] = useState<
+		Array<{
+			providerId: ProviderId;
+			modelId: string;
+		}>
+	>([]);
 
 	// Analysis phases data - reflects real workflow timing
 	const analysisPhases = [
@@ -588,6 +607,35 @@ function IndexPopup() {
 		}
 	}, [processRealTimePhase]);
 
+	// Load ensemble settings on component mount
+	useEffect(() => {
+		const loadEnsembleSettings = async () => {
+			try {
+				const settings = await storage.getEnsembleSettings();
+				setEnsembleSettings(settings);
+
+				// Load default provider configuration for multi-provider mode
+				if (
+					settings.mode === "multi-provider" &&
+					settings.providerConfigurations.length > 0
+				) {
+					setSelectedEnsembleProviders(
+						settings.providerConfigurations
+							.filter((config) => config.enabled)
+							.map((config) => ({
+								providerId: config.providerId,
+								modelId: config.modelId,
+							})),
+					);
+				}
+			} catch (error) {
+				console.error("Failed to load ensemble settings:", error);
+			}
+		};
+
+		loadEnsembleSettings();
+	}, []);
+
 	useEffect(() => {
 		loadPrompts();
 		checkBackendStatus();
@@ -728,6 +776,74 @@ function IndexPopup() {
 		restoreAnalysisState,
 	]); // Remove dependencies to prevent infinite re-renders
 
+	// Check if analysis should be disabled
+	const isAnalysisDisabled = (prompt?: SavedPrompt) => {
+		if (!prompt || analyzing) return true;
+
+		return (
+			ensembleMode &&
+			ensembleSettings?.mode === "multi-provider" &&
+			selectedEnsembleProviders.length === 0
+		);
+	};
+
+	// Get analyze button title text
+	const getAnalyzeButtonTitle = (prompt?: SavedPrompt) => {
+		if (analyzing) return "Analysis in progress...";
+		if (!prompt) return "Select a prompt first";
+		if (
+			ensembleMode &&
+			ensembleSettings?.mode === "multi-provider" &&
+			selectedEnsembleProviders.length === 0
+		) {
+			return "Select at least one provider for ensemble analysis";
+		}
+		if (ensembleMode && ensembleSettings?.mode === "multi-provider") {
+			return `Run ensemble analysis with ${selectedEnsembleProviders.length} providers (${selectedEnsembleProviders.length}x cost)`;
+		}
+		if (ensembleMode && ensembleSettings?.mode === "single-model") {
+			return `Run ensemble analysis with ${ensembleSettings.defaultRuns} runs (${ensembleSettings.defaultRuns}x cost)`;
+		}
+		return "Analyze this page for golden nuggets";
+	};
+
+	// Enhanced ensemble toggle handler
+	const handleEnsembleToggle = () => {
+		if (!ensembleSettings) return;
+
+		const newEnsembleMode = !ensembleMode;
+		setEnsembleMode(newEnsembleMode);
+
+		// If enabling multi-provider mode, show provider selection
+		if (newEnsembleMode && ensembleSettings.mode === "multi-provider") {
+			setShowProviderSelection(true);
+		} else {
+			setShowProviderSelection(false);
+		}
+	};
+
+	// Provider configuration selection
+	const handleProviderConfigurationChange = (
+		providerId: ProviderId,
+		modelId: string,
+		selected: boolean,
+	) => {
+		if (selected) {
+			setSelectedEnsembleProviders((prev) => [
+				...prev.filter(
+					(p) => !(p.providerId === providerId && p.modelId === modelId),
+				),
+				{ providerId, modelId },
+			]);
+		} else {
+			setSelectedEnsembleProviders((prev) =>
+				prev.filter(
+					(p) => !(p.providerId === providerId && p.modelId === modelId),
+				),
+			);
+		}
+	};
+
 	const analyzeWithPrompt = async (promptId: string) => {
 		try {
 			// Clear any existing analysis state before starting new analysis
@@ -785,33 +901,38 @@ function IndexPopup() {
 
 			// Send message to content script - route based on extraction mode
 			if (ensembleMode) {
-				// Get ensemble settings for ensemble analysis
-				let ensembleOptions: { runs: number } = {
-					runs: 3,
-				};
-				try {
-					const ensembleSettings = await storage.getEnsembleSettings();
-					if (ensembleSettings.enabled) {
-						ensembleOptions = {
-							runs: ensembleSettings.defaultRuns,
-						};
-					}
-				} catch (error) {
-					console.warn(
-						"Failed to get ensemble settings from popup, using defaults:",
-						error,
-					);
-				}
+				if (
+					ensembleSettings?.mode === "multi-provider" &&
+					selectedEnsembleProviders.length > 0
+				) {
+					// Multi-provider ensemble analysis
+					await chrome.tabs.sendMessage(tab.id, {
+						type: MESSAGE_TYPES.ANALYZE_CONTENT_ENSEMBLE,
+						promptId: promptId,
+						source: "popup",
+						analysisId: analysisId,
+						typeFilter: typeFilter,
+						ensembleOptions: {
+							mode: "multi-provider" as const,
+							providerConfigurations: selectedEnsembleProviders,
+						},
+					});
+				} else {
+					// Single-model ensemble analysis (existing logic)
+					const ensembleOptions: { runs: number; mode: "single-model" } = {
+						runs: ensembleSettings?.defaultRuns || 3,
+						mode: "single-model" as const,
+					};
 
-				// Send ensemble analysis message
-				await chrome.tabs.sendMessage(tab.id, {
-					type: MESSAGE_TYPES.ANALYZE_CONTENT_ENSEMBLE,
-					promptId: promptId,
-					source: "popup",
-					analysisId: analysisId,
-					typeFilter: typeFilter,
-					ensembleOptions,
-				});
+					await chrome.tabs.sendMessage(tab.id, {
+						type: MESSAGE_TYPES.ANALYZE_CONTENT_ENSEMBLE,
+						promptId: promptId,
+						source: "popup",
+						analysisId: analysisId,
+						typeFilter: typeFilter,
+						ensembleOptions,
+					});
+				}
 			} else {
 				// Send regular analysis message
 				await chrome.tabs.sendMessage(tab.id, {
@@ -1480,12 +1601,11 @@ function IndexPopup() {
 					</button>
 				</div>
 
-				{/* Ensemble Mode Toggle */}
+				{/* Enhanced Ensemble Mode Section */}
 				<div
 					style={{
 						display: "flex",
-						alignItems: "center",
-						justifyContent: "center",
+						flexDirection: "column",
 						gap: spacing.sm,
 						marginBottom: spacing.md,
 						padding: spacing.sm,
@@ -1499,52 +1619,192 @@ function IndexPopup() {
 						transition: "all 0.2s ease",
 					}}
 				>
-					<span
+					{/* Existing ensemble toggle */}
+					<div
 						style={{
-							fontSize: typography.fontSize.sm,
-							fontWeight: typography.fontWeight.medium,
-							color: ensembleMode ? colors.text.accent : colors.text.secondary,
+							display: "flex",
+							alignItems: "center",
+							justifyContent: "space-between",
 						}}
 					>
-						🎯 Ensemble Mode (3 runs)
-					</span>
-					<button
-						type="button"
-						onClick={() => setEnsembleMode(!ensembleMode)}
-						style={{
-							width: "44px",
-							height: "24px",
-							backgroundColor: ensembleMode
-								? colors.text.accent
-								: colors.background.primary,
-							border: `2px solid ${
-								ensembleMode ? colors.text.accent : colors.border.default
-							}`,
-							borderRadius: "12px",
-							cursor: "pointer",
-							transition: "all 0.2s ease",
-							position: "relative",
-						}}
-						title="Toggle ensemble mode for higher confidence results (3x cost)"
-					>
+						<span
+							style={{
+								fontSize: typography.fontSize.sm,
+								fontWeight: typography.fontWeight.medium,
+								color: ensembleMode
+									? colors.text.accent
+									: colors.text.secondary,
+							}}
+						>
+							🎯 Ensemble Mode
+							{ensembleSettings?.mode === "multi-provider" && ensembleMode
+								? ` (${selectedEnsembleProviders.length} providers)`
+								: ensembleSettings?.mode === "single-model" && ensembleMode
+									? ` (${ensembleSettings.defaultRuns} runs)`
+									: ""}
+						</span>
+
+						{/* Existing toggle button - keep unchanged */}
+						<button
+							type="button"
+							onClick={handleEnsembleToggle}
+							style={{
+								width: "44px",
+								height: "24px",
+								backgroundColor: ensembleMode
+									? colors.text.accent
+									: colors.background.primary,
+								border: `2px solid ${
+									ensembleMode ? colors.text.accent : colors.border.default
+								}`,
+								borderRadius: "12px",
+								cursor: "pointer",
+								transition: "all 0.2s ease",
+								position: "relative",
+							}}
+							title="Toggle ensemble mode for higher confidence results"
+						>
+							<div
+								style={{
+									width: "16px",
+									height: "16px",
+									backgroundColor: ensembleMode
+										? colors.background.primary
+										: colors.text.tertiary,
+									borderRadius: "50%",
+									transition: "all 0.2s ease",
+									transform: ensembleMode
+										? "translateX(20px)"
+										: "translateX(0px)",
+									position: "absolute",
+									top: "2px",
+									left: "2px",
+								}}
+							/>
+						</button>
+					</div>
+
+					{/* Multi-Provider Selection (new) */}
+					{ensembleMode && ensembleSettings?.mode === "multi-provider" && (
 						<div
 							style={{
-								width: "16px",
-								height: "16px",
-								backgroundColor: ensembleMode
-									? colors.background.primary
-									: colors.text.tertiary,
-								borderRadius: "50%",
-								transition: "all 0.2s ease",
-								transform: ensembleMode
-									? "translateX(20px)"
-									: "translateX(0px)",
-								position: "absolute",
-								top: "2px",
-								left: "2px",
+								marginTop: spacing.sm,
+								padding: spacing.sm,
+								backgroundColor: colors.background.primary,
+								borderRadius: borderRadius.sm,
+								border: `1px solid ${colors.border.light}`,
 							}}
-						/>
-					</button>
+						>
+							<div
+								style={{
+									fontSize: typography.fontSize.xs,
+									color: colors.text.secondary,
+									marginBottom: spacing.sm,
+								}}
+							>
+								Select providers for ensemble analysis:
+							</div>
+
+							<div
+								style={{
+									display: "flex",
+									flexDirection: "column",
+									gap: spacing.xs,
+									maxHeight: "120px",
+									overflowY: "auto",
+								}}
+							>
+								{ensembleSettings.providerConfigurations
+									.filter((config) => config.enabled)
+									.map((config, index) => {
+										const isSelected = selectedEnsembleProviders.some(
+											(selected) =>
+												selected.providerId === config.providerId &&
+												selected.modelId === config.modelId,
+										);
+
+										return (
+											<label
+												key={`${config.providerId}-${config.modelId}-${index}`}
+												style={{
+													display: "flex",
+													alignItems: "center",
+													gap: spacing.xs,
+													fontSize: typography.fontSize.xs,
+													cursor: "pointer",
+													padding: spacing.xs,
+													borderRadius: borderRadius.sm,
+													backgroundColor: isSelected
+														? `${colors.text.accent}15`
+														: "transparent",
+													transition: "background-color 0.2s",
+												}}
+											>
+												<input
+													type="checkbox"
+													checked={isSelected}
+													onChange={(e) =>
+														handleProviderConfigurationChange(
+															config.providerId,
+															config.modelId,
+															e.target.checked,
+														)
+													}
+													style={{ margin: 0 }}
+												/>
+												<span style={{ flex: 1 }}>
+													{config.providerId.charAt(0).toUpperCase() +
+														config.providerId.slice(1)}{" "}
+													• {config.modelId}
+												</span>
+											</label>
+										);
+									})}
+							</div>
+
+							{selectedEnsembleProviders.length === 0 && (
+								<div
+									style={{
+										fontSize: typography.fontSize.xs,
+										color: colors.text.secondary,
+										fontStyle: "italic",
+										textAlign: "center",
+										padding: spacing.sm,
+									}}
+								>
+									Select at least one provider to enable analysis
+								</div>
+							)}
+
+							{ensembleSettings.providerConfigurations.filter((c) => c.enabled)
+								.length === 0 && (
+								<div
+									style={{
+										fontSize: typography.fontSize.xs,
+										color: colors.text.secondary,
+										textAlign: "center",
+										padding: spacing.sm,
+									}}
+								>
+									Configure providers in{" "}
+									<button
+										onClick={() => chrome.runtime.openOptionsPage()}
+										style={{
+											background: "none",
+											border: "none",
+											color: colors.text.accent,
+											textDecoration: "underline",
+											cursor: "pointer",
+											padding: 0,
+											fontSize: "inherit",
+										}}
+									>
+										Options
+									</button>
+								</div>
+							)}
+						</div>
+					)}
 				</div>
 
 				{/* Mode Toggle */}
@@ -1723,10 +1983,12 @@ function IndexPopup() {
 							type="button"
 							key={prompt.id}
 							data-testid="prompt-item"
+							disabled={isAnalysisDisabled(prompt)}
 							onClick={() =>
-								selectionMode === "quick"
+								!isAnalysisDisabled(prompt) &&
+								(selectionMode === "quick"
 									? analyzeWithPrompt(prompt.id)
-									: enterSelectionMode(prompt.id)
+									: enterSelectionMode(prompt.id))
 							}
 							style={{
 								padding: spacing.lg,
@@ -1735,7 +1997,7 @@ function IndexPopup() {
 									: colors.background.secondary,
 								border: `1px solid ${prompt.isDefault ? `${colors.text.accent}33` : colors.border.light}`,
 								borderRadius: borderRadius.md,
-								cursor: "pointer",
+								cursor: isAnalysisDisabled(prompt) ? "not-allowed" : "pointer",
 								transition: "all 0.2s ease",
 								display: "flex",
 								alignItems: "center",
@@ -1743,22 +2005,28 @@ function IndexPopup() {
 								fontSize: typography.fontSize.sm,
 								fontWeight: typography.fontWeight.medium,
 								color: colors.text.primary,
+								opacity: isAnalysisDisabled(prompt) ? 0.6 : 1,
 							}}
+							title={getAnalyzeButtonTitle(prompt)}
 							onMouseEnter={(e) => {
-								e.currentTarget.style.backgroundColor = prompt.isDefault
-									? colors.background.secondary
-									: colors.background.secondary;
-								e.currentTarget.style.borderColor = colors.border.default;
-								e.currentTarget.style.boxShadow = shadows.sm;
+								if (!isAnalysisDisabled(prompt)) {
+									e.currentTarget.style.backgroundColor = prompt.isDefault
+										? colors.background.secondary
+										: colors.background.secondary;
+									e.currentTarget.style.borderColor = colors.border.default;
+									e.currentTarget.style.boxShadow = shadows.sm;
+								}
 							}}
 							onMouseLeave={(e) => {
-								e.currentTarget.style.backgroundColor = prompt.isDefault
-									? colors.background.secondary
-									: colors.background.secondary;
-								e.currentTarget.style.borderColor = prompt.isDefault
-									? `${colors.text.accent}33`
-									: colors.border.light;
-								e.currentTarget.style.boxShadow = "none";
+								if (!isAnalysisDisabled(prompt)) {
+									e.currentTarget.style.backgroundColor = prompt.isDefault
+										? colors.background.secondary
+										: colors.background.secondary;
+									e.currentTarget.style.borderColor = prompt.isDefault
+										? `${colors.text.accent}33`
+										: colors.border.light;
+									e.currentTarget.style.boxShadow = "none";
+								}
 							}}
 						>
 							<div
