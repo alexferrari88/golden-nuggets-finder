@@ -310,8 +310,8 @@ function getFallbackModels(providerId: ProviderId): ModelInfo[] {
 	const fallbackModels = {
 		gemini: [
 			{
-				id: "gemini-2.5-flash",
-				name: "Gemini 2.5 Flash",
+				id: "gemini-2.5-flash-lite",
+				name: "Gemini 2.5 Flash Lite",
 				description: "Fast, cost-effective model",
 			},
 			{

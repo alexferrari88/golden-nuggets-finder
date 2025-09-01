@@ -12,7 +12,7 @@ export class GeminiDirectProvider implements LLMProvider {
 	private geminiClient: GeminiClient;
 
 	constructor(private config: ProviderConfig) {
-		this.modelName = config.modelName || "gemini-2.5-flash";
+		this.modelName = config.modelName || "gemini-2.5-flash-lite";
 		this.geminiClient = new GeminiClient();
 	}
 

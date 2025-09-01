@@ -7,7 +7,7 @@ export const STORAGE_KEYS = {
 } as const;
 
 export const GEMINI_CONFIG = {
-	MODEL: "gemini-2.5-flash",
+	MODEL: "gemini-2.5-flash-lite",
 	THINKING_BUDGET: -1,
 } as const;
 

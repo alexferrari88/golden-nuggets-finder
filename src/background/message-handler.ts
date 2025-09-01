@@ -2187,7 +2187,7 @@ export class MessageHandler {
 				...feedback,
 				modelProvider: providerInfo.lastUsedProvider?.providerId || "gemini",
 				modelName:
-					providerInfo.lastUsedProvider?.modelName || "gemini-2.5-flash",
+					providerInfo.lastUsedProvider?.modelName || "gemini-2.5-flash-lite",
 				prompt: providerInfo.lastUsedPrompt || {
 					id: "unknown",
 					version: "original",
@@ -2344,7 +2344,7 @@ export class MessageHandler {
 					...feedback,
 					modelProvider: providerInfo.lastUsedProvider?.providerId || "gemini",
 					modelName:
-						providerInfo.lastUsedProvider?.modelName || "gemini-2.5-flash",
+						providerInfo.lastUsedProvider?.modelName || "gemini-2.5-flash-lite",
 					prompt: providerInfo.lastUsedPrompt || {
 						id: "unknown",
 						version: "original",

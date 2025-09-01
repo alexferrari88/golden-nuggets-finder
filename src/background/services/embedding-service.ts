@@ -202,7 +202,7 @@ export class EmbeddingService {
 			const data = await response.json();
 			debugLogger.log(
 				`[EmbeddingService] Response data:`,
-				JSON.stringify(data, null, 2),
+				JSON.stringify(data, null, 2).substring(0, 200), // Limit to 200 chars
 			);
 
 			if (isBatch) {
