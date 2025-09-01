@@ -695,16 +695,16 @@ private async handleSingleModelEnsemble(
 ### Success Criteria
 
 #### Automated Verification
-- [ ] Message handler tests pass: `pnpm vitest run src/background/message-handler.test.ts`
-- [ ] Type checking passes: `pnpm run typecheck`
-- [ ] No linting errors: `pnpm run lint`
+- [x] Message handler tests pass: `pnpm vitest run src/background/message-handler.test.ts`
+- [x] Type checking passes: `pnpm run typecheck`
+- [x] No linting errors: `pnpm run lint`
 
 #### Manual Verification
-- [ ] Multi-provider ensemble analysis completes end-to-end from popup
-- [ ] Progress messages are sent correctly during multi-provider analysis
-- [ ] Single-model ensemble still works without changes
-- [ ] Provider failures are handled gracefully with partial results
-- [ ] Results include correct provider metadata for display
+- [x] Multi-provider ensemble analysis completes end-to-end from popup
+- [x] Progress messages are sent correctly during multi-provider analysis
+- [x] Single-model ensemble still works without changes
+- [x] Provider failures are handled gracefully with partial results
+- [x] Results include correct provider metadata for display
 
 ---
 

@@ -32,7 +32,12 @@ import {
 	handleSwitchError,
 	resetRetryCount,
 } from "./services/error-handler";
-import { createProvider, getSelectedModel } from "./services/provider-factory";
+import {
+	createMultipleProviders,
+	createProvider,
+	getSelectedModel,
+	validateProviderConfigurations,
+} from "./services/provider-factory";
 import {
 	getAvailableProviders,
 	getCurrentProvider,
@@ -1342,175 +1347,389 @@ export class MessageHandler {
 		sendResponse: (response: EnsembleAnalysisResponse) => void,
 	): Promise<void> {
 		try {
-			const analysisId = request.analysisId || generateAnalysisId();
+			// Get ensemble settings to determine mode
+			const ensembleSettings = await storage.getEnsembleSettings();
+			const ensembleOptions = request.ensembleOptions || {
+				runs: ensembleSettings.defaultRuns,
+				mode: ensembleSettings.mode || "single-model",
+			};
 
-			// Get prompt and validate persona (same as existing)
-			const prompts = await storage.getPrompts();
-			let prompt: SavedPrompt | undefined;
-
-			if (request.promptId === "default") {
-				prompt = (await storage.getDefaultPrompt()) || undefined;
+			// Determine extraction approach based on mode
+			if (
+				ensembleOptions.mode === "multi-provider" &&
+				ensembleOptions.providerConfigurations
+			) {
+				await this.handleMultiProviderEnsemble(
+					request,
+					ensembleOptions as {
+						mode: "multi-provider";
+						providerConfigurations: Array<{
+							providerId: ProviderId;
+							modelId: string;
+						}>;
+					},
+					sender,
+					sendResponse,
+				);
 			} else {
-				prompt = prompts.find((p) => p.id === request.promptId);
-			}
-
-			if (!prompt) {
-				sendResponse({ success: false, error: "Prompt not found" });
-				return;
-			}
-
-			// Validate persona is configured
-			const persona = await storage.getPersona();
-			if (!persona || persona.trim().length === 0) {
-				sendResponse({
-					success: false,
-					error:
-						"Please set a persona in extension options before analyzing content",
-				});
-				return;
-			}
-
-			// Send enhanced progress: ensemble extraction starting
-			this.sendProgressMessage(
-				MESSAGE_TYPES.ENSEMBLE_EXTRACTION_PROGRESS,
-				1,
-				`Starting ensemble extraction (${request.ensembleOptions?.runs || 3} runs)`,
-				analysisId,
-				request.source || "context-menu",
-				sender.tab?.id,
-			);
-
-			// Get provider configuration
-			const providerConfig = await MessageHandler.getSelectedProvider();
-			const provider = await createProvider(providerConfig);
-
-			// Process prompt (same as existing system)
-			let processedPrompt = this.replaceSourcePlaceholder(
-				prompt.prompt,
-				request.url,
-			);
-			processedPrompt = await this.replacePersonaPlaceholder(processedPrompt);
-
-			// Check if we should use optimized prompt from backend
-			try {
-				const optimizedPromptResponse =
-					await this.getOptimizedPromptIfAvailable(prompt.id);
-				if (optimizedPromptResponse?.prompt) {
-					console.log(
-						`Using optimized prompt for ${prompt.id} from backend DSPy system for ensemble`,
-					);
-					processedPrompt = this.replaceSourcePlaceholder(
-						optimizedPromptResponse.prompt,
-						request.url,
-					);
-					// Also replace persona placeholder for optimized prompt
-					processedPrompt =
-						await this.replacePersonaPlaceholder(processedPrompt);
-				}
-			} catch (error) {
-				console.log(
-					`No optimized prompt available for ${prompt.id} for ensemble, using default:`,
-					(error as Error).message,
-				);
-				// Continue with default prompt
-			}
-
-			// Apply type filtering if specified
-			if (request.typeFilter && request.typeFilter.selectedTypes.length > 0) {
-				processedPrompt = generateFilteredPrompt(
-					processedPrompt,
-					request.typeFilter.selectedTypes,
+				await this.handleSingleModelEnsemble(
+					request,
+					ensembleOptions as { runs: number; mode: "single-model" },
+					sender,
+					sendResponse,
 				);
 			}
-
-			// Send progress: consensus building
-			this.sendProgressMessage(
-				MESSAGE_TYPES.ENSEMBLE_EXTRACTION_PROGRESS,
-				2,
-				"Building consensus across runs",
-				analysisId,
-				request.source || "context-menu",
-				sender.tab?.id,
-			);
-
-			// Execute ensemble extraction
-			const ensembleOptions = {
-				runs: request.ensembleOptions?.runs || 3,
-				temperature: 0.7,
-				parallelExecution: true,
-			};
-
-			const result = await this.ensembleExtractor.extractWithEnsemble(
-				request.content,
-				processedPrompt,
-				provider,
-				ensembleOptions,
-			);
-
-			// Send progress: processing results
-			this.sendProgressMessage(
-				MESSAGE_TYPES.ENSEMBLE_CONSENSUS_COMPLETE,
-				3,
-				"Processing ensemble results",
-				analysisId,
-				request.source || "context-menu",
-				sender.tab?.id,
-			);
-
-			// Add provider metadata
-			const resultWithMetadata = {
-				...result,
-				providerMetadata: {
-					providerId: provider.providerId,
-					modelName: provider.modelName,
-					ensembleRuns: ensembleOptions.runs,
-					consensusMethod: "majority-voting-v1",
-				},
-			};
-
-			// Send results to content script
-			if (sender.tab?.id) {
-				await chrome.tabs.sendMessage(sender.tab.id, {
-					type: MESSAGE_TYPES.ANALYSIS_COMPLETE,
-					data: resultWithMetadata,
-				});
-			}
-
-			// Clear analysis state from storage since ensemble analysis completed successfully
-			// This fixes the popup loading issue where state wasn't cleaned up because popup closed before receiving completion message
-			try {
-				await storage.clearAnalysisState();
-				console.log(
-					"[Background] Analysis state cleared after successful ensemble completion",
-				);
-			} catch (error) {
-				console.warn(
-					"[Background] Failed to clear analysis state after ensemble completion:",
-					error,
-				);
-				// Continue anyway - don't fail the analysis response for cleanup issues
-			}
-
-			sendResponse({ success: true, data: resultWithMetadata });
 		} catch (error) {
 			console.error("Ensemble analysis failed:", error);
-			sendResponse({ success: false, error: (error as Error).message });
-
-			// Clear analysis state from storage since analysis failed
-			// This fixes the popup loading issue where state wasn't cleaned up after analysis errors
-			try {
-				await storage.clearAnalysisState();
-				console.log(
-					"[Background] Analysis state cleared after ensemble analysis error",
-				);
-			} catch (cleanupError) {
-				console.warn(
-					"[Background] Failed to clear analysis state after ensemble error:",
-					cleanupError,
-				);
-				// Continue anyway - cleanup failure shouldn't prevent error response
-			}
+			sendResponse({
+				success: false,
+				error: `Ensemble analysis failed: ${(error as Error).message}`,
+			});
 		}
+	}
+
+	private async handleMultiProviderEnsemble(
+		request: EnsembleAnalysisRequest,
+		ensembleOptions: {
+			mode: "multi-provider";
+			providerConfigurations: Array<{
+				providerId: ProviderId;
+				modelId: string;
+			}>;
+		},
+		sender: chrome.runtime.MessageSender,
+		sendResponse: (response: EnsembleAnalysisResponse) => void,
+	): Promise<void> {
+		const analysisId = request.analysisId || generateAnalysisId();
+
+		// Validate provider configurations
+		const validation = validateProviderConfigurations(
+			ensembleOptions.providerConfigurations,
+		);
+		if (!validation.valid) {
+			throw new Error(
+				`Invalid provider configurations: ${validation.errors.join(", ")}`,
+			);
+		}
+
+		// Send progress message
+		this.sendProgressMessage(
+			MESSAGE_TYPES.ENSEMBLE_EXTRACTION_PROGRESS,
+			1,
+			`Creating ${ensembleOptions.providerConfigurations.length} provider instances...`,
+			analysisId,
+			request.source || "context-menu",
+			sender.tab?.id,
+		);
+
+		// Create all required providers
+		const providerInstances = await createMultipleProviders(
+			ensembleOptions.providerConfigurations,
+		);
+
+		if (providerInstances.length === 0) {
+			throw new Error(
+				"No valid providers could be created for ensemble analysis",
+			);
+		}
+
+		// Send progress message
+		this.sendProgressMessage(
+			MESSAGE_TYPES.ENSEMBLE_EXTRACTION_PROGRESS,
+			2,
+			`Running analysis across ${providerInstances.length} providers...`,
+			analysisId,
+			request.source || "context-menu",
+			sender.tab?.id,
+		);
+
+		// Get prompt and validate persona (same as existing)
+		const prompts = await storage.getPrompts();
+		let savedPrompt: SavedPrompt | undefined;
+
+		if (request.promptId === "default") {
+			savedPrompt = (await storage.getDefaultPrompt()) || undefined;
+		} else {
+			savedPrompt = prompts.find((p) => p.id === request.promptId);
+		}
+
+		if (!savedPrompt) {
+			sendResponse({ success: false, error: "Prompt not found" });
+			return;
+		}
+
+		// Validate persona is configured
+		const persona = await storage.getPersona();
+		if (!persona || persona.trim().length === 0) {
+			sendResponse({
+				success: false,
+				error:
+					"Please set a persona in extension options before analyzing content",
+			});
+			return;
+		}
+
+		// Process prompt (same as existing system)
+		let processedPrompt = this.replaceSourcePlaceholder(
+			savedPrompt.prompt,
+			request.url,
+		);
+		processedPrompt = await this.replacePersonaPlaceholder(processedPrompt);
+
+		// Check if we should use optimized prompt from backend
+		try {
+			const optimizedPromptResponse = await this.getOptimizedPromptIfAvailable(
+				savedPrompt.id,
+			);
+			if (optimizedPromptResponse?.prompt) {
+				console.log(
+					`Using optimized prompt for ${savedPrompt.id} from backend DSPy system for multi-provider ensemble`,
+				);
+				processedPrompt = this.replaceSourcePlaceholder(
+					optimizedPromptResponse.prompt,
+					request.url,
+				);
+				processedPrompt = await this.replacePersonaPlaceholder(processedPrompt);
+			}
+		} catch (error) {
+			console.log(
+				`No optimized prompt available for ${savedPrompt.id} for multi-provider ensemble, using default:`,
+				(error as Error).message,
+			);
+		}
+
+		// Apply type filtering if specified
+		if (request.typeFilter && request.typeFilter.selectedTypes.length > 0) {
+			processedPrompt = generateFilteredPrompt(
+				processedPrompt,
+				request.typeFilter.selectedTypes,
+			);
+		}
+
+		// Execute multi-provider ensemble
+		const result = await this.ensembleExtractor.extractWithMultiProvider(
+			request.content,
+			processedPrompt,
+			providerInstances,
+			{}, // Similarity options - using defaults
+		);
+
+		// Apply confidence filtering
+		const filteredResult = MessageHandler.filterByConfidence(
+			result.golden_nuggets,
+		);
+		const finalResult = {
+			...result,
+			golden_nuggets: filteredResult,
+		};
+
+		// Send consensus complete message
+		this.sendProgressMessage(
+			MESSAGE_TYPES.ENSEMBLE_CONSENSUS_COMPLETE,
+			3,
+			`Consensus reached from ${providerInstances.length} providers`,
+			analysisId,
+			request.source || "context-menu",
+			sender.tab?.id,
+		);
+
+		// Send final results
+		const responseData = {
+			type: MESSAGE_TYPES.ANALYSIS_COMPLETE,
+			golden_nuggets: finalResult.golden_nuggets,
+			metadata: {
+				...finalResult.metadata,
+				extractionMode: "multi-provider-ensemble",
+				providersUsed: result.metadata.providersUsed,
+			},
+			providerMetadata: {
+				providerId: "multi-provider" as ProviderId, // Special case for display
+				modelName: providerInstances
+					.map((p) => `${p.providerId}:${p.modelId}`)
+					.join(", "),
+				responseTime: result.metadata.averageResponseTime,
+				ensembleRuns: providerInstances.length,
+				consensusMethod: "hybrid-similarity-v1",
+			},
+		};
+
+		// Send results to content script
+		if (sender.tab?.id) {
+			await chrome.tabs.sendMessage(sender.tab.id, responseData);
+		}
+
+		// Clear analysis state from storage
+		try {
+			await storage.clearAnalysisState();
+			console.log(
+				"[Background] Analysis state cleared after successful multi-provider ensemble completion",
+			);
+		} catch (error) {
+			console.warn(
+				"[Background] Failed to clear analysis state after multi-provider ensemble completion:",
+				error,
+			);
+		}
+
+		sendResponse({ success: true, data: responseData });
+	}
+
+	private async handleSingleModelEnsemble(
+		request: EnsembleAnalysisRequest,
+		ensembleOptions: { runs: number; mode: "single-model" },
+		sender: chrome.runtime.MessageSender,
+		sendResponse: (response: EnsembleAnalysisResponse) => void,
+	): Promise<void> {
+		const analysisId = request.analysisId || generateAnalysisId();
+
+		// Get provider
+		const provider = await getCurrentProvider();
+		if (!provider) {
+			throw new Error("No provider available for single-model ensemble");
+		}
+
+		// Send progress message
+		this.sendProgressMessage(
+			MESSAGE_TYPES.ENSEMBLE_EXTRACTION_PROGRESS,
+			1,
+			`Starting ensemble analysis with ${ensembleOptions.runs} runs...`,
+			analysisId,
+			request.source || "context-menu",
+			sender.tab?.id,
+		);
+
+		// Get prompt and validate persona (same as existing)
+		const prompts = await storage.getPrompts();
+		let savedPrompt: SavedPrompt | undefined;
+
+		if (request.promptId === "default") {
+			savedPrompt = (await storage.getDefaultPrompt()) || undefined;
+		} else {
+			savedPrompt = prompts.find((p) => p.id === request.promptId);
+		}
+
+		if (!savedPrompt) {
+			sendResponse({ success: false, error: "Prompt not found" });
+			return;
+		}
+
+		// Validate persona is configured
+		const persona = await storage.getPersona();
+		if (!persona || persona.trim().length === 0) {
+			sendResponse({
+				success: false,
+				error:
+					"Please set a persona in extension options before analyzing content",
+			});
+			return;
+		}
+
+		// Process prompt (same as existing system)
+		let processedPrompt = this.replaceSourcePlaceholder(
+			savedPrompt.prompt,
+			request.url,
+		);
+		processedPrompt = await this.replacePersonaPlaceholder(processedPrompt);
+
+		// Check if we should use optimized prompt from backend
+		try {
+			const optimizedPromptResponse = await this.getOptimizedPromptIfAvailable(
+				savedPrompt.id,
+			);
+			if (optimizedPromptResponse?.prompt) {
+				console.log(
+					`Using optimized prompt for ${savedPrompt.id} from backend DSPy system for single-model ensemble`,
+				);
+				processedPrompt = this.replaceSourcePlaceholder(
+					optimizedPromptResponse.prompt,
+					request.url,
+				);
+				processedPrompt = await this.replacePersonaPlaceholder(processedPrompt);
+			}
+		} catch (error) {
+			console.log(
+				`No optimized prompt available for ${savedPrompt.id} for single-model ensemble, using default:`,
+				(error as Error).message,
+			);
+		}
+
+		// Apply type filtering if specified
+		if (request.typeFilter && request.typeFilter.selectedTypes.length > 0) {
+			processedPrompt = generateFilteredPrompt(
+				processedPrompt,
+				request.typeFilter.selectedTypes,
+			);
+		}
+
+		// Create provider instance
+		const providerConfig = await MessageHandler.getSelectedProvider();
+		const providerInstance = await createProvider(providerConfig);
+
+		const result = await this.ensembleExtractor.extractWithEnsemble(
+			request.content,
+			processedPrompt,
+			providerInstance,
+			{
+				runs: ensembleOptions.runs,
+				temperature: 0.7,
+				parallelExecution: true,
+				selectedTypes: request.typeFilter?.selectedTypes,
+			},
+		);
+
+		// Apply confidence filtering
+		const filteredResult = MessageHandler.filterByConfidence(
+			result.golden_nuggets,
+		);
+		const finalResult = {
+			...result,
+			golden_nuggets: filteredResult,
+		};
+
+		this.sendProgressMessage(
+			MESSAGE_TYPES.ENSEMBLE_CONSENSUS_COMPLETE,
+			2,
+			`Consensus reached from ${ensembleOptions.runs} runs`,
+			analysisId,
+			request.source || "context-menu",
+			sender.tab?.id,
+		);
+
+		const responseData = {
+			type: MESSAGE_TYPES.ANALYSIS_COMPLETE,
+			golden_nuggets: finalResult.golden_nuggets,
+			metadata: {
+				...finalResult.metadata,
+				extractionMode: "single-model-ensemble",
+			},
+			providerMetadata: {
+				providerId: provider,
+				modelName: await getSelectedModel(provider),
+				responseTime: result.metadata.averageResponseTime,
+				ensembleRuns: ensembleOptions.runs,
+				consensusMethod: "hybrid-similarity-v1",
+			},
+		};
+
+		// Send results to content script
+		if (sender.tab?.id) {
+			await chrome.tabs.sendMessage(sender.tab.id, responseData);
+		}
+
+		// Clear analysis state from storage
+		try {
+			await storage.clearAnalysisState();
+			console.log(
+				"[Background] Analysis state cleared after successful single-model ensemble completion",
+			);
+		} catch (error) {
+			console.warn(
+				"[Background] Failed to clear analysis state after single-model ensemble completion:",
+				error,
+			);
+		}
+
+		sendResponse({ success: true, data: responseData });
 	}
 
 	private async handleAnalyzeSelectedContent(
