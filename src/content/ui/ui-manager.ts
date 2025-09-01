@@ -1257,10 +1257,13 @@ export class UIManager {
 				};
 
 				// Use progressive matching with context
-				const highlighted = await measureHighlighting(
+				const highlightResult = await measureHighlighting(
 					"nugget_highlight_with_context",
 					() => this.highlighter.highlightNugget(contextAwareNugget),
 				);
+
+				// Extract success from the result object
+				const highlighted = highlightResult?.success;
 
 				sidebarItems.push({
 					nugget: nugget, // Enhanced nugget already matches GoldenNugget type

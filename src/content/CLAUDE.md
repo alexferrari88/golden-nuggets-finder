@@ -22,6 +22,53 @@ matches: ['https://example.com/*'] // Restrictive pattern - DO NOT CHANGE
 - Use dynamic injection in `background.ts` to inject content scripts on demand
 - Inject `content-scripts/content.js` using `chrome.scripting.executeScript()`
 
+## ⚠️ CRITICAL WARNING - CSS Highlight ID Consistency
+
+**NEVER change the CSS Custom Highlight API ID from the static "golden-nugget" constant.**
+
+The highlighter in `src/content/ui/highlighter.ts` uses CSS Custom Highlight API with this architecture:
+```typescript
+// CSS selector expects this exact ID
+::highlight(golden-nugget) {
+  background-color: ${colors.highlight.background};
+  color: ${colors.text.primary};
+}
+
+// Highlighter code MUST use this exact static ID
+private static readonly HIGHLIGHT_ID = "golden-nugget";
+CSS.highlights.set(Highlighter.HIGHLIGHT_ID, highlight);
+```
+
+**Why this is critical:**
+- CSS selector `::highlight(golden-nugget)` expects the exact ID "golden-nugget"
+- Using unique/dynamic IDs like `nugget-${timestamp}-${random}` breaks visual highlighting
+- Ranges are created and stored correctly, but no visual styling is applied
+- Users see no highlighting even though the technical implementation works
+
+**FORBIDDEN patterns:**
+```typescript
+// ❌ NEVER DO THIS - Dynamic IDs break CSS highlighting
+const highlightId = `nugget-${Date.now()}-${Math.random()}`;
+CSS.highlights.set(highlightId, highlight);
+
+// ❌ NEVER DO THIS - Wrong static ID
+CSS.highlights.set("custom-highlight", highlight);
+```
+
+**REQUIRED pattern:**
+```typescript
+// ✅ ALWAYS DO THIS - Use the static constant
+CSS.highlights.set(Highlighter.HIGHLIGHT_ID, highlight);
+```
+
+**What happens if you break this rule:**
+- CSS highlighting silently fails (no visual highlighting appears)
+- Text matching and range creation still works (confusing debugging)
+- Users cannot see golden nuggets on the page
+- Scrolling to highlights may fail
+
+**This architectural constraint exists because CSS Custom Highlight API requires the CSS selector ID to match the JavaScript highlight registration ID exactly.**
+
 ## Content Script Overview
 
 Content scripts are injected dynamically only when needed (not on all pages) and handle:
