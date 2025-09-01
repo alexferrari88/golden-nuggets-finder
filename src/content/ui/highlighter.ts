@@ -166,10 +166,12 @@ export class Highlighter {
 					caseSensitive: false, // Enable case-insensitive matching
 					each: (element) => {
 						console.log("Mark.js each callback called for element:", element);
-						// Apply design system styling
+						// Apply design system styling - Extract variables to avoid bundler template literal bug
+						const highlightBg = colors.highlight.background;
+						const primaryText = colors.text.primary;
 						(element as HTMLElement).style.cssText = `
-							background: ${colors.highlight.background};
-							color: ${colors.text.primary};
+							background: ${highlightBg};
+							color: ${primaryText};
 							border-radius: 2px;
 							padding: 0 2px;
 						`;
@@ -369,11 +371,13 @@ export class Highlighter {
 			document.head.appendChild(styleElement);
 		}
 
-		// Use design system colors for consistent styling
+		// Use design system colors for consistent styling - Extract variables to avoid bundler template literal bug
+		const highlightBg = colors.highlight.background;
+		const primaryText = colors.text.primary;
 		styleElement.textContent = `
 			::highlight(golden-nugget) {
-				background-color: ${colors.highlight.background};
-				color: ${colors.text.primary};
+				background-color: ${highlightBg};
+				color: ${primaryText};
 			}
 		`;
 	}
