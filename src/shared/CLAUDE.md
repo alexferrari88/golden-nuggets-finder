@@ -408,13 +408,13 @@ Core configuration values and defaults for fullContent extraction system:
 - **Gemini Configuration**: API model selection and thinking budget settings (`GEMINI_CONFIG`)
 - **Default Prompts**: Complete default prompt system with sophisticated persona-based analysis
 - **FullContent Prompts**: Optimized prompts for direct fullContent extraction
-  - **Default Prompt**: High-quality extraction emphasizing precision over recall
+  - **Default Prompt**: High-recall extraction with confidence filtering (≥0.85 threshold)
   - **Template Processing**: `processPromptTemplate()` function for dynamic prompt handling
-- **Confidence Thresholds**: Default confidence thresholds for quality control and filtering
+- **Confidence Filtering**: 0.85 threshold filtering applied after AI extraction for quality control
 
 ### Default Prompt System
 The extension includes a comprehensive default prompt that implements:
-- **Precision Over Recall**: Ultra-high quality filtering with preference for zero results over mediocre ones  
+- **High Recall with Confidence Filtering**: Generous extraction approach followed by 0.85 confidence threshold filtering
 - **Persona-Based Analysis**: Tailored for "Pragmatic Processor" with ADHD and INTP cognitive patterns
 - **Anti-Pattern Detection**: Sophisticated filtering to avoid meta-summaries and feature lists
 - **Extraction Categories**: Tools, Media, Explanations, Analogies, and Mental Models

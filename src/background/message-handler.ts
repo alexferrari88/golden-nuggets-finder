@@ -611,6 +611,17 @@ export class MessageHandler {
 		};
 	}
 
+	// Helper function to filter nuggets by confidence threshold
+	private static filterByConfidence(
+		nuggets: any[],
+		threshold: number = 0.85,
+	): any[] {
+		return nuggets.filter(
+			(nugget) =>
+				nugget.confidence !== undefined && nugget.confidence >= threshold,
+		);
+	}
+
 	// Helper to handle golden nuggets extraction using provider routing with error handling and fallback
 	static async handleExtractGoldenNuggets(
 		content: string,
@@ -683,8 +694,8 @@ export class MessageHandler {
 						);
 
 						// Convert ensemble result to enhanced response format (preserving metadata)
-						normalizedResponse = {
-							golden_nuggets: ensembleResult.golden_nuggets.map((nugget) => ({
+						const ensembleNuggets = ensembleResult.golden_nuggets.map(
+							(nugget) => ({
 								type: nugget.type as
 									| "tool"
 									| "media"
@@ -698,15 +709,26 @@ export class MessageHandler {
 								runsSupportingThis: nugget.runsSupportingThis,
 								totalRuns: nugget.totalRuns,
 								similarityMethod: nugget.similarityMethod,
-							})),
+							}),
+						);
+
+						// Apply confidence filtering (≥0.85 threshold)
+						const filteredEnsembleNuggets =
+							MessageHandler.filterByConfidence(ensembleNuggets);
+
+						normalizedResponse = {
+							golden_nuggets: filteredEnsembleNuggets,
 							metadata: {
 								...ensembleResult.metadata,
 								extractionMode: "ensemble",
+								preFilterCount: ensembleNuggets.length,
+								postFilterCount: filteredEnsembleNuggets.length,
+								confidenceThreshold: 0.85,
 							},
 						};
 
 						console.log(
-							`Ensemble extraction completed: ${ensembleResult.metadata.consensusReached} nuggets with ${ensembleResult.metadata.duplicatesRemoved} duplicates removed`,
+							`Ensemble extraction completed: ${ensembleResult.metadata.consensusReached} nuggets with ${ensembleResult.metadata.duplicatesRemoved} duplicates removed. Confidence filtering: ${ensembleNuggets.length} → ${filteredEnsembleNuggets.length} nuggets (≥0.85 confidence)`,
 						);
 					} else {
 						// Direct provider extraction without validation layer
@@ -732,34 +754,43 @@ export class MessageHandler {
 						);
 
 						// Convert direct provider response to enhanced response format
-						normalizedResponse = {
-							golden_nuggets: response.golden_nuggets.map(
-								(nugget: GoldenNugget) => {
-									// Defensive check for fullContent preservation
-									if (!nugget.fullContent) {
-										debugLogger.log(
-											`[MessageHandler] ⚠️ Missing fullContent in direct response for nugget:`,
-											{
-												type: nugget.type,
-												nugget: nugget,
-											},
-										);
-									}
+						const directNuggets = response.golden_nuggets.map(
+							(nugget: GoldenNugget) => {
+								// Defensive check for fullContent preservation
+								if (!nugget.fullContent) {
+									debugLogger.log(
+										`[MessageHandler] ⚠️ Missing fullContent in direct response for nugget:`,
+										{
+											type: nugget.type,
+											nugget: nugget,
+										},
+									);
+								}
 
-									return {
-										type: nugget.type,
-										// Explicitly preserve fullContent with fallback
-										fullContent: nugget.fullContent || "",
-										confidence: nugget.confidence || 0,
-										// No validation score - highlighter will do natural filtering
-										validationScore: undefined,
-										extractionMethod: "llm",
-									};
-								},
-							),
+								return {
+									type: nugget.type,
+									// Explicitly preserve fullContent with fallback
+									fullContent: nugget.fullContent || "",
+									confidence: nugget.confidence || 0,
+									// No validation score - highlighter will do natural filtering
+									validationScore: undefined,
+									extractionMethod: "llm",
+								};
+							},
+						);
+
+						// Apply confidence filtering (≥0.85 threshold)
+						const filteredDirectNuggets =
+							MessageHandler.filterByConfidence(directNuggets);
+
+						normalizedResponse = {
+							golden_nuggets: filteredDirectNuggets,
 							metadata: {
 								totalProcessingTime: performance.now() - startTime,
 								extractionMode: "standard",
+								preFilterCount: directNuggets.length,
+								postFilterCount: filteredDirectNuggets.length,
+								confidenceThreshold: 0.85,
 							},
 						};
 
@@ -777,7 +808,7 @@ export class MessageHandler {
 						});
 
 						console.log(
-							`Direct extraction completed: ${response.golden_nuggets.length} nuggets`,
+							`Direct extraction completed: ${response.golden_nuggets.length} nuggets. Confidence filtering: ${directNuggets.length} → ${filteredDirectNuggets.length} nuggets (≥0.85 confidence)`,
 						);
 					}
 

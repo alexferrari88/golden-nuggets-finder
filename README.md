@@ -399,7 +399,7 @@ All AI providers (Gemini, Claude, OpenAI, OpenRouter) return responses in this s
 
 ### Prompt Examples
 
-**Default Prompt** (Precision Over Recall):
+**Default Prompt** (High Recall with Confidence Filtering):
 ```
 Find golden nuggets that would interest a pragmatic processor with ADHD who loves:
 - How things work (science/tech)

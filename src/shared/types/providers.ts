@@ -108,6 +108,10 @@ export interface EnhancedGoldenNuggetsResponse {
 		// General metadata
 		totalProcessingTime?: number;
 		extractionMode?: "standard" | "ensemble";
+		// Confidence filtering metadata
+		preFilterCount?: number;
+		postFilterCount?: number;
+		confidenceThreshold?: number;
 	};
 }
 
