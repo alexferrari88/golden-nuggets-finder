@@ -265,8 +265,8 @@ describe("TextNormalizer", () => {
 
 			expect(diff.original).toBe(input);
 			expect(diff.normalized).not.toBe(input);
-			expect(diff.changes).toContain("smart-quotes");
 			expect(diff.changes).toContain("whitespace-collapse");
+			expect(diff.changes).not.toContain("smart-quotes"); // Regular quotes, not smart quotes
 		});
 
 		it("should report no changes for already normalized text", () => {
@@ -291,7 +291,7 @@ describe("TextNormalizer", () => {
 			const diff = TextNormalizer.getNormalizationDiff(input);
 
 			expect(diff.changes.length).toBeGreaterThan(1);
-			expect(diff.changes).toContain("smart-quotes");
+			expect(diff.changes).not.toContain("smart-quotes"); // Regular quotes, not smart quotes
 			expect(diff.changes).toContain("whitespace-collapse");
 			expect(diff.changes).toContain("dash-normalization");
 			expect(diff.changes).toContain("ellipsis-normalization");

@@ -11,11 +11,7 @@ import {
 } from "../background/type-filter-service";
 import { injectContentScript } from "../shared/chrome-extension-utils";
 import { checkAndRunMigration, storage } from "../shared/storage";
-import {
-	type EnsembleMode,
-	type FeedbackSubmission,
-	MESSAGE_TYPES,
-} from "../shared/types";
+import { type FeedbackSubmission, MESSAGE_TYPES } from "../shared/types";
 
 export default defineBackground(() => {
 	const messageHandler = new MessageHandler();
@@ -479,16 +475,14 @@ export default defineBackground(() => {
 			);
 
 			// Get ensemble settings for ensemble analysis
-			let ensembleOptions: { runs: number; mode: EnsembleMode } = {
+			let ensembleOptions: { runs: number } = {
 				runs: 3,
-				mode: "balanced",
 			};
 			try {
 				const ensembleSettings = await storage.getEnsembleSettings();
 				if (ensembleSettings.enabled) {
 					ensembleOptions = {
 						runs: ensembleSettings.defaultRuns,
-						mode: ensembleSettings.defaultMode,
 					};
 				}
 			} catch (error) {

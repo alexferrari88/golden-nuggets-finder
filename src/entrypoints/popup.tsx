@@ -26,7 +26,6 @@ import type { GoldenNuggetType } from "../shared/schemas";
 import { storage } from "../shared/storage";
 import {
 	type AnalysisProgressMessage,
-	type EnsembleMode,
 	MESSAGE_TYPES,
 	type RateLimitedMessage,
 	type RetryingMessage,
@@ -787,16 +786,14 @@ function IndexPopup() {
 			// Send message to content script - route based on extraction mode
 			if (ensembleMode) {
 				// Get ensemble settings for ensemble analysis
-				let ensembleOptions: { runs: number; mode: EnsembleMode } = {
+				let ensembleOptions: { runs: number } = {
 					runs: 3,
-					mode: "balanced",
 				};
 				try {
 					const ensembleSettings = await storage.getEnsembleSettings();
 					if (ensembleSettings.enabled) {
 						ensembleOptions = {
 							runs: ensembleSettings.defaultRuns,
-							mode: ensembleSettings.defaultMode,
 						};
 					}
 				} catch (error) {

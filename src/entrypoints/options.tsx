@@ -386,11 +386,9 @@ function OptionsPage() {
 	// Ensemble settings state
 	const [ensembleSettings, setEnsembleSettings] = useState<{
 		defaultRuns: number;
-		defaultMode: "fast" | "balanced" | "comprehensive";
 		enabled: boolean;
 	}>({
 		defaultRuns: 3,
-		defaultMode: "balanced",
 		enabled: true,
 	});
 	const [ensembleSaveStatus, setEnsembleSaveStatus] = useState<{
@@ -894,7 +892,6 @@ function OptionsPage() {
 	const handleEnsembleSettingsUpdate = async (
 		newSettings: Partial<{
 			defaultRuns: number;
-			defaultMode: "fast" | "balanced" | "comprehensive";
 			enabled: boolean;
 		}>,
 	) => {
@@ -2422,54 +2419,6 @@ function OptionsPage() {
 								<span>5 (Balanced)</span>
 								<span>10 (High Confidence)</span>
 							</div>
-						</div>
-
-						{/* Default Mode Setting */}
-						<div
-							style={{
-								marginBottom: spacing.lg,
-								opacity: ensembleSettings.enabled ? 1 : 0.5,
-							}}
-						>
-							<label
-								style={{
-									display: "block",
-									marginBottom: spacing.sm,
-									color: colors.text.primary,
-									fontSize: typography.fontSize.sm,
-									fontWeight: typography.fontWeight.medium,
-								}}
-							>
-								Default Mode:
-							</label>
-							<select
-								value={ensembleSettings.defaultMode}
-								onChange={(e) =>
-									handleEnsembleSettingsUpdate({
-										defaultMode: e.target.value as
-											| "fast"
-											| "balanced"
-											| "comprehensive",
-									})
-								}
-								disabled={!ensembleSettings.enabled}
-								style={{
-									...components.input.default,
-									width: "100%",
-									boxSizing: "border-box",
-									backgroundColor: colors.background.primary,
-								}}
-								onFocus={(e) => {
-									e.target.style.borderColor = colors.text.accent;
-								}}
-								onBlur={(e) => {
-									e.target.style.borderColor = colors.border.default;
-								}}
-							>
-								<option value="fast">Fast (Lower temperature)</option>
-								<option value="balanced">Balanced (Standard)</option>
-								<option value="comprehensive">Comprehensive (Thorough)</option>
-							</select>
 						</div>
 
 						{/* Ensemble Save Status Feedback */}

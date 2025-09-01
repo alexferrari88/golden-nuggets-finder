@@ -645,7 +645,7 @@ export default defineContentScript({
 			source?: string,
 			providedAnalysisId?: string,
 			typeFilter?: TypeFilterOptions,
-			ensembleOptions?: { runs: number; mode: string },
+			ensembleOptions?: { runs: number },
 		): Promise<void> {
 			try {
 				performanceMonitor.startTimer("total_ensemble_analysis");
@@ -688,7 +688,7 @@ export default defineContentScript({
 				let finalEnsembleOptions = ensembleOptions;
 				if (!finalEnsembleOptions) {
 					// Use hardcoded defaults since content scripts should receive options from callers
-					finalEnsembleOptions = { runs: 3, mode: "balanced" };
+					finalEnsembleOptions = { runs: 3 };
 				}
 
 				// Send ensemble analysis request to background script

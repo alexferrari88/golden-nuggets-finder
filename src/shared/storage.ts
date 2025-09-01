@@ -346,12 +346,10 @@ export class StorageManager {
 
 	async getEnsembleSettings(): Promise<{
 		defaultRuns: number;
-		defaultMode: "fast" | "balanced" | "comprehensive";
 		enabled: boolean;
 	}> {
 		const cached = this.getFromCache<{
 			defaultRuns: number;
-			defaultMode: "fast" | "balanced" | "comprehensive";
 			enabled: boolean;
 		}>(STORAGE_KEYS.ENSEMBLE_SETTINGS);
 		if (cached !== null && typeof cached === "object") {
@@ -363,7 +361,6 @@ export class StorageManager {
 		);
 		const settings = result[STORAGE_KEYS.ENSEMBLE_SETTINGS] || {
 			defaultRuns: 3,
-			defaultMode: "balanced" as const,
 			enabled: true,
 		};
 
@@ -373,7 +370,6 @@ export class StorageManager {
 
 	async saveEnsembleSettings(settings: {
 		defaultRuns: number;
-		defaultMode: "fast" | "balanced" | "comprehensive";
 		enabled: boolean;
 	}): Promise<void> {
 		this.setCache(STORAGE_KEYS.ENSEMBLE_SETTINGS, settings);

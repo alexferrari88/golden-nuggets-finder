@@ -58,8 +58,8 @@ export class TextNormalizer {
 				})
 
 				// Step 7: Final punctuation and spacing cleanup
-				.replace(/\s*([.!?])\s*([.!?])\s*/g, "$1$2 ") // Normalize spaced punctuation
-				.replace(/([.!?])\1{2,}/g, "$1") // Remove excessive repeated punctuation
+				.replace(/\s*([!?])\s*([!?])\s*/g, "$1$2 ") // Normalize spaced punctuation (excludes periods to preserve ellipsis)
+				.replace(/([!?])\1{2,}/g, "$1") // Remove excessive repeated punctuation (excludes periods)
 				.replace(/\s+/g, " ") // Collapse all whitespace to single spaces
 
 				// Step 8: Final trim
@@ -224,7 +224,7 @@ export class TextNormalizer {
 		const changes: string[] = [];
 		let current = original;
 
-		// Track each normalization step
+		// Track each normalization step (matches normalizeForMatching order)
 		const steps = [
 			{ name: "smart-quotes", regex: /[""]/g, replacement: '"' },
 			{ name: "smart-apostrophes", regex: /['']/g, replacement: "'" },
@@ -233,9 +233,14 @@ export class TextNormalizer {
 				regex: /([a-zA-Z0-9])\s*\.\s*([a-zA-Z0-9])/g,
 				replacement: "$1.$2",
 			},
-			{ name: "whitespace-collapse", regex: /\s+/g, replacement: " " },
-			{ name: "dash-normalization", regex: /[‒–—―]/g, replacement: "-" },
 			{ name: "ellipsis-normalization", regex: /[…]/g, replacement: "..." },
+			{ name: "multiple-periods", regex: /\.{4,}/g, replacement: "..." },
+			{ name: "multiple-punctuation", regex: /[!?]{2,}/g, replacement: "!" },
+			{ name: "dash-normalization", regex: /[‒–—―]/g, replacement: "-" },
+			{ name: "fancy-quotes", regex: /[‹›«»]/g, replacement: '"' },
+			{ name: "low-quotes", regex: /[‚„]/g, replacement: '"' },
+			{ name: "duplicate-commas", regex: /[,;]\s*[,;]/g, replacement: "," },
+			{ name: "whitespace-collapse", regex: /\s+/g, replacement: " " },
 		];
 
 		for (const step of steps) {
