@@ -3,6 +3,7 @@ import { GeminiDirectProvider } from "../../shared/providers/gemini-direct-provi
 import { LangChainAnthropicProvider } from "../../shared/providers/langchain-anthropic-provider";
 import { LangChainOpenAIProvider } from "../../shared/providers/langchain-openai-provider";
 import { LangChainOpenRouterProvider } from "../../shared/providers/langchain-openrouter-provider";
+import { storage } from "../../shared/storage";
 import { getApiKey } from "../../shared/storage/api-key-storage";
 import { getModel } from "../../shared/storage/model-storage";
 import type {
@@ -288,7 +289,26 @@ export async function createMultipleProviders(
 	const results = await Promise.allSettled(
 		configurations.map(async (config) => {
 			try {
-				const apiKey = await getApiKey(config.providerId);
+				// Handle Gemini's special API key retrieval using SecurityManager
+				let apiKey: string;
+				if (config.providerId === "gemini") {
+					try {
+						apiKey = await storage.getApiKey({
+							source: "background",
+							action: "read",
+							timestamp: Date.now(),
+						});
+					} catch (error) {
+						console.error(
+							`Failed to retrieve Gemini API key for ensemble:`,
+							error,
+						);
+						apiKey = "";
+					}
+				} else {
+					apiKey = (await getApiKey(config.providerId)) || "";
+				}
+
 				if (!apiKey) {
 					throw new Error(`No API key configured for ${config.providerId}`);
 				}

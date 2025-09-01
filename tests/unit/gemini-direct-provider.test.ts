@@ -47,7 +47,7 @@ describe("GeminiDirectProvider", () => {
 				modelName: "",
 			});
 
-			expect(defaultProvider.modelName).toBe("gemini-2.5-flash");
+			expect(defaultProvider.modelName).toBe("gemini-2.5-flash-lite");
 		});
 	});
 
