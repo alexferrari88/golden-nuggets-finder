@@ -11,6 +11,7 @@ import type {
 	ProviderConfig,
 	ProviderId,
 } from "../../shared/types/providers";
+import { ModelService } from "./model-service";
 
 export async function createProvider(
 	config: ProviderConfig,
@@ -128,6 +129,43 @@ export function getKnownModelsForProvider(providerId: ProviderId): string[] {
 	};
 
 	return knownModels[providerId] || [];
+}
+
+/**
+ * Simple dynamic validation that checks against real-time model availability
+ * Used to avoid false warnings for legitimate models
+ */
+async function validateModelDynamically(
+	providerId: ProviderId,
+	modelId: string,
+): Promise<boolean> {
+	try {
+		// Handle Gemini's special API key retrieval
+		let apiKey: string;
+		if (providerId === "gemini") {
+			try {
+				apiKey = await storage.getApiKey({
+					source: "background",
+					action: "read",
+					timestamp: Date.now(),
+				});
+			} catch (_error) {
+				// Fall back to regular API key storage for other providers
+				apiKey = (await getApiKey(providerId)) || "";
+			}
+		} else {
+			apiKey = (await getApiKey(providerId)) || "";
+		}
+
+		if (!apiKey) return false;
+
+		const result = await ModelService.fetchModels(providerId, apiKey);
+		if (result.error) return false;
+
+		return result.models.some((model) => model.id === modelId);
+	} catch {
+		return false; // Fall back to static validation
+	}
 }
 
 /**
@@ -311,6 +349,18 @@ export async function createMultipleProviders(
 
 				if (!apiKey) {
 					throw new Error(`No API key configured for ${config.providerId}`);
+				}
+
+				// Use dynamic validation to prevent false warnings for legitimate models
+				const isDynamicallyValid = await validateModelDynamically(
+					config.providerId,
+					config.modelId,
+				);
+				if (!isDynamicallyValid) {
+					// Only warn if dynamic validation fails (likely invalid model)
+					debugLogger.warn(
+						`[ProviderFactory] Model "${config.modelId}" may not be available for provider "${config.providerId}" (verified via API)`,
+					);
 				}
 
 				const providerConfig: ProviderConfig = {
