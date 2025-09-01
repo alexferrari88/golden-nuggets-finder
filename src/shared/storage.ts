@@ -10,6 +10,7 @@ import type {
 	PersistentAnalysisState,
 	SavedPrompt,
 } from "./types";
+import type { ProviderId } from "./types/providers";
 
 export class StorageManager {
 	private static instance: StorageManager;
@@ -345,12 +346,27 @@ export class StorageManager {
 	}
 
 	async getEnsembleSettings(): Promise<{
-		defaultRuns: number;
 		enabled: boolean;
+		defaultRuns: number; // For single-model mode
+		// New multi-provider support
+		mode: "single-model" | "multi-provider";
+		providerConfigurations: Array<{
+			providerId: ProviderId;
+			modelId: string;
+			enabled: boolean; // Allow toggling individual providers
+		}>;
+		defaultProviderSet: string; // Name of saved provider set
 	}> {
 		const cached = this.getFromCache<{
-			defaultRuns: number;
 			enabled: boolean;
+			defaultRuns: number;
+			mode: "single-model" | "multi-provider";
+			providerConfigurations: Array<{
+				providerId: ProviderId;
+				modelId: string;
+				enabled: boolean;
+			}>;
+			defaultProviderSet: string;
 		}>(STORAGE_KEYS.ENSEMBLE_SETTINGS);
 		if (cached !== null && typeof cached === "object") {
 			return cached;
@@ -360,22 +376,83 @@ export class StorageManager {
 			STORAGE_KEYS.ENSEMBLE_SETTINGS,
 		);
 		const settings = result[STORAGE_KEYS.ENSEMBLE_SETTINGS] || {
+			enabled: false,
 			defaultRuns: 3,
-			enabled: true,
+			mode: "single-model",
+			providerConfigurations: [],
+			defaultProviderSet: "",
 		};
+
+		// Migration: convert old format to new format
+		if (!settings.mode) {
+			settings.mode = "single-model";
+			settings.providerConfigurations = settings.providerConfigurations || [];
+			settings.defaultProviderSet = settings.defaultProviderSet || "";
+		}
 
 		this.setCache(STORAGE_KEYS.ENSEMBLE_SETTINGS, settings);
 		return settings;
 	}
 
 	async saveEnsembleSettings(settings: {
-		defaultRuns: number;
 		enabled: boolean;
+		defaultRuns: number; // For single-model mode
+		// New multi-provider support
+		mode: "single-model" | "multi-provider";
+		providerConfigurations: Array<{
+			providerId: ProviderId;
+			modelId: string;
+			enabled: boolean; // Allow toggling individual providers
+		}>;
+		defaultProviderSet: string; // Name of saved provider set
 	}): Promise<void> {
 		this.setCache(STORAGE_KEYS.ENSEMBLE_SETTINGS, settings);
 		await chrome.storage.sync.set({
 			[STORAGE_KEYS.ENSEMBLE_SETTINGS]: settings,
 		});
+	}
+
+	// Provider set management (save named combinations)
+	async saveProviderSet(
+		name: string,
+		configurations: Array<{
+			providerId: ProviderId;
+			modelId: string;
+		}>,
+	): Promise<void> {
+		const key = `ensemble_provider_set_${name}`;
+		await chrome.storage.sync.set({ [key]: configurations });
+	}
+
+	async getProviderSet(name: string): Promise<Array<{
+		providerId: ProviderId;
+		modelId: string;
+	}> | null> {
+		const key = `ensemble_provider_set_${name}`;
+		const result = await chrome.storage.sync.get([key]);
+		return result[key] || null;
+	}
+
+	async getAllProviderSets(): Promise<
+		Record<
+			string,
+			Array<{
+				providerId: ProviderId;
+				modelId: string;
+			}>
+		>
+	> {
+		const allData = await chrome.storage.sync.get();
+		const providerSets: Record<string, any> = {};
+
+		for (const [key, value] of Object.entries(allData)) {
+			if (key.startsWith("ensemble_provider_set_")) {
+				const setName = key.replace("ensemble_provider_set_", "");
+				providerSets[setName] = value;
+			}
+		}
+
+		return providerSets;
 	}
 
 	// Analysis state management for popup persistence

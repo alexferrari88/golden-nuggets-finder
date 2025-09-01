@@ -18,6 +18,9 @@ export interface EnhancedGoldenNugget extends GoldenNugget {
 	runsSupportingThis?: number;
 	totalRuns?: number;
 	similarityMethod?: "embedding" | "word_overlap" | "fallback";
+	// Multi-provider metadata
+	sourceProvider?: ProviderId; // Track which provider found this nugget
+	sourceModel?: string;
 }
 
 export interface GeminiResponse {
@@ -73,10 +76,19 @@ export interface ExtensionConfig {
 	};
 }
 
-// Separate type definitions for Ensemble
+// Enhanced type definitions for Multi-Provider Ensemble
 export interface EnsembleSettings {
-	defaultRuns: number;
 	enabled: boolean;
+	defaultRuns: number; // For single-model mode
+
+	// New multi-provider support
+	mode: "single-model" | "multi-provider";
+	providerConfigurations: Array<{
+		providerId: ProviderId;
+		modelId: string;
+		enabled: boolean; // Allow toggling individual providers
+	}>;
+	defaultProviderSet: string; // Name of saved provider set
 }
 
 export interface NuggetDisplayState {
@@ -116,18 +128,16 @@ export interface AnalysisRequest {
 	promptMetadata?: PromptMetadata; // Optional - will be resolved from promptId if not provided
 }
 
-// New ensemble analysis request
-export interface EnsembleAnalysisRequest {
-	type?: string; // Message type for discrimination
-	content: string;
-	promptId: string;
-	url: string;
-	analysisId?: string;
-	source?: "popup" | "context-menu";
-	ensembleOptions?: {
-		runs: number;
+// Enhanced ensemble analysis request to support multi-provider
+export interface EnsembleAnalysisRequest extends AnalysisRequest {
+	ensembleOptions: {
+		runs: number; // For single-model mode
+		mode: "single-model" | "multi-provider";
+		providerConfigurations?: Array<{
+			providerId: ProviderId;
+			modelId: string;
+		}>;
 	};
-	typeFilter?: TypeFilterOptions;
 }
 
 export interface CommentSelectionRequest {

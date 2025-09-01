@@ -3,6 +3,7 @@ import { GeminiDirectProvider } from "../../shared/providers/gemini-direct-provi
 import { LangChainAnthropicProvider } from "../../shared/providers/langchain-anthropic-provider";
 import { LangChainOpenAIProvider } from "../../shared/providers/langchain-openai-provider";
 import { LangChainOpenRouterProvider } from "../../shared/providers/langchain-openrouter-provider";
+import { getApiKey } from "../../shared/storage/api-key-storage";
 import { getModel } from "../../shared/storage/model-storage";
 import type {
 	LLMProvider,
@@ -269,4 +270,98 @@ export async function debugModelSelection(providerId: ProviderId): Promise<{
 	);
 
 	return result;
+}
+
+// Bulk provider creation for multi-provider ensemble
+export async function createMultipleProviders(
+	configurations: Array<{
+		providerId: ProviderId;
+		modelId: string;
+	}>,
+): Promise<
+	Array<{
+		providerId: ProviderId;
+		modelId: string;
+		provider: LLMProvider;
+	}>
+> {
+	const results = await Promise.allSettled(
+		configurations.map(async (config) => {
+			try {
+				const apiKey = await getApiKey(config.providerId);
+				if (!apiKey) {
+					throw new Error(`No API key configured for ${config.providerId}`);
+				}
+
+				const providerConfig: ProviderConfig = {
+					providerId: config.providerId,
+					modelName: config.modelId,
+					apiKey,
+				};
+
+				const provider = await createProvider(providerConfig);
+
+				return {
+					providerId: config.providerId,
+					modelId: config.modelId,
+					provider,
+				};
+			} catch (error) {
+				console.error(`Failed to create provider ${config.providerId}:`, error);
+				throw error;
+			}
+		}),
+	);
+
+	// Return only successful provider creations, filter out failures
+	return results
+		.filter(
+			(result): result is PromiseFulfilledResult<any> =>
+				result.status === "fulfilled",
+		)
+		.map((result) => result.value);
+}
+
+// Validate provider configurations before creating providers
+export function validateProviderConfigurations(
+	configurations: Array<{
+		providerId: ProviderId;
+		modelId: string;
+	}>,
+): { valid: boolean; errors: string[] } {
+	const errors: string[] = [];
+
+	if (configurations.length === 0) {
+		errors.push("At least one provider configuration is required");
+	}
+
+	if (configurations.length > 5) {
+		errors.push("Maximum 5 providers allowed for ensemble mode");
+	}
+
+	// Check for duplicate provider+model combinations
+	const seen = new Set<string>();
+	for (const config of configurations) {
+		const key = `${config.providerId}:${config.modelId}`;
+		if (seen.has(key)) {
+			errors.push(
+				`Duplicate configuration: ${config.providerId} with ${config.modelId}`,
+			);
+		}
+		seen.add(key);
+	}
+
+	// Validate each provider configuration
+	for (const config of configurations) {
+		if (!config.providerId || !config.modelId) {
+			errors.push(
+				"Provider ID and Model ID are required for all configurations",
+			);
+		}
+	}
+
+	return {
+		valid: errors.length === 0,
+		errors,
+	};
 }

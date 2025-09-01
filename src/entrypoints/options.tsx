@@ -385,11 +385,22 @@ function OptionsPage() {
 
 	// Ensemble settings state
 	const [ensembleSettings, setEnsembleSettings] = useState<{
-		defaultRuns: number;
 		enabled: boolean;
+		defaultRuns: number; // For single-model mode
+		// New multi-provider support
+		mode: "single-model" | "multi-provider";
+		providerConfigurations: Array<{
+			providerId: ProviderId;
+			modelId: string;
+			enabled: boolean; // Allow toggling individual providers
+		}>;
+		defaultProviderSet: string; // Name of saved provider set
 	}>({
+		enabled: false,
 		defaultRuns: 3,
-		enabled: true,
+		mode: "single-model",
+		providerConfigurations: [],
+		defaultProviderSet: "",
 	});
 	const [ensembleSaveStatus, setEnsembleSaveStatus] = useState<{
 		type: AlertType;
@@ -891,8 +902,15 @@ function OptionsPage() {
 	// Ensemble settings management functions
 	const handleEnsembleSettingsUpdate = async (
 		newSettings: Partial<{
-			defaultRuns: number;
 			enabled: boolean;
+			defaultRuns: number;
+			mode: "single-model" | "multi-provider";
+			providerConfigurations: Array<{
+				providerId: ProviderId;
+				modelId: string;
+				enabled: boolean;
+			}>;
+			defaultProviderSet: string;
 		}>,
 	) => {
 		try {

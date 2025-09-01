@@ -6,6 +6,7 @@ import type {
 	EnsembleExtractionResult,
 	GoldenNuggetsResponse,
 	LLMProvider,
+	ProviderId,
 } from "../../shared/types/providers";
 import { HybridSimilarityMatcher } from "./hybrid-similarity";
 import { normalize } from "./response-normalizer";
@@ -18,13 +19,158 @@ interface EnsembleExtractionOptions {
 	selectedTypes?: any[];
 }
 
+// Remove unused interface - keeping separate methods instead
+
 export class EnsembleExtractor {
 	private hybridSimilarityMatcher: HybridSimilarityMatcher;
 
 	constructor() {
 		this.hybridSimilarityMatcher = new HybridSimilarityMatcher();
 	}
+	// Original method signature preserved for backward compatibility
 	async extractWithEnsemble(
+		content: string,
+		prompt: string,
+		provider: LLMProvider,
+		options: EnsembleExtractionOptions = {
+			runs: 3,
+			temperature: 0.7,
+			parallelExecution: true,
+		},
+	): Promise<EnsembleExtractionResult> {
+		return this.extractWithSingleProvider(content, prompt, provider, options);
+	}
+
+	// New method for multi-provider ensemble extraction
+	async extractWithMultiProviderEnsemble(
+		content: string,
+		prompt: string,
+		providerConfigurations: Array<{
+			providerId: ProviderId;
+			modelId: string;
+			provider: LLMProvider;
+		}>,
+		similarityOptions: Partial<SimilarityOptions> = {},
+	): Promise<EnsembleExtractionResult> {
+		return this.extractWithMultiProvider(
+			content,
+			prompt,
+			providerConfigurations,
+			similarityOptions,
+		);
+	}
+
+	// New multi-provider extraction method
+	async extractWithMultiProvider(
+		content: string,
+		prompt: string,
+		providerConfigurations: Array<{
+			providerId: ProviderId;
+			modelId: string;
+			provider: LLMProvider;
+		}>,
+		similarityOptions: Partial<SimilarityOptions> = {},
+	): Promise<EnsembleExtractionResult> {
+		console.log(
+			`Starting multi-provider ensemble extraction with ${providerConfigurations.length} providers`,
+		);
+
+		const startTime = performance.now();
+
+		// Execute one call per provider configuration
+		const extractionPromises = providerConfigurations.map(async (config) => {
+			try {
+				console.log(
+					`Executing extraction with ${config.providerId} (${config.modelId})`,
+				);
+
+				const providerStartTime = performance.now();
+				const rawResponse = await config.provider.extractGoldenNuggets(
+					content,
+					prompt,
+					0.7, // Standard temperature
+					[], // selectedTypes - not used in multi-provider mode
+				);
+				const responseTime = performance.now() - providerStartTime;
+
+				const normalizedResponse = normalize(rawResponse, config.providerId);
+
+				// Tag nuggets with source provider information
+				const taggedNuggets = normalizedResponse.golden_nuggets.map(
+					(nugget) => ({
+						...nugget,
+						sourceProvider: config.providerId,
+						sourceModel: config.modelId,
+					}),
+				);
+
+				return {
+					response: { ...normalizedResponse, golden_nuggets: taggedNuggets },
+					providerMetadata: {
+						providerId: config.providerId,
+						modelId: config.modelId,
+						responseTime,
+						successful: true,
+					},
+				};
+			} catch (error) {
+				console.error(`Provider ${config.providerId} failed:`, error);
+				return {
+					response: { golden_nuggets: [] },
+					providerMetadata: {
+						providerId: config.providerId,
+						modelId: config.modelId,
+						responseTime: 0,
+						successful: false,
+					},
+				};
+			}
+		});
+
+		const results = await Promise.allSettled(extractionPromises);
+		const successfulResults = results
+			.filter(
+				(result): result is PromiseFulfilledResult<any> =>
+					result.status === "fulfilled",
+			)
+			.map((result) => result.value);
+
+		const successfulExtractions = successfulResults
+			.filter((result) => result.providerMetadata.successful)
+			.map((result) => result.response);
+
+		const allProviderMetadata = successfulResults.map(
+			(result) => result.providerMetadata,
+		);
+		const responseTime = performance.now() - startTime;
+
+		console.log(
+			`Completed ${successfulExtractions.length}/${providerConfigurations.length} successful multi-provider extractions in ${responseTime}ms`,
+		);
+
+		// Build consensus using existing consensus logic
+		const consensusResult = await this.buildConsensus(
+			successfulExtractions,
+			{
+				totalRuns: providerConfigurations.length,
+				successfulRuns: successfulExtractions.length,
+				averageResponseTime: responseTime / providerConfigurations.length,
+			},
+			similarityOptions,
+		);
+
+		// Enhanced metadata with provider information
+		return {
+			...consensusResult,
+			metadata: {
+				...consensusResult.metadata,
+				providersUsed: allProviderMetadata,
+			},
+		};
+	}
+
+	// Rename existing method for clarity
+	private async extractWithSingleProvider(
 		content: string,
 		prompt: string,
 		provider: LLMProvider,

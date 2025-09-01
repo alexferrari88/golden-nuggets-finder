@@ -18,6 +18,9 @@ export interface EnsembleExtractionResult {
 		totalRuns: number;
 		// Optional embedding metadata
 		similarityMethod?: "embedding" | "word_overlap" | "fallback";
+		// Multi-provider metadata
+		sourceProvider?: ProviderId; // Track which provider found this nugget
+		sourceModel?: string;
 	}>;
 	metadata: {
 		totalRuns: number;
@@ -29,6 +32,13 @@ export interface EnsembleExtractionResult {
 		embeddingGenerationTime?: number;
 		embeddingCacheHits?: number;
 		similarityMethod?: "embedding" | "hybrid" | "word_overlap_only";
+		// New multi-provider metadata
+		providersUsed?: Array<{
+			providerId: ProviderId;
+			modelId: string;
+			responseTime: number;
+			successful: boolean;
+		}>;
 	};
 }
 
