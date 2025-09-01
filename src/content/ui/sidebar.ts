@@ -30,6 +30,9 @@ interface EnhancedGoldenNugget extends GoldenNugget {
 	runsSupportingThis?: number;
 	totalRuns?: number;
 	similarityMethod?: "embedding" | "word_overlap" | "fallback";
+	// Multi-provider metadata
+	sourceProvider?: ProviderId; // Track which provider found this nugget
+	sourceModel?: string;
 }
 
 // Export data structure
@@ -92,6 +95,34 @@ export class Sidebar {
 	 * Get the emoji for a nugget type
 	 */
 	// Method removed - no longer needed as we don't use emojis in type badges
+
+	/**
+	 * Get provider color for consistent visual identification
+	 */
+	private getProviderColor(providerId: ProviderId): string {
+		const providerColors = {
+			gemini: "#4285F4", // Google Blue
+			openai: "#10A37F", // OpenAI Green
+			anthropic: "#FF6B35", // Anthropic Orange
+			openrouter: "#8B5CF6", // Purple
+		};
+		return providerColors[providerId] || colors.text.secondary;
+	}
+
+	/**
+	 * Count unique providers from nuggets
+	 */
+	private getProviderCount(): number {
+		if (!this.allItems.length) return 0;
+
+		const uniqueProviders = new Set(
+			this.allItems
+				.map((item) => (item.nugget as EnhancedGoldenNugget).sourceProvider)
+				.filter((provider) => provider !== undefined),
+		);
+
+		return uniqueProviders.size;
+	}
 
 	/**
 	 * Get display content for a nugget in the sidebar
@@ -159,9 +190,19 @@ export class Sidebar {
 			providerId: ProviderId;
 			modelName: string;
 			responseTime: number;
+			providersUsed?: Array<{
+				providerId: ProviderId;
+				modelId: string;
+				responseTime: number;
+				successful: boolean;
+			}>;
 		},
 		_extractionMetadata?: {
-			extractionMode?: "standard" | "two-phase" | "ensemble";
+			extractionMode?:
+				| "standard"
+				| "two-phase"
+				| "ensemble"
+				| "multi-provider-ensemble";
 			totalProcessingTime?: number;
 			[key: string]: any; // Allow for additional extraction-specific metadata
 		},
@@ -175,8 +216,24 @@ export class Sidebar {
 
 		this.hide(); // Remove existing sidebar if any
 
-		// Store provider metadata for display
-		this.providerMetadata = providerMetadata || null;
+		// Store enhanced provider metadata for display
+		if (
+			providerMetadata?.providersUsed &&
+			providerMetadata.providersUsed.length > 1
+		) {
+			// Multi-provider ensemble metadata
+			this.providerMetadata = {
+				providerId: "multi-provider" as ProviderId,
+				modelName: providerMetadata.providersUsed
+					.filter((p) => p.successful)
+					.map((p) => `${p.providerId}:${p.modelId}`)
+					.join(", "),
+				responseTime: providerMetadata.responseTime,
+			};
+		} else {
+			// Single provider metadata (existing)
+			this.providerMetadata = providerMetadata || null;
+		}
 
 		// Initialize selection state for all nuggets
 		this.allItems = nuggetItems.map((item) => ({
@@ -451,22 +508,38 @@ export class Sidebar {
 		titleContainer.appendChild(title);
 		titleContainer.appendChild(count);
 
-		// Add provider info if available
+		// Enhanced provider info for multi-provider support
 		if (this.providerMetadata) {
 			const providerInfo = document.createElement("div");
 			providerInfo.style.cssText = `
 				font-size: ${typography.fontSize.xs};
 				color: ${colors.text.tertiary};
-				font-weight: ${typography.fontWeight.normal};
 				margin-top: ${spacing.xs};
 			`;
 
-			// Format provider name for display (capitalize first letter)
-			const providerName =
-				this.providerMetadata.providerId.charAt(0).toUpperCase() +
-				this.providerMetadata.providerId.slice(1);
+			if (
+				this.providerMetadata.providerId === ("multi-provider" as ProviderId)
+			) {
+				// Multi-provider display
+				providerInfo.innerHTML = `
+					<div style="display: flex; align-items: center; gap: ${spacing.xs};">
+						<span>🎯 Multi-provider ensemble</span>
+						<span style="font-size: ${typography.fontSize.xs}; color: ${colors.text.tertiary};">
+							${this.getProviderCount()} providers
+						</span>
+					</div>
+					<div style="font-size: ${typography.fontSize.xs}; color: ${colors.text.tertiary}; margin-top: 2px;">
+						${Math.round(this.providerMetadata.responseTime)}ms average
+					</div>
+				`;
+			} else {
+				// Single provider display (existing)
+				const providerName =
+					this.providerMetadata.providerId.charAt(0).toUpperCase() +
+					this.providerMetadata.providerId.slice(1);
+				providerInfo.textContent = `${providerName} • ${this.providerMetadata.modelName}`;
+			}
 
-			providerInfo.textContent = `${providerName} • ${this.providerMetadata.modelName}`;
 			titleContainer.appendChild(providerInfo);
 		}
 
@@ -901,6 +974,37 @@ export class Sidebar {
 
 		leftContainer.appendChild(checkbox);
 		leftContainer.appendChild(typeBadge);
+
+		// Add provider badge for multi-provider results
+		const enhancedNugget = item.nugget as EnhancedGoldenNugget;
+		if (enhancedNugget.sourceProvider && enhancedNugget.sourceModel) {
+			const providerBadge = document.createElement("div");
+			const providerColor = this.getProviderColor(
+				enhancedNugget.sourceProvider,
+			);
+			providerBadge.style.cssText = `
+				display: inline-flex;
+				align-items: center;
+				gap: 2px;
+				padding: 1px 6px;
+				border-radius: 6px;
+				font-size: ${typography.fontSize.xs};
+				font-weight: ${typography.fontWeight.medium};
+				background-color: ${providerColor}15;
+				color: ${providerColor};
+				border: 1px solid ${providerColor}33;
+			`;
+
+			// Format provider name for display
+			const providerDisplayName =
+				enhancedNugget.sourceProvider.charAt(0).toUpperCase() +
+				enhancedNugget.sourceProvider.slice(1);
+
+			providerBadge.textContent = `${providerDisplayName}`;
+			providerBadge.title = `Found by ${providerDisplayName} (${enhancedNugget.sourceModel})`;
+
+			leftContainer.appendChild(providerBadge);
+		}
 
 		// Consensus display for ensemble results - cleaner design
 		const ensembleNugget = item.nugget as EnhancedGoldenNugget;

@@ -127,9 +127,19 @@ export class UIManager {
 			providerId: ProviderId;
 			modelName: string;
 			responseTime: number;
+			providersUsed?: Array<{
+				providerId: ProviderId;
+				modelId: string;
+				responseTime: number;
+				successful: boolean;
+			}>;
 		},
 		extractionMetadata?: {
-			extractionMode?: "standard" | "two-phase" | "ensemble";
+			extractionMode?:
+				| "standard"
+				| "two-phase"
+				| "ensemble"
+				| "multi-provider-ensemble";
 			totalProcessingTime?: number;
 			[key: string]: any; // Allow for additional extraction-specific metadata
 		},

@@ -1684,8 +1684,8 @@ async displayResults(
 #### Automated Verification
 - [ ] Sidebar tests pass: `pnpm vitest run src/content/ui/sidebar.test.ts`
 - [ ] UI manager tests pass: `pnpm vitest run src/content/ui/ui-manager.test.ts`
-- [ ] Type checking passes: `pnpm run typecheck`
-- [ ] No linting errors: `pnpm run lint`
+- [x] Type checking passes: `pnpm run typecheck`
+- [x] No linting errors: `pnpm run lint`
 
 #### Manual Verification
 - [ ] Multi-provider ensemble results show provider badges on nugget cards
