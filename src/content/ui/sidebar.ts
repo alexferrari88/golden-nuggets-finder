@@ -913,7 +913,6 @@ export class Sidebar {
 			consensusContainer.style.cssText = `
         display: flex;
         align-items: center;
-        gap: ${spacing.xs};
         margin-left: ${spacing.sm};
       `;
 
@@ -922,27 +921,24 @@ export class Sidebar {
 				(ensembleNugget.runsSupportingThis / ensembleNugget.totalRuns) * 100,
 			);
 
-			// Determine badge styling based on consensus level using neutral colors
+			// Determine badge styling based on consensus level - simplified to 2 states
 			let badgeColor = colors.background.tertiary;
 			let textColor = colors.text.secondary;
 
-			if (consensusPercent >= 80) {
-				// High consensus - darker background for emphasis
+			if (consensusPercent >= 67) {
+				// Strong consensus (majority agreement) - emphasize with primary styling
 				badgeColor = colors.gray[100];
 				textColor = colors.text.primary;
-			} else if (consensusPercent >= 50) {
-				// Medium consensus - medium background
+			} else {
+				// Weak consensus - use muted secondary styling
 				badgeColor = colors.background.tertiary;
 				textColor = colors.text.secondary;
-			} else {
-				// Low consensus - lighter, more subtle
-				badgeColor = colors.gray[50];
-				textColor = colors.text.tertiary;
 			}
 
 			// Consensus badge with percentage
 			const consensusBadge = document.createElement("div");
 			consensusBadge.textContent = `${consensusPercent}%`;
+			consensusBadge.title = `Found in ${ensembleNugget.runsSupportingThis} out of ${ensembleNugget.totalRuns} analysis runs`;
 			consensusBadge.style.cssText = `
         background: ${badgeColor};
         color: ${textColor};
@@ -953,19 +949,11 @@ export class Sidebar {
         min-width: 36px;
         text-align: center;
         border: 1px solid ${colors.border.light};
+        cursor: help;
       `;
 
-			// Agreement detail text - more concise
-			const agreementText = document.createElement("div");
-			agreementText.textContent = `${ensembleNugget.runsSupportingThis}/${ensembleNugget.totalRuns}`;
-			agreementText.style.cssText = `
-        font-size: ${typography.fontSize.xs};
-        color: ${colors.text.secondary};
-        font-weight: ${typography.fontWeight.medium};
-      `;
-
+			// Only add the consensus badge - fraction display removed for cleaner UI
 			consensusContainer.appendChild(consensusBadge);
-			consensusContainer.appendChild(agreementText);
 			leftContainer.appendChild(consensusContainer);
 		}
 
