@@ -383,7 +383,7 @@ function OptionsPage() {
 		timestamp: number;
 	} | null>(null);
 
-	// Ensemble settings state
+	// Enhanced ensemble settings state
 	const [ensembleSettings, setEnsembleSettings] = useState<{
 		enabled: boolean;
 		defaultRuns: number; // For single-model mode
@@ -407,20 +407,64 @@ function OptionsPage() {
 		timestamp: number;
 	} | null>(null);
 
+	// Multi-provider ensemble configuration state
+	const [ensembleProviderConfigs, setEnsembleProviderConfigs] = useState<
+		Array<{
+			id: string; // unique identifier for React keys
+			providerId: ProviderId;
+			modelId: string;
+			enabled: boolean;
+		}>
+	>([]);
+
+	const [providerSetName, setProviderSetName] = useState<string>("");
+	const [savedProviderSets, setSavedProviderSets] = useState<
+		Record<
+			string,
+			Array<{
+				providerId: ProviderId;
+				modelId: string;
+			}>
+		>
+	>({});
+
+	const [ensembleConfigStatus, setEnsembleConfigStatus] = useState<{
+		success: boolean;
+		timestamp: number;
+	} | null>(null);
+
 	const loadData = useCallback(async () => {
 		try {
 			setLoading(true);
-			const [savedPrompts, storageData, savedPersona, savedEnsembleSettings] =
-				await Promise.all([
-					storage.getPrompts(),
-					chrome.storage.local.get(["selectedProvider", "extensionConfig"]),
-					storage.getPersona(),
-					storage.getEnsembleSettings(),
-				]);
+			const [
+				savedPrompts,
+				storageData,
+				savedPersona,
+				savedEnsembleSettings,
+				savedProviderSets,
+			] = await Promise.all([
+				storage.getPrompts(),
+				chrome.storage.local.get(["selectedProvider", "extensionConfig"]),
+				storage.getPersona(),
+				storage.getEnsembleSettings(),
+				storage.getAllProviderSets(),
+			]);
 			setPrompts(savedPrompts);
 			setSelectedProvider(storageData.selectedProvider || null);
 			setUserPersona(savedPersona);
 			setEnsembleSettings(savedEnsembleSettings);
+
+			// Convert stored provider configurations to UI format
+			const configsWithIds = savedEnsembleSettings.providerConfigurations.map(
+				(config, index) => ({
+					id: `config-${index}-${Date.now()}`,
+					...config,
+				}),
+			);
+			setEnsembleProviderConfigs(configsWithIds);
+
+			// Load saved provider sets
+			setSavedProviderSets(savedProviderSets);
 
 			// Load debug logging setting
 			setDebugLoggingEnabled(
@@ -941,6 +985,140 @@ function OptionsPage() {
 			setTimeout(() => {
 				setEnsembleSaveStatus(null);
 			}, 5000);
+		}
+	};
+
+	// Multi-provider ensemble configuration handlers
+
+	// Ensemble mode toggle handler
+	const handleEnsembleModeChange = async (
+		mode: "single-model" | "multi-provider",
+	) => {
+		const updatedSettings = { ...ensembleSettings, mode };
+		setEnsembleSettings(updatedSettings);
+		await handleEnsembleSettingsUpdate({ mode });
+	};
+
+	// Add provider configuration
+	const handleAddProviderConfig = () => {
+		const newConfig = {
+			id: `config-${Date.now()}-${Math.random()}`,
+			providerId: "gemini" as ProviderId,
+			modelId: getDefaultModel("gemini"),
+			enabled: true,
+		};
+		setEnsembleProviderConfigs((prev) => [...prev, newConfig]);
+	};
+
+	// Remove provider configuration
+	const handleRemoveProviderConfig = (configId: string) => {
+		setEnsembleProviderConfigs((prev) =>
+			prev.filter((config) => config.id !== configId),
+		);
+	};
+
+	// Update provider configuration
+	const handleUpdateProviderConfig = (
+		configId: string,
+		field: "providerId" | "modelId" | "enabled",
+		value: any,
+	) => {
+		setEnsembleProviderConfigs((prev) =>
+			prev.map((config) =>
+				config.id === configId
+					? {
+							...config,
+							[field]: value,
+							...(field === "providerId"
+								? { modelId: getDefaultModel(value) }
+								: {}),
+						}
+					: config,
+			),
+		);
+	};
+
+	// Save ensemble configuration
+	const handleSaveEnsembleConfig = async () => {
+		try {
+			const activeConfigs = ensembleProviderConfigs.filter(
+				(config) => config.enabled,
+			);
+
+			const updatedSettings = {
+				...ensembleSettings,
+				providerConfigurations: activeConfigs.map((config) => ({
+					providerId: config.providerId,
+					modelId: config.modelId,
+					enabled: config.enabled,
+				})),
+			};
+
+			setEnsembleSettings(updatedSettings);
+			await handleEnsembleSettingsUpdate({
+				providerConfigurations: activeConfigs.map((config) => ({
+					providerId: config.providerId,
+					modelId: config.modelId,
+					enabled: config.enabled,
+				})),
+			});
+
+			// Show success message
+			setEnsembleConfigStatus({ success: true, timestamp: Date.now() });
+			setTimeout(() => setEnsembleConfigStatus(null), 3000);
+		} catch (error) {
+			console.error("Failed to save ensemble configuration:", error);
+			setEnsembleConfigStatus({ success: false, timestamp: Date.now() });
+			setTimeout(() => setEnsembleConfigStatus(null), 5000);
+		}
+	};
+
+	// Save provider set with name
+	const handleSaveProviderSet = async () => {
+		if (!providerSetName.trim()) return;
+
+		try {
+			const activeConfigs = ensembleProviderConfigs
+				.filter((config) => config.enabled)
+				.map((config) => ({
+					providerId: config.providerId,
+					modelId: config.modelId,
+				}));
+
+			await storage.saveProviderSet(providerSetName, activeConfigs);
+
+			// Update local state
+			setSavedProviderSets((prev) => ({
+				...prev,
+				[providerSetName]: activeConfigs,
+			}));
+
+			setProviderSetName("");
+
+			// Show success feedback
+			setEnsembleConfigStatus({ success: true, timestamp: Date.now() });
+			setTimeout(() => setEnsembleConfigStatus(null), 3000);
+		} catch (error) {
+			console.error("Failed to save provider set:", error);
+			setEnsembleConfigStatus({ success: false, timestamp: Date.now() });
+			setTimeout(() => setEnsembleConfigStatus(null), 5000);
+		}
+	};
+
+	// Load provider set
+	const handleLoadProviderSet = async (setName: string) => {
+		try {
+			const configs = await storage.getProviderSet(setName);
+			if (configs) {
+				const configsWithIds = configs.map((config, index) => ({
+					id: `loaded-${index}-${Date.now()}`,
+					...config,
+					enabled: true,
+				}));
+				setEnsembleProviderConfigs(configsWithIds);
+			}
+		} catch (error) {
+			console.error("Failed to load provider set:", error);
 		}
 	};
 
@@ -2244,7 +2422,7 @@ function OptionsPage() {
 					</div>
 				</div>
 
-				{/* Ensemble Settings Section */}
+				{/* Enhanced Ensemble Configuration Section */}
 				<div
 					style={{
 						marginBottom: spacing["3xl"],
@@ -2274,7 +2452,7 @@ function OptionsPage() {
 								color: colors.text.primary,
 							}}
 						>
-							Ensemble Settings
+							🎯 Ensemble Mode Configuration
 						</h2>
 					</div>
 
@@ -2318,8 +2496,8 @@ function OptionsPage() {
 									}}
 								>
 									Ensemble mode runs multiple analyses and finds consensus for
-									higher accuracy. More runs = better confidence but higher API
-									cost.
+									higher accuracy. Choose between same model runs or multiple
+									providers for enhanced analysis diversity.
 								</p>
 							</div>
 						</div>
@@ -2390,54 +2568,407 @@ function OptionsPage() {
 							</label>
 						</div>
 
-						{/* Default Runs Setting */}
-						<div
-							style={{
-								marginBottom: spacing.lg,
-								opacity: ensembleSettings.enabled ? 1 : 0.5,
-							}}
-						>
-							<label
-								style={{
-									display: "block",
-									marginBottom: spacing.sm,
-									color: colors.text.primary,
-									fontSize: typography.fontSize.sm,
-									fontWeight: typography.fontWeight.medium,
-								}}
-							>
-								Default Number of Runs ({ensembleSettings.defaultRuns}x cost):
-							</label>
-							<input
-								type="range"
-								min="1"
-								max="10"
-								value={ensembleSettings.defaultRuns}
-								onChange={(e) =>
-									handleEnsembleSettingsUpdate({
-										defaultRuns: parseInt(e.target.value, 10),
-									})
-								}
-								disabled={!ensembleSettings.enabled}
-								style={{
-									width: "100%",
-									accentColor: colors.text.accent,
-									marginBottom: spacing.sm,
-								}}
-							/>
+						{/* Mode Selection */}
+						{ensembleSettings.enabled && (
+							<div style={{ marginBottom: spacing.lg }}>
+								<label
+									style={{
+										fontSize: typography.fontSize.sm,
+										fontWeight: typography.fontWeight.medium,
+										marginBottom: spacing.sm,
+										display: "block",
+										color: colors.text.primary,
+									}}
+								>
+									Ensemble Mode
+								</label>
+
+								<div style={{ display: "flex", gap: spacing.md }}>
+									<label
+										style={{
+											display: "flex",
+											alignItems: "center",
+											gap: spacing.xs,
+										}}
+									>
+										<input
+											type="radio"
+											name="ensembleMode"
+											value="single-model"
+											checked={ensembleSettings.mode === "single-model"}
+											onChange={(e) =>
+												handleEnsembleModeChange(e.target.value as any)
+											}
+											style={{
+												accentColor: colors.text.accent,
+											}}
+										/>
+										<span
+											style={{
+												fontSize: typography.fontSize.sm,
+												color: colors.text.primary,
+											}}
+										>
+											Same Model (Multiple Runs)
+										</span>
+									</label>
+
+									<label
+										style={{
+											display: "flex",
+											alignItems: "center",
+											gap: spacing.xs,
+										}}
+									>
+										<input
+											type="radio"
+											name="ensembleMode"
+											value="multi-provider"
+											checked={ensembleSettings.mode === "multi-provider"}
+											onChange={(e) =>
+												handleEnsembleModeChange(e.target.value as any)
+											}
+											style={{
+												accentColor: colors.text.accent,
+											}}
+										/>
+										<span
+											style={{
+												fontSize: typography.fontSize.sm,
+												color: colors.text.primary,
+											}}
+										>
+											Multiple Providers
+										</span>
+									</label>
+								</div>
+							</div>
+						)}
+
+						{/* Single Model Configuration (existing) */}
+						{ensembleSettings.enabled &&
+							ensembleSettings.mode === "single-model" && (
+								<div style={{ marginBottom: spacing.lg }}>
+									<label
+										style={{
+											fontSize: typography.fontSize.sm,
+											fontWeight: typography.fontWeight.medium,
+											marginBottom: spacing.sm,
+											display: "block",
+											color: colors.text.primary,
+										}}
+									>
+										Number of Runs: {ensembleSettings.defaultRuns}
+									</label>
+									<input
+										type="range"
+										min="1"
+										max="10"
+										value={ensembleSettings.defaultRuns}
+										onChange={(e) => {
+											const runs = parseInt(e.target.value, 10);
+											handleEnsembleSettingsUpdate({ defaultRuns: runs });
+										}}
+										style={{
+											width: "100%",
+											accentColor: colors.text.accent,
+											marginBottom: spacing.sm,
+										}}
+									/>
+									<div
+										style={{
+											display: "flex",
+											justifyContent: "space-between",
+											fontSize: typography.fontSize.xs,
+											color: colors.text.tertiary,
+										}}
+									>
+										<span>1 (Fast)</span>
+										<span>5 (Balanced)</span>
+										<span>10 (High Confidence)</span>
+									</div>
+								</div>
+							)}
+
+						{/* Multi-Provider Configuration (new) */}
+						{ensembleSettings.enabled &&
+							ensembleSettings.mode === "multi-provider" && (
+								<div style={{ marginBottom: spacing.lg }}>
+									<div
+										style={{
+											display: "flex",
+											justifyContent: "space-between",
+											alignItems: "center",
+											marginBottom: spacing.md,
+										}}
+									>
+										<h4
+											style={{
+												fontSize: typography.fontSize.lg,
+												margin: 0,
+												color: colors.text.primary,
+											}}
+										>
+											Provider Configurations
+										</h4>
+										<button
+											onClick={handleAddProviderConfig}
+											style={{
+												...components.button.primary,
+												fontSize: typography.fontSize.sm,
+												padding: `${spacing.xs} ${spacing.sm}`,
+											}}
+										>
+											Add Provider
+										</button>
+									</div>
+
+									{/* Provider Configuration List */}
+									<div
+										style={{
+											display: "flex",
+											flexDirection: "column",
+											gap: spacing.md,
+										}}
+									>
+										{ensembleProviderConfigs.map((config) => (
+											<div
+												key={config.id}
+												style={{
+													display: "flex",
+													alignItems: "center",
+													gap: spacing.md,
+													padding: spacing.sm,
+													backgroundColor: colors.background.primary,
+													borderRadius: borderRadius.md,
+													border: `1px solid ${colors.border.light}`,
+												}}
+											>
+												<input
+													type="checkbox"
+													checked={config.enabled}
+													onChange={(e) =>
+														handleUpdateProviderConfig(
+															config.id,
+															"enabled",
+															e.target.checked,
+														)
+													}
+													style={{
+														accentColor: colors.text.accent,
+													}}
+												/>
+
+												<select
+													value={config.providerId}
+													onChange={(e) =>
+														handleUpdateProviderConfig(
+															config.id,
+															"providerId",
+															e.target.value as ProviderId,
+														)
+													}
+													style={{
+														...components.input.default,
+														minWidth: "120px",
+													}}
+												>
+													{(
+														[
+															"gemini",
+															"openai",
+															"anthropic",
+															"openrouter",
+														] as ProviderId[]
+													)
+														.filter((providerId) =>
+															Boolean(apiKeys[providerId]),
+														) // Only show configured providers
+														.map((providerId) => (
+															<option key={providerId} value={providerId}>
+																{getProviderDisplayName(providerId)}
+															</option>
+														))}
+												</select>
+
+												<select
+													value={config.modelId}
+													onChange={(e) =>
+														handleUpdateProviderConfig(
+															config.id,
+															"modelId",
+															e.target.value,
+														)
+													}
+													style={{ ...components.input.default, flex: 1 }}
+												>
+													{availableModels[config.providerId]?.map((model) => (
+														<option key={model.id} value={model.id}>
+															{model.name}
+														</option>
+													))}
+												</select>
+
+												<button
+													onClick={() => handleRemoveProviderConfig(config.id)}
+													style={{
+														...components.button.secondary,
+														fontSize: typography.fontSize.sm,
+														padding: spacing.xs,
+														color: colors.error,
+													}}
+												>
+													Remove
+												</button>
+											</div>
+										))}
+									</div>
+
+									{ensembleProviderConfigs.length === 0 && (
+										<div
+											style={{
+												textAlign: "center",
+												padding: spacing.lg,
+												color: colors.text.secondary,
+												fontSize: typography.fontSize.sm,
+											}}
+										>
+											No provider configurations. Click "Add Provider" to get
+											started.
+										</div>
+									)}
+
+									{/* Save Configuration */}
+									<div
+										style={{
+											marginTop: spacing.md,
+											display: "flex",
+											gap: spacing.sm,
+										}}
+									>
+										<button
+											onClick={handleSaveEnsembleConfig}
+											disabled={
+												ensembleProviderConfigs.filter((c) => c.enabled)
+													.length === 0
+											}
+											style={{
+												...components.button.primary,
+												opacity:
+													ensembleProviderConfigs.filter((c) => c.enabled)
+														.length === 0
+														? 0.6
+														: 1,
+											}}
+										>
+											Save Configuration
+										</button>
+									</div>
+
+									{/* Provider Sets */}
+									<div style={{ marginTop: spacing.lg }}>
+										<h4
+											style={{
+												fontSize: typography.fontSize.lg,
+												marginBottom: spacing.sm,
+												color: colors.text.primary,
+											}}
+										>
+											Saved Provider Sets
+										</h4>
+
+										<div
+											style={{
+												display: "flex",
+												gap: spacing.sm,
+												marginBottom: spacing.sm,
+											}}
+										>
+											<input
+												type="text"
+												placeholder="Provider set name"
+												value={providerSetName}
+												onChange={(e) => setProviderSetName(e.target.value)}
+												style={{ ...components.input.default, flex: 1 }}
+											/>
+											<button
+												onClick={handleSaveProviderSet}
+												disabled={
+													!providerSetName.trim() ||
+													ensembleProviderConfigs.filter((c) => c.enabled)
+														.length === 0
+												}
+												style={{
+													...components.button.secondary,
+													opacity:
+														!providerSetName.trim() ||
+														ensembleProviderConfigs.filter((c) => c.enabled)
+															.length === 0
+															? 0.6
+															: 1,
+												}}
+											>
+												Save Set
+											</button>
+										</div>
+
+										<div
+											style={{
+												display: "flex",
+												flexWrap: "wrap",
+												gap: spacing.xs,
+											}}
+										>
+											{Object.keys(savedProviderSets).map((setName) => (
+												<button
+													key={setName}
+													onClick={() => handleLoadProviderSet(setName)}
+													style={{
+														...components.button.secondary,
+														fontSize: typography.fontSize.sm,
+														padding: `${spacing.xs} ${spacing.sm}`,
+													}}
+												>
+													{setName}
+												</button>
+											))}
+										</div>
+									</div>
+								</div>
+							)}
+
+						{/* Configuration Status Feedback */}
+						{ensembleConfigStatus && (
 							<div
 								style={{
-									display: "flex",
-									justifyContent: "space-between",
+									marginTop: spacing.sm,
+									padding: spacing.sm,
+									backgroundColor: colors.background.primary,
+									borderRadius: borderRadius.md,
 									fontSize: typography.fontSize.xs,
-									color: colors.text.tertiary,
+									fontWeight: typography.fontWeight.medium,
+									color: ensembleConfigStatus.success
+										? colors.success
+										: colors.error,
+									display: "flex",
+									alignItems: "center",
+									gap: spacing.xs,
+									border: `1px solid ${ensembleConfigStatus.success ? `${colors.success}33` : `${colors.error}33`}`,
 								}}
 							>
-								<span>1 (Fast)</span>
-								<span>5 (Balanced)</span>
-								<span>10 (High Confidence)</span>
+								{ensembleConfigStatus.success ? (
+									<>
+										<CircleCheck size={12} />
+										Configuration saved successfully
+									</>
+								) : (
+									<>
+										<CircleAlert size={12} />
+										Failed to save configuration
+									</>
+								)}
 							</div>
-						</div>
+						)}
 
 						{/* Ensemble Save Status Feedback */}
 						{ensembleSaveStatus && (
@@ -2487,9 +3018,10 @@ function OptionsPage() {
 								color: colors.text.tertiary,
 							}}
 						>
-							💡 Tips: Higher runs provide more confident results but cost more
-							API tokens. Use 3-5 runs for most analyses. Comprehensive mode is
-							best for important content. Changes are saved automatically.
+							💡 Tips: Multi-provider mode uses different AI providers for
+							diverse analysis perspectives. Same model mode runs multiple
+							analyses with your selected provider. Changes are saved
+							automatically.
 						</div>
 					</div>
 				</div>
