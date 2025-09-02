@@ -1006,12 +1006,51 @@ export class Sidebar {
 			leftContainer.appendChild(providerBadge);
 		}
 
+		// Helper function to map provider IDs to display names
+		const getProviderDisplayName = (providerId: string): string => {
+			const providerNames: Record<string, string> = {
+				gemini: "Google",
+				openai: "OpenAI",
+				anthropic: "Anthropic",
+				openrouter: "OpenRouter",
+			};
+			return (
+				providerNames[providerId] ||
+				providerId.charAt(0).toUpperCase() + providerId.slice(1)
+			);
+		};
+
+		// Helper function to generate clean provider/model tooltip
+		const generateProviderTooltip = (
+			providers: Array<{ model: string; provider: string }>,
+		): string => {
+			if (providers.length === 0) {
+				return "Found by: Unknown provider";
+			}
+
+			// Deduplicate identical model/provider combinations
+			const uniqueProviders = Array.from(
+				new Map(providers.map((p) => [`${p.model}:${p.provider}`, p])).values(),
+			);
+
+			// Sort alphabetically by model name for consistent display
+			uniqueProviders.sort((a, b) => a.model.localeCompare(b.model));
+
+			const providerList = uniqueProviders
+				.map((p) => `- ${p.model} (${getProviderDisplayName(p.provider)})`)
+				.join("\n");
+
+			return `Found by:\n${providerList}`;
+		};
+
 		// Helper function to determine confidence tier and styling
 		const getConfidenceTier = (
 			runsSupportingThis: number,
 			totalRuns: number,
+			providers: Array<{ model: string; provider: string }> = [],
 		) => {
 			const percentage = (runsSupportingThis / totalRuns) * 100;
+			const description = generateProviderTooltip(providers);
 
 			if (percentage === 100) {
 				return {
@@ -1019,7 +1058,7 @@ export class Sidebar {
 					icon: "✓",
 					badgeColor: colors.gray[100],
 					textColor: colors.text.primary,
-					description: `High Confidence - Found by all ${totalRuns} analysis runs`,
+					description,
 				};
 			} else if (percentage >= 67) {
 				return {
@@ -1027,7 +1066,7 @@ export class Sidebar {
 					icon: "▲",
 					badgeColor: colors.gray[100],
 					textColor: colors.text.primary,
-					description: `Strong Confidence - Found by ${runsSupportingThis} out of ${totalRuns} analysis runs`,
+					description,
 				};
 			} else if (percentage >= 34) {
 				return {
@@ -1035,7 +1074,7 @@ export class Sidebar {
 					icon: "○",
 					badgeColor: colors.background.secondary,
 					textColor: colors.text.secondary,
-					description: `Moderate Confidence - Found by ${runsSupportingThis} out of ${totalRuns} analysis runs`,
+					description,
 				};
 			} else {
 				return {
@@ -1043,7 +1082,7 @@ export class Sidebar {
 					icon: "△",
 					badgeColor: colors.background.tertiary,
 					textColor: colors.text.tertiary,
-					description: `Low Confidence - Found by ${runsSupportingThis} out of ${totalRuns} analysis runs`,
+					description,
 				};
 			}
 		};
@@ -1063,9 +1102,25 @@ export class Sidebar {
         margin-left: ${consensusMargin};
       `;
 
+			// Collect provider/model data for tooltip
+			const providers: Array<{ model: string; provider: string }> = [];
+
+			// Check if we have single provider/model info (single-run or single-provider ensemble)
+			if (ensembleNugget.sourceProvider && ensembleNugget.sourceModel) {
+				providers.push({
+					model: ensembleNugget.sourceModel,
+					provider: ensembleNugget.sourceProvider,
+				});
+			}
+
+			// For multi-provider ensemble, we might need to collect from the consensus group
+			// This would require additional data structure changes in ensemble-extractor.ts
+			// For now, handle single provider case and add multi-provider support later if needed
+
 			const confidenceTier = getConfidenceTier(
 				ensembleNugget.runsSupportingThis,
 				ensembleNugget.totalRuns,
+				providers,
 			);
 
 			// Consensus badge with confidence tier
@@ -1097,20 +1152,34 @@ export class Sidebar {
 			leftContainer.appendChild(consensusContainer);
 		}
 
-		// Two-Phase and general confidence display (for non-ensemble nuggets)
+		// Single-run confidence display (for non-ensemble nuggets)
 		if (
 			ensembleNugget.confidence !== undefined &&
 			ensembleNugget.runsSupportingThis === undefined // Not an ensemble nugget
 		) {
 			const confidenceContainer = document.createElement("div");
+			const containerMargin = spacing.sm;
+			const containerGap = spacing.xs;
 			confidenceContainer.style.cssText = `
         display: flex;
         align-items: center;
-        gap: ${spacing.xs};
-        margin-left: ${spacing.sm};
+        gap: ${containerGap};
+        margin-left: ${containerMargin};
       `;
 
-			// Confidence score badge
+			// Collect provider/model data for tooltip
+			const providers: Array<{ model: string; provider: string }> = [];
+			if (ensembleNugget.sourceProvider && ensembleNugget.sourceModel) {
+				providers.push({
+					model: ensembleNugget.sourceModel,
+					provider: ensembleNugget.sourceProvider,
+				});
+			}
+
+			// Generate tooltip with provider information
+			const tooltip = generateProviderTooltip(providers);
+
+			// Confidence score badge with provider tooltip
 			const confidencePercent = Math.round(ensembleNugget.confidence * 100);
 			let badgeColor = colors.background.tertiary;
 			let textColor = colors.text.secondary;
@@ -1128,20 +1197,26 @@ export class Sidebar {
 			}
 
 			const confidenceBadge = document.createElement("div");
+			const badgePadding = `${spacing.xs} ${spacing.sm}`;
+			const badgeBorderRadius = borderRadius.sm;
+			const badgeFontSize = typography.fontSize.xs;
+			const badgeFontWeight = typography.fontWeight.medium;
+
 			confidenceBadge.textContent = `${confidencePercent}%`;
+			confidenceBadge.title = tooltip;
 			confidenceBadge.style.cssText = `
         background: ${badgeColor};
         color: ${textColor};
-        padding: ${spacing.xs} ${spacing.sm};
-        border-radius: ${borderRadius.sm};
-        font-size: ${typography.fontSize.xs};
-        font-weight: ${typography.fontWeight.medium};
+        padding: ${badgePadding};
+        border-radius: ${badgeBorderRadius};
+        font-size: ${badgeFontSize};
+        font-weight: ${badgeFontWeight};
         min-width: 36px;
         text-align: center;
+        cursor: help;
       `;
 
 			confidenceContainer.appendChild(confidenceBadge);
-
 			leftContainer.appendChild(confidenceContainer);
 		}
 
