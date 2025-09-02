@@ -1,3 +1,4 @@
+import type { EnhancedGoldenNugget } from "../../shared/types";
 import type {
 	NuggetWithEmbedding,
 	SimilarityOptions,
@@ -246,22 +247,22 @@ export class EnsembleExtractor {
 			);
 
 			const normalizedResponse = normalize(rawResponse, provider.providerId);
-			
+
 			// Add provider information intelligently:
 			// - If nugget already has sourceProvider/sourceModel (including null/undefined), preserve it
 			// - If nugget doesn't have these properties at all, add them from provider instance
 			const taggedNuggets = normalizedResponse.golden_nuggets.map((nugget) => {
 				const nuggetAny = nugget as any;
-				const result = { ...nugget };
-				
+				const result = { ...nugget } as EnhancedGoldenNugget;
+
 				// Only add provider info if the property doesn't exist in the nugget object at all
-				if (!('sourceProvider' in nuggetAny)) {
+				if (!("sourceProvider" in nuggetAny)) {
 					result.sourceProvider = provider.providerId;
 				}
-				if (!('sourceModel' in nuggetAny)) {
+				if (!("sourceModel" in nuggetAny)) {
 					result.sourceModel = provider.modelName;
 				}
-				
+
 				return result;
 			});
 

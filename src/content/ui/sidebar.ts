@@ -521,17 +521,13 @@ export class Sidebar {
 			if (
 				this.providerMetadata.providerId === ("multi-provider" as ProviderId)
 			) {
-				// Multi-provider display
+				// Multi-provider display - ultra-minimal single line
+				const fontSize = typography.fontSize.xs;
+				const textColor = colors.text.tertiary;
 				providerInfo.innerHTML = `
-					<div style="display: flex; align-items: center; gap: ${spacing.xs};">
-						<span>🎯 Multi-provider ensemble</span>
-						<span style="font-size: ${typography.fontSize.xs}; color: ${colors.text.tertiary};">
-							${this.getProviderCount()} providers
-						</span>
-					</div>
-					<div style="font-size: ${typography.fontSize.xs}; color: ${colors.text.tertiary}; margin-top: 2px;">
-						${Math.round(this.providerMetadata.responseTime)}ms average
-					</div>
+					<span style="font-size: ${fontSize}; color: ${textColor};">
+						Multi-Provider Ensemble
+					</span>
 				`;
 			} else {
 				// Single provider display (existing)
