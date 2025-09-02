@@ -31,8 +31,9 @@ interface EnhancedGoldenNugget extends GoldenNugget {
 	totalRuns?: number;
 	similarityMethod?: "embedding" | "word_overlap" | "fallback";
 	// Multi-provider metadata
-	sourceProvider?: ProviderId; // Track which provider found this nugget
+	sourceProvider?: ProviderId; // Track which provider found this nugget (for single-provider scenarios)
 	sourceModel?: string;
+	contributingProviders?: Array<{ model: string; provider: string }>; // Track all providers that contributed to this nugget (for ensemble consensus)
 }
 
 // Export data structure
@@ -1105,17 +1106,20 @@ export class Sidebar {
 			// Collect provider/model data for tooltip
 			const providers: Array<{ model: string; provider: string }> = [];
 
-			// Check if we have single provider/model info (single-run or single-provider ensemble)
-			if (ensembleNugget.sourceProvider && ensembleNugget.sourceModel) {
+			// Check if we have contributing providers array (for ensemble consensus)
+			if (
+				ensembleNugget.contributingProviders &&
+				ensembleNugget.contributingProviders.length > 0
+			) {
+				providers.push(...ensembleNugget.contributingProviders);
+			}
+			// Fallback: Check if we have single provider/model info (single-run or single-provider ensemble)
+			else if (ensembleNugget.sourceProvider && ensembleNugget.sourceModel) {
 				providers.push({
 					model: ensembleNugget.sourceModel,
 					provider: ensembleNugget.sourceProvider,
 				});
 			}
-
-			// For multi-provider ensemble, we might need to collect from the consensus group
-			// This would require additional data structure changes in ensemble-extractor.ts
-			// For now, handle single provider case and add multi-provider support later if needed
 
 			const confidenceTier = getConfidenceTier(
 				ensembleNugget.runsSupportingThis,
@@ -1169,7 +1173,16 @@ export class Sidebar {
 
 			// Collect provider/model data for tooltip
 			const providers: Array<{ model: string; provider: string }> = [];
-			if (ensembleNugget.sourceProvider && ensembleNugget.sourceModel) {
+
+			// Check if we have contributing providers array (for ensemble consensus)
+			if (
+				ensembleNugget.contributingProviders &&
+				ensembleNugget.contributingProviders.length > 0
+			) {
+				providers.push(...ensembleNugget.contributingProviders);
+			}
+			// Fallback: Check if we have single provider/model info (single-run or single-provider ensemble)
+			else if (ensembleNugget.sourceProvider && ensembleNugget.sourceModel) {
 				providers.push({
 					model: ensembleNugget.sourceModel,
 					provider: ensembleNugget.sourceProvider,

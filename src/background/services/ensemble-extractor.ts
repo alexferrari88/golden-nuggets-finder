@@ -245,7 +245,27 @@ export class EnsembleExtractor {
 				selectedTypes,
 			);
 
-			return normalize(rawResponse, provider.providerId);
+			const normalizedResponse = normalize(rawResponse, provider.providerId);
+			
+			// Add provider information intelligently:
+			// - If nugget already has sourceProvider/sourceModel (including null/undefined), preserve it
+			// - If nugget doesn't have these properties at all, add them from provider instance
+			const taggedNuggets = normalizedResponse.golden_nuggets.map((nugget) => {
+				const nuggetAny = nugget as any;
+				const result = { ...nugget };
+				
+				// Only add provider info if the property doesn't exist in the nugget object at all
+				if (!('sourceProvider' in nuggetAny)) {
+					result.sourceProvider = provider.providerId;
+				}
+				if (!('sourceModel' in nuggetAny)) {
+					result.sourceModel = provider.modelName;
+				}
+				
+				return result;
+			});
+
+			return { ...normalizedResponse, golden_nuggets: taggedNuggets };
 		} catch (error) {
 			console.error(
 				`Run ${runIndex + 1} failed for ${provider.providerId}:`,
@@ -284,6 +304,9 @@ export class EnsembleExtractor {
 				extraction.golden_nuggets.map((nugget) => ({
 					...nugget,
 					runId: runIndex.toString(), // Track source run index
+					// Preserve provider information for tooltip attribution
+					sourceProvider: (nugget as any).sourceProvider,
+					sourceModel: (nugget as any).sourceModel,
 				})),
 		);
 
@@ -303,6 +326,18 @@ export class EnsembleExtractor {
 			const uniqueRunIds = new Set(group.map((nugget) => nugget.runId));
 			const uniqueRunCount = uniqueRunIds.size;
 
+			// Collect all unique provider/model combinations from nuggets in this group
+			const contributingProviders = Array.from(
+				new Set(
+					group
+						.filter((nugget) => nugget.sourceProvider && nugget.sourceModel)
+						.map((nugget) => `${nugget.sourceProvider}:${nugget.sourceModel}`),
+				),
+			).map((providerModelKey) => {
+				const [provider, model] = providerModelKey.split(":");
+				return { provider, model };
+			});
+
 			return {
 				type: group[0].type as
 					| "tool"
@@ -315,6 +350,8 @@ export class EnsembleExtractor {
 				runsSupportingThis: uniqueRunCount,
 				totalRuns: metadata.totalRuns,
 				similarityMethod: "embedding" as const,
+				contributingProviders:
+					contributingProviders.length > 0 ? contributingProviders : undefined,
 			};
 		});
 

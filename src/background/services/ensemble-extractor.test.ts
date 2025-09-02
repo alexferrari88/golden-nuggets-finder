@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { LLMProvider } from "../../shared/types/providers";
+import type { LLMProvider, ProviderId } from "../../shared/types/providers";
 import { EnsembleExtractor } from "./ensemble-extractor";
 
 interface MockProvider extends LLMProvider {
@@ -411,6 +411,237 @@ describe("EnsembleExtractor", () => {
 		// All should have totalRuns = 3
 		result.golden_nuggets.forEach((nugget) => {
 			expect(nugget.totalRuns).toBe(3);
+		});
+	});
+
+	describe("Provider Attribution", () => {
+		it("should preserve provider information in multi-provider ensemble", async () => {
+			const mockProviderConfigs = [
+				{
+					providerId: "gemini" as const,
+					modelId: "gemini-2.5-flash",
+					provider: {
+						providerId: "gemini" as ProviderId,
+						modelName: "gemini-2.5-flash",
+						extractGoldenNuggets: vi.fn().mockResolvedValue({
+							golden_nuggets: [
+								{
+									...nugget1,
+									sourceProvider: "gemini",
+									sourceModel: "gemini-2.5-flash",
+								},
+								{
+									...nugget2,
+									sourceProvider: "gemini",
+									sourceModel: "gemini-2.5-flash",
+								},
+							],
+						}),
+						validateApiKey: vi.fn().mockResolvedValue(true),
+					},
+				},
+				{
+					providerId: "openai" as const,
+					modelId: "gpt-4o-mini",
+					provider: {
+						providerId: "openai" as ProviderId,
+						modelName: "gpt-4o-mini",
+						extractGoldenNuggets: vi.fn().mockResolvedValue({
+							golden_nuggets: [
+								{
+									...nugget1,
+									sourceProvider: "openai",
+									sourceModel: "gpt-4o-mini",
+								},
+								{
+									...nugget3,
+									sourceProvider: "openai",
+									sourceModel: "gpt-4o-mini",
+								},
+							],
+						}),
+						validateApiKey: vi.fn().mockResolvedValue(true),
+					},
+				},
+			];
+
+			const result = await ensembleExtractor.extractWithMultiProvider(
+				"test content",
+				"test prompt",
+				mockProviderConfigs,
+			);
+
+			expect(result.golden_nuggets).toHaveLength(3);
+
+			// Check that each consensus nugget has contributingProviders
+			result.golden_nuggets.forEach((nugget) => {
+				expect(nugget).toHaveProperty("contributingProviders");
+				expect((nugget as any).contributingProviders).toBeInstanceOf(Array);
+				expect((nugget as any).contributingProviders.length).toBeGreaterThan(0);
+			});
+
+			// Find nugget1 (appears in both providers)
+			const consensusNugget1 = result.golden_nuggets.find(
+				(n) => n.fullContent === nugget1.fullContent,
+			);
+			expect(consensusNugget1).toBeDefined();
+			expect((consensusNugget1 as any).contributingProviders).toHaveLength(2);
+			expect((consensusNugget1 as any).contributingProviders).toEqual(
+				expect.arrayContaining([
+					{ provider: "gemini", model: "gemini-2.5-flash" },
+					{ provider: "openai", model: "gpt-4o-mini" },
+				]),
+			);
+
+			// Find nugget2 (appears only in gemini)
+			const consensusNugget2 = result.golden_nuggets.find(
+				(n) => n.fullContent === nugget2.fullContent,
+			);
+			expect(consensusNugget2).toBeDefined();
+			expect((consensusNugget2 as any).contributingProviders).toHaveLength(1);
+			expect((consensusNugget2 as any).contributingProviders).toEqual([
+				{ provider: "gemini", model: "gemini-2.5-flash" },
+			]);
+
+			// Find nugget3 (appears only in openai)
+			const consensusNugget3 = result.golden_nuggets.find(
+				(n) => n.fullContent === nugget3.fullContent,
+			);
+			expect(consensusNugget3).toBeDefined();
+			expect((consensusNugget3 as any).contributingProviders).toHaveLength(1);
+			expect((consensusNugget3 as any).contributingProviders).toEqual([
+				{ provider: "openai", model: "gpt-4o-mini" },
+			]);
+		});
+
+		it("should handle single provider ensemble with provider attribution", async () => {
+			// Mock provider responses with provider information
+			mockProvider.extractGoldenNuggets
+				.mockResolvedValueOnce({
+					golden_nuggets: [
+						{
+							...nugget1,
+							sourceProvider: "gemini",
+							sourceModel: "test-model",
+						},
+						{
+							...nugget2,
+							sourceProvider: "gemini",
+							sourceModel: "test-model",
+						},
+					],
+				})
+				.mockResolvedValueOnce({
+					golden_nuggets: [
+						{
+							...nugget1,
+							sourceProvider: "gemini",
+							sourceModel: "test-model",
+						},
+					],
+				})
+				.mockResolvedValueOnce({
+					golden_nuggets: [
+						{
+							...nugget3,
+							sourceProvider: "gemini",
+							sourceModel: "test-model",
+						},
+					],
+				});
+
+			const result = await ensembleExtractor.extractWithEnsemble(
+				"test content",
+				"test prompt",
+				mockProvider,
+				{ runs: 3, temperature: 0.7, parallelExecution: true },
+			);
+
+			expect(result.golden_nuggets).toHaveLength(3);
+
+			// All consensus nuggets should have contributingProviders with the single provider
+			result.golden_nuggets.forEach((nugget) => {
+				expect((nugget as any).contributingProviders).toHaveLength(1);
+				expect((nugget as any).contributingProviders[0]).toEqual({
+					provider: "gemini",
+					model: "test-model",
+				});
+			});
+		});
+
+		it("should handle nuggets without provider information gracefully", async () => {
+			// Mock provider responses without provider information
+			mockProvider.extractGoldenNuggets
+				.mockResolvedValueOnce({
+					golden_nuggets: [nugget1, nugget2],
+				})
+				.mockResolvedValueOnce({
+					golden_nuggets: [nugget1],
+				})
+				.mockResolvedValueOnce({
+					golden_nuggets: [nugget3],
+				});
+
+			const result = await ensembleExtractor.extractWithEnsemble(
+				"test content",
+				"test prompt",
+				mockProvider,
+				{ runs: 3, temperature: 0.7, parallelExecution: true },
+			);
+
+			expect(result.golden_nuggets).toHaveLength(3);
+
+			// When no explicit provider info is given, nuggets should get provider info from the provider instance
+			result.golden_nuggets.forEach((nugget) => {
+				expect((nugget as any).contributingProviders).toHaveLength(1);
+				expect((nugget as any).contributingProviders[0]).toEqual({
+					provider: "gemini",
+					model: "test-model",
+				});
+			});
+		});
+
+		it("should handle mixed scenarios with some nuggets having provider info", async () => {
+			// Mock provider responses with mixed provider information
+			mockProvider.extractGoldenNuggets
+				.mockResolvedValueOnce({
+					golden_nuggets: [
+						{
+							...nugget1,
+							sourceProvider: "gemini",
+							sourceModel: "test-model",
+						},
+						nugget2, // No explicit provider info - should get default
+					],
+				})
+				.mockResolvedValueOnce({
+					golden_nuggets: [
+						nugget1, // No explicit provider info - should get default
+						{
+							...nugget3,
+							sourceProvider: "gemini",
+							sourceModel: "test-model",
+						},
+					],
+				});
+
+			const result = await ensembleExtractor.extractWithEnsemble(
+				"test content",
+				"test prompt",
+				mockProvider,
+				{ runs: 2, temperature: 0.7, parallelExecution: true },
+			);
+
+			expect(result.golden_nuggets).toHaveLength(3);
+
+			// All nuggets should have provider info (explicit or from provider instance)
+			result.golden_nuggets.forEach((nugget) => {
+				expect((nugget as any).contributingProviders).toHaveLength(1);
+				expect((nugget as any).contributingProviders[0]).toEqual({
+					provider: "gemini",
+					model: "test-model",
+				});
+			});
 		});
 	});
 });

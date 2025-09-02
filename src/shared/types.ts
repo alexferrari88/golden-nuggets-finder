@@ -19,8 +19,9 @@ export interface EnhancedGoldenNugget extends GoldenNugget {
 	totalRuns?: number;
 	similarityMethod?: "embedding" | "word_overlap" | "fallback";
 	// Multi-provider metadata
-	sourceProvider?: ProviderId; // Track which provider found this nugget
+	sourceProvider?: ProviderId; // Track which provider found this nugget (for single-provider scenarios)
 	sourceModel?: string;
+	contributingProviders?: Array<{ model: string; provider: string }>; // Track all providers that contributed to this nugget (for ensemble consensus)
 }
 
 export interface GeminiResponse {

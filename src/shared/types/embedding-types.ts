@@ -45,6 +45,8 @@ export interface NuggetWithEmbedding {
 	fullContent: string;
 	runId?: string;
 	embedding?: EmbeddingVector;
+	sourceProvider?: string;
+	sourceModel?: string;
 }
 
 export interface EmbeddingServiceConfig {
