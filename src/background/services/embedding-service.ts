@@ -149,15 +149,6 @@ export class EmbeddingService {
 			};
 		}
 
-		// Detailed logging for debugging
-		debugLogger.log(
-			`[EmbeddingService] Making ${isBatch ? "batch" : "single"} API call with ${texts.length} texts`,
-		);
-		debugLogger.log(
-			`[EmbeddingService] Request body:`,
-			JSON.stringify(requestBody, null, 2),
-		);
-		debugLogger.log(`[EmbeddingService] API URL:`, apiUrl);
 
 		try {
 			const response = await fetch(apiUrl, {
@@ -169,29 +160,16 @@ export class EmbeddingService {
 				body: JSON.stringify(requestBody),
 			});
 
-			debugLogger.log(
-				`[EmbeddingService] Response status:`,
-				response.status,
-				response.statusText,
-			);
 
 			if (!response.ok) {
 				let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
 				let errorData = null;
 				try {
 					errorData = await response.json();
-					debugLogger.log(
-						`[EmbeddingService] Error response:`,
-						JSON.stringify(errorData, null, 2),
-					);
 					if (errorData.error?.message) {
 						errorMessage = errorData.error.message;
 					}
 				} catch (parseError) {
-					debugLogger.log(
-						`[EmbeddingService] Failed to parse error response:`,
-						parseError,
-					);
 					// Use default error message if JSON parsing fails
 				}
 
@@ -200,10 +178,6 @@ export class EmbeddingService {
 			}
 
 			const data = await response.json();
-			debugLogger.log(
-				`[EmbeddingService] Response data:`,
-				JSON.stringify(data, null, 2).substring(0, 200), // Limit to 200 chars
-			);
 
 			if (isBatch) {
 				// Batch response format: { embeddings: [{ values: [...] }, ...] }
@@ -250,10 +224,6 @@ export class EmbeddingService {
 		// Check cache first
 		const cached = this.getCachedEmbedding(text, options);
 		if (cached) {
-			debugLogger.log(
-				"[EmbeddingService] Cache hit for text:",
-				`${text.substring(0, 50)}...`,
-			);
 			return cached;
 		}
 
@@ -280,9 +250,6 @@ export class EmbeddingService {
 		texts: string[],
 		options: EmbeddingOptions = {},
 	): Promise<EmbeddingVector[]> {
-		debugLogger.log(
-			`[EmbeddingService] generateEmbeddings called with ${texts.length} texts`,
-		);
 
 		if (texts.length === 0) {
 			debugLogger.log(
@@ -302,15 +269,9 @@ export class EmbeddingService {
 
 			if (cached) {
 				results[i] = cached;
-				debugLogger.log(
-					`[EmbeddingService] Cache hit for text ${i}: "${text.substring(0, 50)}..."`,
-				);
 			} else {
 				uncachedTexts.push(text);
 				uncachedIndices.push(i);
-				debugLogger.log(
-					`[EmbeddingService] Cache miss for text ${i}: "${text.substring(0, 50)}..."`,
-				);
 			}
 		}
 
@@ -336,15 +297,9 @@ export class EmbeddingService {
 				const batch = uncachedTexts.slice(i, i + this.MAX_BATCH_SIZE);
 				const batchIndices = uncachedIndices.slice(i, i + this.MAX_BATCH_SIZE);
 
-				debugLogger.log(
-					`[EmbeddingService] Processing batch ${Math.floor(i / this.MAX_BATCH_SIZE) + 1}/${Math.ceil(uncachedTexts.length / this.MAX_BATCH_SIZE)} with ${batch.length} texts (batch API)`,
-				);
 
 				const batchEmbeddings = await this.makeApiCall(batch, options);
 
-				debugLogger.log(
-					`[EmbeddingService] Received ${batchEmbeddings.length} embeddings from batch API`,
-				);
 
 				// Store results and cache embeddings
 				for (let j = 0; j < batch.length; j++) {
@@ -352,12 +307,6 @@ export class EmbeddingService {
 					let embedding = batchEmbeddings[j];
 					const originalIndex = batchIndices[j];
 
-					debugLogger.log(
-						`[EmbeddingService] Processing embedding ${j} for original index ${originalIndex}`,
-					);
-					debugLogger.log(
-						`[EmbeddingService] Original embedding dimension: ${embedding.values.length}`,
-					);
 
 					// Normalize embeddings for non-3072 dimensions
 					if (needsNormalization) {
@@ -368,9 +317,6 @@ export class EmbeddingService {
 						const normalizedMagnitude = Math.sqrt(
 							embedding.values.reduce((sum, value) => sum + value * value, 0),
 						);
-						debugLogger.log(
-							`[EmbeddingService] Normalized embedding: ${originalMagnitude.toFixed(4)} -> ${normalizedMagnitude.toFixed(4)}`,
-						);
 					}
 
 					results[originalIndex] = embedding;
@@ -379,9 +325,6 @@ export class EmbeddingService {
 			}
 		}
 
-		debugLogger.log(
-			`[EmbeddingService] Returning ${results.length} embeddings total`,
-		);
 		return results;
 	}
 
