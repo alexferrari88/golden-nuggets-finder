@@ -45,10 +45,11 @@ export async function createProvider(
 		throw error;
 	}
 
-	// Validate model against provider
-	const isValidModel = validateModelForProvider(
+	// Validate model against provider using enhanced validation
+	const isValidModel = await validateModelForProvider(
 		config.providerId,
 		config.modelName,
+		true, // Use dynamic validation
 	);
 	if (!isValidModel) {
 		debugLogger.warn(
@@ -79,10 +80,10 @@ export async function createProvider(
 
 export function getDefaultModel(providerId: ProviderId): string {
 	const defaults = {
-		gemini: "gemini-2.5-flash",
+		gemini: "gemini-2.5-flash-lite",
 		openai: "gpt-5-mini",
 		anthropic: "claude-sonnet-4-20250514",
-		openrouter: "openai/gpt-3.5-turbo",
+		openrouter: "moonshotai/kimi-k2:free",
 	};
 	return defaults[providerId];
 }
@@ -100,19 +101,13 @@ export function getKnownModelsForProvider(providerId: ProviderId): string[] {
 		gemini: [
 			"gemini-2.5-flash",
 			"gemini-2.5-flash-lite",
-			"gemini-2.5-flash-8b",
-			"gemini-2.0-flash-exp",
-			"gemini-1.5-flash",
-			"gemini-1.5-flash-8b",
-			"gemini-1.5-pro",
+			"gemini-2.5-pro"
 		],
 		openai: [
 			"gpt-4.1-mini",
-			"gpt-4o",
-			"gpt-4o-mini",
-			"gpt-4-turbo",
-			"gpt-4",
-			"gpt-3.5-turbo",
+			"gpt-5-mini",
+			"gpt-5-nano",
+			"gpt-5",
 		],
 		anthropic: [
 			"claude-sonnet-4-20250514",
@@ -121,9 +116,9 @@ export function getKnownModelsForProvider(providerId: ProviderId): string[] {
 			"claude-3-opus-20240229",
 		],
 		openrouter: [
-			"openai/gpt-3.5-turbo",
-			"openai/gpt-4",
-			"anthropic/claude-3-sonnet",
+			"moonshotai/kimi-k2:free",
+			"openai/gpt-5-mini",
+			"anthropic/claude-4-sonnet",
 			"meta-llama/llama-2-70b-chat",
 		],
 	};
@@ -131,15 +126,26 @@ export function getKnownModelsForProvider(providerId: ProviderId): string[] {
 	return knownModels[providerId] || [];
 }
 
+// Cache for dynamic validation results (5 minute TTL)
+const dynamicValidationCache = new Map<string, { result: boolean; timestamp: number }>();
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
 /**
- * Simple dynamic validation that checks against real-time model availability
- * Used to avoid false warnings for legitimate models
+ * Enhanced dynamic validation that checks against real-time model availability
+ * Includes caching for performance optimization
  */
 async function validateModelDynamically(
 	providerId: ProviderId,
 	modelId: string,
 ): Promise<boolean> {
 	try {
+		// Check cache first
+		const cacheKey = `${providerId}:${modelId}`;
+		const cached = dynamicValidationCache.get(cacheKey);
+		if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+			return cached.result;
+		}
+
 		// Handle Gemini's special API key retrieval
 		let apiKey: string;
 		if (providerId === "gemini") {
@@ -157,42 +163,84 @@ async function validateModelDynamically(
 			apiKey = (await getApiKey(providerId)) || "";
 		}
 
-		if (!apiKey) return false;
+		if (!apiKey) {
+			// Cache negative result for missing API key
+			dynamicValidationCache.set(cacheKey, { result: false, timestamp: Date.now() });
+			return false;
+		}
 
 		const result = await ModelService.fetchModels(providerId, apiKey);
-		if (result.error) return false;
+		if (result.error) {
+			// Don't cache API errors, allow retry
+			return false;
+		}
 
-		return result.models.some((model) => model.id === modelId);
+		const isValid = result.models.some((model) => model.id === modelId);
+		
+		// Cache the result
+		dynamicValidationCache.set(cacheKey, { result: isValid, timestamp: Date.now() });
+		
+		return isValid;
 	} catch {
 		return false; // Fall back to static validation
 	}
 }
 
 /**
- * Validate if a model name appears to be supported by a provider
- * This is a basic validation - actual model availability should be checked via API
+ * Enhanced model validation with dynamic API checking
+ * Uses both static and dynamic validation with smart warning logic
  */
-export function validateModelForProvider(
+export async function validateModelForProvider(
 	providerId: ProviderId,
 	modelName: string,
-): boolean {
+	useDynamicValidation: boolean = true,
+): Promise<boolean> {
 	if (!modelName || typeof modelName !== "string") {
 		debugLogger.warn(`[ProviderFactory] Invalid model name: "${modelName}"`);
 		return false;
 	}
 
+	// First check static validation
 	const knownModels = getKnownModelsForProvider(providerId);
 	const isKnownModel = knownModels.includes(modelName);
 
-	// For now, we return true even for unknown models since providers may have newer models
-	// But we log a warning for truly suspicious model names
-	if (!isKnownModel) {
+	// If model is statically known, no need for dynamic validation
+	if (isKnownModel) {
+		return true;
+	}
+
+	// If dynamic validation is disabled, use static validation only
+	if (!useDynamicValidation) {
 		debugLogger.warn(
 			`[ProviderFactory] Model "${modelName}" not in known list for provider "${providerId}". Known models: ${knownModels.join(", ")}`,
 		);
+		return true; // Allow unknown models but log warnings
 	}
 
-	return true; // Allow unknown models but log warnings
+	// Try dynamic validation for unknown models
+	try {
+		const isDynamicallyValid = await validateModelDynamically(providerId, modelName);
+		
+		if (isDynamicallyValid) {
+			// Model is valid according to API, no warning needed
+			debugLogger.log(
+				`[ProviderFactory] Model "${modelName}" verified via API for provider "${providerId}"`,
+			);
+			return true;
+		} else {
+			// Both static and dynamic validation failed
+			debugLogger.warn(
+				`[ProviderFactory] Model "${modelName}" not found via API for provider "${providerId}". Known models: ${knownModels.join(", ")}`,
+			);
+			return true; // Still allow but warn since API might be incomplete
+		}
+	} catch (error) {
+		// Dynamic validation failed, fall back to static with warning
+		debugLogger.warn(
+			`[ProviderFactory] Could not verify model "${modelName}" via API for provider "${providerId}" (${error}). Allowing anyway. Known models: ${knownModels.join(", ")}`,
+		);
+		return true; // Allow unknown models when API validation fails
+	}
 }
 
 /**
@@ -212,8 +260,8 @@ export async function getSelectedModel(
 	const selectedModel = await getModel(providerId);
 
 	if (selectedModel) {
-		// Validate the selected model
-		const isValidModel = validateModelForProvider(providerId, selectedModel);
+		// Validate the selected model using enhanced validation
+		const isValidModel = await validateModelForProvider(providerId, selectedModel, true);
 		if (!isValidModel) {
 			debugLogger.warn(
 				`[ProviderFactory] Selected model "${selectedModel}" failed validation for provider "${providerId}", falling back to default`,
@@ -280,7 +328,7 @@ export async function debugModelSelection(providerId: ProviderId): Promise<{
 	// Validate stored model if it exists
 	let isStoredModelValid = true;
 	if (storedModel) {
-		isStoredModelValid = validateModelForProvider(providerId, storedModel);
+		isStoredModelValid = await validateModelForProvider(providerId, storedModel, true);
 		if (!isStoredModelValid) {
 			validationIssues.push(
 				`Stored model "${storedModel}" failed validation for provider "${providerId}"`,
@@ -351,17 +399,7 @@ export async function createMultipleProviders(
 					throw new Error(`No API key configured for ${config.providerId}`);
 				}
 
-				// Use dynamic validation to prevent false warnings for legitimate models
-				const isDynamicallyValid = await validateModelDynamically(
-					config.providerId,
-					config.modelId,
-				);
-				if (!isDynamicallyValid) {
-					// Only warn if dynamic validation fails (likely invalid model)
-					debugLogger.warn(
-						`[ProviderFactory] Model "${config.modelId}" may not be available for provider "${config.providerId}" (verified via API)`,
-					);
-				}
+				// Dynamic validation is now handled in createProvider()
 
 				const providerConfig: ProviderConfig = {
 					providerId: config.providerId,
