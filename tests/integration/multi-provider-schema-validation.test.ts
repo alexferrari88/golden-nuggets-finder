@@ -42,6 +42,7 @@ const GoldenNuggetsResponseSchema = z.object({
 				// AI model variations that response-normalizer handles
 				"mental model",
 				"mental_model",
+				"aha!_moments", // Underscore variation that some models return
 				"framework",
 				"technique",
 				"method",
@@ -198,6 +199,7 @@ Return only the most valuable insights that would be genuinely useful to a softw
 									// AI model variations that response-normalizer handles
 									"mental model",
 									"mental_model",
+									"aha!_moments", // Underscore variation that some models return
 									"framework",
 									"technique",
 									"method",

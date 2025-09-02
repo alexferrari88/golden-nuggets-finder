@@ -34,6 +34,7 @@ const GoldenNuggetsSchema = z.object({
 				// AI model variations that this normalizer handles
 				"mental model",
 				"mental_model",
+				"aha!_moments", // Underscore variation that some models return
 				"framework",
 				"technique",
 				"method",
@@ -140,6 +141,7 @@ function normalizeType(
 	> = {
 		"mental model": "model",
 		mental_model: "model",
+		"aha!_moments": "aha! moments", // Handle underscore variation
 		framework: "model",
 		technique: "tool",
 		method: "tool",

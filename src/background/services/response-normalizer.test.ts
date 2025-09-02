@@ -175,6 +175,27 @@ describe("Response Normalizer Functions", () => {
 			expect(result.golden_nuggets).toEqual([]);
 		});
 
+		it("should normalize aha!_moments underscore variation to canonical type", () => {
+			const responseWithUnderscoreVariation = {
+				golden_nuggets: [
+					{
+						type: "aha!_moments" as const, // Underscore variation
+						fullContent: "This is an insight with underscore type",
+						confidence: 0.9,
+					},
+				],
+			};
+
+			const result = normalize(responseWithUnderscoreVariation, "openrouter");
+
+			expect(result.golden_nuggets).toHaveLength(1);
+			expect(result.golden_nuggets[0].type).toBe("aha! moments"); // Should be normalized to canonical type
+			expect(result.golden_nuggets[0].fullContent).toBe(
+				"This is an insight with underscore type",
+			);
+			expect(result.golden_nuggets[0].confidence).toBe(0.9);
+		});
+
 		it("should handle all valid nugget types", () => {
 			const responseWithAllTypes = {
 				golden_nuggets: [
