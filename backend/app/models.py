@@ -280,14 +280,17 @@ class NuggetFeedback(BaseModel):
     timestamp: int
     url: str
     context: str = Field(..., description="Full surrounding context from page")
-    # Model tracking fields for multi-provider support
+    # Enhanced model tracking fields
     modelProvider: str = Field(
         ..., description="LLM provider used (gemini, openai, anthropic, openrouter)"
     )
     modelName: str = Field(
         ..., description="Specific model used (e.g., gemini-2.5-flash, gpt-4o-mini)"
     )
-    # NEW: Chrome extension prompt context
+    # NEW: Session tracking fields
+    feedbackSessionId: str = Field(..., description="Session ID for grouping related feedback")
+    attributionSource: str = Field(default="nugget_metadata", description="Source of attribution (nugget_metadata, legacy)")
+    # Chrome extension prompt context
     promptId: str | None = Field(
         default=None, description="Chrome extension prompt ID used for this analysis"
     )
@@ -301,19 +304,22 @@ class NuggetFeedback(BaseModel):
 
 class MissingContentFeedback(BaseModel):
     id: str
-    content: str
+    fullContent: str = Field(..., description="Full content that should have been extracted")
     suggestedType: Literal["tool", "media", "aha! moments", "analogy", "model"]
     timestamp: int
     url: str
-    context: str = Field(..., description="Page context")
-    # Model tracking fields for multi-provider support
+    context: str = Field(..., description="Full surrounding context from page")
+    # Enhanced model tracking fields
     modelProvider: str = Field(
         ..., description="LLM provider used (gemini, openai, anthropic, openrouter)"
     )
     modelName: str = Field(
         ..., description="Specific model used (e.g., gemini-2.5-flash, gpt-4o-mini)"
     )
-    # NEW: Chrome extension prompt context
+    # NEW: Session tracking fields  
+    feedbackSessionId: str = Field(..., description="Session ID for grouping related feedback")
+    attributionSource: str = Field(default="analysis_session", description="Source of attribution (analysis_session, legacy)")
+    # Chrome extension prompt context
     promptId: str | None = Field(
         default=None, description="Chrome extension prompt ID used for this analysis"
     )
@@ -346,7 +352,10 @@ class StoredNuggetFeedback(BaseModel):
     # Model tracking fields for multi-provider support
     model_provider: str
     model_name: str
-    # NEW: Chrome extension prompt context
+    # NEW: Session tracking fields
+    feedback_session_id: str
+    attribution_source: str = "nugget_metadata"
+    # Chrome extension prompt context
     prompt_id: str | None = None
     prompt_version: int | None = None
     full_prompt_content: str | None = None
@@ -356,7 +365,7 @@ class StoredMissingContentFeedback(BaseModel):
     """Internal model for database storage"""
 
     id: str
-    content: str
+    full_content: str
     suggested_type: str
     timestamp: datetime
     url: str
@@ -368,7 +377,10 @@ class StoredMissingContentFeedback(BaseModel):
     # Model tracking fields for multi-provider support
     model_provider: str
     model_name: str
-    # NEW: Chrome extension prompt context
+    # NEW: Session tracking fields  
+    feedback_session_id: str
+    attribution_source: str = "analysis_session"
+    # Chrome extension prompt context
     prompt_id: str | None = None
     prompt_version: int | None = None
     full_prompt_content: str | None = None
