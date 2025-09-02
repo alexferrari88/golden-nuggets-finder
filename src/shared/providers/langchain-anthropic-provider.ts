@@ -35,6 +35,10 @@ const GoldenNuggetsSchema = z.object({
 				"concept",
 				"comparison",
 				"metaphor",
+				// Plural variations that some models return
+				"tools",
+				"analogies",
+				"models",
 			]),
 			fullContent: z.string(),
 			confidence: z.number().min(0).max(1),

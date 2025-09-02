@@ -44,6 +44,10 @@ const GoldenNuggetsSchema = z.object({
 				"concept",
 				"comparison",
 				"metaphor",
+				// Plural variations that some models return
+				"tools",
+				"analogies",
+				"models",
 			]),
 			fullContent: z.string(),
 			confidence: z.number().optional(),
@@ -151,6 +155,10 @@ function normalizeType(
 		concept: "aha! moments",
 		comparison: "analogy",
 		metaphor: "analogy",
+		// Plural variations that some models return
+		tools: "tool",
+		analogies: "analogy",
+		models: "model",
 	};
 
 	const normalized = typeMap[type.toLowerCase()] || type;

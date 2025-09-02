@@ -52,6 +52,10 @@ const GoldenNuggetsResponseSchema = z.object({
 				"concept",
 				"comparison",
 				"metaphor",
+				// Plural variations that some models return
+				"tools",
+				"analogies",
+				"models",
 			]),
 			fullContent: z.string(),
 			confidence: z.number().min(0).max(1).optional(),
@@ -209,6 +213,10 @@ Return only the most valuable insights that would be genuinely useful to a softw
 									"concept",
 									"comparison",
 									"metaphor",
+									// Plural variations that some models return
+									"tools",
+									"analogies",
+									"models",
 								]).toContain(nugget.type);
 								expect(typeof nugget.fullContent).toBe("string");
 								expect(nugget.fullContent.length).toBeGreaterThan(0);

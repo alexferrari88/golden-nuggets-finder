@@ -196,6 +196,41 @@ describe("Response Normalizer Functions", () => {
 			expect(result.golden_nuggets[0].confidence).toBe(0.9);
 		});
 
+		it("should normalize plural type variations to canonical types", () => {
+			const responseWithPluralVariations = {
+				golden_nuggets: [
+					{
+						type: "tools" as const, // Plural variation
+						fullContent: "This is a tool in plural form",
+						confidence: 0.9,
+					},
+					{
+						type: "analogies" as const, // Plural variation
+						fullContent: "These are analogies in plural form",
+						confidence: 0.8,
+					},
+					{
+						type: "models" as const, // Plural variation
+						fullContent: "These are models in plural form",
+						confidence: 0.7,
+					},
+				],
+			};
+
+			const result = normalize(responseWithPluralVariations, "openrouter");
+
+			expect(result.golden_nuggets).toHaveLength(3);
+			// Check that plural forms are normalized to canonical types
+			expect(result.golden_nuggets[0].type).toBe("tool");
+			expect(result.golden_nuggets[1].type).toBe("analogy");
+			expect(result.golden_nuggets[2].type).toBe("model");
+			// Check that content and confidence are preserved
+			expect(result.golden_nuggets[0].fullContent).toBe(
+				"This is a tool in plural form",
+			);
+			expect(result.golden_nuggets[0].confidence).toBe(0.9);
+		});
+
 		it("should handle all valid nugget types", () => {
 			const responseWithAllTypes = {
 				golden_nuggets: [
