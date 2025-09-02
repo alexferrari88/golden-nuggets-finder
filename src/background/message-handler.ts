@@ -2139,6 +2139,16 @@ export class MessageHandler {
 
 	// Feedback System Handlers
 
+	// NOTE: extractNuggetAttribution removed - NuggetFeedback doesn't contain nugget metadata
+	// Attribution will be handled in Phase 3 when nugget metadata is added to feedback
+
+	// Add utility method to MessageHandler class
+	private generateFeedbackSessionId(baseFeedbackId: string): string {
+		const timestamp = Date.now();
+		const random = Math.random().toString(36).substring(2, 8);
+		return `session_${baseFeedbackId}_${timestamp}_${random}`;
+	}
+
 	/**
 	 * Update local feedback storage with corrected IDs from backend response
 	 */
@@ -2185,94 +2195,81 @@ export class MessageHandler {
 
 	private async handleSubmitNuggetFeedback(
 		request: SubmitNuggetFeedbackRequest,
-		sender: chrome.runtime.MessageSender,
+		_sender: chrome.runtime.MessageSender,
 		sendResponse: (response: SubmitNuggetFeedbackResponse) => void,
 	): Promise<void> {
 		try {
-			const feedback: NuggetFeedback = request.feedback;
-
+			const { feedback } = request;
 			if (!feedback) {
 				sendResponse({ success: false, error: "No feedback data provided" });
 				return;
 			}
 
-			// Add provider and prompt metadata from last used provider and prompt
-			const providerInfo = await chrome.storage.local.get([
-				"lastUsedProvider",
-				"lastUsedPrompt",
-			]);
-			const feedbackWithProviderAndPrompt = {
-				...feedback,
-				modelProvider: providerInfo.lastUsedProvider?.providerId || "gemini",
-				modelName:
-					providerInfo.lastUsedProvider?.modelName || "gemini-2.5-flash-lite",
-				prompt: providerInfo.lastUsedPrompt || {
-					id: "unknown",
-					version: "original",
-					content: "",
-					type: "default" as const,
-					name: "Unknown prompt",
-				},
+			// Extract attribution from nugget metadata
+			// Note: NuggetFeedback doesn't have a nugget property, it IS the nugget data
+			// For now, we'll use the fallback to storage until nugget metadata is available
+			let nuggetAttributions:
+				| { modelProvider: string; modelName: string }[]
+				| null = null;
+
+			// Fallback to storage if no attribution found
+			if (!nuggetAttributions) {
+				const providerInfo = await chrome.storage.local.get([
+					"lastUsedProvider",
+					"lastUsedPrompt",
+				]);
+				nuggetAttributions = [
+					{
+						modelProvider:
+							providerInfo.lastUsedProvider?.providerId || "gemini",
+						modelName:
+							providerInfo.lastUsedProvider?.modelName ||
+							"gemini-2.5-flash-lite",
+					},
+				];
+			}
+
+			// Get prompt info for all records
+			const promptInfo = await chrome.storage.local.get(["lastUsedPrompt"]);
+			const prompt = promptInfo.lastUsedPrompt || {
+				id: "unknown",
+				version: "original",
+				content: "",
+				type: "default" as const,
+				name: "Unknown prompt",
 			};
 
-			// Store feedback locally as backup
-			console.log(
-				`Storing nugget feedback locally with ID: ${feedbackWithProviderAndPrompt.id}`,
-			);
-			await this.storeFeedbackLocally("nugget", feedbackWithProviderAndPrompt);
+			// Create feedback records (one per attribution)
+			const feedbackRecords = nuggetAttributions.map((attribution, index) => ({
+				...feedback,
+				id: `${feedback.id}_${index}`, // Unique ID per record
+				modelProvider: attribution.modelProvider as ProviderId,
+				modelName: attribution.modelName,
+				prompt,
+				feedbackSessionId: this.generateFeedbackSessionId(feedback.id), // Group related records
+				attributionSource: "nugget_metadata",
+			}));
+
+			// Store all records locally as backup
+			for (const record of feedbackRecords) {
+				console.log(`Storing nugget feedback locally with ID: ${record.id}`);
+				await this.storeFeedbackLocally("nugget", record);
+			}
 
 			// Send to backend API
 			try {
 				console.log(
-					`Sending nugget feedback to backend with original ID: ${feedbackWithProviderAndPrompt.id}`,
+					`Sending ${feedbackRecords.length} nugget feedback records to backend`,
 				);
 				const result = await this.sendFeedbackToBackend({
-					nuggetFeedback: [feedbackWithProviderAndPrompt],
+					nuggetFeedback: feedbackRecords,
 				});
 				console.log("Nugget feedback sent to backend:", result);
 
-				// Log ID mappings if present
-				if (result.id_mappings?.nugget_feedback) {
-					console.log(
-						"Backend returned nugget feedback ID mappings:",
-						result.id_mappings.nugget_feedback,
-					);
-				}
-
-				// Check for deduplication information and notify user if needed
-				if (result.deduplication?.user_message) {
-					await this.notifyUserOfDuplication(
-						sender.tab?.id,
-						result.deduplication.user_message,
-					);
-				}
-
-				// Update local storage with corrected IDs from backend
-				if (result.id_mappings?.nugget_feedback) {
-					await this.updateLocalFeedbackIds(
-						"nugget",
-						result.id_mappings.nugget_feedback,
-					);
-				}
-
-				sendResponse({
-					success: true,
-					message: "Feedback submitted successfully",
-					deduplication: result.deduplication,
-				});
+				sendResponse({ success: true });
 			} catch (error) {
 				console.error("Failed to send nugget feedback to backend:", error);
-
-				// Classify backend error and notify user
-				const errorInfo = this.enhanceBackendError(error);
-				await this.notifyUserOfBackendError(sender.tab?.id, errorInfo);
-
-				// Still return success since data was stored locally as fallback
-				sendResponse({
-					success: true,
-					message: "Feedback saved locally (backend unavailable)",
-					warning: errorInfo.message,
-				});
+				sendResponse({ success: false, error: (error as Error).message });
 			}
 		} catch (error) {
 			console.error("Failed to submit nugget feedback:", error);
