@@ -133,24 +133,6 @@ export class Sidebar {
 	private keyboardHandler: ((e: KeyboardEvent) => void) | null = null;
 
 	/**
-	 * Get the emoji for a nugget type
-	 */
-	// Method removed - no longer needed as we don't use emojis in type badges
-
-	/**
-	 * Get provider color for consistent visual identification
-	 */
-	private getProviderColor(providerId: ProviderId): string {
-		const providerColors = {
-			gemini: "#4285F4", // Google Blue
-			openai: "#10A37F", // OpenAI Green
-			anthropic: "#FF6B35", // Anthropic Orange
-			openrouter: "#8B5CF6", // Purple
-		};
-		return providerColors[providerId] || colors.text.secondary;
-	}
-
-	/**
 	 * Get display content for a nugget in the sidebar
 	 * Uses the shared reconstruction utility to show full content when possible
 	 */
@@ -261,8 +243,45 @@ export class Sidebar {
 			this.providerMetadata = providerMetadata || null;
 		}
 
+		// Helper function to calculate consensus strength for sorting
+		const getConsensusStrength = (item: SidebarNuggetItem): number => {
+			const nugget = item.nugget as EnhancedGoldenNugget;
+
+			// Full consensus nuggets get highest priority (1.0)
+			if (nugget.confidence !== undefined) {
+				return nugget.confidence;
+			}
+
+			// For nuggets without explicit confidence, use ensemble data
+			if (
+				nugget.runsSupportingThis !== undefined &&
+				nugget.totalRuns !== undefined
+			) {
+				return nugget.runsSupportingThis / nugget.totalRuns;
+			}
+
+			// Default for nuggets without consensus data (single provider)
+			return 0.5;
+		};
+
+		// Sort nuggets by consensus strength (full consensus first)
+		const sortedNuggets = [...nuggetItems].sort((a, b) => {
+			const strengthA = getConsensusStrength(a);
+			const strengthB = getConsensusStrength(b);
+
+			// Sort in descending order (highest consensus first)
+			if (strengthA !== strengthB) {
+				return strengthB - strengthA;
+			}
+
+			// Secondary sort by nugget type to group similar types
+			const typeA = a.nugget.type || "";
+			const typeB = b.nugget.type || "";
+			return typeA.localeCompare(typeB);
+		});
+
 		// Initialize selection state for all nuggets
-		this.allItems = nuggetItems.map((item) => ({
+		this.allItems = sortedNuggets.map((item) => ({
 			...item,
 			selected: false,
 			highlightVisited: false, // Track if highlighted item was clicked
@@ -997,53 +1016,8 @@ export class Sidebar {
 		leftContainer.appendChild(checkbox);
 		leftContainer.appendChild(typeBadge);
 
-		// Add provider badge for multi-provider results
-		const enhancedNugget = item.nugget as EnhancedGoldenNugget;
-		if (enhancedNugget.sourceProvider && enhancedNugget.sourceModel) {
-			const providerBadge = document.createElement("div");
-			const providerColor = this.getProviderColor(
-				enhancedNugget.sourceProvider,
-			);
-			providerBadge.style.cssText = `
-				display: inline-flex;
-				align-items: center;
-				gap: 2px;
-				padding: 1px 6px;
-				border-radius: 6px;
-				font-size: ${typography.fontSize.xs};
-				font-weight: ${typography.fontWeight.medium};
-				background-color: ${providerColor}15;
-				color: ${providerColor};
-				border: 1px solid ${providerColor}33;
-			`;
-
-			// Format provider name for display
-			const providerDisplayName =
-				enhancedNugget.sourceProvider.charAt(0).toUpperCase() +
-				enhancedNugget.sourceProvider.slice(1);
-
-			providerBadge.textContent = `${providerDisplayName}`;
-			providerBadge.title = `Found by ${providerDisplayName} (${enhancedNugget.sourceModel})`;
-
-			leftContainer.appendChild(providerBadge);
-		}
-
-		// Helper function to map provider IDs to display names
-		const getProviderDisplayName = (providerId: string): string => {
-			const providerNames: Record<string, string> = {
-				gemini: "Google",
-				openai: "OpenAI",
-				anthropic: "Anthropic",
-				openrouter: "OpenRouter",
-			};
-			return (
-				providerNames[providerId] ||
-				providerId.charAt(0).toUpperCase() + providerId.slice(1)
-			);
-		};
-
 		// Helper function to generate clean provider/model tooltip
-		const generateProviderTooltip = (
+		const _generateProviderTooltip = (
 			providers: Array<{ model: string; provider: string }>,
 		): string => {
 			if (providers.length === 0) {
@@ -1059,200 +1033,11 @@ export class Sidebar {
 			uniqueProviders.sort((a, b) => a.model.localeCompare(b.model));
 
 			const providerList = uniqueProviders
-				.map((p) => `- ${p.model} (${getProviderDisplayName(p.provider)})`)
+				.map((p) => `- ${p.model} (${this.getProviderDisplayName(p.provider)})`)
 				.join("\n");
 
 			return `Found by:\n${providerList}`;
 		};
-
-		// Helper function to determine confidence tier and styling
-		const getConfidenceTier = (
-			runsSupportingThis: number,
-			totalRuns: number,
-			providers: Array<{ model: string; provider: string }> = [],
-		) => {
-			const percentage = (runsSupportingThis / totalRuns) * 100;
-			const description = generateProviderTooltip(providers);
-
-			if (percentage === 100) {
-				return {
-					tier: "High",
-					icon: "✓",
-					badgeColor: colors.gray[100],
-					textColor: colors.text.primary,
-					description,
-				};
-			} else if (percentage >= 67) {
-				return {
-					tier: "Strong",
-					icon: "▲",
-					badgeColor: colors.gray[100],
-					textColor: colors.text.primary,
-					description,
-				};
-			} else if (percentage >= 34) {
-				return {
-					tier: "Moderate",
-					icon: "○",
-					badgeColor: colors.background.secondary,
-					textColor: colors.text.secondary,
-					description,
-				};
-			} else {
-				return {
-					tier: "Low",
-					icon: "△",
-					badgeColor: colors.background.tertiary,
-					textColor: colors.text.tertiary,
-					description,
-				};
-			}
-		};
-
-		// Consensus display for ensemble results - improved with confidence tiers
-		const ensembleNugget = item.nugget as EnhancedGoldenNugget;
-		if (
-			ensembleNugget.confidence !== undefined &&
-			ensembleNugget.runsSupportingThis !== undefined &&
-			ensembleNugget.totalRuns !== undefined
-		) {
-			const consensusContainer = document.createElement("div");
-			const consensusMargin = spacing.sm;
-			consensusContainer.style.cssText = `
-        display: flex;
-        align-items: center;
-        margin-left: ${consensusMargin};
-      `;
-
-			// Collect provider/model data for tooltip
-			const providers: Array<{ model: string; provider: string }> = [];
-
-			// Check if we have contributing providers array (for ensemble consensus)
-			if (
-				ensembleNugget.contributingProviders &&
-				ensembleNugget.contributingProviders.length > 0
-			) {
-				providers.push(...ensembleNugget.contributingProviders);
-			}
-			// Fallback: Check if we have single provider/model info (single-run or single-provider ensemble)
-			else if (ensembleNugget.sourceProvider && ensembleNugget.sourceModel) {
-				providers.push({
-					model: ensembleNugget.sourceModel,
-					provider: ensembleNugget.sourceProvider,
-				});
-			}
-
-			const confidenceTier = getConfidenceTier(
-				ensembleNugget.runsSupportingThis,
-				ensembleNugget.totalRuns,
-				providers,
-			);
-
-			// Consensus badge with confidence tier
-			const consensusBadge = document.createElement("div");
-			const badgeColor = confidenceTier.badgeColor;
-			const textColor = confidenceTier.textColor;
-			const borderColor = colors.border.light;
-			const padding = `${spacing.xs} ${spacing.sm}`;
-			const borderRadiusValue = borderRadius.sm;
-			const fontSize = typography.fontSize.xs;
-			const fontWeight = typography.fontWeight.medium;
-
-			consensusBadge.textContent = `${confidenceTier.icon} ${confidenceTier.tier}`;
-			consensusBadge.title = confidenceTier.description;
-			consensusBadge.style.cssText = `
-        background: ${badgeColor};
-        color: ${textColor};
-        padding: ${padding};
-        border-radius: ${borderRadiusValue};
-        font-size: ${fontSize};
-        font-weight: ${fontWeight};
-        text-align: center;
-        border: 1px solid ${borderColor};
-        cursor: help;
-        white-space: nowrap;
-      `;
-
-			consensusContainer.appendChild(consensusBadge);
-			leftContainer.appendChild(consensusContainer);
-		}
-
-		// Single-run confidence display (for non-ensemble nuggets)
-		if (
-			ensembleNugget.confidence !== undefined &&
-			ensembleNugget.runsSupportingThis === undefined // Not an ensemble nugget
-		) {
-			const confidenceContainer = document.createElement("div");
-			const containerMargin = spacing.sm;
-			const containerGap = spacing.xs;
-			confidenceContainer.style.cssText = `
-        display: flex;
-        align-items: center;
-        gap: ${containerGap};
-        margin-left: ${containerMargin};
-      `;
-
-			// Collect provider/model data for tooltip
-			const providers: Array<{ model: string; provider: string }> = [];
-
-			// Check if we have contributing providers array (for ensemble consensus)
-			if (
-				ensembleNugget.contributingProviders &&
-				ensembleNugget.contributingProviders.length > 0
-			) {
-				providers.push(...ensembleNugget.contributingProviders);
-			}
-			// Fallback: Check if we have single provider/model info (single-run or single-provider ensemble)
-			else if (ensembleNugget.sourceProvider && ensembleNugget.sourceModel) {
-				providers.push({
-					model: ensembleNugget.sourceModel,
-					provider: ensembleNugget.sourceProvider,
-				});
-			}
-
-			// Generate tooltip with provider information
-			const tooltip = generateProviderTooltip(providers);
-
-			// Confidence score badge with provider tooltip
-			const confidencePercent = Math.round(ensembleNugget.confidence * 100);
-			let badgeColor = colors.background.tertiary;
-			let textColor = colors.text.secondary;
-
-			// Determine styling based on confidence level
-			if (confidencePercent >= 85) {
-				badgeColor = colors.gray?.[100] || "#F1F1F1";
-				textColor = colors.text?.primary || "#2A2A2A";
-			} else if (confidencePercent >= 70) {
-				badgeColor = colors.background?.tertiary || "#F7F7F7";
-				textColor = colors.text?.secondary || "#6F6F6F";
-			} else {
-				badgeColor = colors.gray?.[50] || "#F7F7F7";
-				textColor = colors.text?.tertiary || "#A8A8A8";
-			}
-
-			const confidenceBadge = document.createElement("div");
-			const badgePadding = `${spacing.xs} ${spacing.sm}`;
-			const badgeBorderRadius = borderRadius.sm;
-			const badgeFontSize = typography.fontSize.xs;
-			const badgeFontWeight = typography.fontWeight.medium;
-
-			confidenceBadge.textContent = `${confidencePercent}%`;
-			confidenceBadge.title = tooltip;
-			confidenceBadge.style.cssText = `
-        background: ${badgeColor};
-        color: ${textColor};
-        padding: ${badgePadding};
-        border-radius: ${badgeBorderRadius};
-        font-size: ${badgeFontSize};
-        font-weight: ${badgeFontWeight};
-        min-width: 36px;
-        text-align: center;
-        cursor: help;
-      `;
-
-			confidenceContainer.appendChild(confidenceBadge);
-			leftContainer.appendChild(confidenceContainer);
-		}
 
 		// Selection indicator and status
 		const statusContainer = document.createElement("div");
@@ -1381,15 +1166,94 @@ export class Sidebar {
 		// Feedback Section
 		const feedbackSection = this.createFeedbackSection(item, globalIndex);
 
+		// Create inline provider attribution
+		const providerAttribution = this.createProviderAttribution(item);
+
 		// Assemble the content
 		contentContainer.appendChild(headerDiv);
 		contentContainer.appendChild(contentPreview);
-
+		if (providerAttribution) {
+			contentContainer.appendChild(providerAttribution);
+		}
 		contentContainer.appendChild(feedbackSection);
 
 		nuggetDiv.appendChild(contentContainer);
 
 		return nuggetDiv;
+	}
+
+	/**
+	 * Creates inline provider attribution display (Option 4 design)
+	 * Shows "via [provider]" or "via [provider1, provider2]" for multi-provider
+	 */
+	private createProviderAttribution(
+		item: SidebarNuggetItem,
+	): HTMLElement | null {
+		const enhancedNugget = item.nugget as EnhancedGoldenNugget;
+		const providers: string[] = [];
+
+		// Collect provider names from different sources
+		if (
+			enhancedNugget.contributingProviders &&
+			enhancedNugget.contributingProviders.length > 0
+		) {
+			// Multi-provider consensus nuggets
+			const uniqueProviders = new Set(
+				enhancedNugget.contributingProviders.map((p) =>
+					this.getProviderDisplayName(p.provider),
+				),
+			);
+			providers.push(...Array.from(uniqueProviders).sort());
+		} else if (enhancedNugget.sourceProvider) {
+			// Single provider nuggets
+			providers.push(
+				this.getProviderDisplayName(enhancedNugget.sourceProvider),
+			);
+		}
+
+		// Return null if no provider information
+		if (providers.length === 0) {
+			return null;
+		}
+
+		// Create the attribution element
+		const attribution = document.createElement("div");
+		const mutedTextColor = colors.text.tertiary;
+		const fontSize = typography.fontSize.xs;
+		const fontWeight = typography.fontWeight.normal;
+		const marginTop = spacing.xs;
+
+		attribution.style.cssText = `
+			color: ${mutedTextColor};
+			font-size: ${fontSize};
+			font-weight: ${fontWeight};
+			margin-top: ${marginTop};
+			font-style: italic;
+		`;
+
+		// Format provider list
+		const providerText =
+			providers.length === 1 ? providers[0] : providers.join(", ");
+
+		attribution.textContent = `via ${providerText}`;
+
+		return attribution;
+	}
+
+	/**
+	 * Helper function to map provider IDs to clean display names
+	 */
+	private getProviderDisplayName(providerId: string): string {
+		const providerNames: Record<string, string> = {
+			gemini: "Gemini",
+			openai: "GPT-4o",
+			anthropic: "Claude",
+			openrouter: "OpenRouter",
+		};
+		return (
+			providerNames[providerId] ||
+			providerId.charAt(0).toUpperCase() + providerId.slice(1)
+		);
 	}
 
 	private createFeedbackSection(
