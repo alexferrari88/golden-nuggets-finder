@@ -12,32 +12,72 @@ export class DOMPositionMapper {
 	 * @returns Array of Range objects covering the specified text span
 	 */
 	static convertOffsetToRange(startOffset: number, endOffset: number): Range[] {
+		// Enhanced input validation
+		if (typeof startOffset !== "number" || typeof endOffset !== "number") {
+			console.warn("[DOMPositionMapper] Invalid offset types:", {
+				startOffset,
+				endOffset,
+			});
+			return [];
+		}
+
 		if (startOffset < 0 || endOffset <= startOffset) {
+			console.warn("[DOMPositionMapper] Invalid offset range:", {
+				startOffset,
+				endOffset,
+			});
 			return [];
 		}
 
-		// Create a tree walker to traverse all text nodes
-		const walker = document.createTreeWalker(
-			document.body,
-			NodeFilter.SHOW_TEXT,
-			{ acceptNode: DOMPositionMapper.acceptTextNode },
-		);
-
-		// Build offset-to-node mapping
-		const textNodes: Text[] = [];
-		const nodeOffsets: number[] = [];
-		DOMPositionMapper.buildTextNodeMapping(walker, textNodes, nodeOffsets);
-
-		if (textNodes.length === 0) {
+		// Sanity check for extremely large offsets that might indicate corrupted data
+		if (startOffset > 1000000 || endOffset > 1000000) {
+			console.warn(
+				"[DOMPositionMapper] Suspiciously large offsets, skipping:",
+				{ startOffset, endOffset },
+			);
 			return [];
 		}
 
-		return DOMPositionMapper.createRangesFromOffsets(
-			textNodes,
-			nodeOffsets,
-			startOffset,
-			endOffset,
-		);
+		try {
+			// Create a tree walker to traverse all text nodes
+			const walker = document.createTreeWalker(
+				document.body,
+				NodeFilter.SHOW_TEXT,
+				{ acceptNode: DOMPositionMapper.acceptTextNode },
+			);
+
+			// Build offset-to-node mapping
+			const textNodes: Text[] = [];
+			const nodeOffsets: number[] = [];
+
+			try {
+				DOMPositionMapper.buildTextNodeMapping(walker, textNodes, nodeOffsets);
+			} catch (mappingError) {
+				console.error(
+					"[DOMPositionMapper] Failed to build text node mapping:",
+					mappingError,
+				);
+				return [];
+			}
+
+			if (textNodes.length === 0) {
+				console.log("[DOMPositionMapper] No text nodes found in document");
+				return [];
+			}
+
+			return DOMPositionMapper.createRangesFromOffsets(
+				textNodes,
+				nodeOffsets,
+				startOffset,
+				endOffset,
+			);
+		} catch (error) {
+			console.error(
+				"[DOMPositionMapper] Critical error in convertOffsetToRange:",
+				error,
+			);
+			return [];
+		}
 	}
 
 	/**
@@ -85,13 +125,53 @@ export class DOMPositionMapper {
 	): void {
 		let currentOffset = 0;
 		let node: Text | null;
+		let nodeCount = 0;
+		const maxNodes = 10000; // Safety limit to prevent infinite loops
 
-		while ((node = walker.nextNode() as Text | null)) {
-			const text = node.textContent || "";
-			textNodes.push(node);
-			nodeOffsets.push(currentOffset);
-			currentOffset += text.length;
+		try {
+			while ((node = walker.nextNode() as Text | null)) {
+				nodeCount++;
+
+				// Safety check to prevent infinite loops or memory issues
+				if (nodeCount > maxNodes) {
+					console.warn(
+						`[DOMPositionMapper] Reached maximum node limit (${maxNodes}), stopping traversal`,
+					);
+					break;
+				}
+
+				try {
+					const text = node.textContent || "";
+
+					// Validate node before adding to mapping
+					if (node.nodeType === Node.TEXT_NODE && node.parentElement) {
+						textNodes.push(node);
+						nodeOffsets.push(currentOffset);
+						currentOffset += text.length;
+					} else {
+						console.warn(
+							"[DOMPositionMapper] Skipping invalid text node:",
+							node,
+						);
+					}
+				} catch (nodeError) {
+					console.warn(
+						"[DOMPositionMapper] Error processing text node:",
+						nodeError,
+					);
+				}
+			}
+		} catch (traversalError) {
+			console.error(
+				"[DOMPositionMapper] Error during DOM traversal:",
+				traversalError,
+			);
+			// Don't rethrow - return partial mapping if any nodes were processed
 		}
+
+		console.log(
+			`[DOMPositionMapper] Built mapping for ${textNodes.length} text nodes, total length: ${currentOffset}`,
+		);
 	}
 
 	/**

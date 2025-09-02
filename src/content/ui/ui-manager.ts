@@ -187,38 +187,90 @@ export class UIManager {
 				: "none",
 		});
 
-		// Batch highlight with context-aware processing
-		const sidebarItems = await this.batchHighlightNuggets(nuggetsWithContext);
+		// Batch highlight with context-aware processing - with fallback to ensure sidebar always shows
+		let sidebarItems: SidebarNuggetItem[] = [];
+		try {
+			sidebarItems = await this.batchHighlightNuggets(nuggetsWithContext);
 
-		console.log("[UIManager] Batch highlighting completed:", {
-			sidebarItemsLength: sidebarItems.length,
-			highlightedCount: sidebarItems.filter(
-				(item) => item.status === "highlighted",
-			).length,
-			notFoundCount: sidebarItems.filter((item) => item.status === "not-found")
-				.length,
-		});
+			console.log("[UIManager] Batch highlighting completed:", {
+				sidebarItemsLength: sidebarItems.length,
+				highlightedCount: sidebarItems.filter(
+					(item) => item.status === "highlighted",
+				).length,
+				notFoundCount: sidebarItems.filter(
+					(item) => item.status === "not-found",
+				).length,
+			});
 
-		performanceMonitor.logTimer(
-			"highlight_nuggets",
-			`Batch highlighted ${nuggets.length} nuggets with progressive matching`,
-		);
+			performanceMonitor.logTimer(
+				"highlight_nuggets",
+				`Batch highlighted ${nuggets.length} nuggets with progressive matching`,
+			);
+		} catch (highlightingError) {
+			console.error(
+				"[UIManager] Unexpected error in batchHighlightNuggets:",
+				highlightingError,
+			);
 
-		// Show sidebar with all nuggets (pass page content for reconstruction)
-		console.log(
-			"[UIManager] Calling sidebar.show with",
-			sidebarItems.length,
-			"items",
-		);
-		measureDOMOperation("show_sidebar", () =>
-			this.sidebar.show(
-				sidebarItems,
-				this.highlighter,
-				pageContent,
-				providerMetadata,
-				extractionMetadata,
-			),
-		);
+			// Create fallback sidebar items - show all nuggets as "not-found" but still display them
+			sidebarItems = nuggetsWithContext.map(({ nugget }) => ({
+				nugget,
+				status: "not-found" as const,
+				selected: false,
+			}));
+
+			console.log("[UIManager] Created fallback sidebar items:", {
+				fallbackItemsLength: sidebarItems.length,
+			});
+
+			// Send error message to popup (backup in case batchHighlightNuggets didn't send one)
+			try {
+				chrome.runtime.sendMessage({
+					type: MESSAGE_TYPES.ANALYSIS_ERROR,
+					error: `Display failed: ${highlightingError instanceof Error ? highlightingError.message : String(highlightingError)}`,
+					fromContentScript: true,
+				});
+			} catch (messageError) {
+				console.error(
+					"[UIManager] Failed to send fallback error message:",
+					messageError,
+				);
+			}
+		}
+
+		// Always show sidebar with whatever results we have (even if empty or failed)
+		try {
+			console.log(
+				"[UIManager] Calling sidebar.show with",
+				sidebarItems.length,
+				"items",
+			);
+			measureDOMOperation("show_sidebar", () =>
+				this.sidebar.show(
+					sidebarItems,
+					this.highlighter,
+					pageContent,
+					providerMetadata,
+					extractionMetadata,
+				),
+			);
+		} catch (sidebarError) {
+			console.error(
+				"[UIManager] Critical error showing sidebar:",
+				sidebarError,
+			);
+
+			// Last resort - try to show minimal sidebar without advanced features
+			try {
+				this.sidebar.show(sidebarItems, this.highlighter);
+				console.log("[UIManager] Fallback sidebar display succeeded");
+			} catch (fallbackError) {
+				console.error(
+					"[UIManager] Even fallback sidebar display failed:",
+					fallbackError,
+				);
+			}
+		}
 
 		performanceMonitor.logTimer("display_results", "Complete results display");
 	}
@@ -1240,6 +1292,8 @@ export class UIManager {
 		}>,
 	): Promise<SidebarNuggetItem[]> {
 		const sidebarItems: SidebarNuggetItem[] = [];
+		let hadCriticalError = false;
+		let errorContext = "";
 
 		performanceMonitor.startTimer("highlight_nuggets");
 		try {
@@ -1260,30 +1314,46 @@ export class UIManager {
 					},
 				);
 
-				// Create a context-aware nugget for the highlighter
-				const contextAwareNugget = {
-					...originalNugget,
-					_context: { prefix, suffix },
-				};
+				try {
+					// Create a context-aware nugget for the highlighter
+					const contextAwareNugget = {
+						...originalNugget,
+						_context: { prefix, suffix },
+					};
 
-				// Use progressive matching with context
-				const highlightResult = await measureHighlighting(
-					"nugget_highlight_with_context",
-					() => this.highlighter.highlightNugget(contextAwareNugget),
-				);
+					// Use progressive matching with context
+					const highlightResult = await measureHighlighting(
+						"nugget_highlight_with_context",
+						() => this.highlighter.highlightNugget(contextAwareNugget),
+					);
 
-				// Extract success from the result object
-				const highlighted = highlightResult?.success;
+					// Extract success from the result object
+					const highlighted = highlightResult?.success;
 
-				sidebarItems.push({
-					nugget: nugget, // Enhanced nugget already matches GoldenNugget type
-					status: highlighted ? "highlighted" : "not-found",
-					selected: false,
-				});
+					sidebarItems.push({
+						nugget: nugget, // Enhanced nugget already matches GoldenNugget type
+						status: highlighted ? "highlighted" : "not-found",
+						selected: false,
+					});
+				} catch (nuggetError) {
+					console.error(
+						`[UIManager] Error highlighting nugget ${i + 1}/${nuggetsWithContext.length}:`,
+						nuggetError,
+					);
+					// Add nugget as "not-found" but continue processing
+					sidebarItems.push({
+						nugget: nugget,
+						status: "not-found",
+						selected: false,
+					});
+					errorContext = `Failed at nugget ${i + 1}: ${nuggetError instanceof Error ? nuggetError.message : String(nuggetError)}`;
+				}
 			}
 		} catch (error) {
+			hadCriticalError = true;
+			errorContext = error instanceof Error ? error.message : String(error);
 			console.error(
-				"[UIManager] Error during batch nugget highlighting:",
+				"[UIManager] Critical error during batch nugget highlighting:",
 				error,
 			);
 			// Ensure we return partial results even if some highlighting fails
@@ -1293,6 +1363,31 @@ export class UIManager {
 					status: "not-found",
 					selected: false,
 				});
+			}
+		} finally {
+			// Always send completion message to popup to prevent stuck loading state
+			try {
+				if (hadCriticalError || errorContext) {
+					console.log("[UIManager] Sending error completion message to popup");
+					chrome.runtime.sendMessage({
+						type: MESSAGE_TYPES.ANALYSIS_ERROR,
+						error: `Highlighting ${hadCriticalError ? "critically failed" : "partially failed"}: ${errorContext}`,
+						fromContentScript: true,
+					});
+				} else {
+					console.log(
+						"[UIManager] Sending success completion message to popup",
+					);
+					chrome.runtime.sendMessage({
+						type: MESSAGE_TYPES.ANALYSIS_COMPLETE,
+						fromContentScript: true,
+					});
+				}
+			} catch (messageError) {
+				console.error(
+					"[UIManager] Failed to send completion message:",
+					messageError,
+				);
 			}
 		}
 

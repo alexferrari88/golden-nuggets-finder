@@ -149,7 +149,6 @@ export class EmbeddingService {
 			};
 		}
 
-
 		try {
 			const response = await fetch(apiUrl, {
 				method: "POST",
@@ -160,7 +159,6 @@ export class EmbeddingService {
 				body: JSON.stringify(requestBody),
 			});
 
-
 			if (!response.ok) {
 				let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
 				let errorData = null;
@@ -169,7 +167,7 @@ export class EmbeddingService {
 					if (errorData.error?.message) {
 						errorMessage = errorData.error.message;
 					}
-				} catch (parseError) {
+				} catch (_parseError) {
 					// Use default error message if JSON parsing fails
 				}
 
@@ -250,7 +248,6 @@ export class EmbeddingService {
 		texts: string[],
 		options: EmbeddingOptions = {},
 	): Promise<EmbeddingVector[]> {
-
 		if (texts.length === 0) {
 			debugLogger.log(
 				`[EmbeddingService] Empty texts array, returning empty results`,
@@ -297,9 +294,7 @@ export class EmbeddingService {
 				const batch = uncachedTexts.slice(i, i + this.MAX_BATCH_SIZE);
 				const batchIndices = uncachedIndices.slice(i, i + this.MAX_BATCH_SIZE);
 
-
 				const batchEmbeddings = await this.makeApiCall(batch, options);
-
 
 				// Store results and cache embeddings
 				for (let j = 0; j < batch.length; j++) {
@@ -307,14 +302,13 @@ export class EmbeddingService {
 					let embedding = batchEmbeddings[j];
 					const originalIndex = batchIndices[j];
 
-
 					// Normalize embeddings for non-3072 dimensions
 					if (needsNormalization) {
-						const originalMagnitude = Math.sqrt(
+						const _originalMagnitude = Math.sqrt(
 							embedding.values.reduce((sum, value) => sum + value * value, 0),
 						);
 						embedding = this.normalizeEmbedding(embedding);
-						const normalizedMagnitude = Math.sqrt(
+						const _normalizedMagnitude = Math.sqrt(
 							embedding.values.reduce((sum, value) => sum + value * value, 0),
 						);
 					}

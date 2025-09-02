@@ -87,25 +87,68 @@ export class Highlighter {
 		fullContent: string,
 		_nugget: GoldenNugget,
 	): Promise<{ success: boolean; ranges: Range[] }> {
-		const ranges = await this.findTextRangesProgressive(fullContent);
-		if (ranges.length > 0) {
-			const highlight = new window.Highlight(...ranges);
+		try {
+			const ranges = await this.findTextRangesProgressive(fullContent);
+			if (ranges.length > 0) {
+				try {
+					// Check CSS Highlight API capacity before creating new highlights
+					const capacityStatus = this.checkCSSHighlightCapacity(ranges.length);
+					if (!capacityStatus.canHighlight) {
+						console.warn(
+							"[Highlighter] CSS Highlight capacity exceeded:",
+							capacityStatus,
+						);
+						// Return failure to trigger mark.js fallback
+						return { success: false, ranges: [] };
+					}
 
-			if (CSS?.highlights) {
-				// Clear previous highlights to prevent conflicts
-				CSS.highlights.delete(Highlighter.HIGHLIGHT_ID);
+					// Create highlight object - this can throw if ranges are invalid
+					const highlight = new window.Highlight(...ranges);
 
-				// Use static highlight ID to match CSS selector
-				CSS.highlights.set(Highlighter.HIGHLIGHT_ID, highlight as any);
+					if (CSS?.highlights) {
+						try {
+							// Clear previous highlights to prevent conflicts
+							CSS.highlights.delete(Highlighter.HIGHLIGHT_ID);
 
-				// Store ranges for cleanup and scrolling
-				this.cssHighlights.set(Highlighter.HIGHLIGHT_ID, ranges);
+							// Use static highlight ID to match CSS selector
+							CSS.highlights.set(Highlighter.HIGHLIGHT_ID, highlight as any);
 
+							// Store ranges for cleanup and scrolling
+							this.cssHighlights.set(Highlighter.HIGHLIGHT_ID, ranges);
+
+							console.log(
+								`CSS Highlighted "${fullContent.substring(0, 50)}..." with ${ranges.length} ranges (capacity: ${capacityStatus.currentHighlights + ranges.length}/${capacityStatus.maxHighlights})`,
+							);
+							return { success: true, ranges };
+						} catch (cssError) {
+							console.error(
+								"[Highlighter] CSS Highlights API operation failed:",
+								cssError,
+							);
+							// Don't rethrow - return failure gracefully
+						}
+					} else {
+						console.warn("[Highlighter] CSS.highlights not available");
+					}
+				} catch (highlightError) {
+					console.error(
+						"[Highlighter] Failed to create window.Highlight object:",
+						highlightError,
+					);
+					// Don't rethrow - return failure gracefully
+				}
+			} else {
 				console.log(
-					`CSS Highlighted "${fullContent.substring(0, 50)}..." with ${ranges.length} ranges`,
+					"[Highlighter] No ranges found for CSS highlighting:",
+					fullContent.substring(0, 50),
 				);
-				return { success: true, ranges };
 			}
+		} catch (progressiveError) {
+			console.error(
+				"[Highlighter] Progressive matching failed in CSS API path:",
+				progressiveError,
+			);
+			// Don't rethrow - return failure gracefully
 		}
 		return { success: false, ranges: [] };
 	}
@@ -249,27 +292,60 @@ export class Highlighter {
 			JSON.stringify(searchText.substring(0, 100)),
 		);
 
-		// Use progressive matching strategy from AnchorTextMatcher
-		const matchResult =
-			await this.anchorTextMatcher.findTextWithContext(searchText);
+		try {
+			// Use progressive matching strategy from AnchorTextMatcher
+			const matchResult =
+				await this.anchorTextMatcher.findTextWithContext(searchText);
 
-		if (!this.anchorTextMatcher.isValidMatch(matchResult)) {
-			console.log(
-				"[Highlighter] No valid match found with progressive strategy:",
-				searchText.substring(0, 50),
+			if (!this.anchorTextMatcher.isValidMatch(matchResult)) {
+				console.log(
+					"[Highlighter] No valid match found with progressive strategy:",
+					searchText.substring(0, 50),
+				);
+				return [];
+			}
+
+			console.log("[Highlighter] Progressive match found:", {
+				matchType: matchResult.matchType,
+				confidence: matchResult.confidence,
+				matchedText: matchResult.matchedText?.substring(0, 50),
+				rangeCount: matchResult.ranges.length,
+			});
+
+			// Validate ranges before returning them
+			const validRanges = matchResult.ranges.filter((range) => {
+				try {
+					// Test if range is valid by checking its properties
+					return (
+						range?.startContainer &&
+						range.endContainer &&
+						range.startOffset >= 0 &&
+						range.endOffset >= 0
+					);
+				} catch (rangeError) {
+					console.warn(
+						"[Highlighter] Invalid range detected and filtered:",
+						rangeError,
+					);
+					return false;
+				}
+			});
+
+			if (validRanges.length !== matchResult.ranges.length) {
+				console.warn(
+					`[Highlighter] Filtered ${matchResult.ranges.length - validRanges.length} invalid ranges`,
+				);
+			}
+
+			return validRanges;
+		} catch (progressiveMatchError) {
+			console.error(
+				"[Highlighter] Progressive matching threw exception:",
+				progressiveMatchError,
 			);
+			// Return empty array instead of throwing
 			return [];
 		}
-
-		console.log("[Highlighter] Progressive match found:", {
-			matchType: matchResult.matchType,
-			confidence: matchResult.confidence,
-			matchedText: matchResult.matchedText?.substring(0, 50),
-			rangeCount: matchResult.ranges.length,
-		});
-
-		// Return the ranges from the progressive matching strategy
-		return matchResult.ranges;
 	}
 
 	/**
@@ -399,6 +475,100 @@ export class Highlighter {
 			cssHighlights: this.cssHighlights.size,
 			domHighlights: this.highlightedElements.length,
 			supported: this.cssHighlightSupported,
+		};
+	}
+
+	/**
+	 * Check CSS Highlight API capacity to prevent browser limits
+	 * @param additionalRanges Number of additional ranges we want to add
+	 * @returns Capacity status with ability to highlight
+	 */
+	private checkCSSHighlightCapacity(additionalRanges: number): {
+		canHighlight: boolean;
+		currentHighlights: number;
+		maxHighlights: number;
+		additionalRequested: number;
+		wouldExceed: boolean;
+	} {
+		// Browser-specific limits (conservative estimates)
+		const MAX_CSS_HIGHLIGHTS = 1000; // Conservative limit to prevent performance issues
+		const MAX_RANGES_PER_HIGHLIGHT = 500; // Conservative limit per highlight object
+
+		let currentHighlights = 0;
+		let totalRanges = 0;
+
+		try {
+			// Count current highlights and their ranges
+			if (CSS?.highlights) {
+				currentHighlights = CSS.highlights.size;
+
+				// Count total ranges across all highlights
+				for (const [id, highlight] of CSS.highlights) {
+					try {
+						totalRanges += highlight.size || 0;
+					} catch (error) {
+						console.warn(
+							`[Highlighter] Error counting ranges for highlight ${id}:`,
+							error,
+						);
+						// Assume worst case for unknown highlights
+						totalRanges += MAX_RANGES_PER_HIGHLIGHT;
+					}
+				}
+			}
+		} catch (error) {
+			console.warn(
+				"[Highlighter] Error checking CSS highlight capacity:",
+				error,
+			);
+			// Be conservative - assume we're at capacity if we can't check
+			return {
+				canHighlight: false,
+				currentHighlights: MAX_CSS_HIGHLIGHTS,
+				maxHighlights: MAX_CSS_HIGHLIGHTS,
+				additionalRequested: additionalRanges,
+				wouldExceed: true,
+			};
+		}
+
+		// Check multiple capacity constraints
+		const wouldExceedHighlights = currentHighlights + 1 > MAX_CSS_HIGHLIGHTS;
+		const wouldExceedRanges =
+			totalRanges + additionalRanges > MAX_CSS_HIGHLIGHTS * 10; // 10 ranges per highlight on average
+		const tooManyRangesInSingleHighlight =
+			additionalRanges > MAX_RANGES_PER_HIGHLIGHT;
+
+		const wouldExceed =
+			wouldExceedHighlights ||
+			wouldExceedRanges ||
+			tooManyRangesInSingleHighlight;
+		const canHighlight = !wouldExceed;
+
+		// Log capacity warnings
+		if (wouldExceed) {
+			if (wouldExceedHighlights) {
+				console.warn(
+					`[Highlighter] Would exceed max highlights: ${currentHighlights + 1} > ${MAX_CSS_HIGHLIGHTS}`,
+				);
+			}
+			if (wouldExceedRanges) {
+				console.warn(
+					`[Highlighter] Would exceed max ranges: ${totalRanges + additionalRanges} > ${MAX_CSS_HIGHLIGHTS * 10}`,
+				);
+			}
+			if (tooManyRangesInSingleHighlight) {
+				console.warn(
+					`[Highlighter] Too many ranges in single highlight: ${additionalRanges} > ${MAX_RANGES_PER_HIGHLIGHT}`,
+				);
+			}
+		}
+
+		return {
+			canHighlight,
+			currentHighlights: totalRanges, // Return total ranges as more meaningful metric
+			maxHighlights: MAX_CSS_HIGHLIGHTS * 10,
+			additionalRequested: additionalRanges,
+			wouldExceed,
 		};
 	}
 

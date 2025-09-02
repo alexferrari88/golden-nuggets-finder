@@ -14,7 +14,12 @@ export interface EnsembleExtractionResult {
 		fullContent: string;
 		confidence: number;
 		validationScore?: number;
-		extractionMethod?: "validated" | "unverified" | "fuzzy" | "llm" | "ensemble";
+		extractionMethod?:
+			| "validated"
+			| "unverified"
+			| "fuzzy"
+			| "llm"
+			| "ensemble";
 		runsSupportingThis: number;
 		totalRuns: number;
 		// Optional embedding metadata
