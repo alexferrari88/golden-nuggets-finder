@@ -415,7 +415,7 @@ describe("MessageHandler Error Handling", () => {
 
 				expect(mockSendResponse).toHaveBeenCalledWith({
 					success: true,
-					message: "1 feedback items saved locally (backend unavailable)",
+					message: "1 feedback records saved locally (backend unavailable)",
 					warning:
 						"Backend database is temporarily busy. Your data has been saved locally and will sync when available.",
 				});

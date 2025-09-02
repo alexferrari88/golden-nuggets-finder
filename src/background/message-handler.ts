@@ -2332,6 +2332,25 @@ export class MessageHandler {
 		}
 	}
 
+	// Add utility function before missing content feedback handler
+	private static async getAnalysisSessionProviders(): Promise<{ modelProvider: string, modelName: string }[]> {
+		const sessionInfo = await chrome.storage.local.get(["lastAnalysisSession", "lastUsedProvider"]);
+		
+		// Use session metadata if available
+		if (sessionInfo.lastAnalysisSession?.providersUsed) {
+			return sessionInfo.lastAnalysisSession.providersUsed.map((provider: any) => ({
+				modelProvider: provider.providerId,
+				modelName: provider.modelName
+			}));
+		}
+		
+		// Fallback to last used provider
+		return [{
+			modelProvider: sessionInfo.lastUsedProvider?.providerId || "gemini",
+			modelName: sessionInfo.lastUsedProvider?.modelName || "gemini-2.5-flash-lite"
+		}];
+	}
+
 	private async handleSubmitMissingContentFeedback(
 		request: SubmitMissingContentFeedbackRequest,
 		sender: chrome.runtime.MessageSender,
@@ -2349,45 +2368,43 @@ export class MessageHandler {
 				return;
 			}
 
-			// Add provider and prompt metadata to all missing content feedback from last used provider and prompt
-			const providerInfo = await chrome.storage.local.get([
-				"lastUsedProvider",
-				"lastUsedPrompt",
-			]);
-			const missingContentWithProviderAndPrompt = missingContentFeedback.map(
-				(feedback) => ({
-					...feedback,
-					modelProvider: providerInfo.lastUsedProvider?.providerId || "gemini",
-					modelName:
-						providerInfo.lastUsedProvider?.modelName || "gemini-2.5-flash-lite",
-					prompt: providerInfo.lastUsedPrompt || {
-						id: "unknown",
-						version: "original",
-						content: "",
-						type: "default" as const,
-						name: "Unknown prompt",
-					},
-				}),
+			// Get all providers that participated in analysis
+			const sessionProviders = await MessageHandler.getAnalysisSessionProviders();
+			
+			// Get prompt info
+			const promptInfo = await chrome.storage.local.get(["lastUsedPrompt"]);
+			const prompt = promptInfo.lastUsedPrompt || {
+				id: "unknown",
+				version: "original",
+				content: "",
+				type: "default" as const, 
+				name: "Unknown prompt"
+			};
+
+			// Create records for each missing nugget × each provider
+			const missingContentRecords = missingContentFeedback.flatMap((missingNugget) =>
+				sessionProviders.map((provider, providerIndex) => ({
+					...missingNugget,
+					id: `${missingNugget.id}_provider_${providerIndex}`,
+					modelProvider: provider.modelProvider as ProviderId,
+					modelName: provider.modelName, 
+					prompt,
+					feedbackSessionId: this.generateFeedbackSessionId(missingNugget.id),
+					attributionSource: 'analysis_session'
+				}))
 			);
 
-			// Store feedback locally as backup
-			for (const feedback of missingContentWithProviderAndPrompt) {
-				console.log(
-					`Storing missing content feedback locally with ID: ${feedback.id}`,
-				);
-				await this.storeFeedbackLocally("missing", feedback);
+			// Store locally as backup
+			for (const record of missingContentRecords) {
+				console.log(`Storing missing content feedback locally with ID: ${record.id}`);
+				await this.storeFeedbackLocally("missing", record);
 			}
 
 			// Send to backend API
 			try {
-				const originalIds = missingContentWithProviderAndPrompt.map(
-					(f) => f.id,
-				);
-				console.log(
-					`Sending missing content feedback to backend with original IDs: ${originalIds.join(", ")}`,
-				);
+				console.log(`Sending ${missingContentRecords.length} missing content feedback records to backend`);
 				const result = await this.sendFeedbackToBackend({
-					missingContentFeedback: missingContentWithProviderAndPrompt,
+					missingContentFeedback: missingContentRecords,
 				});
 				console.log("Missing content feedback sent to backend:", result);
 
@@ -2417,7 +2434,7 @@ export class MessageHandler {
 
 				sendResponse({
 					success: true,
-					message: `${missingContentFeedback.length} missing content feedback items submitted successfully`,
+					message: `${missingContentRecords.length} missing content feedback records submitted successfully`,
 					deduplication: result.deduplication,
 				});
 			} catch (error) {
@@ -2433,7 +2450,7 @@ export class MessageHandler {
 				// Still return success since data was stored locally as fallback
 				sendResponse({
 					success: true,
-					message: `${missingContentFeedback.length} feedback items saved locally (backend unavailable)`,
+					message: `${missingContentRecords.length} feedback records saved locally (backend unavailable)`,
 					warning: errorInfo.message,
 				});
 			}
