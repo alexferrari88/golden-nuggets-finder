@@ -10,10 +10,18 @@ import type {
 } from "../types/providers";
 
 // Schema definition for golden nuggets with fullContent approach
+// Includes type variants that response-normalizer can handle to prevent validation failures
 const GoldenNuggetsSchema = z.object({
 	golden_nuggets: z.array(
 		z.object({
-			type: z.enum(["tool", "media", "aha! moments", "analogy", "model"]),
+			type: z.enum([
+				// Canonical types
+				"tool", "media", "aha! moments", "analogy", "model",
+				// AI model variations that response-normalizer handles
+				"mental model", "mental_model", "framework",
+				"technique", "method", "resource", "book", "article",
+				"concept", "comparison", "metaphor"
+			]),
 			fullContent: z.string(),
 			confidence: z.number().min(0).max(1),
 		}),

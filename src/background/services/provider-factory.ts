@@ -81,7 +81,7 @@ export async function createProvider(
 export function getDefaultModel(providerId: ProviderId): string {
 	const defaults = {
 		gemini: "gemini-2.5-flash-lite",
-		openai: "gpt-5-mini",
+		openai: "gpt-4o-mini",
 		anthropic: "claude-sonnet-4-20250514",
 		openrouter: "moonshotai/kimi-k2:free",
 	};

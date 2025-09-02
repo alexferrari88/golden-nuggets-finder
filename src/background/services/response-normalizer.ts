@@ -24,7 +24,14 @@ type RawApiResponse =
 const GoldenNuggetsSchema = z.object({
 	golden_nuggets: z.array(
 		z.object({
-			type: z.enum(["tool", "media", "aha! moments", "analogy", "model"]),
+			type: z.enum([
+				// Canonical types
+				"tool", "media", "aha! moments", "analogy", "model",
+				// AI model variations that this normalizer handles
+				"mental model", "mental_model", "framework",
+				"technique", "method", "resource", "book", "article",
+				"concept", "comparison", "metaphor"
+			]),
 			fullContent: z.string(),
 			confidence: z.number().optional(),
 			validationScore: z.number().optional(),
