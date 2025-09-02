@@ -190,51 +190,151 @@ The extension uses a high recall extraction approach with confidence filtering t
 ## Ensemble Mode
 
 ### Overview
-Ensemble mode is an advanced analysis feature that runs multiple AI analysis passes with the same provider to achieve higher accuracy and confidence in golden nugget extraction. Based on peer-reviewed research, ensemble approaches provide **3-5% accuracy improvement** over single-run analysis.
+Ensemble mode is an advanced analysis feature that provides two distinct approaches for achieving higher accuracy and confidence in golden nugget extraction. Based on peer-reviewed research, ensemble approaches provide **3-5% accuracy improvement** over single-run analysis.
+
+**Two Ensemble Modes Available:**
+- **Single-Model Mode**: Multiple analysis runs with the same AI provider
+- **Multi-Provider Mode**: Single analysis run across different AI providers simultaneously
 
 ### Key Benefits
 - **Higher Accuracy**: 3-5% improvement in nugget detection precision
 - **Confidence Scoring**: Each nugget includes confidence metrics based on consensus
 - **Duplicate Elimination**: Advanced similarity matching removes redundant nuggets
+- **Provider Diversity**: Multi-provider mode leverages different AI model strengths
+- **Attribution Tracking**: Full provider attribution for each nugget and consensus group
 - **Research-Backed**: Implementation based on 2024-2025 ensemble LLM studies
 
 ### How It Works
-1. **Multi-Run Extraction**: Executes 3 independent analysis runs (configurable)
-2. **Consensus Building**: Uses hybrid similarity matching to identify common nuggets
+
+#### Single-Model Mode
+1. **Multi-Run Extraction**: Executes 3 independent analysis runs (configurable) with the same provider
+2. **Consensus Building**: Uses hybrid similarity matching to identify common nuggets across runs
 3. **Confidence Calculation**: Assigns confidence scores based on run agreement
 4. **Result Consolidation**: Merges results with metadata showing consensus strength
 
+#### Multi-Provider Mode
+1. **Provider Execution**: Executes one analysis call per configured provider (Gemini, OpenAI, Anthropic, OpenRouter)
+2. **Cross-Provider Consensus**: Uses hybrid similarity matching to identify common nuggets across different providers
+3. **Attribution Preservation**: Each nugget retains `sourceProvider` and `sourceModel` metadata
+4. **Consensus Attribution**: Groups show all contributing providers via `contributingProviders` array
+5. **Provider-Specific Strengths**: Leverages diverse AI capabilities for comprehensive analysis
+
 ### User Interface Integration
-- **Popup Toggle**: Ensemble mode toggle in extension popup
-- **Context Menu**: "Ensemble Analysis" option for right-click activation
-- **Options Configuration**: Full ensemble settings in options page
-- **Progress Notifications**: Specialized progress messages during ensemble runs
-- **Result Display**: Enhanced UI showing confidence scores and consensus data
+
+#### Popup Interface
+- **Ensemble Mode Toggle**: Master toggle with mode indicator (providers vs. runs)
+- **Dynamic Provider Selection**: Multi-provider mode shows live provider selection grid
+- **Cost Indicators**: Clear cost display showing number of providers/runs
+- **Smart Validation**: Prevents analysis without provider selection in multi-provider mode
+
+#### Options Page Configuration
+- **Mode Selection**: Radio buttons for single-model vs. multi-provider modes
+- **Provider Configuration Grid**: Enable/disable individual providers with model selection
+- **Saved Provider Sets**: Name and save common provider combinations
+- **Run Count Settings**: Configure number of runs for single-model mode
+
+#### Context Menu Integration
+- **"Ensemble Analysis"**: Direct ensemble analysis with current mode settings
+- **Provider Attribution**: Results display shows provider badges and source information
+
+#### Results Display
+- **Enhanced UI**: Confidence scores with consensus metadata
+- **Provider Attribution**: Individual nuggets show source provider and model
+- **Consensus Groups**: Grouped results show all contributing providers
+- **Multi-Provider Badges**: Visual indicators for cross-provider consensus
 
 ### Configuration Options
+
+#### Global Settings
 - **Enable/Disable**: Master toggle for ensemble functionality
+- **Mode Selection**: Choose between "single-model" and "multi-provider"
+- **Default Provider Set**: Save preferred provider combinations
+
+#### Single-Model Mode
 - **Run Count**: Number of analysis runs (default: 3, affects cost linearly)
-- **Mode Selection**: Different ensemble strategies (balanced, precision-focused, etc.)
-- **Cost Awareness**: Clear indication that ensemble mode increases API costs
+- **Provider Selection**: Uses currently selected provider for all runs
+
+#### Multi-Provider Mode
+- **Provider Configurations**: Array of enabled providers with model selection
+  - `providerId`: Target AI provider (gemini, openai, anthropic, openrouter)
+  - `modelId`: Specific model within provider
+  - `enabled`: Toggle individual provider participation
+- **Provider Sets**: Named combinations of providers (e.g., "All Providers", "Fast & Accurate")
 
 ### Cost Considerations
-- **Linear Cost Scaling**: 3-run ensemble = 3x API cost
-- **Value Proposition**: Higher accuracy for important content analysis
+
+#### Single-Model Mode
+- **Linear Cost Scaling**: 3-run ensemble = 3x API cost with same provider
+- **Consistent Pricing**: Uses single provider's pricing model
+
+#### Multi-Provider Mode
+- **Per-Provider Costing**: Each enabled provider incurs its respective API cost
+- **Mixed Pricing**: Different providers have different cost structures
+- **Transparent Display**: UI shows exact number of providers and expected cost multiplier
+
+#### Value Proposition
+- **Higher Accuracy**: Significant improvement for important content analysis
 - **User Control**: Completely optional, disabled by default
-- **Transparent Pricing**: Clear cost indicators in UI
+- **Smart Defaults**: Reasonable provider combinations for common use cases
 
 ### Technical Implementation
+
+#### Core Services
 - **EnsembleExtractor Service**: `src/background/services/ensemble-extractor.ts`
+  - `extractWithEnsemble()`: Single-model ensemble (backward compatible)
+  - `extractWithMultiProviderEnsemble()`: Multi-provider ensemble extraction
+  - `extractWithMultiProvider()`: Core multi-provider logic with attribution
+
+#### Storage System
+- **Enhanced EnsembleSettings**: `src/shared/types.ts`
+  - `mode`: "single-model" | "multi-provider"
+  - `providerConfigurations`: Array of provider configs with enabled flags
+  - `defaultProviderSet`: Named provider combinations
+  - Backward compatible with existing single-model settings
+
+#### Message Handling
+- **Multi-Provider Support**: `src/background/message-handler.ts`
+  - `handleMultiProviderEnsemble()`: Dedicated multi-provider message handler
+  - Provider instance management with proper attribution
+  - Enhanced response format with provider metadata
+
+#### Attribution System
+- **Nugget-Level Attribution**: Each nugget includes:
+  - `sourceProvider`: Original provider that found the nugget
+  - `sourceModel`: Specific model used
+- **Consensus Attribution**: Grouped nuggets include:
+  - `contributingProviders`: Array of all providers that found similar content
+  - Cross-provider consensus strength indicators
+
+#### Similarity Matching
 - **Hybrid Similarity**: Advanced text matching for consensus building
-- **Embedding Analysis**: Semantic similarity for duplicate detection
-- **Storage Integration**: Ensemble preferences persisted securely
-- **Test Coverage**: Comprehensive test suite with 15+ test files
+- **Cross-Provider Normalization**: Handles different provider response formats
+- **Embedding Analysis**: Semantic similarity for duplicate detection across providers
+- **Confidence Scoring**: Consensus-based confidence calculation
+
+#### Test Coverage
+- **Comprehensive Testing**: 15+ test files covering both ensemble modes
+- **Multi-Provider Scenarios**: E2E tests for cross-provider consensus
+- **Attribution Validation**: Tests verify proper provider attribution
 
 ### When to Use Ensemble Mode
-- **Critical Analysis**: Important content requiring high accuracy
+
+#### Single-Model Mode
+- **Cost-Conscious Analysis**: Higher accuracy within single provider's cost structure
+- **Provider-Specific Optimization**: Leverage known strengths of preferred provider
+- **Consistent Model Behavior**: When uniform analysis style is preferred
+
+#### Multi-Provider Mode
+- **Maximum Accuracy**: Critical content requiring highest possible precision
+- **Provider Diversity**: Leverage different AI model strengths simultaneously
+- **Cross-Validation**: Important analysis requiring multiple AI perspectives
 - **Research Applications**: Academic or professional content analysis
+- **Complex Content**: Dense, technical, or nuanced material requiring diverse analysis approaches
+
+#### General Use Cases
 - **Quality Assurance**: When precision is more important than speed/cost
-- **Complex Content**: Dense, technical, or nuanced material
+- **High-Stakes Analysis**: Business-critical or research-critical content
+- **Unknown Content Types**: When unsure which provider performs best
 
 ## Development Workflow
 
@@ -288,13 +388,25 @@ For detailed information about specific components, refer to the CLAUDE.md files
 7. Results with confidence scores and provider metadata are displayed via content script UI
 
 #### Ensemble Analysis Flow
-1. User enables ensemble mode via popup toggle or context menu
+
+##### Single-Model Ensemble Flow
+1. User enables ensemble mode via popup toggle or context menu with single-model mode
 2. Background script receives ensemble request with run configuration
 3. Content script extracts page content using specialized extractors
-4. Background script executes multiple AI API calls (3 runs by default)
+4. Background script executes multiple AI API calls to same provider (3 runs by default)
 5. EnsembleExtractor processes multiple results using hybrid similarity matching
-6. Consensus nuggets with confidence scores are generated
+6. Consensus nuggets with confidence scores are generated based on run agreement
 7. Enhanced results with ensemble metadata are displayed via content script UI
+
+##### Multi-Provider Ensemble Flow
+1. User enables ensemble mode and selects multi-provider mode with desired providers
+2. Background script receives multi-provider ensemble request with provider configurations
+3. Content script extracts page content using specialized extractors
+4. Background script executes one AI API call per enabled provider (Gemini, OpenAI, Anthropic, OpenRouter)
+5. `handleMultiProviderEnsemble()` manages provider instances with proper attribution
+6. EnsembleExtractor processes cross-provider results using hybrid similarity matching
+7. Cross-provider consensus nuggets with attribution metadata are generated
+8. Enhanced results with multi-provider attribution and consensus data are displayed via content script UI
 
 ### Backend Integration & Monitoring
 The backend (`backend/`) provides feedback collection and DSPy-based prompt optimization with comprehensive monitoring:
@@ -313,7 +425,7 @@ The backend (`backend/`) provides feedback collection and DSPy-based prompt opti
 See `backend/MONITORING_GUIDE.md` for comprehensive monitoring documentation.
 
 ### AI Provider Response Schema
-All AI providers (Gemini, Claude, OpenAI, OpenRouter) return responses in the standardized fullContent format:
+All AI providers (Gemini, Claude, OpenAI, OpenRouter) return responses in the standardized fullContent format with optional attribution metadata:
 
 #### FullContent Extraction Schema
 ```json
@@ -322,9 +434,53 @@ All AI providers (Gemini, Claude, OpenAI, OpenRouter) return responses in the st
     {
       "type": "tool|media|aha! moments|analogy|model",
       "fullContent": "Complete text of the golden nugget",
-      "confidence": 0.92
+      "confidence": 0.92,
+      "sourceProvider": "gemini",
+      "sourceModel": "gemini-1.5-flash"
     }
   ]
+}
+```
+
+#### Multi-Provider Ensemble Schema
+```json
+{
+  "golden_nuggets": [
+    {
+      "type": "tool|media|aha! moments|analogy|model",
+      "fullContent": "Complete text of the golden nugget",
+      "confidence": 0.94,
+      "runsSupportingThis": 2,
+      "totalRuns": 3,
+      "contributingProviders": [
+        { "provider": "gemini", "model": "gemini-1.5-flash" },
+        { "provider": "openai", "model": "gpt-4o" }
+      ],
+      "similarityMethod": "embedding"
+    }
+  ],
+  "metadata": {
+    "extractionMode": "multi-provider-ensemble",
+    "totalRuns": 3,
+    "successfulRuns": 3,
+    "consensusReached": 12,
+    "duplicatesRemoved": 8,
+    "averageResponseTime": 2340,
+    "providersUsed": [
+      {
+        "providerId": "gemini",
+        "modelId": "gemini-1.5-flash",
+        "responseTime": 1800,
+        "successful": true
+      },
+      {
+        "providerId": "openai", 
+        "modelId": "gpt-4o",
+        "responseTime": 2200,
+        "successful": true
+      }
+    ]
+  }
 }
 ```
 
@@ -332,7 +488,12 @@ All AI providers (Gemini, Claude, OpenAI, OpenRouter) return responses in the st
 - **fullContent**: Complete verbatim text of the golden nugget
 - **confidence**: AI-assigned confidence score (0.0-1.0) for quality assessment
 - **type**: Categorization for filtering and organization
+- **sourceProvider/sourceModel**: Attribution for individual nuggets (single-provider scenarios)
+- **contributingProviders**: Array of all providers that found similar content (ensemble consensus)
+- **runsSupportingThis**: Number of runs/providers that found this nugget
+- **similarityMethod**: Method used for consensus building ("embedding", "word_overlap", "fallback")
 - **Consistent Format**: Same structure across all AI providers for reliable processing
+- **Ensemble Metadata**: Complete information about consensus building and provider performance
 
 ### Storage Structure
 
@@ -349,7 +510,12 @@ All AI providers (Gemini, Claude, OpenAI, OpenRouter) return responses in the st
   - `userPrompts`: Array of saved prompt objects with names, content, and default status
   - `defaultPrompt`: User's default prompt selection
   - `typeFilters`: Selected nugget types for analysis
-  - `ensembleSettings`: Ensemble mode configuration (enabled, defaultRuns, defaultMode)
+  - `ensembleSettings`: Enhanced ensemble configuration with multi-provider support
+    - `enabled`: Master toggle for ensemble functionality
+    - `defaultRuns`: Number of runs for single-model mode (default: 3)
+    - `mode`: "single-model" | "multi-provider" mode selection
+    - `providerConfigurations`: Array of provider configs with enabled flags
+    - `defaultProviderSet`: Named provider combinations for quick selection
 
 #### Backend Storage (SQLite)
 - **Feedback Tables**: User ratings, corrections, and missing content feedback
@@ -418,10 +584,15 @@ The project consists of three integrated components working together:
 - Consistent fullContent + confidence response format across providers
 - Provider-specific temperature and model configurations
 - Confidence scoring standardized across all providers
+- **Ensemble Attribution**: Automatic sourceProvider and sourceModel tagging for attribution
+- **Multi-Provider Consensus**: Cross-provider similarity matching for ensemble mode
+- **Response Normalization**: Unified processing across different provider response formats
 - Fallback mechanisms ensure graceful degradation when providers are unavailable
 
 ### Provider Selection Logic
 - Users can switch providers in real-time via Options page
 - Provider validation occurs before API calls
+- **Ensemble Mode Support**: Multi-provider configurations with individual provider toggles
+- **Provider Set Management**: Named combinations for quick ensemble setup
 - Fallback mechanisms for provider failures
 - Cost tracking and comparison across providers

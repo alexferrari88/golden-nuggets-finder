@@ -112,12 +112,14 @@ element.style.cssText = `
 ## Content Script Overview
 
 Content scripts are injected dynamically only when needed (not on all pages) and handle:
-- Content extraction from webpages using the `threads-harvester` library
-- DOM manipulation for highlighting and UI rendering with design system integration
-- Analysis workflow and performance monitoring with real-time progress updates
-- Communication with background scripts via message passing
-- Multi-provider analysis support with provider metadata display
-- Ensemble mode UI integration with confidence scoring and consensus visualization
+- **Content Extraction**: Intelligent content extraction using the `threads-harvester` library with site-specific optimizations
+- **DOM Manipulation**: Sophisticated highlighting and UI rendering with design system integration and progressive text matching
+- **Multi-Provider Analysis**: Complete multi-provider workflow support with provider attribution and visual identification
+- **Provider Attribution System**: Comprehensive provider badges, tooltips, and metadata display for individual nuggets
+- **Ensemble Mode Integration**: Advanced ensemble UI with confidence scoring, consensus visualization, and run agreement statistics
+- **Enhanced Notifications**: Multi-provider and ensemble-specific progress messages with real-time updates
+- **Provider Metadata Display**: Sidebar header integration showing multi-provider analysis metadata
+- **Background Communication**: Advanced message passing supporting multi-provider coordination and metadata preservation
 
 ## Progressive Text Matching Services
 
@@ -243,9 +245,13 @@ Modern text highlighting using CSS Custom Highlight API with mark.js fallback an
 - **Confidence Scoring**: Each match includes confidence metrics for quality assessment
 
 ### Sidebar (`ui/sidebar.ts`)
-Displays results in right sidebar with Notion-inspired design:
+Displays results in right sidebar with Notion-inspired design and multi-provider attribution:
 - **Clean Layout**: Uses design system colors and spacing
 - **Card-based Design**: Subtle shadows and borders for content hierarchy
+- **Multi-Provider Attribution**: Provider badges with color-coded visual identification
+- **Enhanced Metadata Display**: Provider information in sidebar header for multi-provider results
+- **Provider Badge System**: Individual nugget cards display source provider and model information
+- **Visual Provider Identification**: Color-coded provider badges with tooltip information
 - **Minimal Interactions**: Hover states and smooth transitions
 - **Typography**: System font stack with consistent sizing
 
@@ -262,61 +268,145 @@ Manages different types of notification banners with automatic lifecycle:
 - **Design System Integration**: Uses design system colors, typography, and timing
 - **Smooth Animations**: Fade-in and slide-in animations for professional feel
 
-### Ensemble Mode UI Integration
+### Provider Attribution & Visual Identification System
 
-Content script UI components include specialized features for ensemble mode analysis:
+The content script includes a comprehensive provider attribution system that visually identifies and attributes nuggets to their source providers:
 
-#### Enhanced Notification System
-Ensemble-specific progress notifications with run tracking:
-- **Ensemble Progress Messages**: Real-time updates during multi-run analysis
-- **Run Counter**: Shows current run progress (e.g., "Run 2 of 3")
-- **Cost Indication**: Clear display of multiplied API costs
-- **Consensus Building**: Progress messages during similarity matching
+#### Provider Color Coding System
+Consistent color coding for visual provider identification across all UI components:
+- **Google Gemini**: `#4285F4` (Google Blue) - Official Google brand color
+- **OpenAI**: `#10A37F` (OpenAI Green) - OpenAI brand color
+- **Anthropic Claude**: `#FF6B35` (Anthropic Orange) - Anthropic brand color
+- **OpenRouter**: `#8B5CF6` (Purple) - Distinct purple for multi-model access
 
-#### Sidebar Ensemble Results
-Enhanced sidebar display for ensemble analysis results:
-- **Confidence Scoring**: Visual indicators showing nugget confidence levels
-- **Consensus Metadata**: Run agreement statistics (e.g., "3/3 runs" or "2/3 runs")
-- **Quality Indicators**: Visual cues for high-confidence vs moderate-confidence nuggets
-- **Ensemble Badges**: Subtle indicators showing analysis was performed with ensemble mode
-
-#### Example Ensemble UI Elements
+#### Provider Badge Implementation
+Individual nugget cards display source provider information through styled badges:
 ```typescript
-// Ensemble-specific progress notification
-const ensembleProgressMessage = `🎯 Starting ensemble extraction (${runs} runs)`
-
-// Consensus display in sidebar
-const consensusElement = document.createElement('div')
-consensusElement.style.cssText = `
-  background: ${colors.background.secondary};
-  border: 1px solid ${colors.border.light};
-  border-radius: 4px;
-  padding: ${spacing.xs};
-  color: ${colors.text.secondary};
-  font-size: ${typography.fontSize.xs};
-`
-consensusElement.textContent = `${runsSupportingThis}/${totalRuns} agreement`
+private getProviderColor(providerId: ProviderId): string {
+  const providerColors = {
+    gemini: "#4285F4",     // Google Blue
+    openai: "#10A37F",     // OpenAI Green
+    anthropic: "#FF6B35",  // Anthropic Orange
+    openrouter: "#8B5CF6", // Purple
+  };
+  return providerColors[providerId] || colors.text.secondary;
+}
 ```
 
-#### Ensemble Mode Visual Design
-- **Confidence Indicators**: Subtle opacity variations based on consensus strength
-- **Agreement Badges**: Small text indicators showing run agreement
-- **Enhanced Cards**: Additional metadata sections for ensemble-specific information
-- **Cost Awareness**: Clear visual indicators when ensemble mode is active
+#### Visual Design Features
+- **Transparency Integration**: Provider colors use 15% background transparency (`${providerColor}15`)
+- **Border Styling**: Subtle borders with 33% color opacity (`${providerColor}33`)
+- **Typography Integration**: Uses design system font sizes and weights
+- **Tooltip Enhancement**: Rich tooltips showing "Found by [Provider] ([Model])"
+- **Design System Compliance**: All provider UI elements follow design system patterns
+
+### Multi-Provider Ensemble UI Integration
+
+Content script UI components include comprehensive multi-provider and ensemble mode features:
+
+#### Enhanced Results Display with Provider Attribution
+Multi-provider nugget cards with comprehensive attribution system:
+- **Provider Badge System**: Color-coded badges showing source provider and model for each nugget
+- **Visual Provider Identification**: Provider-specific color coding with design system integration:
+  - **Google Gemini**: `#4285F4` (Google Blue) with transparency and border styling
+  - **OpenAI**: `#10A37F` (OpenAI Green) with consistent visual treatment
+  - **Anthropic Claude**: `#FF6B35` (Anthropic Orange) with subtle background
+  - **OpenRouter**: `#8B5CF6` (Purple) with matching border and text colors
+- **Provider Tooltip Information**: Detailed tooltips showing full model names and provider information
+- **Source Attribution Display**: Each nugget card shows "Found by [Provider] ([Model])" in tooltip
+
+#### Multi-Provider Sidebar Header Integration
+Enhanced sidebar header with multi-provider metadata display:
+- **Multi-Provider Detection**: Automatic detection and display when multiple providers are used
+- **Provider Summary**: Single-line display showing "Multi-Provider Ensemble" for multi-provider analysis
+- **Model Aggregation**: Aggregated model information from successful providers
+- **Response Time Integration**: Combined response time metadata for multi-provider operations
+
+#### Enhanced Notification System
+Ensemble and multi-provider-specific progress notifications:
+- **Ensemble Progress Messages**: Real-time updates during multi-run analysis with predefined messages:
+  - `🎯 Starting ensemble extraction (${runs} runs)`
+  - `🧮 Building consensus across ${runs} runs`
+  - `✨ Processed ${consensus} consensus nuggets`
+- **Run Counter**: Shows current run progress (e.g., "Run 2 of 3")
+- **Cost Indication**: Clear display of multiplied API costs for ensemble mode
+- **Consensus Building**: Progress messages during similarity matching and consensus building
+
+#### Advanced Consensus Display System
+Sophisticated consensus visualization for ensemble results:
+- **Confidence Tier System**: Three-tier confidence classification (High/Medium/Low)
+- **Visual Confidence Indicators**: Icon-based indicators with checkmarks and warning symbols
+- **Run Agreement Statistics**: Display showing run agreement (e.g., "3/3 runs" or "2/3 runs")
+- **Provider Attribution Tooltips**: Comprehensive tooltips showing all contributing providers and models
+- **Consensus Badge Styling**: Styled badges with design system colors showing confidence tiers
+
+#### Provider Badge Implementation
+```typescript
+// Multi-provider attribution badge system
+const providerBadge = document.createElement("div");
+const providerColor = this.getProviderColor(enhancedNugget.sourceProvider);
+providerBadge.style.cssText = `
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 6px;
+  border-radius: 6px;
+  font-size: ${typography.fontSize.xs};
+  font-weight: ${typography.fontWeight.medium};
+  background-color: ${providerColor}15;
+  color: ${providerColor};
+  border: 1px solid ${providerColor}33;
+`;
+```
+
+#### Ensemble Consensus Display
+```typescript
+// Ensemble consensus badge with confidence tiers
+const consensusBadge = document.createElement("div");
+consensusBadge.textContent = `${confidenceTier.icon} ${confidenceTier.tier}`;
+consensusBadge.title = generateProviderTooltip(providers);
+consensusBadge.style.cssText = `
+  background: ${confidenceTier.badgeColor};
+  color: ${confidenceTier.textColor};
+  padding: ${spacing.xs} ${spacing.sm};
+  border-radius: ${borderRadius.sm};
+  font-size: ${typography.fontSize.xs};
+  font-weight: ${typography.fontWeight.medium};
+  cursor: help;
+  white-space: nowrap;
+`;
+```
+
+#### Visual Design Integration
+- **Design System Compliance**: All multi-provider UI elements use design system colors and typography
+- **Provider Color Consistency**: Consistent color coding across all provider-related UI elements
+- **Subtle Visual Hierarchy**: Provider information displayed without overwhelming main content
+- **Enhanced Tooltips**: Rich tooltip information showing complete provider and model details
+- **Consensus Visualization**: Clear visual indicators for ensemble agreement levels
 
 
 #### Technical Integration Notes
 
-**Content Script Architecture**
-FullContent extraction uses a simplified, efficient architecture:
-- Analysis requests use standard message format with provider and type filter parameters
-- Progress messages handled through existing notification system
-- Results displayed through enhanced UI components with confidence indicators
+**Multi-Provider Content Script Architecture**
+Enhanced content script architecture supporting multi-provider analysis:
+- **Enhanced Message Format**: Analysis requests include provider configuration and multi-provider parameters
+- **Attribution Preservation**: UI components preserve and display `sourceProvider`, `sourceModel`, and `contributingProviders` metadata
+- **Progress Message Enhancement**: Notification system handles multi-provider and ensemble-specific progress messages
+- **Provider Metadata Integration**: Sidebar and nugget cards display comprehensive provider attribution information
+- **Consensus Display**: Advanced consensus visualization for ensemble results with confidence tiers
 
-**Background Script Communication**
-- Standard message passing with provider and configuration parameters
-- `ContentValidator` service ensures response quality and consistency
-- Results provided in normalized fullContent format with metadata
+**Enhanced Background Script Communication**
+Advanced message passing for multi-provider coordination:
+- **Provider Metadata Passing**: Complete provider metadata including response times and model information
+- **Multi-Provider Detection**: Automatic detection and handling of multi-provider analysis results
+- **Enhanced Result Format**: Results include complete attribution metadata for UI display
+- **Consensus Metadata**: Ensemble results include run agreement statistics and confidence scoring
+
+**UI State Management for Multi-Provider Results**
+- **Enhanced Nugget Types**: `EnhancedGoldenNugget` interface with complete attribution metadata
+- **Provider Color System**: Consistent color coding system for visual provider identification
+- **Tooltip Generation**: Dynamic tooltip generation showing complete provider and model information
+- **Consensus Visualization**: Advanced confidence tier system with visual indicators
 
 ### Design System Integration
 Content script UI components follow the shared design system:
@@ -504,12 +594,17 @@ Advanced fuzzy string matching library:
 6. **Content Reconstruction**: Extracted content is stored for golden nugget text reconstruction via progressive matching
 
 ### UI Component Guidelines
-- **Design System Compliance**: Always use design system variables for styling
-- **Provider Integration**: Display provider metadata and response times in UI
-- **Real-time Updates**: Handle progress messages and provider switching notifications
+- **Design System Compliance**: Always use design system variables for styling - never hardcode values
+- **Multi-Provider Attribution**: Display provider badges with consistent color coding and attribution information
+- **Provider Badge Integration**: Implement provider badges with transparency, borders, and tooltip information
+- **Ensemble Consensus Display**: Show confidence tiers, run agreement statistics, and consensus metadata
+- **Enhanced Tooltips**: Generate rich tooltips with complete provider and model information
+- **Real-time Updates**: Handle multi-provider progress messages and ensemble-specific notifications
+- **Provider Color Consistency**: Use the established provider color system across all UI components
+- **Attribution Preservation**: Maintain `sourceProvider`, `sourceModel`, and `contributingProviders` metadata in UI state
 - **Performance Optimization**: Keep components lightweight with efficient DOM operations
-- **Error Handling**: Graceful degradation for provider failures and network issues
-- **Memory Management**: Proper cleanup on page navigation and component destruction
+- **Error Handling**: Graceful degradation for provider failures and multi-provider analysis issues
+- **Memory Management**: Proper cleanup of provider metadata and consensus display elements
 
 ### Progressive Text Matching Testing
 

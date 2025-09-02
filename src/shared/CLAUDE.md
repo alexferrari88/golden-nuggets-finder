@@ -78,12 +78,26 @@ Manages user-selected models for each provider:
 - **Configuration Support**: Integrates with provider configuration system
 
 ### Storage Structure
-- **Multi-Provider API Keys**: Encrypted storage for all supported AI providers
+- **Multi-Provider API Keys**: Encrypted storage for all supported AI providers (Gemini, OpenAI, Anthropic, OpenRouter)
+  - Individual encrypted keys per provider using device-specific encryption
+  - Provider-specific storage keys with automatic configuration discovery
+  - Security integration with same encryption system as main storage
 - **Model Selections**: User-selected models per provider with fallback defaults
+  - Provider-specific model storage with validation and error handling
+  - Batch model management for ensemble configuration scenarios
+  - Automatic fallback to provider defaults when no custom selection exists
+- **Enhanced Ensemble Settings**: Multi-provider ensemble configuration support
+  - `mode`: Single-model or multi-provider ensemble operation
+  - `providerConfigurations`: Array of provider/model combinations with enable/disable flags
+  - `defaultProviderSet`: Named provider set configurations for quick setup
+  - Migration support from legacy single-model ensemble settings
+- **Provider Set Management**: Named combinations of provider configurations
+  - Save and retrieve common provider combinations (e.g., "Accuracy Focused", "Speed Optimized")
+  - Complete provider set storage with model-specific configurations
+  - Quick switching between different multi-provider ensemble scenarios
 - **User Prompts**: Array of saved prompt objects with names, content, and default status
 - **Provider Configuration**: Selected provider and provider-specific settings
 - **Type Filtering**: User preferences for nugget type filtering
-- **Ensemble Settings**: Configuration for ensemble mode (enabled, defaultRuns, defaultMode)
 - **Analysis Settings**: Configuration for extraction preferences and quality settings
   - Stored securely using same encryption system as other extension settings
 
@@ -216,70 +230,262 @@ Comprehensive JSON schema definitions for fullContent extraction workflows:
 
 ## Ensemble Support
 
-### Ensemble Types and Interfaces
-The shared utilities include comprehensive type definitions for ensemble functionality:
+### Multi-Provider Ensemble System
+The shared utilities include comprehensive support for both single-model and multi-provider ensemble analysis:
 
-#### Ensemble Configuration Types
+#### Enhanced Ensemble Configuration Types (`types.ts`)
 ```typescript
 interface EnsembleSettings {
   enabled: boolean;
-  defaultRuns: number;
-  defaultMode: EnsembleMode;
+  defaultRuns: number; // For single-model mode
+  
+  // New multi-provider support
+  mode: "single-model" | "multi-provider";
+  providerConfigurations: Array<{
+    providerId: ProviderId;
+    modelId: string;
+    enabled: boolean; // Allow toggling individual providers
+  }>;
+  defaultProviderSet: string; // Name of saved provider set
 }
 
-interface EnsembleOptions {
-  runs: number;
-  mode: EnsembleMode;
+interface EnsembleAnalysisRequest extends AnalysisRequest {
+  ensembleOptions: {
+    runs: number; // For single-model mode
+    mode: "single-model" | "multi-provider";
+    providerConfigurations?: Array<{
+      providerId: ProviderId;
+      modelId: string;
+    }>;
+  };
 }
-
-type EnsembleMode = 'balanced' | 'precision' | 'recall';
 ```
 
-#### Enhanced Nugget Types
-Extended golden nugget types with ensemble metadata:
+#### Enhanced Golden Nugget Types with Provider Attribution
+Extended golden nugget types with multi-provider ensemble metadata:
 ```typescript
 interface EnhancedGoldenNugget extends GoldenNugget {
-  confidence?: number;
+  // Ensemble-specific metadata
   runsSupportingThis?: number;
   totalRuns?: number;
-  consensusReached?: boolean;
+  similarityMethod?: "embedding" | "word_overlap" | "fallback";
+  
+  // Multi-provider attribution metadata
+  sourceProvider?: ProviderId; // Track which provider found this nugget (single-provider scenarios)
+  sourceModel?: string;
+  contributingProviders?: Array<{ model: string; provider: string }>; // Track all providers that contributed (ensemble consensus)
 }
 ```
 
-### Ensemble Constants (`constants.ts`)
-Ensemble-specific configuration constants:
-- **ENSEMBLE_SETTINGS**: Storage key for ensemble configuration
-- **DEFAULT_SIMILARITY_THRESHOLD**: Default threshold for nugget consensus (0.7)
-- **DEFAULT_ENSEMBLE_RUNS**: Default number of analysis runs (3)
-- **MAX_ENSEMBLE_RUNS**: Maximum allowed runs for cost control (10)
+#### Multi-Provider Extraction Result Types (`types/providers.ts`)
+```typescript
+interface EnsembleExtractionResult {
+  golden_nuggets: Array<{
+    type: GoldenNuggetType;
+    fullContent: string;
+    confidence: number;
+    // Multi-provider metadata
+    sourceProvider?: ProviderId;
+    sourceModel?: string;
+    runsSupportingThis: number;
+    totalRuns: number;
+  }>;
+  metadata: {
+    // New multi-provider metadata
+    providersUsed?: Array<{
+      providerId: ProviderId;
+      modelId: string;
+      responseTime: number;
+      successful: boolean;
+    }>;
+  };
+}
+```
 
-### Hybrid Similarity System (`services/hybrid-similarity.ts`)
-Advanced similarity matching system used by ensemble extractor:
-- **Multi-Strategy Matching**: Combines semantic similarity with exact text matching
-- **Embedding Analysis**: Uses vector embeddings for semantic similarity comparison
-- **Consensus Building**: Groups similar nuggets from multiple runs
-- **Confidence Scoring**: Calculates confidence based on run agreement
-- **Duplicate Elimination**: Advanced deduplication with configurable thresholds
+### Multi-Provider Storage System
 
-#### Key Features
-- **Semantic Understanding**: Vector embeddings capture meaning beyond exact text
-- **Performance Optimized**: Efficient batch processing for multiple nugget comparisons
-- **Configurable Thresholds**: Adjustable similarity thresholds for different content types
-- **Detailed Reporting**: Comprehensive similarity scores and match explanations
+#### Enhanced Storage Methods (`storage.ts`)
+The storage system supports complete multi-provider ensemble configuration:
 
-### Ensemble Storage Integration
-Ensemble settings are stored using the same security and encryption system:
-- **Encrypted Storage**: Ensemble preferences encrypted using SecurityManager
-- **Chrome Storage**: Persisted in Chrome local storage with caching
-- **Validation**: Runtime validation of ensemble configuration values
-- **Migration Support**: Automatic handling of settings schema updates
+```typescript
+// Get ensemble settings with multi-provider support
+async getEnsembleSettings(): Promise<{
+  enabled: boolean;
+  defaultRuns: number;
+  mode: "single-model" | "multi-provider";
+  providerConfigurations: Array<{
+    providerId: ProviderId;
+    modelId: string;
+    enabled: boolean;
+  }>;
+  defaultProviderSet: string;
+}>
 
-### Ensemble Utilities
-Shared utility functions for ensemble operations:
-- **Configuration Validation**: Validates ensemble settings and options
-- **Cost Calculation**: Estimates API costs for ensemble analysis
-- **Progress Tracking**: Specialized progress messages for multi-run analysis
-- **Result Formatting**: Formats ensemble results for UI display
+// Save ensemble settings with provider configurations
+async saveEnsembleSettings(settings: EnsembleSettings): Promise<void>
+
+// Provider set management (save named combinations)
+async saveProviderSet(name: string, configurations: Array<{
+  providerId: ProviderId;
+  modelId: string;
+}>): Promise<void>
+
+async getProviderSet(name: string): Promise<Array<{
+  providerId: ProviderId;
+  modelId: string;
+}> | null>
+
+async getAllProviderSets(): Promise<Record<string, Array<{
+  providerId: ProviderId;
+  modelId: string;
+}>>>
+```
+
+#### Migration Support for Multi-Provider Ensemble
+The storage system includes automatic migration from legacy ensemble settings:
+- **Backward Compatibility**: Converts old single-model settings to new multi-provider format
+- **Default Provider Sets**: Automatically creates default provider combinations
+- **Configuration Preservation**: Maintains existing ensemble preferences during migration
+- **Version Management**: Tracks migration state with version identifiers
+
+### Multi-Provider API Key Storage (`storage/api-key-storage.ts`)
+Specialized storage system for individual provider API keys:
+- **Provider-Specific Keys**: Separate encrypted storage for each provider (Gemini, OpenAI, Anthropic, OpenRouter)
+- **Security Integration**: Uses same encryption system as main storage with device-specific fingerprinting
+- **Provider Management**: Get, set, and remove API keys for specific providers
+- **Configuration Discovery**: Automatically discover configured providers for ensemble setup
+
+```typescript
+// Store API key for specific provider
+async storeApiKey(providerId: ProviderId, apiKey: string): Promise<void>
+
+// Retrieve API key for provider (returns null if not configured)
+async getApiKey(providerId: ProviderId): Promise<string | null>
+
+// List all configured providers
+async listConfiguredProviders(): Promise<ProviderId[]>
+```
+
+### Model Selection Storage (`storage/model-storage.ts`)
+Manages user-selected models for each provider in multi-provider ensemble scenarios:
+- **Provider-Specific Models**: Store preferred model for each provider independently
+- **Fallback Logic**: Automatic fallback to provider defaults when no selection exists
+- **Batch Operations**: Set models for multiple providers simultaneously for ensemble configuration
+- **Validation**: Input validation and storage verification with comprehensive error handling
+
+```typescript
+// Store selected model for provider
+async storeModel(providerId: ProviderId, modelName: string): Promise<void>
+
+// Get selected model (null if using default)
+async getModel(providerId: ProviderId): Promise<string | null>
+
+// Batch model management for ensemble setup
+async setAllModels(models: Partial<Record<ProviderId, string>>): Promise<void>
+async getAllModels(): Promise<Record<ProviderId, string | null>>
+```
+
+### Enhanced Message System Integration
+Multi-provider ensemble support is integrated throughout the messaging system:
+
+#### Ensemble Analysis Messages (`types.ts`)
+```typescript
+// Enhanced message types for multi-provider ensemble
+ANALYZE_CONTENT_ENSEMBLE: "analyze_content_ensemble";
+ENSEMBLE_EXTRACTION_PROGRESS: "ensemble_extraction_progress";
+ENSEMBLE_CONSENSUS_COMPLETE: "ensemble_consensus_complete";
+
+// Enhanced progress tracking with provider attribution
+interface AnalysisProgressMessage {
+  type: "ensemble_extraction_progress" | "ensemble_consensus_complete";
+  analysisId: string;
+  // Provider-specific progress information
+  providersUsed?: Array<{
+    providerId: ProviderId;
+    modelId: string;
+    status: "pending" | "running" | "complete" | "error";
+  }>;
+}
+```
+
+#### Multi-Provider Response Types
+```typescript
+interface EnsembleAnalysisResponse {
+  success: boolean;
+  error?: string;
+  data?: EnsembleExtractionResult & {
+    providerMetadata: {
+      providerId: ProviderId;
+      modelName: string;
+      ensembleRuns: number;
+      consensusMethod: string;
+      // Multi-provider specific metadata
+      providersUsed?: Array<{
+        providerId: ProviderId;
+        modelId: string;
+        responseTime: number;
+        successful: boolean;
+      }>;
+    };
+  };
+}
+```
+
+### Provider Configuration Validation
+Enhanced provider validation system supports multi-provider ensemble requirements:
+- **Multi-Provider Validation**: Validate multiple provider configurations simultaneously
+- **Model Compatibility**: Ensure selected models are available for each provider
+- **Configuration Completeness**: Verify all required providers have valid API keys
+- **Ensemble Readiness**: Validate provider set configurations for ensemble analysis
+
+### Ensemble Constants and Configuration (`constants.ts`)
+Enhanced constants for multi-provider ensemble support:
+- **ENSEMBLE_SETTINGS**: Storage key for ensemble configuration with provider attribution
+- **DEFAULT_PROVIDER_SETS**: Pre-configured provider combinations for common use cases
+- **PROVIDER_SET_PREFIX**: Storage key prefix for named provider set configurations
+- **MAX_PROVIDERS_PER_ENSEMBLE**: Limit for number of providers in single ensemble run
+- **PROVIDER_TIMEOUT_LIMITS**: Per-provider timeout configurations for ensemble reliability
+
+### Multi-Provider Benefits
+The enhanced ensemble system provides significant advantages:
+
+#### Accuracy and Coverage
+- **Cross-Provider Validation**: Multiple AI models validate each other's extractions
+- **Complementary Strengths**: Different providers excel at different content types
+- **Reduced False Positives**: Consensus-based filtering improves precision
+- **Enhanced Recall**: Multiple models catch nuggets others might miss
+
+#### Reliability and Robustness
+- **Provider Redundancy**: Graceful degradation when individual providers fail
+- **Model Diversity**: Reduces bias from single AI model perspectives
+- **Configurable Fallbacks**: Automatic fallback to single-provider mode when needed
+- **Performance Monitoring**: Track provider response times and success rates
+
+#### User Control and Flexibility
+- **Provider Selection**: Users choose which providers to include in ensemble
+- **Model Configuration**: Select specific models for each provider
+- **Named Provider Sets**: Save and reuse common provider combinations
+- **Cost Management**: Clear cost implications with provider-specific pricing
+
+### Technical Implementation Details
+
+#### Provider Attribution Chain
+1. **Individual Extraction**: Each provider performs independent analysis with source attribution
+2. **Consensus Building**: Hybrid similarity matching identifies common nuggets across providers
+3. **Metadata Preservation**: Final results maintain complete attribution chain showing which providers contributed
+4. **UI Integration**: Enhanced results display shows provider consensus and confidence metrics
+
+#### Storage Architecture
+1. **Hierarchical Configuration**: Ensemble settings → Provider configurations → Individual API keys/models
+2. **Atomic Updates**: All related configuration changes applied atomically
+3. **Migration Safety**: Robust migration system preserves existing configurations
+4. **Performance Optimization**: Caching and batch operations minimize storage overhead
+
+#### Error Handling and Recovery
+1. **Provider Isolation**: Failures in one provider don't affect others in ensemble
+2. **Partial Results**: Return results from successful providers even if some fail
+3. **Timeout Management**: Per-provider timeouts prevent hanging on slow responses
+4. **Graceful Degradation**: Automatic fallback to single-provider when ensemble fails
 
 ## Development System
 
@@ -299,30 +505,42 @@ Development and production logging system:
 ## Type System
 
 ### Core Types (`types.ts`)
-Comprehensive TypeScript interfaces for all extension data structures with fullContent extraction:
-- **Core Data Models**: GoldenNugget, SavedPrompt, ExtensionConfig with multi-provider support
-- **UI State Management**: NuggetDisplayState, SidebarNuggetItem, TypeFilterOptions
-- **Analysis System**: AnalysisRequest, AnalysisResponse, AnalysisProgressMessage with provider metadata
-- **Ensemble System**: EnsembleOptions, EnhancedGoldenNugget, EnsembleSettings with consensus metadata
-- **Feedback System**: NuggetFeedback, MissingContentFeedback, FeedbackStats
-- **Export System**: ExportData, ExportOptions with multiple format support
-- **Message System**: Complete MessageTypes enum for inter-component communication
-- **Debug System**: DebugLogMessage for development logging
-- **Provider Integration**: Provider metadata types for UI display and analytics
+Comprehensive TypeScript interfaces for all extension data structures with fullContent extraction and multi-provider ensemble support:
+- **Core Data Models**: GoldenNugget, SavedPrompt, ExtensionConfig with complete multi-provider support
+- **Enhanced Golden Nuggets**: Multi-provider attribution with `sourceProvider`, `sourceModel`, and `contributingProviders` metadata
+- **UI State Management**: NuggetDisplayState, SidebarNuggetItem, TypeFilterOptions with provider attribution display
+- **Analysis System**: AnalysisRequest, AnalysisResponse, AnalysisProgressMessage with comprehensive provider metadata
+- **Enhanced Ensemble System**: 
+  - `EnsembleSettings` with `mode`, `providerConfigurations`, and `defaultProviderSet` support
+  - `EnsembleAnalysisRequest` with multi-provider configuration options
+  - `EnhancedGoldenNugget` with complete provider attribution chain
+- **Feedback System**: NuggetFeedback, MissingContentFeedback, FeedbackStats with provider-specific context
+- **Export System**: ExportData, ExportOptions with multiple format support and provider attribution
+- **Enhanced Message System**: Complete MessageTypes enum including multi-provider ensemble messages
+- **Debug System**: DebugLogMessage for development logging with provider context
+- **Provider Integration**: Comprehensive provider metadata types for UI display, analytics, and attribution
 
 ### Provider Types Directory (`types/`)
 Specialized type definitions for the multi-provider system:
 
 #### Provider Types (`types/providers.ts`)
-Core provider system types with fullContent extraction support:
-- **Provider IDs**: `ProviderId` union type for all supported providers
-- **Provider Configuration**: `ProviderConfig` interface for provider setup
-- **LLM Interface**: `LLMProvider` interface ensuring consistent provider API
-  - `extractGoldenNuggets()`: FullContent extraction with confidence scoring
-- **Response Formats**: 
-  - `GoldenNuggetsResponse` for fullContent extraction with confidence scores
-- **Storage Schema**: `ProviderStorageSchema` for provider data persistence
-- **FullContent Types**: Specialized interfaces for fullContent workflow integration
+Core provider system types with fullContent extraction and multi-provider ensemble support:
+- **Provider IDs**: `ProviderId` union type for all supported providers (gemini, openai, anthropic, openrouter)
+- **Provider Configuration**: `ProviderConfig` interface for provider setup with API keys and model selection
+- **Enhanced LLM Interface**: `LLMProvider` interface ensuring consistent provider API
+  - `extractGoldenNuggets()`: FullContent extraction with confidence scoring and type filtering
+  - `extractGoldenNuggetsEnsemble()`: Optional ensemble support for single-model multi-run analysis
+  - `validateApiKey()`: Provider-specific API key validation
+- **Multi-Provider Response Formats**: 
+  - `GoldenNuggetsResponse` for standard fullContent extraction with confidence scores
+  - `EnsembleExtractionResult` for ensemble analysis with provider attribution and consensus metadata
+  - `EnhancedGoldenNuggetsResponse` preserving metadata from advanced extraction modes
+- **Ensemble Integration**: 
+  - Complete provider attribution tracking with `sourceProvider`, `sourceModel` metadata
+  - Provider performance tracking with response times and success rates
+  - Multi-provider consensus building with similarity method attribution
+- **Storage Schema**: `ProviderStorageSchema` for multi-provider data persistence and configuration management
+- **Provider Attribution**: Specialized interfaces tracking which providers contributed to each nugget in ensemble scenarios
 
 ### Advanced Type Features
 - **Feedback Integration**: Complete feedback system types for prompt optimization
