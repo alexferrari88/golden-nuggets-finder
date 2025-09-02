@@ -780,6 +780,9 @@ export class MessageHandler {
 									// No validation score - highlighter will do natural filtering
 									validationScore: undefined,
 									extractionMethod: "llm",
+									// Add provider information for tooltips
+									sourceProvider: providerConfig.providerId,
+									sourceModel: providerConfig.modelName,
 								};
 							},
 						);

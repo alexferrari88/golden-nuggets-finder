@@ -598,7 +598,7 @@ describe("Backend Integration Tests", () => {
 
 			// Verify API was called with provider and model parameters
 			expect(mockFetch).toHaveBeenCalledWith(
-				"http://localhost:7532/optimize/current?provider=gemini&model=gemini-2.5-flash",
+				"http://localhost:7532/optimize/current?provider=gemini&model=gemini-2.5-flash-lite",
 				expect.objectContaining({
 					method: "GET",
 					headers: { "Content-Type": "application/json" },

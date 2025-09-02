@@ -1,6 +1,7 @@
 import { ChatAnthropic } from "@langchain/anthropic";
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { z } from "zod";
+import { normalize } from "../../background/services/response-normalizer";
 import { debugLogger } from "../debug";
 import type { GoldenNuggetType } from "../schemas";
 import type {
@@ -16,11 +17,23 @@ const GoldenNuggetsSchema = z.object({
 		z.object({
 			type: z.enum([
 				// Canonical types
-				"tool", "media", "aha! moments", "analogy", "model",
+				"tool",
+				"media",
+				"aha! moments",
+				"analogy",
+				"model",
 				// AI model variations that response-normalizer handles
-				"mental model", "mental_model", "framework",
-				"technique", "method", "resource", "book", "article",
-				"concept", "comparison", "metaphor"
+				"mental model",
+				"mental_model",
+				"framework",
+				"technique",
+				"method",
+				"resource",
+				"book",
+				"article",
+				"concept",
+				"comparison",
+				"metaphor",
 			]),
 			fullContent: z.string(),
 			confidence: z.number().min(0).max(1),
@@ -86,25 +99,30 @@ export class LangChainAnthropicProvider implements LLMProvider {
 				new HumanMessage(content),
 			]);
 
-			// Log the response
+			// Normalize response using response-normalizer to handle type variants
+			const normalizedResponse = normalize(
+				{
+					golden_nuggets: response.golden_nuggets.map((nugget) => ({
+						type: nugget.type,
+						fullContent: nugget.fullContent,
+						confidence: nugget.confidence,
+						extractionMethod: "llm",
+					})),
+				} as any, // Cast to allow extended types that normalizer will handle
+				this.providerId,
+			);
+
+			// Log the normalized response
 			debugLogger.logLLMResponse(
 				{
 					provider: "anthropic",
 					model: this.modelName,
 					success: true,
 				},
-				response,
+				normalizedResponse,
 			);
 
-			// Transform response to include required fields
-			return {
-				golden_nuggets: response.golden_nuggets.map((nugget) => ({
-					type: nugget.type,
-					fullContent: nugget.fullContent,
-					confidence: nugget.confidence,
-					extractionMethod: "llm" as const,
-				})),
-			};
+			return normalizedResponse;
 		} catch (error) {
 			// Log the error
 			const message = error instanceof Error ? error.message : String(error);

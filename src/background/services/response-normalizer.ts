@@ -26,11 +26,23 @@ const GoldenNuggetsSchema = z.object({
 		z.object({
 			type: z.enum([
 				// Canonical types
-				"tool", "media", "aha! moments", "analogy", "model",
+				"tool",
+				"media",
+				"aha! moments",
+				"analogy",
+				"model",
 				// AI model variations that this normalizer handles
-				"mental model", "mental_model", "framework",
-				"technique", "method", "resource", "book", "article",
-				"concept", "comparison", "metaphor"
+				"mental model",
+				"mental_model",
+				"framework",
+				"technique",
+				"method",
+				"resource",
+				"book",
+				"article",
+				"concept",
+				"comparison",
+				"metaphor",
 			]),
 			fullContent: z.string(),
 			confidence: z.number().optional(),

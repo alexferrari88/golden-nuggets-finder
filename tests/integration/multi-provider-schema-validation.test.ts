@@ -34,11 +34,23 @@ const GoldenNuggetsResponseSchema = z.object({
 		z.object({
 			type: z.enum([
 				// Canonical types
-				"tool", "media", "aha! moments", "analogy", "model",
+				"tool",
+				"media",
+				"aha! moments",
+				"analogy",
+				"model",
 				// AI model variations that response-normalizer handles
-				"mental model", "mental_model", "framework",
-				"technique", "method", "resource", "book", "article",
-				"concept", "comparison", "metaphor"
+				"mental model",
+				"mental_model",
+				"framework",
+				"technique",
+				"method",
+				"resource",
+				"book",
+				"article",
+				"concept",
+				"comparison",
+				"metaphor",
 			]),
 			fullContent: z.string(),
 			confidence: z.number().min(0).max(1).optional(),
@@ -178,11 +190,23 @@ Return only the most valuable insights that would be genuinely useful to a softw
 							response.golden_nuggets.forEach((nugget: any, _index: number) => {
 								expect(nugget.type).toBeDefined();
 								expect([
-									"tool", "media", "aha! moments", "analogy", "model",
+									"tool",
+									"media",
+									"aha! moments",
+									"analogy",
+									"model",
 									// AI model variations that response-normalizer handles
-									"mental model", "mental_model", "framework",
-									"technique", "method", "resource", "book", "article",
-									"concept", "comparison", "metaphor"
+									"mental model",
+									"mental_model",
+									"framework",
+									"technique",
+									"method",
+									"resource",
+									"book",
+									"article",
+									"concept",
+									"comparison",
+									"metaphor",
 								]).toContain(nugget.type);
 								expect(typeof nugget.fullContent).toBe("string");
 								expect(nugget.fullContent.length).toBeGreaterThan(0);
@@ -220,12 +244,14 @@ Return only the most valuable insights that would be genuinely useful to a softw
 				golden_nuggets: [
 					{
 						type: "tool" as const,
-						fullContent: "React hooks like useState and useEffect help manage component state and side effects",
+						fullContent:
+							"React hooks like useState and useEffect help manage component state and side effects",
 						confidence: 0.9,
 					},
 					{
 						type: "aha! moments" as const,
-						fullContent: "Components are functions that take props as input and return JSX as output",
+						fullContent:
+							"Components are functions that take props as input and return JSX as output",
 						confidence: 0.85,
 					},
 				],
@@ -240,12 +266,14 @@ Return only the most valuable insights that would be genuinely useful to a softw
 				golden_nuggets: [
 					{
 						type: "mental model" as const,
-						fullContent: "Think of React components as functions that transform data into UI",
+						fullContent:
+							"Think of React components as functions that transform data into UI",
 						confidence: 0.8,
 					},
 					{
 						type: "framework" as const,
-						fullContent: "The MVC pattern separates concerns into Model, View, and Controller layers",
+						fullContent:
+							"The MVC pattern separates concerns into Model, View, and Controller layers",
 						confidence: 0.9,
 					},
 				],
