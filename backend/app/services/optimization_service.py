@@ -1471,21 +1471,33 @@ Return valid JSON with the exact structure: {{"golden_nuggets": [...]}}"""
             # Get training examples that were generated using this specific prompt
             training_examples = (
                 await self.feedback_service.get_training_examples_for_prompt(
-                    db, prompt_id, provider, model, limit=200
+                    db, prompt_id, provider, model, attribution_quality_filter="nugget_metadata", limit=200
                 )
             )
 
+            # Calculate session tracking information
+            session_count = len(set(ex.get('feedback_session_id') for ex in training_examples if ex.get('feedback_session_id')))
+            
             logger.info(
-                f"📈 Training examples collected for Chrome prompt {prompt_id}",
+                f"📈 Training examples collected for Chrome prompt {prompt_id} (attribution_source=nugget_metadata)",
                 extra={
                     "run_id": run_id,
                     "prompt_id": prompt_id,
                     "training_count": len(training_examples),
+                    "attribution_quality_filter": "nugget_metadata",
+                    "session_count": session_count,
                     "status": "success"
                     if len(training_examples) >= 10
                     else "insufficient_data",
                 },
             )
+            
+            logger.info(f"📊 Training data spans {session_count} feedback sessions", extra={
+                "run_id": run_id,
+                "prompt_id": prompt_id,
+                "session_count": session_count,
+                "attribution_source": "nugget_metadata"
+            })
 
             if len(training_examples) < 10:
                 # Fall back to general training examples if prompt-specific ones are insufficient

@@ -625,6 +625,7 @@ class FeedbackService:
         prompt_id: str,
         provider: Optional[str] = None,
         model: Optional[str] = None,
+        attribution_quality_filter: str = "nugget_metadata",  # NEW: Filter by attribution quality
         limit: int = 100,
     ) -> list[dict]:
         """
@@ -646,6 +647,11 @@ class FeedbackService:
         if model:
             prompt_conditions.append("nf.model_name = ?")
             params.append(model)
+            
+        # NEW: Filter by attribution quality
+        if attribution_quality_filter:
+            prompt_conditions.append("nf.attribution_source = ?")
+            params.append(attribution_quality_filter)
 
         prompt_where_clause = " AND ".join(prompt_conditions)
 
@@ -654,7 +660,8 @@ class FeedbackService:
             f"""
             SELECT nf.nugget_content, nf.original_type, nf.url, nf.context, nf.created_at,
                    CASE WHEN nf.corrected_type IS NOT NULL THEN nf.corrected_type ELSE nf.original_type END as final_type,
-                   nf.prompt_id, nf.model_provider, nf.model_name, nf.full_prompt_content
+                   nf.prompt_id, nf.model_provider, nf.model_name, nf.full_prompt_content,
+                   nf.feedback_session_id, nf.attribution_source
             FROM nugget_feedback nf
             WHERE nf.rating = 'positive' AND {prompt_where_clause}
             ORDER BY nf.created_at DESC
@@ -690,6 +697,9 @@ class FeedbackService:
                     "model_provider": example[7],
                     "model_name": example[8],
                     "full_prompt_content": example[9],
+                    # NEW: Session tracking metadata
+                    "feedback_session_id": example[10],
+                    "attribution_source": example[11],
                 }
             )
 
@@ -698,7 +708,8 @@ class FeedbackService:
             f"""
             SELECT nf.nugget_content, nf.original_type, nf.url, nf.context, nf.created_at,
                    CASE WHEN nf.corrected_type IS NOT NULL THEN nf.corrected_type ELSE nf.original_type END as final_type,
-                   nf.prompt_id, nf.model_provider, nf.model_name, nf.full_prompt_content
+                   nf.prompt_id, nf.model_provider, nf.model_name, nf.full_prompt_content,
+                   nf.feedback_session_id, nf.attribution_source
             FROM nugget_feedback nf
             WHERE nf.rating = 'negative' AND {prompt_where_clause}
             ORDER BY nf.created_at DESC
@@ -725,6 +736,9 @@ class FeedbackService:
                     "model_provider": example[7],
                     "model_name": example[8],
                     "full_prompt_content": example[9],
+                    # NEW: Session tracking metadata
+                    "feedback_session_id": example[10],
+                    "attribution_source": example[11],
                 }
             )
 
@@ -732,7 +746,8 @@ class FeedbackService:
         cursor = await db.execute(
             f"""
             SELECT mcf.content, mcf.suggested_type, mcf.url, mcf.context, mcf.created_at,
-                   mcf.prompt_id, mcf.model_provider, mcf.model_name, mcf.full_prompt_content
+                   mcf.prompt_id, mcf.model_provider, mcf.model_name, mcf.full_prompt_content,
+                   mcf.feedback_session_id, mcf.attribution_source
             FROM missing_content_feedback mcf
             WHERE {prompt_where_clause}
             ORDER BY mcf.created_at DESC
@@ -768,19 +783,27 @@ class FeedbackService:
                     "model_provider": example[6],
                     "model_name": example[7],
                     "full_prompt_content": example[8],
+                    # NEW: Session tracking metadata
+                    "feedback_session_id": example[9],
+                    "attribution_source": example[10],
                 }
             )
 
+        # Calculate session tracking information
+        session_count = len(set(ex.get('feedback_session_id') for ex in training_examples if ex.get('feedback_session_id')))
+        
         logger.info(
-            f"Generated {len(training_examples)} prompt-specific training examples for {prompt_id}",
+            f"Generated {len(training_examples)} prompt-specific training examples for {prompt_id} (attribution_source={attribution_quality_filter})",
             extra={
                 "prompt_id": prompt_id,
                 "provider": provider,
                 "model": model,
+                "attribution_quality_filter": attribution_quality_filter,
                 "positive_examples": len(positive_examples) if hasattr(positive_examples, '__len__') else 0,
                 "negative_examples": len(negative_examples) if hasattr(negative_examples, '__len__') else 0,
                 "missing_examples": len(missing_examples) if hasattr(missing_examples, '__len__') else 0,
                 "total_examples": len(training_examples),
+                "session_count": session_count,
             },
         )
 

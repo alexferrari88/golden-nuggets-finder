@@ -111,21 +111,6 @@ export class Sidebar {
 	}
 
 	/**
-	 * Count unique providers from nuggets
-	 */
-	private getProviderCount(): number {
-		if (!this.allItems.length) return 0;
-
-		const uniqueProviders = new Set(
-			this.allItems
-				.map((item) => (item.nugget as EnhancedGoldenNugget).sourceProvider)
-				.filter((provider) => provider !== undefined),
-		);
-
-		return uniqueProviders.size;
-	}
-
-	/**
 	 * Get display content for a nugget in the sidebar
 	 * Uses the shared reconstruction utility to show full content when possible
 	 */
