@@ -4,7 +4,8 @@
 --              This migration wipes all existing data and creates a fresh schema with session tracking
 --              to enable accurate DSPy training data generation for multi-provider ensemble optimization.
 
-PRAGMA foreign_keys = ON;
+-- Temporarily disable foreign keys during reset
+PRAGMA foreign_keys = OFF;
 
 -- =============================================================================
 -- DATABASE RESET - START FRESH
@@ -294,6 +295,9 @@ CREATE INDEX idx_optimized_prompts_current ON optimized_prompts(is_current);
 CREATE INDEX idx_feedback_usage_run_id ON feedback_usage(optimization_run_id);
 CREATE INDEX idx_cost_tracking_run_id ON cost_tracking(optimization_run_id);
 CREATE INDEX idx_optimization_progress_run_id ON optimization_progress(optimization_run_id);
+
+-- Re-enable foreign keys after all tables and indexes are created
+PRAGMA foreign_keys = ON;
 
 -- =============================================================================
 -- RECREATE VIEWS WITH SESSION AWARENESS

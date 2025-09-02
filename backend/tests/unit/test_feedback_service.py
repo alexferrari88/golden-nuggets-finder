@@ -44,6 +44,8 @@ class TestFeedbackService:
             context="Testing is important for reliable software development",
             modelProvider="gemini",
             modelName="gemini-2.5-flash",
+            feedbackSessionId="session_test_1642780800_abc123",
+            attributionSource="nugget_metadata",
         )
 
     @pytest.fixture
@@ -51,13 +53,15 @@ class TestFeedbackService:
         """Create sample missing content feedback for testing"""
         return MissingContentFeedback(
             id="test-missing-1",
-            content="Consider using Black for code formatting",
+            fullContent="Consider using Black for code formatting",
             suggestedType="tool",
             timestamp=1642780800000,
             url="https://example.com/test",
             context="Code formatting helps maintain consistency",
             modelProvider="gemini",
             modelName="gemini-2.5-flash",
+            feedbackSessionId="session_test_1642780800_abc123",
+            attributionSource="analysis_session",
         )
 
     # =====================================

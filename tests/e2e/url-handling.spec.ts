@@ -25,22 +25,25 @@ test.describe("URL Nugget Handling", () => {
       </html>
     `);
 
-		// Setup test nuggets (including problematic URL nuggets)
+		// Setup test nuggets (including problematic URL nuggets) with new fullContent schema
 		const testNuggets = [
 			{
 				type: "media",
-				startContent: "https://pmc.ncbi.nlm.nih.gov/articles/PMC3444174/",
-				endContent: "https://pmc.ncbi.nlm.nih.gov/articles/PMC3444174/",
+				fullContent: "https://pmc.ncbi.nlm.nih.gov/articles/PMC3444174/",
+				confidence: 0.9,
+				extractionMethod: "llm",
 			},
 			{
 				type: "media",
-				startContent: "https://www.youtube.com/watch?v=lG4VkPoG3ko",
-				endContent: "https://www.youtube.com/watch?v=lG4VkPoG3ko",
+				fullContent: "https://www.youtube.com/watch?v=lG4VkPoG3ko",
+				confidence: 0.9,
+				extractionMethod: "llm",
 			},
 			{
 				type: "tool",
-				startContent: "This is regular text content",
-				endContent: "that should also be processed",
+				fullContent: "This is regular text content that should also be processed",
+				confidence: 0.85,
+				extractionMethod: "llm",
 			},
 		];
 
@@ -114,9 +117,9 @@ test.describe("URL Nugget Handling", () => {
 				golden_nuggets: [
 					{
 						type: "media",
-						startContent: "https://notfound.example.com",
-						endContent: "/path/that/doesnt/exist",
+						fullContent: "https://notfound.example.com/path/that/doesnt/exist",
 						confidence: 0.8,
+						extractionMethod: "llm",
 					},
 				],
 			};

@@ -14,6 +14,26 @@ from app.main import app
 client = TestClient(app)
 
 
+def create_test_nugget_feedback(**kwargs):
+    """Helper function to create nugget feedback with required session fields."""
+    defaults = {
+        "feedbackSessionId": f"session_test_{kwargs.get('timestamp', 1642780800000)}_abc123",
+        "attributionSource": "nugget_metadata",
+    }
+    defaults.update(kwargs)
+    return defaults
+
+
+def create_test_missing_content_feedback(**kwargs):
+    """Helper function to create missing content feedback with required session fields.""" 
+    defaults = {
+        "feedbackSessionId": f"session_test_{kwargs.get('timestamp', 1642780800000)}_abc123",
+        "attributionSource": "analysis_session",
+    }
+    defaults.update(kwargs)
+    return defaults
+
+
 def test_health_check():
     """Test the health check endpoint"""
     response = client.get("/")
@@ -56,23 +76,30 @@ def test_feedback_submission_valid(clean_database):
                 "context": "Test context for the nugget feedback validation system.",
                 "modelProvider": "gemini",
                 "modelName": "gemini-2.5-flash",
+                "feedbackSessionId": "session_test_1642780800_abc123",
+                "attributionSource": "nugget_metadata",
             }
         ],
         "missingContentFeedback": [
             {
                 "id": "missing-1",
-                "content": "This content should have been identified as a golden nugget",
+                "fullContent": "This content should have been identified as a golden nugget",
                 "suggestedType": "aha! moments",
                 "timestamp": 1642780800000,
                 "url": "https://example.com/test",
                 "context": "Test page context for missing content identification",
                 "modelProvider": "gemini",
                 "modelName": "gemini-2.5-flash",
+                "feedbackSessionId": "session_test_1642780800_abc123",
+                "attributionSource": "analysis_session",
             }
         ],
     }
 
     response = client.post("/feedback", json=feedback_data)
+    if response.status_code != 200:
+        print(f"Response status: {response.status_code}")
+        print(f"Response content: {response.text}")
     assert response.status_code == 200
     data = response.json()
     assert data["success"] is True
@@ -264,18 +291,18 @@ def test_update_feedback_item(clean_database):
     # First, submit feedback to have something to update
     feedback_data = {
         "nuggetFeedback": [
-            {
-                "id": test_id,
-                "nuggetContent": "Original content for update testing",
-                "originalType": "tool",
-                "correctedType": None,
-                "rating": "positive",
-                "timestamp": 1642780800000,
-                "url": "https://example.com/update-test",
-                "context": "Original context for update testing",
-                "modelProvider": "gemini",
-                "modelName": "gemini-2.5-flash",
-            }
+            create_test_nugget_feedback(
+                id=test_id,
+                nuggetContent="Original content for update testing",
+                originalType="tool",
+                correctedType=None,
+                rating="positive",
+                timestamp=1642780800000,
+                url="https://example.com/update-test",
+                context="Original context for update testing",
+                modelProvider="gemini",
+                modelName="gemini-2.5-flash",
+            )
         ]
     }
 
@@ -326,16 +353,16 @@ def test_delete_feedback_item(clean_database):
     # First, submit feedback to have something to delete
     feedback_data = {
         "missingContentFeedback": [
-            {
-                "id": test_id,
-                "content": "Content to be deleted",
-                "suggestedType": "aha! moments",
-                "timestamp": 1642780800000,
-                "url": "https://example.com/delete-test",
-                "context": "Context for deletion testing",
-                "modelProvider": "gemini",
-                "modelName": "gemini-2.5-flash",
-            }
+            create_test_missing_content_feedback(
+                id=test_id,
+                fullContent="Content to be deleted",
+                suggestedType="aha! moments",
+                timestamp=1642780800000,
+                url="https://example.com/delete-test",
+                context="Context for deletion testing",
+                modelProvider="gemini",
+                modelName="gemini-2.5-flash",
+            )
         ]
     }
 
@@ -370,18 +397,18 @@ def test_feedback_update_scenario(clean_database):
     # Step 1: User gives thumbs up to a nugget
     initial_feedback = {
         "nuggetFeedback": [
-            {
-                "id": test_id,
-                "nuggetContent": "Use pytest for comprehensive testing in Python projects",
-                "originalType": "tool",
-                "correctedType": None,  # No correction initially
-                "rating": "positive",  # User likes it
-                "timestamp": 1642780800000,
-                "url": "https://example.com/testing-guide",
-                "context": "Testing is essential for reliable software development.",
-                "modelProvider": "gemini",
-                "modelName": "gemini-2.5-flash",
-            }
+            create_test_nugget_feedback(
+                id=test_id,
+                nuggetContent="Use pytest for comprehensive testing in Python projects",
+                originalType="tool",
+                correctedType=None,  # No correction initially
+                rating="positive",  # User likes it
+                timestamp=1642780800000,
+                url="https://example.com/testing-guide",
+                context="Testing is essential for reliable software development.",
+                modelProvider="gemini",
+                modelName="gemini-2.5-flash",
+            )
         ]
     }
 
@@ -401,18 +428,18 @@ def test_feedback_update_scenario(clean_database):
     # Step 2: User realizes the type is wrong and submits a correction
     correction_feedback = {
         "nuggetFeedback": [
-            {
-                "id": f"correction-{uuid.uuid4()}",  # Different ID (represents new submission)
-                "nuggetContent": "Use pytest for comprehensive testing in Python projects",  # Same content
-                "originalType": "tool",  # Same original type
-                "correctedType": "aha! moments",  # User corrects the type
-                "rating": "positive",  # Still positive
-                "timestamp": 1642780800000,
-                "url": "https://example.com/testing-guide",  # Same URL
-                "context": "Testing is essential for reliable software development.",  # Same context
-                "modelProvider": "gemini",
-                "modelName": "gemini-2.5-flash",
-            }
+            create_test_nugget_feedback(
+                id=f"correction-{uuid.uuid4()}",  # Different ID (represents new submission)
+                nuggetContent="Use pytest for comprehensive testing in Python projects",  # Same content
+                originalType="tool",  # Same original type
+                correctedType="aha! moments",  # User corrects the type
+                rating="positive",  # Still positive
+                timestamp=1642780800000,
+                url="https://example.com/testing-guide",  # Same URL
+                context="Testing is essential for reliable software development.",  # Same context
+                modelProvider="gemini",
+                modelName="gemini-2.5-flash",
+            )
         ]
     }
 
@@ -438,18 +465,18 @@ def test_feedback_rating_change_scenario(clean_database):
     # Step 1: User gives positive rating
     positive_feedback = {
         "nuggetFeedback": [
-            {
-                "id": test_id,
-                "nuggetContent": "Always use global variables for data sharing",
-                "originalType": "tool",
-                "correctedType": None,
-                "rating": "positive",
-                "timestamp": 1642780800000,
-                "url": "https://example.com/bad-advice",
-                "context": "Some programming advice that might not be great.",
-                "modelProvider": "gemini",
-                "modelName": "gemini-2.5-flash",
-            }
+            create_test_nugget_feedback(
+                id=test_id,
+                nuggetContent="Always use global variables for data sharing",
+                originalType="tool",
+                correctedType=None,
+                rating="positive",
+                timestamp=1642780800000,
+                url="https://example.com/bad-advice",
+                context="Some programming advice that might not be great.",
+                modelProvider="gemini",
+                modelName="gemini-2.5-flash",
+            )
         ]
     }
 
@@ -459,18 +486,18 @@ def test_feedback_rating_change_scenario(clean_database):
     # Step 2: User realizes this is bad advice and changes to negative
     negative_feedback = {
         "nuggetFeedback": [
-            {
-                "id": f"negative-{uuid.uuid4()}",
-                "nuggetContent": "Always use global variables for data sharing",  # Same content
-                "originalType": "tool",
-                "correctedType": None,
-                "rating": "negative",  # Changed rating
-                "timestamp": 1642780800000,
-                "url": "https://example.com/bad-advice",
-                "context": "Some programming advice that might not be great.",
-                "modelProvider": "gemini",
-                "modelName": "gemini-2.5-flash",
-            }
+            create_test_nugget_feedback(
+                id=f"negative-{uuid.uuid4()}",
+                nuggetContent="Always use global variables for data sharing",  # Same content
+                originalType="tool",
+                correctedType=None,
+                rating="negative",  # Changed rating
+                timestamp=1642780800000,
+                url="https://example.com/bad-advice",
+                context="Some programming advice that might not be great.",
+                modelProvider="gemini",
+                modelName="gemini-2.5-flash",
+            )
         ]
     }
 

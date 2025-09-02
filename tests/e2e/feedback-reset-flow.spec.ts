@@ -9,34 +9,48 @@ test.describe("Feedback Reset Flow", () => {
 		// Navigate to a test page with content
 		await page.goto("https://example.com");
 
-		// Mock the Golden Nuggets analysis to return some test nuggets
+		// Mock the Golden Nuggets analysis to return some test nuggets with new fullContent schema
 		await page.evaluate(() => {
 			// Mock the content script being injected
 			(window as any).mockNuggets = [
 				{
 					type: "tool",
-					startContent: "This is a useful tool",
-					endContent: "for productivity",
+					fullContent: "This is a useful tool for productivity",
+					confidence: 0.9,
+					extractionMethod: "llm",
+					sourceProvider: "gemini",
+					sourceModel: "gemini-1.5-flash",
 				},
 				{
 					type: "aha! moments",
-					startContent: "Complex concepts explained",
-					endContent: "in simple terms",
+					fullContent: "Complex concepts explained in simple terms",
+					confidence: 0.85,
+					extractionMethod: "llm",
+					sourceProvider: "openai",
+					sourceModel: "gpt-4o-mini",
 				},
 			];
 		});
 
-		// Simulate user giving feedback (positive rating)
+		// Simulate user giving feedback (positive rating) with new multi-provider attribution schema
 		// In real scenario, this would be triggered through sidebar interactions
 		await page.evaluate(() => {
 			const feedback = {
 				id: "test-feedback-123",
-				nuggetContent: "This is a useful tool for productivity",
-				originalType: "tool",
+				nugget: {
+					type: "tool",
+					fullContent: "This is a useful tool for productivity",
+					confidence: 0.9,
+					extractionMethod: "llm",
+					sourceProvider: "gemini",
+					sourceModel: "gemini-1.5-flash",
+				},
 				rating: "positive",
 				timestamp: Date.now(),
 				url: window.location.href,
 				context: "Test context",
+				feedbackSessionId: "session_test-123",
+				attributionSource: "nugget_metadata",
 			};
 
 			// Simulate feedback being stored

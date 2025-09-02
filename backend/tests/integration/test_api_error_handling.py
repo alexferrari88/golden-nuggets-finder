@@ -129,6 +129,8 @@ class TestFeedbackAPIErrorHandling:
                     "context": "Test context",
                     "modelProvider": "gemini",
                     "modelName": "gemini-2.5-flash",
+                    "feedbackSessionId": "session_test_1642780800_abc123",
+                    "attributionSource": "nugget_metadata",
                 }
             ]
         }
@@ -158,6 +160,8 @@ class TestFeedbackAPIErrorHandling:
                     "context": "Test context",
                     "modelProvider": "gemini",
                     "modelName": "gemini-2.5-flash",
+                    "feedbackSessionId": "session_test_1642780800_abc123",
+                    "attributionSource": "nugget_metadata",
                 }
             ]
         }

@@ -184,10 +184,11 @@ class FeedbackService:
                 """
                 INSERT INTO nugget_feedback (
                     id, nugget_content, original_type, corrected_type,
-                    rating, client_timestamp, url, context, created_at,
+                    rating, timestamp, url, context, created_at,
                     report_count, first_reported_at, last_reported_at,
-                    model_provider, model_name
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    model_provider, model_name, feedback_session_id, attribution_source,
+                    prompt_id, prompt_version, full_prompt_content
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
                 (
                     feedback.id,
@@ -202,8 +203,13 @@ class FeedbackService:
                     1,  # report_count
                     current_time,  # first_reported_at
                     current_time,  # last_reported_at
-                    feedback.modelProvider,  # NEW
-                    feedback.modelName,  # NEW
+                    feedback.modelProvider,
+                    feedback.modelName,
+                    feedback.feedbackSessionId,  # NEW
+                    feedback.attributionSource,  # NEW
+                    getattr(feedback, 'promptId', None),  # Optional NEW
+                    getattr(feedback, 'promptVersion', None),  # Optional NEW
+                    getattr(feedback, 'fullPromptContent', None),  # Optional NEW
                 ),
             )
             await db.commit()
@@ -220,9 +226,9 @@ class FeedbackService:
             """
             SELECT id, report_count, first_reported_at
             FROM missing_content_feedback
-            WHERE content = ? AND url = ?
+            WHERE full_content = ? AND url = ?
             """,
-            (feedback.content, feedback.url),
+            (feedback.fullContent, feedback.url),
         )
         existing = await cursor.fetchone()
 
@@ -321,14 +327,15 @@ class FeedbackService:
             await db.execute(
                 """
                 INSERT INTO missing_content_feedback (
-                    id, content, suggested_type, client_timestamp, url, context,
+                    id, full_content, suggested_type, timestamp, url, context,
                     created_at, report_count, first_reported_at, last_reported_at,
-                    model_provider, model_name
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    model_provider, model_name, feedback_session_id, attribution_source,
+                    prompt_id, prompt_version, full_prompt_content
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
                 (
                     feedback.id,
-                    feedback.content,
+                    feedback.fullContent,  # Updated field name
                     feedback.suggestedType,
                     feedback.timestamp,
                     feedback.url,
@@ -337,8 +344,13 @@ class FeedbackService:
                     1,  # report_count
                     current_time,  # first_reported_at
                     current_time,  # last_reported_at
-                    feedback.modelProvider,  # NEW
-                    feedback.modelName,  # NEW
+                    feedback.modelProvider,
+                    feedback.modelName,
+                    feedback.feedbackSessionId,  # NEW
+                    feedback.attributionSource,  # NEW
+                    getattr(feedback, 'promptId', None),  # Optional NEW
+                    getattr(feedback, 'promptVersion', None),  # Optional NEW
+                    getattr(feedback, 'fullPromptContent', None),  # Optional NEW
                 ),
             )
             await db.commit()
@@ -584,7 +596,7 @@ class FeedbackService:
         # Get missing content examples (what should have been extracted)
         cursor = await db.execute(
             """
-            SELECT mcf.content, mcf.suggested_type, mcf.url, mcf.context, mcf.created_at
+            SELECT mcf.full_content, mcf.suggested_type, mcf.url, mcf.context, mcf.created_at
             FROM missing_content_feedback mcf
             ORDER BY mcf.created_at DESC
             LIMIT ?
@@ -745,7 +757,7 @@ class FeedbackService:
         # Get missing content examples for this specific prompt (what SHOULD have been extracted)
         cursor = await db.execute(
             f"""
-            SELECT mcf.content, mcf.suggested_type, mcf.url, mcf.context, mcf.created_at,
+            SELECT mcf.full_content, mcf.suggested_type, mcf.url, mcf.context, mcf.created_at,
                    mcf.prompt_id, mcf.model_provider, mcf.model_name, mcf.full_prompt_content,
                    mcf.feedback_session_id, mcf.attribution_source
             FROM missing_content_feedback mcf
@@ -823,7 +835,9 @@ class FeedbackService:
         # Get missing content feedback
         cursor = await db.execute(
             """
-            SELECT * FROM missing_content_feedback WHERE url = ? ORDER BY created_at DESC
+            SELECT id, full_content, suggested_type, url, context, processed, last_used_at, usage_count, 
+                   timestamp, created_at, model_provider, model_name, feedback_session_id, attribution_source
+            FROM missing_content_feedback WHERE url = ? ORDER BY created_at DESC
         """,
             (url,),
         )
@@ -869,7 +883,7 @@ class FeedbackService:
                     id, nugget_content as content, rating,
                     original_type, corrected_type, url,
                     processed, last_used_at, usage_count,
-                    client_timestamp, created_at, model_provider, model_name
+                    timestamp, created_at, model_provider, model_name
                 FROM nugget_feedback
                 WHERE processed = FALSE
                 ORDER BY created_at DESC
@@ -893,7 +907,7 @@ class FeedbackService:
                         "processed": item[7],
                         "last_used_at": item[8],
                         "usage_count": item[9],
-                        "client_timestamp": item[10],
+                        "timestamp": item[10],
                         "created_at": item[11],
                         "model_provider": item[12],
                         "model_name": item[13],
@@ -910,9 +924,9 @@ class FeedbackService:
                 """
                 SELECT
                     'missing_content' as feedback_type,
-                    id, content, suggested_type, url,
+                    id, full_content, suggested_type, url,
                     processed, last_used_at, usage_count,
-                    client_timestamp, created_at, model_provider, model_name
+                    timestamp, created_at, model_provider, model_name
                 FROM missing_content_feedback
                 WHERE processed = FALSE
                 ORDER BY created_at DESC
@@ -926,18 +940,20 @@ class FeedbackService:
             for item in missing_items:
                 items.append(
                     {
-                        "type": item[0],
-                        "id": item[1],
-                        "content": item[2],
-                        "suggested_type": item[3],
-                        "url": item[4],
+                        "type": "missing",  # Hard-coded for missing content feedback
+                        "id": item[0],
+                        "content": item[1],  # full_content from DB
+                        "suggested_type": item[2],
+                        "url": item[3],
                         "processed": item[5],
                         "last_used_at": item[6],
                         "usage_count": item[7],
-                        "client_timestamp": item[8],
+                        "timestamp": item[8],
                         "created_at": item[9],
                         "model_provider": item[10],
                         "model_name": item[11],
+                        "feedback_session_id": item[12],  # NEW
+                        "attribution_source": item[13],  # NEW
                     }
                 )
 
@@ -1015,7 +1031,7 @@ class FeedbackService:
                     "last_used_at": row[6],
                     "usage_count": row[7],
                     "created_at": row[8],
-                    "client_timestamp": row[9],
+                    "timestamp": row[9],
                 }
             )
 
@@ -1187,7 +1203,7 @@ class FeedbackService:
                 SELECT
                     id, nugget_content, original_type, corrected_type,
                     rating, url, context, processed, last_used_at,
-                    usage_count, client_timestamp, created_at
+                    usage_count, timestamp, created_at
                 FROM nugget_feedback
                 WHERE id = ?
                 """,
@@ -1197,9 +1213,9 @@ class FeedbackService:
             cursor = await db.execute(
                 """
                 SELECT
-                    id, content, suggested_type, url, context,
+                    id, full_content, suggested_type, url, context,
                     processed, last_used_at, usage_count,
-                    client_timestamp, created_at
+                    timestamp, created_at
                 FROM missing_content_feedback
                 WHERE id = ?
                 """,
@@ -1243,7 +1259,7 @@ class FeedbackService:
                 "processed": result[7],
                 "last_used_at": result[8],
                 "usage_count": result[9],
-                "client_timestamp": result[10],
+                "timestamp": result[10],
                 "created_at": result[11],
                 "usage_history": [
                     {
@@ -1267,7 +1283,7 @@ class FeedbackService:
                 "processed": result[5],
                 "last_used_at": result[6],
                 "usage_count": result[7],
-                "client_timestamp": result[8],
+                "timestamp": result[8],
                 "created_at": result[9],
                 "usage_history": [
                     {
@@ -1435,7 +1451,7 @@ class FeedbackService:
                         """
                         INSERT INTO nugget_feedback (
                             id, nugget_content, original_type, rating,
-                            url, context, client_timestamp, created_at,
+                            url, context, timestamp, created_at,
                             report_count, first_reported_at, last_reported_at
                         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                         """,
@@ -1458,8 +1474,8 @@ class FeedbackService:
                 await db.execute(
                     """
                     INSERT INTO missing_content_feedback (
-                        id, content, suggested_type, url, context,
-                        client_timestamp, created_at, report_count,
+                        id, full_content, suggested_type, url, context,
+                        timestamp, created_at, report_count,
                         first_reported_at, last_reported_at
                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
