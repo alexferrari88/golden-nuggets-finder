@@ -700,7 +700,7 @@ export class MessageHandler {
 
 						// Convert ensemble result to enhanced response format (preserving metadata)
 						const ensembleNuggets = ensembleResult.golden_nuggets.map(
-							(nugget) => ({
+							(nugget: any) => ({
 								type: nugget.type as
 									| "tool"
 									| "media"
@@ -714,6 +714,10 @@ export class MessageHandler {
 								runsSupportingThis: nugget.runsSupportingThis,
 								totalRuns: nugget.totalRuns,
 								similarityMethod: nugget.similarityMethod,
+								// ✅ PRESERVE: Attribution metadata
+								sourceProvider: nugget.sourceProvider,
+								sourceModel: nugget.sourceModel,
+								contributingProviders: nugget.contributingProviders,
 							}),
 						);
 
@@ -828,6 +832,17 @@ export class MessageHandler {
 							providerId: providerConfig.providerId,
 							modelName: providerConfig.modelName,
 							responseTime,
+						},
+						lastAnalysisSession: {
+							timestamp: Date.now(),
+							providersUsed: [
+								{
+									providerId: providerConfig.providerId,
+									modelName: providerConfig.modelName,
+								},
+							],
+							analysisType: useEnsemble ? "ensemble" : "single",
+							nuggetCount: normalizedResponse.golden_nuggets.length,
 						},
 					});
 
