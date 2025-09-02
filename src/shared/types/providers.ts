@@ -14,6 +14,7 @@ export interface EnsembleExtractionResult {
 		fullContent: string;
 		confidence: number;
 		validationScore?: number;
+		extractionMethod?: "validated" | "unverified" | "fuzzy" | "llm" | "ensemble";
 		runsSupportingThis: number;
 		totalRuns: number;
 		// Optional embedding metadata
@@ -21,6 +22,11 @@ export interface EnsembleExtractionResult {
 		// Multi-provider metadata
 		sourceProvider?: ProviderId; // Track which provider found this nugget
 		sourceModel?: string;
+		// Multi-provider consensus metadata
+		contributingProviders?: Array<{
+			provider: ProviderId;
+			model: string;
+		}>;
 	}>;
 	metadata: {
 		totalRuns: number;
@@ -28,6 +34,12 @@ export interface EnsembleExtractionResult {
 		consensusReached: number;
 		duplicatesRemoved: number;
 		averageResponseTime: number;
+		// Optional metadata
+		extractionMode?: string;
+		preFilterCount?: number;
+		postFilterCount?: number;
+		confidenceThreshold?: number;
+		filteringApplied?: boolean;
 		// Optional embedding-related metadata
 		embeddingGenerationTime?: number;
 		embeddingCacheHits?: number;
@@ -103,6 +115,13 @@ export interface EnhancedGoldenNuggetsResponse {
 		runsSupportingThis?: number;
 		totalRuns?: number;
 		similarityMethod?: "embedding" | "word_overlap" | "fallback";
+		// Provider attribution
+		sourceProvider?: ProviderId;
+		sourceModel?: string;
+		contributingProviders?: Array<{
+			provider: ProviderId;
+			model: string;
+		}>;
 	}>;
 	// Optional metadata about the extraction process
 	metadata?: {
@@ -122,6 +141,14 @@ export interface EnhancedGoldenNuggetsResponse {
 		preFilterCount?: number;
 		postFilterCount?: number;
 		confidenceThreshold?: number;
+		filteringApplied?: boolean;
+		// Multi-provider metadata
+		providersUsed?: Array<{
+			providerId: ProviderId;
+			modelId: string;
+			responseTime: number;
+			successful: boolean;
+		}>;
 	};
 }
 

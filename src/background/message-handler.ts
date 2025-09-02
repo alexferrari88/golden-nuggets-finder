@@ -710,7 +710,7 @@ export class MessageHandler {
 								fullContent: nugget.fullContent,
 								confidence: nugget.confidence,
 								validationScore: nugget.validationScore,
-								extractionMethod: "ensemble",
+								extractionMethod: "ensemble" as const,
 								runsSupportingThis: nugget.runsSupportingThis,
 								totalRuns: nugget.totalRuns,
 								similarityMethod: nugget.similarityMethod,
@@ -721,23 +721,20 @@ export class MessageHandler {
 							}),
 						);
 
-						// Apply confidence filtering (≥0.85 threshold)
-						const filteredEnsembleNuggets =
-							MessageHandler.filterByConfidence(ensembleNuggets);
-
 						normalizedResponse = {
-							golden_nuggets: filteredEnsembleNuggets,
+							golden_nuggets: ensembleNuggets,
 							metadata: {
 								...ensembleResult.metadata,
 								extractionMode: "ensemble",
-								preFilterCount: ensembleNuggets.length,
-								postFilterCount: filteredEnsembleNuggets.length,
-								confidenceThreshold: 0.85,
+								preFilterCount: ensembleResult.metadata.consensusReached,
+								postFilterCount: ensembleNuggets.length,
+								confidenceThreshold: 0.85, // Applied at individual provider level
+								filteringApplied: true,
 							},
 						};
 
 						console.log(
-							`Ensemble extraction completed: ${ensembleResult.metadata.consensusReached} nuggets with ${ensembleResult.metadata.duplicatesRemoved} duplicates removed. Confidence filtering: ${ensembleNuggets.length} → ${filteredEnsembleNuggets.length} nuggets (≥0.85 confidence)`,
+							`Ensemble extraction completed: ${ensembleResult.metadata.consensusReached} consensus groups with ${ensembleResult.metadata.duplicatesRemoved} duplicates removed. Individual confidence filtering (≥0.85) applied at provider level.`,
 						);
 					} else {
 						// Direct provider extraction without validation layer
@@ -783,7 +780,7 @@ export class MessageHandler {
 									confidence: nugget.confidence || 0,
 									// No validation score - highlighter will do natural filtering
 									validationScore: undefined,
-									extractionMethod: "llm",
+									extractionMethod: "llm" as const,
 									// Add provider information for tooltips
 									sourceProvider: providerConfig.providerId,
 									sourceModel: providerConfig.modelName,
@@ -1532,14 +1529,8 @@ export class MessageHandler {
 			{}, // Similarity options - using defaults
 		);
 
-		// Apply confidence filtering
-		const filteredResult = MessageHandler.filterByConfidence(
-			result.golden_nuggets,
-		);
-		const finalResult = {
-			...result,
-			golden_nuggets: filteredResult,
-		};
+		// Individual confidence filtering already applied at provider level
+		const finalResult = result;
 
 		// Send consensus complete message
 		this.sendProgressMessage(
@@ -1559,6 +1550,8 @@ export class MessageHandler {
 				...finalResult.metadata,
 				extractionMode: "multi-provider-ensemble",
 				providersUsed: result.metadata.providersUsed,
+				confidenceThreshold: 0.85, // Applied at individual provider level
+				filteringApplied: true,
 			},
 			providerMetadata: {
 				providerId: "multi-provider" as ProviderId, // Special case for display
@@ -2140,25 +2133,34 @@ export class MessageHandler {
 	// Feedback System Handlers
 
 	// Add new utility function before MESSAGE_TYPES.SUBMIT_NUGGET_FEEDBACK handler
-	private static extractNuggetAttribution(nugget: any): { modelProvider: string, modelName: string }[] | null {
+	private static extractNuggetAttribution(
+		nugget: any,
+	): { modelProvider: string; modelName: string }[] | null {
 		// For consensus nuggets with multiple contributors
-		if (nugget.contributingProviders && nugget.contributingProviders.length > 0) {
+		if (
+			nugget.contributingProviders &&
+			nugget.contributingProviders.length > 0
+		) {
 			return nugget.contributingProviders.map((provider: any) => ({
 				modelProvider: provider.provider,
-				modelName: provider.model
+				modelName: provider.model,
 			}));
 		}
-		
+
 		// For single-provider nuggets
 		if (nugget.sourceProvider && nugget.sourceModel) {
-			return [{
-				modelProvider: nugget.sourceProvider,
-				modelName: nugget.sourceModel
-			}];
+			return [
+				{
+					modelProvider: nugget.sourceProvider,
+					modelName: nugget.sourceModel,
+				},
+			];
 		}
-		
+
 		// Fallback to storage (legacy behavior)
-		console.warn('No nugget attribution found, falling back to lastUsedProvider');
+		console.warn(
+			"No nugget attribution found, falling back to lastUsedProvider",
+		);
 		return null; // Will trigger fallback logic
 	}
 
@@ -2226,15 +2228,25 @@ export class MessageHandler {
 			}
 
 			// Extract attribution from nugget metadata
-			let nuggetAttributions = MessageHandler.extractNuggetAttribution(feedback.nugget);
-			
+			let nuggetAttributions = MessageHandler.extractNuggetAttribution(
+				feedback.nugget,
+			);
+
 			// Fallback to storage if no attribution found
 			if (!nuggetAttributions) {
-				const providerInfo = await chrome.storage.local.get(["lastUsedProvider", "lastUsedPrompt"]);
-				nuggetAttributions = [{
-					modelProvider: providerInfo.lastUsedProvider?.providerId || "gemini",
-					modelName: providerInfo.lastUsedProvider?.modelName || "gemini-2.5-flash-lite"
-				}];
+				const providerInfo = await chrome.storage.local.get([
+					"lastUsedProvider",
+					"lastUsedPrompt",
+				]);
+				nuggetAttributions = [
+					{
+						modelProvider:
+							providerInfo.lastUsedProvider?.providerId || "gemini",
+						modelName:
+							providerInfo.lastUsedProvider?.modelName ||
+							"gemini-2.5-flash-lite",
+					},
+				];
 			}
 
 			// Get prompt info for all records
@@ -2255,7 +2267,7 @@ export class MessageHandler {
 				modelName: attribution.modelName,
 				prompt,
 				feedbackSessionId: this.generateFeedbackSessionId(feedback.id), // Group related records
-				attributionSource: 'nugget_metadata'
+				attributionSource: "nugget_metadata",
 			}));
 
 			// Store all records locally as backup

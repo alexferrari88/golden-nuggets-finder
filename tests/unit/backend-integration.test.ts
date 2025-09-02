@@ -66,7 +66,7 @@ describe("Backend Integration Tests", () => {
 					fullContent: "This is a great tool for productivity",
 					confidence: 0.9,
 					sourceProvider: "gemini" as const,
-					sourceModel: "gemini-2.0-flash-thinking-exp"
+					sourceModel: "gemini-2.0-flash-thinking-exp",
 				},
 				prompt: {
 					id: "test-prompt",
@@ -107,39 +107,44 @@ describe("Backend Integration Tests", () => {
 			const actualCall = mockFetch.mock.calls[0];
 			const actualBody = JSON.parse(actualCall[1].body);
 			const actualFeedback = actualBody.nuggetFeedback[0];
-			
+
 			// Verify the new feedback structure with session ID and attribution
-			expect(actualFeedback).toEqual(expect.objectContaining({
-				id: `${feedbackData.id}_0`, // Now includes index suffix
-				nuggetContent: feedbackData.nuggetContent,
-				originalType: feedbackData.originalType,
-				rating: feedbackData.rating,
-				timestamp: feedbackData.timestamp,
-				url: feedbackData.url,
-				context: feedbackData.context,
-				modelProvider: "gemini",
-				modelName: "gemini-2.0-flash-thinking-exp", // Uses original model name from nugget metadata
-				feedbackSessionId: expect.stringMatching(/^session_feedback_123_\d+_[a-z0-9]+$/),
-				attributionSource: "nugget_metadata",
-				nugget: expect.objectContaining({ // Nugget object is preserved in the new implementation
-					type: "tool",
-					fullContent: "This is a great tool for productivity",
-					confidence: 0.9,
-					sourceProvider: "gemini",
-					sourceModel: "gemini-2.0-flash-thinking-exp"
+			expect(actualFeedback).toEqual(
+				expect.objectContaining({
+					id: `${feedbackData.id}_0`, // Now includes index suffix
+					nuggetContent: feedbackData.nuggetContent,
+					originalType: feedbackData.originalType,
+					rating: feedbackData.rating,
+					timestamp: feedbackData.timestamp,
+					url: feedbackData.url,
+					context: feedbackData.context,
+					modelProvider: "gemini",
+					modelName: "gemini-2.0-flash-thinking-exp", // Uses original model name from nugget metadata
+					feedbackSessionId: expect.stringMatching(
+						/^session_feedback_123_\d+_[a-z0-9]+$/,
+					),
+					attributionSource: "nugget_metadata",
+					nugget: expect.objectContaining({
+						// Nugget object is preserved in the new implementation
+						type: "tool",
+						fullContent: "This is a great tool for productivity",
+						confidence: 0.9,
+						sourceProvider: "gemini",
+						sourceModel: "gemini-2.0-flash-thinking-exp",
+					}),
+					prompt: {
+						id: "test-prompt",
+						version: "original",
+						content: "Test prompt content",
+						type: "default",
+						name: "Test Prompt",
+					},
 				}),
-				prompt: {
-					id: "test-prompt",
-					version: "original",
-					content: "Test prompt content",
-					type: "default",
-					name: "Test Prompt",
-				},
-			}));
-			
+			);
+
 			// Verify that exactly one record was sent (single attribution case)
 			expect(actualBody.nuggetFeedback).toHaveLength(1);
-			
+
 			expect(mockFetch).toHaveBeenCalledWith(
 				"http://localhost:7532/feedback",
 				expect.objectContaining({
@@ -160,7 +165,9 @@ describe("Backend Integration Tests", () => {
 							rating: feedbackData.rating,
 							modelProvider: "gemini",
 							modelName: "gemini-2.0-flash-thinking-exp", // Uses original model name from nugget metadata
-							feedbackSessionId: expect.stringMatching(/^session_feedback_123_\d+_[a-z0-9]+$/),
+							feedbackSessionId: expect.stringMatching(
+								/^session_feedback_123_\d+_[a-z0-9]+$/,
+							),
 							attributionSource: "nugget_metadata",
 							storedAt: expect.any(Number),
 						}),
@@ -190,7 +197,7 @@ describe("Backend Integration Tests", () => {
 					fullContent: "This is a duplicate tool recommendation",
 					confidence: 0.9,
 					sourceProvider: "gemini" as const,
-					sourceModel: "gemini-2.0-flash-thinking-exp"
+					sourceModel: "gemini-2.0-flash-thinking-exp",
 				},
 				prompt: {
 					id: "test-prompt",
@@ -256,7 +263,7 @@ describe("Backend Integration Tests", () => {
 					fullContent: "Excellent insight about productivity",
 					confidence: 0.9,
 					sourceProvider: "gemini" as const,
-					sourceModel: "gemini-2.0-flash-thinking-exp"
+					sourceModel: "gemini-2.0-flash-thinking-exp",
 				},
 				prompt: {
 					id: "test-prompt",
@@ -372,48 +379,56 @@ describe("Backend Integration Tests", () => {
 			// Extract the actual call data to verify the new structure
 			const actualCall = mockFetch.mock.calls[0];
 			const actualBody = JSON.parse(actualCall[1].body);
-			
+
 			// Verify the structure of the missing content records
 			expect(actualBody.missingContentFeedback).toHaveLength(2);
-			
+
 			// Verify first missing content record
 			const firstRecord = actualBody.missingContentFeedback[0];
-			expect(firstRecord).toEqual(expect.objectContaining({
-				id: "missing_123_provider_0", // New ID format with provider suffix
-				fullContent: "This important concept was missed",
-				suggestedType: "aha! moments",
-				url: "https://example.com/deep-article",
-				context: "Analysis failed to identify this key insight",
-				modelProvider: "gemini",
-				modelName: "gemini-2.5-flash", // Uses storage model name for missing content
-				attributionSource: "analysis_session", // New attribution source field
-				prompt: {
-					id: "test-prompt",
-					version: "original",
-					content: "Test prompt content",
-					type: "default",
-					name: "Test Prompt",
-				},
-			}));
-			
+			expect(firstRecord).toEqual(
+				expect.objectContaining({
+					id: "missing_123_provider_0", // New ID format with provider suffix
+					fullContent: "This important concept was missed",
+					suggestedType: "aha! moments",
+					url: "https://example.com/deep-article",
+					context: "Analysis failed to identify this key insight",
+					modelProvider: "gemini",
+					modelName: "gemini-2.5-flash", // Uses storage model name for missing content
+					attributionSource: "analysis_session", // New attribution source field
+					prompt: {
+						id: "test-prompt",
+						version: "original",
+						content: "Test prompt content",
+						type: "default",
+						name: "Test Prompt",
+					},
+				}),
+			);
+
 			// Verify the feedbackSessionId format
-			expect(firstRecord.feedbackSessionId).toMatch(/^session_missing_123_\d+_[a-z0-9]+$/);
-			
+			expect(firstRecord.feedbackSessionId).toMatch(
+				/^session_missing_123_\d+_[a-z0-9]+$/,
+			);
+
 			// Verify second missing content record
 			const secondRecord = actualBody.missingContentFeedback[1];
-			expect(secondRecord).toEqual(expect.objectContaining({
-				id: "missing_456_provider_0", // New ID format with provider suffix
-				fullContent: "Useful tool reference overlooked",
-				suggestedType: "tool",
-				context: "Tool was mentioned but not extracted",
-				modelProvider: "gemini",
-				modelName: "gemini-2.5-flash", // Uses storage model name for missing content
-				attributionSource: "analysis_session",
-			}));
-			
+			expect(secondRecord).toEqual(
+				expect.objectContaining({
+					id: "missing_456_provider_0", // New ID format with provider suffix
+					fullContent: "Useful tool reference overlooked",
+					suggestedType: "tool",
+					context: "Tool was mentioned but not extracted",
+					modelProvider: "gemini",
+					modelName: "gemini-2.5-flash", // Uses storage model name for missing content
+					attributionSource: "analysis_session",
+				}),
+			);
+
 			// Verify the feedbackSessionId format
-			expect(secondRecord.feedbackSessionId).toMatch(/^session_missing_456_\d+_[a-z0-9]+$/);
-			
+			expect(secondRecord.feedbackSessionId).toMatch(
+				/^session_missing_456_\d+_[a-z0-9]+$/,
+			);
+
 			// Verify the fetch call was made correctly
 			expect(mockFetch).toHaveBeenCalledWith(
 				"http://localhost:7532/feedback",
@@ -880,7 +895,7 @@ describe("Backend Integration Tests", () => {
 							fullContent: "Test nugget content",
 							confidence: 0.9,
 							sourceProvider: "gemini" as const,
-							sourceModel: "gemini-2.0-flash-thinking-exp"
+							sourceModel: "gemini-2.0-flash-thinking-exp",
 						},
 						prompt: {
 							id: "test-prompt",
@@ -947,7 +962,7 @@ describe("Backend Integration Tests", () => {
 						fullContent: "Test nugget content",
 						confidence: 0.9,
 						sourceProvider: "gemini" as const,
-						sourceModel: "gemini-2.0-flash-thinking-exp"
+						sourceModel: "gemini-2.0-flash-thinking-exp",
 					},
 					prompt: {
 						id: "test-prompt",
@@ -1003,7 +1018,7 @@ describe("Backend Integration Tests", () => {
 						fullContent: `Test nugget content ${index + 1}`,
 						confidence: 0.9,
 						sourceProvider: "gemini" as const,
-						sourceModel: "gemini-2.0-flash-thinking-exp"
+						sourceModel: "gemini-2.0-flash-thinking-exp",
 					},
 					prompt: {
 						id: "test-prompt",

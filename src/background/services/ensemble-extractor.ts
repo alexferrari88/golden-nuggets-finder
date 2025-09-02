@@ -96,14 +96,22 @@ export class EnsembleExtractor {
 
 				const normalizedResponse = normalize(rawResponse, config.providerId);
 
-				// Tag nuggets with source provider information
-				const taggedNuggets = normalizedResponse.golden_nuggets.map(
-					(nugget) => ({
-						...nugget,
-						sourceProvider: config.providerId,
-						sourceModel: config.modelId,
-					}),
+				// Apply individual confidence filtering (≥0.85) before consensus
+				const filteredNuggets = normalizedResponse.golden_nuggets.filter(
+					(nugget) =>
+						nugget.confidence !== undefined && nugget.confidence >= 0.85,
 				);
+
+				console.log(
+					`Provider ${config.providerId}: ${normalizedResponse.golden_nuggets.length} → ${filteredNuggets.length} nuggets after confidence filtering`,
+				);
+
+				// Tag nuggets with source provider information
+				const taggedNuggets = filteredNuggets.map((nugget) => ({
+					...nugget,
+					sourceProvider: config.providerId,
+					sourceModel: config.modelId,
+				}));
 
 				return {
 					response: { ...normalizedResponse, golden_nuggets: taggedNuggets },
@@ -248,10 +256,20 @@ export class EnsembleExtractor {
 
 			const normalizedResponse = normalize(rawResponse, provider.providerId);
 
+			// Apply individual confidence filtering (≥0.85) before consensus
+			const filteredNuggets = normalizedResponse.golden_nuggets.filter(
+				(nugget) =>
+					nugget.confidence !== undefined && nugget.confidence >= 0.85,
+			);
+
+			console.log(
+				`Run ${runIndex + 1} for ${provider.providerId}: ${normalizedResponse.golden_nuggets.length} → ${filteredNuggets.length} nuggets after confidence filtering`,
+			);
+
 			// Add provider information intelligently:
 			// - If nugget already has sourceProvider/sourceModel (including null/undefined), preserve it
 			// - If nugget doesn't have these properties at all, add them from provider instance
-			const taggedNuggets = normalizedResponse.golden_nuggets.map((nugget) => {
+			const taggedNuggets = filteredNuggets.map((nugget) => {
 				const nuggetAny = nugget as any;
 				const result = { ...nugget } as EnhancedGoldenNugget;
 
@@ -336,7 +354,7 @@ export class EnsembleExtractor {
 				),
 			).map((providerModelKey) => {
 				const [provider, model] = providerModelKey.split(":");
-				return { provider, model };
+				return { provider: provider as ProviderId, model };
 			});
 
 			return {

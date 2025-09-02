@@ -360,7 +360,7 @@ describe("EnsembleExtractor", () => {
 		const nuggetB = {
 			type: "tool" as const,
 			fullContent: "Tool B",
-			confidence: 0.8,
+			confidence: 0.85,
 		};
 		const nuggetC = {
 			type: "tool" as const,
@@ -412,6 +412,111 @@ describe("EnsembleExtractor", () => {
 		result.golden_nuggets.forEach((nugget) => {
 			expect(nugget.totalRuns).toBe(3);
 		});
+	});
+
+	it("should filter nuggets by individual confidence before consensus building", async () => {
+		// Test that nuggets with confidence < 0.85 are filtered out at provider level
+		const highConfidenceNugget = {
+			type: "tool" as const,
+			fullContent: "This nugget has high confidence",
+			confidence: 0.9,
+		};
+		const lowConfidenceNugget = {
+			type: "aha! moments" as const,
+			fullContent: "This nugget has low confidence",
+			confidence: 0.7, // Should be filtered out
+		};
+		const borderlineNugget = {
+			type: "model" as const,
+			fullContent: "This nugget is exactly at threshold",
+			confidence: 0.85, // Should pass through
+		};
+
+		// Provider returns mix of high and low confidence nuggets
+		mockProvider.extractGoldenNuggets
+			.mockResolvedValueOnce({
+				golden_nuggets: [highConfidenceNugget, lowConfidenceNugget],
+			})
+			.mockResolvedValueOnce({
+				golden_nuggets: [borderlineNugget, lowConfidenceNugget],
+			})
+			.mockResolvedValueOnce({
+				golden_nuggets: [highConfidenceNugget, borderlineNugget],
+			});
+
+		const result = await ensembleExtractor.extractWithEnsemble(
+			"test content",
+			"test prompt",
+			mockProvider,
+			{ runs: 3, temperature: 0.7, parallelExecution: true },
+		);
+
+		// Should only have 2 nuggets (high confidence and borderline)
+		expect(result.golden_nuggets).toHaveLength(2);
+
+		// Low confidence nugget should be completely absent
+		const foundContents = result.golden_nuggets.map((n) => n.fullContent);
+		expect(foundContents).toContain("This nugget has high confidence");
+		expect(foundContents).toContain("This nugget is exactly at threshold");
+		expect(foundContents).not.toContain("This nugget has low confidence");
+	});
+
+	it("should filter nuggets by individual confidence in multi-provider ensemble", async () => {
+		// Test that confidence filtering works at provider level in multi-provider mode
+		const highConfidenceNugget = {
+			type: "tool" as const,
+			fullContent: "High confidence provider nugget",
+			confidence: 0.9,
+		};
+		const lowConfidenceNugget = {
+			type: "aha! moments" as const,
+			fullContent: "Low confidence provider nugget",
+			confidence: 0.6, // Should be filtered out
+		};
+
+		const mockProviderConfigs = [
+			{
+				providerId: "gemini" as const,
+				modelId: "gemini-2.5-flash",
+				provider: {
+					providerId: "gemini" as ProviderId,
+					modelName: "gemini-2.5-flash",
+					extractGoldenNuggets: vi.fn().mockResolvedValue({
+						golden_nuggets: [highConfidenceNugget, lowConfidenceNugget], // Mix of high and low
+					}),
+					validateApiKey: vi.fn().mockResolvedValue(true),
+				},
+			},
+			{
+				providerId: "openai" as const,
+				modelId: "gpt-4o-mini",
+				provider: {
+					providerId: "openai" as ProviderId,
+					modelName: "gpt-4o-mini",
+					extractGoldenNuggets: vi.fn().mockResolvedValue({
+						golden_nuggets: [lowConfidenceNugget], // Only low confidence
+					}),
+					validateApiKey: vi.fn().mockResolvedValue(true),
+				},
+			},
+		];
+
+		const result = await ensembleExtractor.extractWithMultiProvider(
+			"test content",
+			"test prompt",
+			mockProviderConfigs,
+		);
+
+		// Should only have the high confidence nugget (low confidence filtered out from both providers)
+		expect(result.golden_nuggets).toHaveLength(1);
+		expect(result.golden_nuggets[0].fullContent).toBe(
+			"High confidence provider nugget",
+		);
+
+		// Verify the nugget came from gemini (the only provider that had it after filtering)
+		expect(result.golden_nuggets[0].contributingProviders).toEqual([
+			{ provider: "gemini", model: "gemini-2.5-flash" },
+		]);
 	});
 
 	describe("Provider Attribution", () => {

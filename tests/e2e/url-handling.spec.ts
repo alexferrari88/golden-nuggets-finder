@@ -41,7 +41,8 @@ test.describe("URL Nugget Handling", () => {
 			},
 			{
 				type: "tool",
-				fullContent: "This is regular text content that should also be processed",
+				fullContent:
+					"This is regular text content that should also be processed",
 				confidence: 0.85,
 				extractionMethod: "llm",
 			},

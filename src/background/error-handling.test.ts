@@ -348,7 +348,7 @@ describe("MessageHandler Error Handling", () => {
 							fullContent: "Test content",
 							confidence: 0.9,
 							sourceProvider: "gemini" as const,
-							sourceModel: "gemini-2.5-flash"
+							sourceModel: "gemini-2.5-flash",
 						},
 						prompt: {
 							id: "test-prompt-id",
@@ -526,7 +526,7 @@ describe("MessageHandler Error Handling", () => {
 						fullContent: "E2E test content",
 						confidence: 0.9,
 						sourceProvider: "gemini" as const,
-						sourceModel: "gemini-2.5-flash"
+						sourceModel: "gemini-2.5-flash",
 					},
 					prompt: {
 						id: "test-prompt-id",

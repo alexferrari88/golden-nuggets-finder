@@ -14,19 +14,22 @@ const GOLDEN_NUGGETS: GoldenNugget[] = [
 	},
 	{
 		type: "analogy",
-		fullContent: "Growing up, I sometimes played guessing games with family and friends, and we could guess almost anything.",
+		fullContent:
+			"Growing up, I sometimes played guessing games with family and friends, and we could guess almost anything.",
 		confidence: 0.85,
 		extractionMethod: "llm",
 	},
 	{
 		type: "aha! moments",
-		fullContent: "One perspective on AI is that it's helping us solve the compression problem (the source coding theorem.)",
+		fullContent:
+			"One perspective on AI is that it's helping us solve the compression problem (the source coding theorem.)",
 		confidence: 0.88,
 		extractionMethod: "llm",
 	},
 	{
 		type: "aha! moments",
-		fullContent: "Generalization only begins when something much more fundamental happens that enables generalization occurs.",
+		fullContent:
+			"Generalization only begins when something much more fundamental happens that enables generalization occurs.",
 		confidence: 0.82,
 		extractionMethod: "llm",
 	},
@@ -59,9 +62,14 @@ test.describe("Highlighter TDD", () => {
 
 			// For fullContent, we need to check if the content appears somewhere on the page
 			// The exact fullContent may not match due to formatting differences
-			const words = nugget.fullContent.toLowerCase().split(/\s+/).filter(word => word.length > 2);
-			const matchingWords = words.filter(word => pageContent.toLowerCase().includes(word));
-			
+			const words = nugget.fullContent
+				.toLowerCase()
+				.split(/\s+/)
+				.filter((word) => word.length > 2);
+			const matchingWords = words.filter((word) =>
+				pageContent.toLowerCase().includes(word),
+			);
+
 			// Expect at least 70% of significant words to be present
 			const matchRatio = matchingWords.length / words.length;
 			expect(matchRatio).toBeGreaterThan(0.7);

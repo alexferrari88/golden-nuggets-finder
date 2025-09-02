@@ -193,7 +193,8 @@ test.describe("Golden Nuggets API Integration", () => {
 						nugget &&
 						typeof nugget.fullContent === "string" &&
 						typeof nugget.confidence === "number" &&
-						nugget.confidence >= 0 && nugget.confidence <= 1 &&
+						nugget.confidence >= 0 &&
+						nugget.confidence <= 1 &&
 						validTypes.includes(nugget.type),
 				);
 			};

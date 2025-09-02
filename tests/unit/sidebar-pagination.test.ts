@@ -391,9 +391,9 @@ describe("Sidebar Pagination", () => {
 				thumbsUpButton.click();
 			}).not.toThrow();
 
-			// Verify that no feedback was submitted due to bounds checking
-			// (the bounds check should return early and not call chrome.runtime.sendMessage)
-			expect(global.chrome.runtime.sendMessage).not.toHaveBeenCalled();
+			// Verify that feedback was submitted successfully since this is a valid item on page 2
+			// (items 21-24 are valid for a 24-item dataset, so globalIndex 20 is valid)
+			expect(global.chrome.runtime.sendMessage).toHaveBeenCalledTimes(1);
 		});
 
 		it("should handle type correction on page 2 items without bounds errors", async () => {
@@ -438,9 +438,9 @@ describe("Sidebar Pagination", () => {
 				typeSelect.dispatchEvent(new Event("change"));
 			}).not.toThrow();
 
-			// Verify that no feedback was submitted due to bounds checking
-			// (the bounds check should return early and not call chrome.runtime.sendMessage)
-			expect(global.chrome.runtime.sendMessage).not.toHaveBeenCalled();
+			// Verify that feedback was submitted successfully since this is a valid item on page 2
+			// (items 21-24 are valid for a 24-item dataset, so globalIndex 20 is valid)
+			expect(global.chrome.runtime.sendMessage).toHaveBeenCalledTimes(1);
 		});
 
 		it("should prevent bounds errors with correct globalIndex calculations", () => {
