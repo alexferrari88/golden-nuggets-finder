@@ -93,13 +93,13 @@ export interface EnsembleSettings {
 }
 
 export interface NuggetDisplayState {
-	nugget: GoldenNugget;
+	nugget: EnhancedGoldenNugget; // Use EnhancedGoldenNugget to preserve attribution metadata
 	highlighted: boolean;
 	elementRef?: HTMLElement;
 }
 
 export interface SidebarNuggetItem {
-	nugget: GoldenNugget;
+	nugget: EnhancedGoldenNugget; // Use EnhancedGoldenNugget to preserve attribution metadata
 	status: "highlighted" | "not-found";
 	selected: boolean;
 	highlightVisited?: boolean; // Track if highlighted item was clicked
@@ -262,6 +262,8 @@ export interface NuggetFeedback {
 	modelName: string;
 	// NEW: Prompt context for optimization
 	prompt: PromptMetadata; // Full prompt metadata for backend optimization
+	// NEW: Complete nugget object with attribution metadata for Phase 2
+	nugget: EnhancedGoldenNugget; // Complete nugget with sourceProvider, sourceModel, contributingProviders
 }
 
 export interface MissingContentFeedback {

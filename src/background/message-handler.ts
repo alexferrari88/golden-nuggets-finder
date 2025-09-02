@@ -2139,8 +2139,28 @@ export class MessageHandler {
 
 	// Feedback System Handlers
 
-	// NOTE: extractNuggetAttribution removed - NuggetFeedback doesn't contain nugget metadata
-	// Attribution will be handled in Phase 3 when nugget metadata is added to feedback
+	// Add new utility function before MESSAGE_TYPES.SUBMIT_NUGGET_FEEDBACK handler
+	private static extractNuggetAttribution(nugget: any): { modelProvider: string, modelName: string }[] | null {
+		// For consensus nuggets with multiple contributors
+		if (nugget.contributingProviders && nugget.contributingProviders.length > 0) {
+			return nugget.contributingProviders.map((provider: any) => ({
+				modelProvider: provider.provider,
+				modelName: provider.model
+			}));
+		}
+		
+		// For single-provider nuggets
+		if (nugget.sourceProvider && nugget.sourceModel) {
+			return [{
+				modelProvider: nugget.sourceProvider,
+				modelName: nugget.sourceModel
+			}];
+		}
+		
+		// Fallback to storage (legacy behavior)
+		console.warn('No nugget attribution found, falling back to lastUsedProvider');
+		return null; // Will trigger fallback logic
+	}
 
 	// Add utility method to MessageHandler class
 	private generateFeedbackSessionId(baseFeedbackId: string): string {
@@ -2206,27 +2226,15 @@ export class MessageHandler {
 			}
 
 			// Extract attribution from nugget metadata
-			// Note: NuggetFeedback doesn't have a nugget property, it IS the nugget data
-			// For now, we'll use the fallback to storage until nugget metadata is available
-			let nuggetAttributions:
-				| { modelProvider: string; modelName: string }[]
-				| null = null;
-
+			let nuggetAttributions = MessageHandler.extractNuggetAttribution(feedback.nugget);
+			
 			// Fallback to storage if no attribution found
 			if (!nuggetAttributions) {
-				const providerInfo = await chrome.storage.local.get([
-					"lastUsedProvider",
-					"lastUsedPrompt",
-				]);
-				nuggetAttributions = [
-					{
-						modelProvider:
-							providerInfo.lastUsedProvider?.providerId || "gemini",
-						modelName:
-							providerInfo.lastUsedProvider?.modelName ||
-							"gemini-2.5-flash-lite",
-					},
-				];
+				const providerInfo = await chrome.storage.local.get(["lastUsedProvider", "lastUsedPrompt"]);
+				nuggetAttributions = [{
+					modelProvider: providerInfo.lastUsedProvider?.providerId || "gemini",
+					modelName: providerInfo.lastUsedProvider?.modelName || "gemini-2.5-flash-lite"
+				}];
 			}
 
 			// Get prompt info for all records
@@ -2247,7 +2255,7 @@ export class MessageHandler {
 				modelName: attribution.modelName,
 				prompt,
 				feedbackSessionId: this.generateFeedbackSessionId(feedback.id), // Group related records
-				attributionSource: "nugget_metadata",
+				attributionSource: 'nugget_metadata'
 			}));
 
 			// Store all records locally as backup
@@ -2333,22 +2341,32 @@ export class MessageHandler {
 	}
 
 	// Add utility function before missing content feedback handler
-	private static async getAnalysisSessionProviders(): Promise<{ modelProvider: string, modelName: string }[]> {
-		const sessionInfo = await chrome.storage.local.get(["lastAnalysisSession", "lastUsedProvider"]);
-		
+	private static async getAnalysisSessionProviders(): Promise<
+		{ modelProvider: string; modelName: string }[]
+	> {
+		const sessionInfo = await chrome.storage.local.get([
+			"lastAnalysisSession",
+			"lastUsedProvider",
+		]);
+
 		// Use session metadata if available
 		if (sessionInfo.lastAnalysisSession?.providersUsed) {
-			return sessionInfo.lastAnalysisSession.providersUsed.map((provider: any) => ({
-				modelProvider: provider.providerId,
-				modelName: provider.modelName
-			}));
+			return sessionInfo.lastAnalysisSession.providersUsed.map(
+				(provider: any) => ({
+					modelProvider: provider.providerId,
+					modelName: provider.modelName,
+				}),
+			);
 		}
-		
+
 		// Fallback to last used provider
-		return [{
-			modelProvider: sessionInfo.lastUsedProvider?.providerId || "gemini",
-			modelName: sessionInfo.lastUsedProvider?.modelName || "gemini-2.5-flash-lite"
-		}];
+		return [
+			{
+				modelProvider: sessionInfo.lastUsedProvider?.providerId || "gemini",
+				modelName:
+					sessionInfo.lastUsedProvider?.modelName || "gemini-2.5-flash-lite",
+			},
+		];
 	}
 
 	private async handleSubmitMissingContentFeedback(
@@ -2369,40 +2387,46 @@ export class MessageHandler {
 			}
 
 			// Get all providers that participated in analysis
-			const sessionProviders = await MessageHandler.getAnalysisSessionProviders();
-			
+			const sessionProviders =
+				await MessageHandler.getAnalysisSessionProviders();
+
 			// Get prompt info
 			const promptInfo = await chrome.storage.local.get(["lastUsedPrompt"]);
 			const prompt = promptInfo.lastUsedPrompt || {
 				id: "unknown",
 				version: "original",
 				content: "",
-				type: "default" as const, 
-				name: "Unknown prompt"
+				type: "default" as const,
+				name: "Unknown prompt",
 			};
 
 			// Create records for each missing nugget × each provider
-			const missingContentRecords = missingContentFeedback.flatMap((missingNugget) =>
-				sessionProviders.map((provider, providerIndex) => ({
-					...missingNugget,
-					id: `${missingNugget.id}_provider_${providerIndex}`,
-					modelProvider: provider.modelProvider as ProviderId,
-					modelName: provider.modelName, 
-					prompt,
-					feedbackSessionId: this.generateFeedbackSessionId(missingNugget.id),
-					attributionSource: 'analysis_session'
-				}))
+			const missingContentRecords = missingContentFeedback.flatMap(
+				(missingNugget) =>
+					sessionProviders.map((provider, providerIndex) => ({
+						...missingNugget,
+						id: `${missingNugget.id}_provider_${providerIndex}`,
+						modelProvider: provider.modelProvider as ProviderId,
+						modelName: provider.modelName,
+						prompt,
+						feedbackSessionId: this.generateFeedbackSessionId(missingNugget.id),
+						attributionSource: "analysis_session",
+					})),
 			);
 
 			// Store locally as backup
 			for (const record of missingContentRecords) {
-				console.log(`Storing missing content feedback locally with ID: ${record.id}`);
+				console.log(
+					`Storing missing content feedback locally with ID: ${record.id}`,
+				);
 				await this.storeFeedbackLocally("missing", record);
 			}
 
 			// Send to backend API
 			try {
-				console.log(`Sending ${missingContentRecords.length} missing content feedback records to backend`);
+				console.log(
+					`Sending ${missingContentRecords.length} missing content feedback records to backend`,
+				);
 				const result = await this.sendFeedbackToBackend({
 					missingContentFeedback: missingContentRecords,
 				});

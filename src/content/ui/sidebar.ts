@@ -77,6 +77,46 @@ export class Sidebar {
 		modelName: string;
 		responseTime: number;
 	} | null = null; // Store provider metadata for display
+
+	/**
+	 * Extract attribution metadata from nugget for feedback
+	 */
+	private extractNuggetAttribution(
+		nugget: EnhancedGoldenNugget,
+	): { modelProvider: ProviderId; modelName: string }[] {
+		// For consensus nuggets with multiple contributors
+		if (
+			nugget.contributingProviders &&
+			nugget.contributingProviders.length > 0
+		) {
+			return nugget.contributingProviders.map((provider: any) => ({
+				modelProvider: provider.provider as ProviderId,
+				modelName: provider.model,
+			}));
+		}
+
+		// For single-provider nuggets
+		if (nugget.sourceProvider && nugget.sourceModel) {
+			return [
+				{
+					modelProvider: nugget.sourceProvider,
+					modelName: nugget.sourceModel,
+				},
+			];
+		}
+
+		// Fallback to storage (legacy behavior)
+		console.warn(
+			"No nugget attribution found, falling back to providerMetadata",
+		);
+		return [
+			{
+				modelProvider: this.providerMetadata?.providerId || "gemini",
+				modelName: this.providerMetadata?.modelName || "gemini-2.5-flash",
+			},
+		];
+	}
+
 	private restEndpointConfig = {
 		url: "",
 		method: "POST",
@@ -1601,9 +1641,9 @@ export class Sidebar {
 			return;
 		}
 
-		// Get the provider info that was used for the analysis
-		const result = await chrome.storage.local.get(["lastUsedProvider"]);
-		const lastUsedProvider = result.lastUsedProvider;
+		// Extract attribution from nugget metadata
+		const nuggetAttributions = this.extractNuggetAttribution(item.nugget);
+		const primaryAttribution = nuggetAttributions[0]; // Use primary attribution for single feedback record
 
 		// Create or update feedback
 		const feedbackId = `feedback_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -1619,9 +1659,9 @@ export class Sidebar {
 			timestamp: Date.now(),
 			url: window.location.href,
 			context: context.substring(0, 200),
-			// Add provider/model data from the analysis that generated this nugget
-			modelProvider: lastUsedProvider?.providerId || "gemini",
-			modelName: lastUsedProvider?.modelName || "gemini-2.5-flash",
+			// Use nugget-specific attribution instead of generic lastUsedProvider
+			modelProvider: primaryAttribution.modelProvider,
+			modelName: primaryAttribution.modelName,
 			// TODO: Prompt metadata should come from the analysis that generated this nugget
 			// For now, using placeholder values to satisfy type requirements
 			prompt: {
@@ -1630,6 +1670,8 @@ export class Sidebar {
 				type: "default",
 				name: "Unknown Prompt",
 			},
+			// NEW: Complete nugget object with attribution metadata for Phase 2
+			nugget: item.nugget, // Pass complete nugget with sourceProvider, sourceModel, contributingProviders
 		};
 
 		// Update the item
@@ -1665,9 +1707,9 @@ export class Sidebar {
 			return;
 		}
 
-		// Get the provider info that was used for the analysis
-		const result = await chrome.storage.local.get(["lastUsedProvider"]);
-		const lastUsedProvider = result.lastUsedProvider;
+		// Extract attribution from nugget metadata
+		const nuggetAttributions = this.extractNuggetAttribution(item.nugget);
+		const primaryAttribution = nuggetAttributions[0]; // Use primary attribution for single feedback record
 
 		// Create feedback if it doesn't exist, or update existing
 		if (!item.feedback) {
@@ -1683,9 +1725,9 @@ export class Sidebar {
 				timestamp: Date.now(),
 				url: window.location.href,
 				context: context.substring(0, 200),
-				// Add provider/model data from the analysis that generated this nugget
-				modelProvider: lastUsedProvider?.providerId || "gemini",
-				modelName: lastUsedProvider?.modelName || "gemini-2.5-flash",
+				// Use nugget-specific attribution instead of generic lastUsedProvider
+				modelProvider: primaryAttribution.modelProvider,
+				modelName: primaryAttribution.modelName,
 				// TODO: Prompt metadata should come from the analysis that generated this nugget
 				prompt: {
 					id: "unknown",
@@ -1693,6 +1735,8 @@ export class Sidebar {
 					type: "default",
 					name: "Unknown Prompt",
 				},
+				// NEW: Complete nugget object with attribution metadata for Phase 2
+				nugget: item.nugget, // Pass complete nugget with sourceProvider, sourceModel, contributingProviders
 			};
 		}
 

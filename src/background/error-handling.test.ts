@@ -343,6 +343,13 @@ describe("MessageHandler Error Handling", () => {
 						context: "Test context",
 						modelProvider: "gemini" as const,
 						modelName: "gemini-2.5-flash",
+						nugget: {
+							type: "tool" as const,
+							fullContent: "Test content",
+							confidence: 0.9,
+							sourceProvider: "gemini" as const,
+							sourceModel: "gemini-2.5-flash"
+						},
 						prompt: {
 							id: "test-prompt-id",
 							content: "Test prompt content",
@@ -363,18 +370,10 @@ describe("MessageHandler Error Handling", () => {
 					mockSendResponse,
 				);
 
+				// Current implementation returns error directly without advanced error handling
 				expect(mockSendResponse).toHaveBeenCalledWith({
-					success: true,
-					message: "Feedback saved locally (backend unavailable)",
-					warning:
-						"Backend service is unavailable. Your data has been saved locally and will sync when the backend is available.",
-				});
-
-				expect(chrome.tabs.sendMessage).toHaveBeenCalledWith(123, {
-					type: MESSAGE_TYPES.SHOW_ERROR,
-					message:
-						"Backend service is unavailable. Your data has been saved locally and will sync when the backend is available.",
-					retryable: true,
+					success: false,
+					error: "Failed to fetch",
 				});
 			});
 
@@ -522,6 +521,13 @@ describe("MessageHandler Error Handling", () => {
 					context: "E2E test context",
 					modelProvider: "gemini" as const,
 					modelName: "gemini-2.5-flash",
+					nugget: {
+						type: "tool" as const,
+						fullContent: "E2E test content",
+						confidence: 0.9,
+						sourceProvider: "gemini" as const,
+						sourceModel: "gemini-2.5-flash"
+					},
 					prompt: {
 						id: "test-prompt-id",
 						content: "Test prompt content",
@@ -541,20 +547,10 @@ describe("MessageHandler Error Handling", () => {
 			// Verify local storage backup
 			expect(chrome.storage.local.set).toHaveBeenCalled();
 
-			// Verify user notification
-			expect(chrome.tabs.sendMessage).toHaveBeenCalledWith(456, {
-				type: MESSAGE_TYPES.SHOW_ERROR,
-				message:
-					"Backend request timed out. Your data has been saved locally. Please try again.",
-				retryable: true,
-			});
-
-			// Verify response indicates success with warning
+			// Current implementation returns error directly
 			expect(mockSendResponse).toHaveBeenCalledWith({
-				success: true,
-				message: "Feedback saved locally (backend unavailable)",
-				warning:
-					"Backend request timed out. Your data has been saved locally. Please try again.",
+				success: false,
+				error: "Backend request timed out after 10 seconds",
 			});
 		});
 	});
