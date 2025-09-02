@@ -1306,20 +1306,18 @@ export class MessageHandler {
 				});
 			}
 
-			// Clear analysis state from storage since analysis completed successfully
-			// This fixes the popup loading issue where state wasn't cleaned up because popup closed before receiving completion message
-			try {
-				await storage.clearAnalysisState();
-				console.log(
-					"[Background] Analysis state cleared after successful completion",
-				);
-			} catch (error) {
-				console.warn(
-					"[Background] Failed to clear analysis state after completion:",
-					error,
-				);
-				// Continue anyway - don't fail the analysis response for cleanup issues
-			}
+			// Also notify popup of completion
+			chrome.runtime
+				.sendMessage({
+					type: MESSAGE_TYPES.ANALYSIS_COMPLETE,
+					data: resultWithProvider,
+				})
+				.catch(() => {
+					// Ignore errors - popup might not be open
+				});
+
+			// Note: Analysis state cleanup is handled by popup after receiving completion message
+			// This prevents race condition where state is cleared before popup can process completion
 
 			sendResponse({ success: true, data: resultWithProvider });
 		} catch (error) {
@@ -1339,20 +1337,21 @@ export class MessageHandler {
 					});
 			}
 
+			// Also notify popup of error
+			chrome.runtime
+				.sendMessage({
+					type: MESSAGE_TYPES.ANALYSIS_ERROR,
+					error: (error as Error).message,
+					analysisId: request.analysisId || generateAnalysisId(),
+				})
+				.catch(() => {
+					// Ignore errors - popup might not be open
+				});
+
 			sendResponse({ success: false, error: (error as Error).message });
 
-			// Clear analysis state from storage since analysis failed
-			// This fixes the popup loading issue where state wasn't cleaned up after analysis errors
-			try {
-				await storage.clearAnalysisState();
-				console.log("[Background] Analysis state cleared after analysis error");
-			} catch (cleanupError) {
-				console.warn(
-					"[Background] Failed to clear analysis state after error:",
-					cleanupError,
-				);
-				// Continue anyway - cleanup failure shouldn't prevent error response
-			}
+			// Note: Analysis state cleanup is handled by popup after receiving error message
+			// This prevents race condition where state is cleared before popup can process error
 		}
 	}
 
@@ -1569,18 +1568,18 @@ export class MessageHandler {
 			await chrome.tabs.sendMessage(sender.tab.id, responseData);
 		}
 
-		// Clear analysis state from storage
-		try {
-			await storage.clearAnalysisState();
-			console.log(
-				"[Background] Analysis state cleared after successful multi-provider ensemble completion",
-			);
-		} catch (error) {
-			console.warn(
-				"[Background] Failed to clear analysis state after multi-provider ensemble completion:",
-				error,
-			);
-		}
+		// Also notify popup of completion
+		chrome.runtime
+			.sendMessage({
+				type: MESSAGE_TYPES.ANALYSIS_COMPLETE,
+				data: responseData,
+			})
+			.catch(() => {
+				// Ignore errors - popup might not be open
+			});
+
+		// Note: Analysis state cleanup is handled by popup after receiving completion message
+		// This prevents race condition where state is cleared before popup can process completion
 
 		sendResponse({ success: true, data: responseData });
 	}
@@ -1727,18 +1726,18 @@ export class MessageHandler {
 			await chrome.tabs.sendMessage(sender.tab.id, responseData);
 		}
 
-		// Clear analysis state from storage
-		try {
-			await storage.clearAnalysisState();
-			console.log(
-				"[Background] Analysis state cleared after successful single-model ensemble completion",
-			);
-		} catch (error) {
-			console.warn(
-				"[Background] Failed to clear analysis state after single-model ensemble completion:",
-				error,
-			);
-		}
+		// Also notify popup of completion
+		chrome.runtime
+			.sendMessage({
+				type: MESSAGE_TYPES.ANALYSIS_COMPLETE,
+				data: responseData,
+			})
+			.catch(() => {
+				// Ignore errors - popup might not be open
+			});
+
+		// Note: Analysis state cleanup is handled by popup after receiving completion message
+		// This prevents race condition where state is cleared before popup can process completion
 
 		sendResponse({ success: true, data: responseData });
 	}
@@ -1918,22 +1917,20 @@ export class MessageHandler {
 				});
 			}
 
+			// Also notify popup of completion
+			chrome.runtime
+				.sendMessage({
+					type: MESSAGE_TYPES.ANALYSIS_COMPLETE,
+					data: resultWithProvider,
+				})
+				.catch(() => {
+					// Ignore errors - popup might not be open
+				});
+
 			sendResponse({ success: true, data: resultWithProvider });
 
-			// Clear analysis state from storage since analysis completed successfully
-			// This fixes the popup loading issue where state wasn't cleaned up because popup closed before receiving completion message
-			try {
-				await storage.clearAnalysisState();
-				console.log(
-					"[Background] Analysis state cleared after successful completion",
-				);
-			} catch (error) {
-				console.warn(
-					"[Background] Failed to clear analysis state after completion:",
-					error,
-				);
-				// Continue anyway - don't fail the analysis response for cleanup issues
-			}
+			// Note: Analysis state cleanup is handled by popup after receiving completion message
+			// This prevents race condition where state is cleared before popup can process completion
 		} catch (error) {
 			console.error("Selected content analysis failed:", error);
 
@@ -1945,22 +1942,20 @@ export class MessageHandler {
 				});
 			}
 
+			// Also notify popup of error
+			chrome.runtime
+				.sendMessage({
+					type: MESSAGE_TYPES.ANALYSIS_ERROR,
+					error: (error as Error).message,
+				})
+				.catch(() => {
+					// Ignore errors - popup might not be open
+				});
+
 			sendResponse({ success: false, error: (error as Error).message });
 
-			// Clear analysis state from storage since analysis failed
-			// This fixes the popup loading issue where state wasn't cleaned up after analysis errors
-			try {
-				await storage.clearAnalysisState();
-				console.log(
-					"[Background] Analysis state cleared after selected content analysis error",
-				);
-			} catch (cleanupError) {
-				console.warn(
-					"[Background] Failed to clear analysis state after selected content error:",
-					cleanupError,
-				);
-				// Continue anyway - cleanup failure shouldn't prevent error response
-			}
+			// Note: Analysis state cleanup is handled by popup after receiving error message
+			// This prevents race condition where state is cleared before popup can process error
 		}
 	}
 
