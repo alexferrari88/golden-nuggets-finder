@@ -1006,7 +1006,49 @@ export class Sidebar {
 			leftContainer.appendChild(providerBadge);
 		}
 
-		// Consensus display for ensemble results - cleaner design
+		// Helper function to determine confidence tier and styling
+		const getConfidenceTier = (
+			runsSupportingThis: number,
+			totalRuns: number,
+		) => {
+			const percentage = (runsSupportingThis / totalRuns) * 100;
+
+			if (percentage === 100) {
+				return {
+					tier: "High",
+					icon: "✓",
+					badgeColor: colors.gray[100],
+					textColor: colors.text.primary,
+					description: `High Confidence - Found by all ${totalRuns} analysis runs`,
+				};
+			} else if (percentage >= 67) {
+				return {
+					tier: "Strong",
+					icon: "▲",
+					badgeColor: colors.gray[100],
+					textColor: colors.text.primary,
+					description: `Strong Confidence - Found by ${runsSupportingThis} out of ${totalRuns} analysis runs`,
+				};
+			} else if (percentage >= 34) {
+				return {
+					tier: "Moderate",
+					icon: "○",
+					badgeColor: colors.background.secondary,
+					textColor: colors.text.secondary,
+					description: `Moderate Confidence - Found by ${runsSupportingThis} out of ${totalRuns} analysis runs`,
+				};
+			} else {
+				return {
+					tier: "Low",
+					icon: "△",
+					badgeColor: colors.background.tertiary,
+					textColor: colors.text.tertiary,
+					description: `Low Confidence - Found by ${runsSupportingThis} out of ${totalRuns} analysis runs`,
+				};
+			}
+		};
+
+		// Consensus display for ensemble results - improved with confidence tiers
 		const ensembleNugget = item.nugget as EnhancedGoldenNugget;
 		if (
 			ensembleNugget.confidence !== undefined &&
@@ -1014,49 +1056,43 @@ export class Sidebar {
 			ensembleNugget.totalRuns !== undefined
 		) {
 			const consensusContainer = document.createElement("div");
+			const consensusMargin = spacing.sm;
 			consensusContainer.style.cssText = `
         display: flex;
         align-items: center;
-        margin-left: ${spacing.sm};
+        margin-left: ${consensusMargin};
       `;
 
-			// Calculate consensus percentage
-			const consensusPercent = Math.round(
-				(ensembleNugget.runsSupportingThis / ensembleNugget.totalRuns) * 100,
+			const confidenceTier = getConfidenceTier(
+				ensembleNugget.runsSupportingThis,
+				ensembleNugget.totalRuns,
 			);
 
-			// Determine badge styling based on consensus level - simplified to 2 states
-			let badgeColor = colors.background.tertiary;
-			let textColor = colors.text.secondary;
-
-			if (consensusPercent >= 67) {
-				// Strong consensus (majority agreement) - emphasize with primary styling
-				badgeColor = colors.gray[100];
-				textColor = colors.text.primary;
-			} else {
-				// Weak consensus - use muted secondary styling
-				badgeColor = colors.background.tertiary;
-				textColor = colors.text.secondary;
-			}
-
-			// Consensus badge with percentage
+			// Consensus badge with confidence tier
 			const consensusBadge = document.createElement("div");
-			consensusBadge.textContent = `${consensusPercent}%`;
-			consensusBadge.title = `Found in ${ensembleNugget.runsSupportingThis} out of ${ensembleNugget.totalRuns} analysis runs`;
+			const badgeColor = confidenceTier.badgeColor;
+			const textColor = confidenceTier.textColor;
+			const borderColor = colors.border.light;
+			const padding = `${spacing.xs} ${spacing.sm}`;
+			const borderRadiusValue = borderRadius.sm;
+			const fontSize = typography.fontSize.xs;
+			const fontWeight = typography.fontWeight.medium;
+
+			consensusBadge.textContent = `${confidenceTier.icon} ${confidenceTier.tier}`;
+			consensusBadge.title = confidenceTier.description;
 			consensusBadge.style.cssText = `
         background: ${badgeColor};
         color: ${textColor};
-        padding: ${spacing.xs} ${spacing.sm};
-        border-radius: ${borderRadius.sm};
-        font-size: ${typography.fontSize.xs};
-        font-weight: ${typography.fontWeight.medium};
-        min-width: 36px;
+        padding: ${padding};
+        border-radius: ${borderRadiusValue};
+        font-size: ${fontSize};
+        font-weight: ${fontWeight};
         text-align: center;
-        border: 1px solid ${colors.border.light};
+        border: 1px solid ${borderColor};
         cursor: help;
+        white-space: nowrap;
       `;
 
-			// Only add the consensus badge - fraction display removed for cleaner UI
 			consensusContainer.appendChild(consensusBadge);
 			leftContainer.appendChild(consensusContainer);
 		}

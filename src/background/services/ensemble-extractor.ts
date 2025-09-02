@@ -278,12 +278,12 @@ export class EnsembleExtractor {
 			};
 		}
 
-		// Step 1: Flatten all nuggets from all runs with enhanced type
+		// Step 1: Flatten all nuggets from all runs with enhanced type and proper run tracking
 		const allNuggets: NuggetWithEmbedding[] = extractions.flatMap(
-			(extraction) =>
+			(extraction, runIndex) =>
 				extraction.golden_nuggets.map((nugget) => ({
 					...nugget,
-					runId: Math.random().toString(36).substr(2, 9), // Track source
+					runId: runIndex.toString(), // Track source run index
 				})),
 		);
 
@@ -297,20 +297,26 @@ export class EnsembleExtractor {
 			similarityOptions,
 		);
 
-		// Step 3: Apply majority voting and confidence scoring
-		const consensusNuggets = nuggetGroups.map((group) => ({
-			type: group[0].type as
-				| "tool"
-				| "media"
-				| "aha! moments"
-				| "analogy"
-				| "model",
-			fullContent: group[0].fullContent,
-			confidence: group.length / metadata.successfulRuns,
-			runsSupportingThis: group.length,
-			totalRuns: metadata.totalRuns,
-			similarityMethod: "embedding" as const,
-		}));
+		// Step 3: Apply majority voting and confidence scoring based on unique runs
+		const consensusNuggets = nuggetGroups.map((group) => {
+			// Count unique runs that contributed to this group
+			const uniqueRunIds = new Set(group.map((nugget) => nugget.runId));
+			const uniqueRunCount = uniqueRunIds.size;
+
+			return {
+				type: group[0].type as
+					| "tool"
+					| "media"
+					| "aha! moments"
+					| "analogy"
+					| "model",
+				fullContent: group[0].fullContent,
+				confidence: uniqueRunCount / metadata.successfulRuns,
+				runsSupportingThis: uniqueRunCount,
+				totalRuns: metadata.totalRuns,
+				similarityMethod: "embedding" as const,
+			};
+		});
 
 		// Step 4: Sort by confidence (highest first)
 		const sortedNuggets = consensusNuggets.sort(

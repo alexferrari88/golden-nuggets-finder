@@ -295,4 +295,122 @@ describe("EnsembleExtractor", () => {
 			undefined, // selectedTypes parameter
 		);
 	});
+
+	it("should correctly count unique runs instead of total nuggets (bug fix test)", async () => {
+		// This test specifically addresses the bug where runsSupportingThis
+		// was incorrectly counting total nuggets instead of unique runs
+
+		const duplicatedNugget = {
+			type: "tool" as const,
+			fullContent: "This exact same nugget appears multiple times",
+			confidence: 0.9,
+		};
+
+		// Create scenario where each run produces multiple identical nuggets
+		// Run 1: produces 3 copies of the same nugget
+		// Run 2: produces 2 copies of the same nugget
+		// Run 3: produces 1 copy of the same nugget
+		mockProvider.extractGoldenNuggets
+			.mockResolvedValueOnce({
+				golden_nuggets: [duplicatedNugget, duplicatedNugget, duplicatedNugget],
+			})
+			.mockResolvedValueOnce({
+				golden_nuggets: [duplicatedNugget, duplicatedNugget],
+			})
+			.mockResolvedValueOnce({
+				golden_nuggets: [duplicatedNugget],
+			});
+
+		const result = await ensembleExtractor.extractWithEnsemble(
+			"test content",
+			"test prompt",
+			mockProvider,
+			{ runs: 3, temperature: 0.7, parallelExecution: true },
+		);
+
+		// Should group all similar nuggets into one consensus nugget
+		expect(result.golden_nuggets).toHaveLength(1);
+
+		const consensusNugget = result.golden_nuggets[0];
+
+		// CRITICAL: This should be 3 (unique runs), not 6 (total nuggets)
+		// The bug would make this fail by returning 6 instead of 3
+		expect(consensusNugget.runsSupportingThis).toBe(3);
+
+		// Confidence should be 100% since all 3 runs found this nugget
+		expect(consensusNugget.confidence).toBe(1);
+
+		// Total runs should be 3
+		expect(consensusNugget.totalRuns).toBe(3);
+
+		// Metadata should show 6 total nuggets but only 1 consensus reached
+		expect(result.metadata.totalRuns).toBe(3);
+		expect(result.metadata.consensusReached).toBe(1);
+		expect(result.metadata.duplicatesRemoved).toBe(5); // 6 total - 1 consensus = 5 duplicates
+	});
+
+	it("should handle mixed scenarios with multiple nuggets per run correctly", async () => {
+		// Test scenario with different nuggets per run to ensure run counting is accurate
+
+		const nuggetA = {
+			type: "tool" as const,
+			fullContent: "Tool A",
+			confidence: 0.9,
+		};
+		const nuggetB = {
+			type: "tool" as const,
+			fullContent: "Tool B",
+			confidence: 0.8,
+		};
+		const nuggetC = {
+			type: "tool" as const,
+			fullContent: "Tool C",
+			confidence: 0.85,
+		};
+
+		// Run 1: finds A and B
+		// Run 2: finds A and C
+		// Run 3: finds B only
+		mockProvider.extractGoldenNuggets
+			.mockResolvedValueOnce({ golden_nuggets: [nuggetA, nuggetB] })
+			.mockResolvedValueOnce({ golden_nuggets: [nuggetA, nuggetC] })
+			.mockResolvedValueOnce({ golden_nuggets: [nuggetB] });
+
+		const result = await ensembleExtractor.extractWithEnsemble(
+			"test content",
+			"test prompt",
+			mockProvider,
+			{ runs: 3, temperature: 0.7, parallelExecution: true },
+		);
+
+		expect(result.golden_nuggets).toHaveLength(3);
+
+		// Find each nugget and verify run counts
+		const nuggetAResult = result.golden_nuggets.find(
+			(n) => n.fullContent === "Tool A",
+		);
+		const nuggetBResult = result.golden_nuggets.find(
+			(n) => n.fullContent === "Tool B",
+		);
+		const nuggetCResult = result.golden_nuggets.find(
+			(n) => n.fullContent === "Tool C",
+		);
+
+		// Nugget A appears in runs 1 and 2 = 2 unique runs
+		expect(nuggetAResult?.runsSupportingThis).toBe(2);
+		expect(nuggetAResult?.confidence).toBeCloseTo(2 / 3);
+
+		// Nugget B appears in runs 1 and 3 = 2 unique runs
+		expect(nuggetBResult?.runsSupportingThis).toBe(2);
+		expect(nuggetBResult?.confidence).toBeCloseTo(2 / 3);
+
+		// Nugget C appears in run 2 only = 1 unique run
+		expect(nuggetCResult?.runsSupportingThis).toBe(1);
+		expect(nuggetCResult?.confidence).toBeCloseTo(1 / 3);
+
+		// All should have totalRuns = 3
+		result.golden_nuggets.forEach((nugget) => {
+			expect(nugget.totalRuns).toBe(3);
+		});
+	});
 });
