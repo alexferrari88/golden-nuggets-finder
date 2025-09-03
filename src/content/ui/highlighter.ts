@@ -8,6 +8,7 @@ import Mark from "mark.js";
 import { colors } from "../../shared/design-system";
 import type { GoldenNugget } from "../../shared/types";
 import { AnchorTextMatcher } from "./anchor-text-matcher";
+import { filterValidRanges } from "./range-validation";
 
 // Type declarations for CSS Custom Highlight API
 declare global {
@@ -312,8 +313,8 @@ export class Highlighter {
 				rangeCount: matchResult.ranges.length,
 			});
 
-			// Validate ranges before returning them
-			const validRanges = matchResult.ranges.filter((range) => {
+			// First filter for basic range validity
+			const basicValidRanges = matchResult.ranges.filter((range) => {
 				try {
 					// Test if range is valid by checking its properties
 					return (
@@ -331,9 +332,17 @@ export class Highlighter {
 				}
 			});
 
+			// Then filter for exclusion-based validation (as additional safety net)
+			const validRanges = filterValidRanges(basicValidRanges);
+
 			if (validRanges.length !== matchResult.ranges.length) {
 				console.warn(
 					`[Highlighter] Filtered ${matchResult.ranges.length - validRanges.length} invalid ranges`,
+					{
+						originalCount: matchResult.ranges.length,
+						basicValidCount: basicValidRanges.length,
+						finalValidCount: validRanges.length,
+					},
 				);
 			}
 

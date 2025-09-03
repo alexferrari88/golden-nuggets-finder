@@ -13,6 +13,7 @@ import {
 	toRange,
 } from "dom-anchor-text-quote";
 import { DOMPositionMapper } from "./dom-position-mapper";
+import { filterValidRanges } from "./range-validation";
 import { TextMatcher } from "./text-matcher";
 
 export interface AnchorMatchOptions {
@@ -122,19 +123,32 @@ export class AnchorTextMatcher {
 			const range = toRange(document.body, selector, anchorOptions);
 
 			if (range) {
-				console.log("[AnchorTextMatcher] Anchor match found:", {
-					searchText: searchText.substring(0, 50),
-					hasPrefix: !!prefix,
-					hasSuffix: !!suffix,
-					rangeText: range.toString().substring(0, 50),
-				});
+				// Validate that the range is not in extension UI elements (e.g., sidebar)
+				const validRanges = filterValidRanges([range]);
 
-				return {
-					ranges: [range],
-					matchType: "anchor",
-					confidence: 1.0, // Exact anchor matches get highest confidence
-					matchedText: range.toString(),
-				};
+				if (validRanges.length > 0) {
+					console.log("[AnchorTextMatcher] Anchor match found:", {
+						searchText: searchText.substring(0, 50),
+						hasPrefix: !!prefix,
+						hasSuffix: !!suffix,
+						rangeText: range.toString().substring(0, 50),
+					});
+
+					return {
+						ranges: validRanges,
+						matchType: "anchor",
+						confidence: 1.0, // Exact anchor matches get highest confidence
+						matchedText: range.toString(),
+					};
+				} else {
+					console.log(
+						"[AnchorTextMatcher] Anchor match rejected (in excluded element):",
+						{
+							searchText: searchText.substring(0, 50),
+							rangeText: range.toString().substring(0, 50),
+						},
+					);
+				}
 			}
 
 			console.log("[AnchorTextMatcher] Anchor matching failed:", {
@@ -217,15 +231,37 @@ export class AnchorTextMatcher {
 				};
 			}
 
+			// Validate that ranges are not in extension UI elements (e.g., sidebar)
+			const validRanges = filterValidRanges(ranges);
+
+			if (validRanges.length === 0) {
+				console.log(
+					"[AnchorTextMatcher] Fuzzy match rejected (all ranges in excluded elements):",
+					{
+						searchText: searchText.substring(0, 50),
+						originalRangeCount: ranges.length,
+						matchedText: fuzzyMatch.matchedText.substring(0, 50),
+					},
+				);
+
+				return {
+					ranges: [],
+					matchType: "none",
+					confidence: fuzzyMatch.confidence,
+					error: "Fuzzy match ranges in excluded elements",
+				};
+			}
+
 			console.log("[AnchorTextMatcher] Fuzzy match found:", {
 				searchText: searchText.substring(0, 50),
 				confidence: fuzzyMatch.confidence,
-				rangeCount: ranges.length,
+				rangeCount: validRanges.length,
+				originalRangeCount: ranges.length,
 				matchedText: fuzzyMatch.matchedText.substring(0, 50),
 			});
 
 			return {
-				ranges,
+				ranges: validRanges,
 				matchType: "fuzzy",
 				confidence: fuzzyMatch.confidence,
 				matchedText: fuzzyMatch.matchedText,
@@ -291,15 +327,38 @@ export class AnchorTextMatcher {
 				};
 			}
 
+			// Validate that ranges are not in extension UI elements (e.g., sidebar)
+			const validRanges = filterValidRanges(ranges);
+
+			if (validRanges.length === 0) {
+				console.log(
+					"[AnchorTextMatcher] Exact match rejected (all ranges in excluded elements):",
+					{
+						searchText: searchText.substring(0, 50),
+						originalRangeCount: ranges.length,
+						startIndex,
+						endIndex,
+					},
+				);
+
+				return {
+					ranges: [],
+					matchType: "none",
+					confidence: 0.9, // High confidence but in excluded element
+					error: "Exact match ranges in excluded elements",
+				};
+			}
+
 			console.log("[AnchorTextMatcher] Exact match found:", {
 				searchText: searchText.substring(0, 50),
 				startIndex,
 				endIndex,
-				rangeCount: ranges.length,
+				rangeCount: validRanges.length,
+				originalRangeCount: ranges.length,
 			});
 
 			return {
-				ranges,
+				ranges: validRanges,
 				matchType: "exact",
 				confidence: 0.9, // High confidence for exact matches
 				matchedText: bodyText.substring(startIndex, endIndex),
