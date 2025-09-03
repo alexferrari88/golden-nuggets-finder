@@ -1,5 +1,5 @@
 {
-	"$schema": "https://biomejs.dev/schemas/2.2.2/schema.json",
+	"$schema": "https://biomejs.dev/schemas/2.1.3/schema.json",
 	"vcs": {
 		"enabled": false,
 		"clientKind": "git",
@@ -13,6 +13,7 @@
 			"src/entrypoints/**/*",
 			"src/shared/**/*",
 			"src/styles/**/*",
+			"frontend/src/**/*",
 			"tests/e2e/**/*.ts",
 			"tests/integration/**/*.ts",
 			"tests/unit/**/*.ts",
@@ -33,8 +34,7 @@
 			},
 			"suspicious": {
 				"noExplicitAny": "off",
-				"noAssignInExpressions": "off",
-				"useIterableCallbackReturn": "off"
+				"noAssignInExpressions": "off"
 			},
 			"a11y": {
 				"noStaticElementInteractions": "off",
