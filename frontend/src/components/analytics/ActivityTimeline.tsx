@@ -1,16 +1,16 @@
-import type React from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import {
-	Clock,
 	Activity,
-	Users,
-	Zap,
 	CheckCircle,
-	XCircle,
+	Clock,
 	Loader2,
+	Users,
+	XCircle,
+	Zap,
 } from "lucide-react";
+import type React from "react";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { apiClient } from "@/lib/api";
 import type { ProgressActivity } from "@/types";
 

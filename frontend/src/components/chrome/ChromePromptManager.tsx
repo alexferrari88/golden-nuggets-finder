@@ -1,11 +1,17 @@
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+	AlertTriangle,
+	CheckCircle,
+	Clock,
+	Play,
+	Plus,
+	Settings,
+} from "lucide-react";
 import type React from "react";
 import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
 	Dialog,
 	DialogContent,
@@ -13,14 +19,8 @@ import {
 	DialogTitle,
 	DialogTrigger,
 } from "@/components/ui/dialog";
-import {
-	Plus,
-	Settings,
-	Play,
-	Clock,
-	CheckCircle,
-	AlertTriangle,
-} from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { apiClient } from "@/lib/api";
 import type { ChromeExtensionPrompt } from "@/types";
 

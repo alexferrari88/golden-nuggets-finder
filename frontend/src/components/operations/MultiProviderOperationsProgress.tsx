@@ -1,13 +1,10 @@
-import type React from "react";
 import { useQuery } from "@tanstack/react-query";
+import type React from "react";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { Badge } from "@/components/ui/badge";
 import { apiClient } from "@/lib/api";
-import type {
-	ProviderConfiguration,
-	EnhancedOptimizationRun,
-} from "@/types";
+import type { EnhancedOptimizationRun, ProviderConfiguration } from "@/types";
 
 export const MultiProviderOperationsProgress: React.FC = () => {
 	const { data: activeRuns } = useQuery({

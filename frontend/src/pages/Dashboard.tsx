@@ -17,11 +17,11 @@ import { QuickActionsPanel } from "../components/dashboard/QuickActionsPanel";
 import { SystemHealthWidget } from "../components/dashboard/SystemHealthWidget";
 import { EnsembleConfigurationPanel } from "../components/ensemble/EnsembleConfigurationPanel";
 import { FeedbackQueueTable } from "../components/feedback/FeedbackQueueTable";
-import { MultiProviderOperationsProgress } from "../components/operations/MultiProviderOperationsProgress";
 import {
 	ResponsiveContainer,
 	ResponsiveStack,
 } from "../components/layout/ResponsiveContainer";
+import { MultiProviderOperationsProgress } from "../components/operations/MultiProviderOperationsProgress";
 import { OperationsProgress } from "../components/operations/OperationsProgress";
 import { Alert, AlertDescription } from "../components/ui/alert";
 import { Badge } from "../components/ui/badge";

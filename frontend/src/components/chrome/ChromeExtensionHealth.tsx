@@ -1,17 +1,17 @@
-import type React from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import {
-	Chrome,
 	Activity,
+	AlertCircle,
+	CheckCircle,
+	Chrome,
 	Clock,
 	TrendingUp,
 	Zap,
-	CheckCircle,
-	AlertCircle,
 } from "lucide-react";
+import type React from "react";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
 import { apiClient } from "@/lib/api";
 
 export const ChromeExtensionHealth: React.FC = () => {

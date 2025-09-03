@@ -80,7 +80,11 @@ export function OperationsProgress({
 	};
 
 	const isActiveOperation = (entry: ProgressActivity) => {
-		return entry.phase !== "completed" && entry.phase !== "failed" && entry.phase !== "initialization";
+		return (
+			entry.phase !== "completed" &&
+			entry.phase !== "failed" &&
+			entry.phase !== "initialization"
+		);
 	};
 
 	const safeLogEntries = Array.isArray(logEntries) ? logEntries : [];
@@ -236,7 +240,9 @@ export function OperationsProgress({
 													<div className="flex flex-shrink-0 items-center gap-2">
 														<Badge
 															variant={
-																entry.phase === "completed" ? "default" : "outline"
+																entry.phase === "completed"
+																	? "default"
+																	: "outline"
 															}
 														>
 															{entry.phase === "completed"

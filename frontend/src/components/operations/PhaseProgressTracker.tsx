@@ -1,9 +1,9 @@
-import type React from "react";
 import { useQuery } from "@tanstack/react-query";
+import { CheckCircle, Clock, Loader2, XCircle } from "lucide-react";
+import type React from "react";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { Badge } from "@/components/ui/badge";
-import { Clock, CheckCircle, XCircle, Loader2 } from "lucide-react";
 import { apiClient } from "@/lib/api";
 
 export const PhaseProgressTracker: React.FC<{ runId: string }> = ({

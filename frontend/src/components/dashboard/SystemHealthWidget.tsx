@@ -39,10 +39,7 @@ export function SystemHealthWidget({
 	});
 
 	// Enhanced system health with provider details
-	const { data: enhancedHealth } = useQuery<
-		EnhancedSystemHealth,
-		ApiError
-	>({
+	const { data: enhancedHealth } = useQuery<EnhancedSystemHealth, ApiError>({
 		queryKey: ["enhanced-system-health"],
 		queryFn: apiClient.getEnhancedSystemHealth,
 		refetchInterval: refreshInterval,

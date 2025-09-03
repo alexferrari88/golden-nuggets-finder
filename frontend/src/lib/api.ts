@@ -7,9 +7,9 @@ import type {
 	DashboardStats,
 	DetailedProgress,
 	DuplicateAnalysisReport,
-	EnsembleConfiguration,
 	EnhancedOptimizationRun,
 	EnhancedSystemHealth,
+	EnsembleConfiguration,
 	FeedbackSession,
 	FeedbackUsageStats,
 	NuggetType,
@@ -219,7 +219,9 @@ export const apiClient = {
 	},
 
 	// Legacy Optimization Progress - Live tracking
-	getOptimizationProgressLegacy: (runId: string): Promise<OptimizationProgress[]> =>
+	getOptimizationProgressLegacy: (
+		runId: string,
+	): Promise<OptimizationProgress[]> =>
 		makeRequest<OptimizationProgress[]>({
 			method: "GET",
 			url: `/optimization/${runId}/progress`,
