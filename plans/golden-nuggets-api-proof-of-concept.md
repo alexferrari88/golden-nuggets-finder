@@ -2,1117 +2,823 @@
 
 ## Overview
 
-Create a Node.js API service that reuses the Chrome extension's AI provider system to extract golden nuggets from web pages without requiring a browser. This proof of concept will enable headless golden nugget extraction via API endpoints while maintaining the same AI analysis capabilities as the extension.
+This plan details the implementation of a Node.js API server that provides the Chrome extension's golden nugget extraction capabilities as a REST API. The API will feature hybrid scraping (static + browser automation), multi-provider AI support, and ensemble analysis modes while maximizing code reuse from the existing Chrome extension.
 
 ## Current State Analysis
 
-The Chrome extension has a sophisticated multi-provider AI system with:
-- **AI Providers**: Gemini, OpenAI, Anthropic, OpenRouter with unified LLMProvider interface
-- **FullContent Extraction**: Direct golden nugget extraction with confidence scoring
-- **Ensemble Mode**: Multi-run analysis for improved accuracy (3-5% improvement)
-- **Type Filtering**: Tools, media, aha moments, analogies, mental models
-- **Advanced Features**: Text highlighting, progress tracking, secure API key storage
-- **Proven Architecture**: Battle-tested content extraction and AI integration
+### Existing Chrome Extension Architecture
+The Chrome extension provides a sophisticated multi-provider AI system with:
+
+- **Multi-Provider Support**: Gemini, OpenAI, Anthropic, OpenRouter with unified interfaces
+- **Ensemble Analysis**: Both single-model (multiple runs) and multi-provider (cross-provider consensus)
+- **High Recall Extraction**: FullContent approach with 0.85 confidence threshold filtering
+- **Type Filtering**: 5 golden nugget types (tool, media, aha moments, analogy, model)
+- **Advanced Content Processing**: `threads-harvester` library for DOM-based content extraction
+- **Consensus Building**: Hybrid similarity matching with embedding analysis
 
 ### Key Discoveries:
-- Existing LLMProvider interface in `src/shared/types/providers.ts:35` provides perfect abstraction
-- EnsembleExtractor in `src/background/services/ensemble-extractor.ts:27` can be reused directly
-- Response schemas in `src/shared/schemas.ts` ensure consistent output format
-- Multi-provider architecture already handles all target AI services
+- **Provider System**: `src/shared/providers/` contains reusable AI provider implementations
+- **Ensemble Logic**: `src/background/services/ensemble-extractor.ts` handles consensus building
+- **Type Filtering**: `src/background/type-filter-service.ts` manages prompt filtering
+- **Response Format**: Standardized fullContent + confidence format across all providers
+- **Hybrid Similarity**: Advanced text matching for cross-provider consensus
+- **Security**: Device-specific encryption for API keys (adaptable for server environment)
 
 ## Desired End State
 
-A self-hosted API service that accepts web URLs and returns extracted golden nuggets using the same AI analysis engine as the Chrome extension. The API will handle web scraping, content extraction, and AI analysis in a single request.
+A Node.js API server (`api/`) that:
 
-**Verification Criteria:**
-```bash
-curl -X POST http://localhost:3001/api/extract \
-  -H "Content-Type: application/json" \
-  -d '{
-    "url": "https://news.ycombinator.com/item?id=38981254",
-    "provider": "gemini", 
-    "apiKey": "your-api-key",
-    "nuggetTypes": ["tool", "aha! moments"],
-    "ensemble": false
-  }'
-```
+1. **Accepts HTTP POST requests** with URL and provider configuration
+2. **Performs hybrid scraping** using axios+Cheerio for static sites, Hero for complex sites
+3. **Extracts golden nuggets** using the same multi-provider AI system as the Chrome extension
+4. **Supports ensemble modes** including multi-provider consensus analysis
+5. **Returns JSON responses** with golden nuggets and provider attribution metadata
+6. **Requires authentication** via API token for security
+7. **Maximizes code reuse** from the existing Chrome extension (80%+ reuse target)
 
-Expected response with same format as extension:
-```json
-{
-  "golden_nuggets": [
-    {
-      "type": "tool",
-      "fullContent": "SQLite is incredibly versatile for local development...",
-      "confidence": 0.92
-    }
-  ]
-}
-```
+### Success Criteria
+
+#### Automated Verification
+- [ ] `pnpm install` completes without errors in api directory
+- [ ] `pnpm dev` starts server successfully on specified port
+- [ ] `pnpm build` compiles TypeScript without errors
+- [ ] `pnpm lint` passes without violations
+- [ ] `pnpm test` runs and passes unit tests for core functionality
+- [ ] API responds with 200 status for valid requests
+- [ ] Hybrid scraping correctly detects static vs dynamic sites
+
+#### Manual Verification
+- [ ] Successfully extracts golden nuggets from Hacker News (static scraping)
+- [ ] Successfully extracts golden nuggets from Twitter/Reddit (browser automation)
+- [ ] Multi-provider ensemble mode works with provider attribution
+- [ ] Type filtering correctly filters nugget extraction
+- [ ] Error handling provides meaningful error messages
+- [ ] Authentication rejects unauthorized requests
+- [ ] Response format matches Chrome extension output structure
 
 ## What We're NOT Doing
 
-- Complex enterprise scaling (horizontal scaling, load balancing)
-- Advanced anti-detection systems (residential proxies, sophisticated fingerprinting)
-- Real-time WebSocket APIs or streaming responses
-- User authentication/authorization systems
-- Database storage of results
-- Advanced monitoring/alerting systems
-- Multi-tenant support
-- Complex caching layers
+- **Chrome Extension Features**: No popup UI, context menus, or browser-specific functionality
+- **Persistent Storage**: No database or persistent storage of API keys (they're provided per request)
+- **User Management**: No user accounts, sessions, or complex authentication
+- **Caching**: No response caching system (can be added later)
+- **Rate Limiting**: Basic IP-based rate limiting only
+- **Real-time Updates**: No WebSocket or Server-Sent Events for progress updates
+- **Advanced Deployment**: No Docker containerization or production deployment scripts
 
 ## Implementation Approach
 
-**Hybrid Scraping Strategy**: Use lightweight static scraping for simple sites (Hacker News, blogs) and browser automation for complex dynamic content (Twitter, Reddit). This optimizes performance while maintaining capability.
+### High-Level Strategy
 
-**Code Reuse Strategy**: Extract the existing AI provider implementations into a shared package that both the extension and API can use, eliminating code duplication and ensuring consistent behavior.
+1. **Maximize Code Reuse**: Copy 80%+ of Chrome extension logic with minimal modifications
+2. **Hybrid Scraping Strategy**: Intelligent switching between static and browser automation
+3. **Provider Compatibility**: Maintain full compatibility with existing AI provider system
+4. **API-First Design**: RESTful API with comprehensive request/response validation
+5. **Security by Design**: API authentication with secure provider key handling
 
-**Incremental Development**: Four phases where each delivers immediate value and can serve as a stopping point based on needs.
+### Architecture Overview
 
-## Phase 1: Core Foundation
+```
+api/
+├── src/
+│   ├── providers/           # Copied from Chrome extension
+│   ├── services/           # Ensemble and similarity logic
+│   ├── scraping/           # Hybrid scraping implementation
+│   ├── routes/             # Express.js API routes
+│   ├── middleware/         # Authentication and validation
+│   ├── types/              # TypeScript interfaces
+│   └── utils/              # Utility functions
+├── tests/                  # Unit and integration tests
+└── package.json           # Dependencies and scripts
+```
+
+## Phase 1: Foundation and Direct Code Reuse
 
 ### Overview
-Establish basic API functionality with Cheerio-based static content scraping and integration with one AI provider. Focus on proving the concept works end-to-end.
+Establish the Node.js project structure and copy reusable components from the Chrome extension with minimal modifications.
 
 ### Changes Required:
 
-#### 1. Project Setup
-**Create**: `golden-nuggets-api/` directory (subfolder of main project)
+#### 1. Project Initialization
+**Directory**: `api/`
+**Changes**: Create new Node.js project with TypeScript configuration
 
 ```bash
-mkdir golden-nuggets-api
-cd golden-nuggets-api
-npm init -y
-npm install express cors helmet morgan dotenv cheerio axios
-npm install -D typescript @types/node @types/express ts-node nodemon
+# Initialize project
+cd api/
+pnpm init
+pnpm add express cors helmet
+pnpm add -D typescript @types/node @types/express tsx nodemon
+pnpm add @ulixee/hero-playground axios cheerio
 ```
 
-#### 2. Shared Code Extraction
-**Create**: `golden-nuggets-api/src/shared/` directory
-**Copy from extension**:
-- `src/shared/providers/gemini-direct-provider.ts` → Reuse exact implementation
-- `src/shared/types/providers.ts` → LLMProvider interface and types
-- `src/shared/schemas.ts` → Response schema generators
-- `src/shared/constants.ts` → Default prompts and configuration
+#### 2. Copy AI Provider System
+**Source**: `src/shared/providers/`
+**Target**: `api/src/providers/`
+**Changes**: Update imports and remove Chrome-specific dependencies
 
-#### 3. Basic API Implementation
-**File**: `golden-nuggets-api/src/app.ts`
 ```typescript
-import express from 'express';
-import cors from 'cors';
-import { extractGoldenNuggets } from './api/extract';
-
-const app = express();
-app.use(cors());
-app.use(express.json());
-app.use(helmet());
-
-app.post('/api/extract', extractGoldenNuggets);
-
-app.listen(3001, () => {
-  console.log('Golden Nuggets API running on port 3001');
-});
+// Copy directly with import path adjustments:
+// - gemini-direct-provider.ts
+// - langchain-openai-provider.ts  
+// - langchain-anthropic-provider.ts
+// - langchain-openrouter-provider.ts
 ```
 
-**File**: `golden-nuggets-api/src/scrapers/cheerio-scraper.ts`
+#### 3. Copy Service Logic
+**Source**: `src/background/services/`
+**Target**: `api/src/services/`
+**Changes**: Remove Chrome message passing, update imports
+
 ```typescript
-import axios from 'axios';
-import * as cheerio from 'cheerio';
+// Copy with adaptations:
+// - ensemble-extractor.ts (90% reusable)
+// - response-normalizer.ts (100% reusable)
+// - hybrid-similarity.ts (100% reusable)
+// - provider-factory.ts (80% reusable - remove storage dependencies)
+```
 
-export class CheerioScraper {
-  private userAgents = [
-    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-  ];
+#### 4. Copy Type Definitions
+**Source**: `src/shared/types/` and `src/background/type-filter-service.ts`
+**Target**: `api/src/types/`
+**Changes**: Remove Chrome-specific types, keep core interfaces
 
-  async scrapeContent(url: string): Promise<string> {
-    await this.randomDelay(1000, 3000);
+```typescript
+// Copy with filtering:
+// - Core types (GoldenNugget, EnsembleSettings, etc.)
+// - Provider types and interfaces  
+// - Type filtering service (100% reusable)
+```
+
+#### 5. Copy Utility Functions
+**Source**: `src/shared/utils/`
+**Target**: `api/src/utils/`
+**Changes**: Copy pure functions without modification
+
+```typescript
+// Direct copy:
+// - cosine-similarity.ts
+// - Text normalization utilities
+// - Schema generation utilities
+```
+
+### Success Criteria:
+
+#### Automated Verification
+- [ ] TypeScript compilation succeeds without errors: `pnpm build`
+- [ ] All provider classes instantiate correctly
+- [ ] Ensemble extractor service initializes without Chrome dependencies
+- [ ] Type filtering service generates prompts correctly
+- [ ] No linting errors: `pnpm lint`
+
+#### Manual Verification
+- [ ] All AI providers (Gemini, OpenAI, Anthropic, OpenRouter) can be imported
+- [ ] EnsembleExtractor can be instantiated in Node.js environment  
+- [ ] TypeFilterService generates filtered prompts correctly
+- [ ] Provider factory creates providers with valid configurations
+
+---
+
+## Phase 2: Hybrid Scraping Implementation
+
+### Overview
+Implement the hybrid scraping system that intelligently chooses between static scraping (axios + Cheerio) and browser automation (Hero) based on website characteristics.
+
+### Changes Required:
+
+#### 1. Content Extraction Interface
+**File**: `api/src/types/content.ts`
+**Changes**: Define interfaces compatible with threads-harvester format
+
+```typescript
+interface Content {
+  items: ContentItem[];
+  title?: string;
+  url?: string;
+}
+
+interface ContentItem {
+  type: 'post' | 'comment' | 'text' | 'link';
+  text: string;
+  htmlContent?: string;
+  metadata?: Record<string, any>;
+}
+```
+
+#### 2. Hybrid Scraping Decision Engine
+**File**: `api/src/scraping/scraping-strategy.ts`
+**Changes**: Implement website analysis for scraping method selection
+
+```typescript
+class ScrapingStrategy {
+  async determineStrategy(url: string): Promise<'static' | 'browser'> {
+    // Quick static analysis
+    const response = await axios.head(url);
+    const quickCheck = await this.quickStaticAnalysis(url);
     
+    // Decision criteria based on research findings
+    if (this.isSimpleSite(url, quickCheck)) {
+      return 'static';
+    } else {
+      return 'browser';  
+    }
+  }
+
+  private isSimpleSite(url: string, analysis: any): boolean {
+    // Logic based on hybrid scraping research
+    // - Check for known static sites (HN, blogs)  
+    // - Analyze JavaScript content ratio
+    // - Check for SPA indicators
+  }
+}
+```
+
+#### 3. Static Scraping Implementation
+**File**: `api/src/scraping/static-scraper.ts`
+**Changes**: Implement axios + Cheerio scraping with content structure preservation
+
+```typescript
+class StaticScraper {
+  async scrape(url: string): Promise<Content> {
     const response = await axios.get(url, {
-      headers: {
-        'User-Agent': this.getRandomUserAgent(),
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        'Accept-Language': 'en-US,en;q=0.5',
-        'Accept-Encoding': 'gzip, deflate',
-        'Connection': 'keep-alive'
-      },
-      timeout: 30000
+      headers: this.generateRealisticHeaders(url),
+      timeout: 10000
     });
     
     const $ = cheerio.load(response.data);
-    
-    // Remove script and style elements
-    $('script, style, nav, header, footer').remove();
-    
-    return $('body').text().trim();
+    return this.extractContent($, url);
   }
 
-  private randomDelay(min: number, max: number): Promise<void> {
-    const delay = Math.floor(Math.random() * (max - min + 1)) + min;
-    return new Promise(resolve => setTimeout(resolve, delay));
-  }
-
-  private getRandomUserAgent(): string {
-    return this.userAgents[Math.floor(Math.random() * this.userAgents.length)];
-  }
-}
-```
-
-**File**: `golden-nuggets-api/src/api/extract.ts`
-```typescript
-import { CheerioScraper } from '../scrapers/cheerio-scraper';
-import { GeminiDirectProvider } from '../shared/providers/gemini-direct-provider';
-import type { ProviderId } from '../shared/types/providers';
-
-const scraper = new CheerioScraper();
-
-export async function extractGoldenNuggets(req: any, res: any) {
-  try {
-    const { 
-      url, 
-      provider = 'gemini' as ProviderId,
-      apiKey, 
-      prompt, 
-      nuggetTypes = [],
-      temperature = 0.7
-    } = req.body;
-
-    if (!url || !apiKey) {
-      return res.status(400).json({ 
-        error: 'URL and API key are required' 
-      });
+  private extractContent($: CheerioAPI, url: string): Content {
+    // Site-specific extractors
+    if (url.includes('news.ycombinator.com')) {
+      return this.extractHackerNews($);
     }
-
-    // Scrape content
-    const content = await scraper.scrapeContent(url);
-    
-    // Create AI provider (start with Gemini)
-    const aiProvider = new GeminiDirectProvider({
-      providerId: 'gemini',
-      apiKey,
-      modelName: 'gemini-2.5-flash'
-    });
-
-    // Extract golden nuggets
-    const result = await aiProvider.extractGoldenNuggets(
-      content, 
-      prompt || getDefaultPrompt(), 
-      temperature,
-      nuggetTypes
-    );
-
-    res.json(result);
-  } catch (error) {
-    console.error('Extraction error:', error);
-    res.status(500).json({ 
-      error: 'Failed to extract golden nuggets',
-      details: error instanceof Error ? error.message : 'Unknown error'
-    });
+    // Generic extractor using Readability-like logic
+    return this.extractGeneric($);
   }
-}
-
-function getDefaultPrompt(): string {
-  return `You are a highly discerning content analyst extracting only the most valuable insights...`;
 }
 ```
 
-### Success Criteria
+#### 4. Hero Browser Automation
+**File**: `api/src/scraping/hero-scraper.ts`
+**Changes**: Implement Hero-based scraping with anti-detection
 
-#### Automated Verification
-- [ ] Project builds without TypeScript errors: `npm run build`
-- [ ] API starts successfully: `npm run dev`
-- [ ] Health endpoint responds: `curl http://localhost:3001/health`
-- [ ] Basic extraction works for static site
-
-#### Manual Verification
-- [ ] API accepts POST requests to `/api/extract`
-- [ ] Successfully scrapes Hacker News comment threads
-- [ ] Returns golden nuggets in expected format
-- [ ] Gemini provider integration works correctly
-- [ ] Error handling works for invalid URLs/API keys
-
----
-
-## Phase 2: Multi-Provider & Enhanced Features
-
-### Overview
-Add support for all AI providers from the extension, implement ensemble mode, and add Playwright for complex sites.
-
-### Changes Required:
-
-#### 1. Complete AI Provider Integration
-**File**: `golden-nuggets-api/src/services/provider-factory.ts`
 ```typescript
-import { GeminiDirectProvider } from '../shared/providers/gemini-direct-provider';
-import { LangChainAnthropicProvider } from '../shared/providers/langchain-anthropic-provider';
-import { LangChainOpenAIProvider } from '../shared/providers/langchain-openai-provider';
-import { LangChainOpenRouterProvider } from '../shared/providers/langchain-openrouter-provider';
-import type { LLMProvider, ProviderId, ProviderConfig } from '../shared/types/providers';
+import Hero from '@ulixee/hero-playground';
 
-export function createProvider(providerId: ProviderId, apiKey: string, modelName?: string): LLMProvider {
-  const config: ProviderConfig = {
-    providerId,
-    apiKey,
-    modelName: modelName || getDefaultModel(providerId)
-  };
-
-  switch (providerId) {
-    case 'gemini':
-      return new GeminiDirectProvider(config);
-    case 'anthropic':
-      return new LangChainAnthropicProvider(config);
-    case 'openai':
-      return new LangChainOpenAIProvider(config);
-    case 'openrouter':
-      return new LangChainOpenRouterProvider(config);
-    default:
-      throw new Error(`Unsupported provider: ${providerId}`);
-  }
-}
-
-function getDefaultModel(providerId: ProviderId): string {
-  const defaults = {
-    'gemini': 'gemini-2.5-flash',
-    'anthropic': 'claude-sonnet-4-20250514',
-    'openai': 'gpt-4o-mini',
-    'openrouter': 'openai/gpt-3.5-turbo'
-  };
-  return defaults[providerId];
-}
-```
-
-#### 2. Playwright Integration
-**Install**: `npm install playwright`
-
-**File**: `golden-nuggets-api/src/scrapers/playwright-scraper.ts`
-```typescript
-import { chromium, Browser, Page } from 'playwright';
-
-export class PlaywrightScraper {
-  private browser: Browser | null = null;
-
-  async init() {
-    if (!this.browser) {
-      this.browser = await chromium.launch({
-        headless: true,
-        args: [
-          '--no-sandbox',
-          '--disable-setuid-sandbox',
-          '--disable-dev-shm-usage'
-        ]
-      });
-    }
-  }
-
-  async scrapeContent(url: string): Promise<string> {
-    await this.init();
-    
-    const context = await this.browser!.newContext({
-      userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36'
+class HeroScraper {
+  async scrape(url: string): Promise<Content> {
+    const hero = new Hero({
+      userAgent: this.rotateUserAgent(),
+      showChrome: false
     });
-    
-    const page = await context.newPage();
-    
+
     try {
-      await page.goto(url, { waitUntil: 'networkidle' });
+      await hero.goto(url);
+      await hero.waitForPaintingStable();
       
-      // Wait for dynamic content
-      await page.waitForTimeout(2000);
-      
-      // Extract text content
-      const content = await page.evaluate(() => {
-        // Remove unnecessary elements
-        const elementsToRemove = document.querySelectorAll('script, style, nav, header, footer, .ad');
-        elementsToRemove.forEach(el => el.remove());
-        
-        return document.body.innerText;
-      });
-      
-      return content;
-    } finally {
-      await context.close();
-    }
-  }
-
-  async close() {
-    if (this.browser) {
-      await this.browser.close();
-      this.browser = null;
-    }
-  }
-}
-```
-
-#### 3. Smart Hybrid Scraper
-**File**: `golden-nuggets-api/src/scrapers/hybrid-scraper.ts`
-```typescript
-import { CheerioScraper } from './cheerio-scraper';
-import { PlaywrightScraper } from './playwright-scraper';
-
-export class HybridScraper {
-  private cheerioScraper = new CheerioScraper();
-  private playwrightScraper = new PlaywrightScraper();
-
-  async scrapeContent(url: string): Promise<string> {
-    if (this.isStaticSite(url)) {
-      console.log(`Using Cheerio for static site: ${url}`);
-      return await this.cheerioScraper.scrapeContent(url);
-    } else {
-      console.log(`Using Playwright for dynamic site: ${url}`);
-      return await this.playwrightScraper.scrapeContent(url);
-    }
-  }
-
-  private isStaticSite(url: string): boolean {
-    const staticSites = [
-      'news.ycombinator.com',
-      'medium.com',
-      'dev.to',
-      'stackoverflow.com',
-      'github.com'
-    ];
-    
-    return staticSites.some(site => url.includes(site));
-  }
-
-  async close() {
-    await this.playwrightScraper.close();
-  }
-}
-```
-
-#### 4. Ensemble Mode Integration
-**Copy**: `src/background/services/ensemble-extractor.ts` to API
-**File**: `golden-nuggets-api/src/services/ensemble-extractor.ts`
-```typescript
-// Direct copy from extension with minor imports adjustments
-import type { EnsembleExtractionResult, LLMProvider } from '../shared/types/providers';
-import { HybridSimilarityMatcher } from './hybrid-similarity';
-```
-
-#### 5. Updated API Handler
-**File**: `golden-nuggets-api/src/api/extract.ts` - Enhanced version
-```typescript
-import { HybridScraper } from '../scrapers/hybrid-scraper';
-import { createProvider } from '../services/provider-factory';
-import { EnsembleExtractor } from '../services/ensemble-extractor';
-import type { ProviderId } from '../shared/types/providers';
-
-const scraper = new HybridScraper();
-const ensembleExtractor = new EnsembleExtractor();
-
-export async function extractGoldenNuggets(req: any, res: any) {
-  try {
-    const { 
-      url, 
-      provider = 'gemini' as ProviderId,
-      model,
-      apiKey, 
-      prompt, 
-      nuggetTypes = [],
-      ensemble = false,
-      temperature = 0.7
-    } = req.body;
-
-    if (!url || !apiKey) {
-      return res.status(400).json({ 
-        error: 'URL and API key are required' 
-      });
-    }
-
-    // Scrape content using hybrid approach
-    const content = await scraper.scrapeContent(url);
-    
-    if (!content.trim()) {
-      return res.status(400).json({ 
-        error: 'No content could be extracted from the URL' 
-      });
-    }
-
-    // Create AI provider
-    const aiProvider = createProvider(provider, apiKey, model);
-
-    // Extract golden nuggets
-    let result;
-    if (ensemble) {
-      result = await ensembleExtractor.extractWithEnsemble(
-        content, 
-        prompt || getDefaultPrompt(), 
-        aiProvider,
-        {
-          runs: 3,
-          temperature,
-          parallelExecution: true,
-          selectedTypes: nuggetTypes
-        }
-      );
-    } else {
-      result = await aiProvider.extractGoldenNuggets(
-        content, 
-        prompt || getDefaultPrompt(), 
-        temperature,
-        nuggetTypes
-      );
-    }
-
-    res.json({
-      ...result,
-      metadata: {
-        ...result.metadata,
-        url,
-        provider,
-        model: model || 'default',
-        scrapingMethod: scraper.isStaticSite(url) ? 'cheerio' : 'playwright',
-        contentLength: content.length
+      // Handle dynamic content loading
+      if (this.requiresScrolling(url)) {
+        await this.handleInfiniteScroll(hero);
       }
-    });
-  } catch (error) {
-    console.error('Extraction error:', error);
-    res.status(500).json({ 
-      error: 'Failed to extract golden nuggets',
-      details: error instanceof Error ? error.message : 'Unknown error'
-    });
+      
+      return await this.extractContentFromBrowser(hero, url);
+    } finally {
+      await hero.close();
+    }
+  }
+
+  private async extractContentFromBrowser(hero: Hero, url: string): Promise<Content> {
+    // Extract content using Hero's DOM API
+    // Convert to threads-harvester compatible format
   }
 }
 ```
 
-### Success Criteria
+#### 5. Content Extractor Service
+**File**: `api/src/services/content-extractor.ts`
+**Changes**: Orchestrate hybrid scraping strategy
+
+```typescript
+class ContentExtractor {
+  private staticScraper = new StaticScraper();
+  private heroScraper = new HeroScraper();
+  private strategy = new ScrapingStrategy();
+
+  async extractContent(url: string, options?: ScrapingOptions): Promise<Content> {
+    const method = options?.strategy || await this.strategy.determineStrategy(url);
+    
+    if (method === 'static') {
+      return await this.staticScraper.scrape(url);
+    } else {
+      return await this.heroScraper.scrape(url);
+    }
+  }
+}
+```
+
+### Success Criteria:
 
 #### Automated Verification
-- [ ] All providers build without errors: `npm run build`
-- [ ] Playwright installs correctly: `npx playwright install`
-- [ ] API supports all providers: Gemini, OpenAI, Anthropic, OpenRouter
-- [ ] Ensemble mode returns consensus results
+- [ ] Static scraper extracts content from simple HTML pages
+- [ ] Hero scraper successfully navigates JavaScript-heavy sites  
+- [ ] Strategy engine correctly identifies static vs dynamic sites
+- [ ] Content extraction preserves threads-harvester data structure
+- [ ] All scrapers handle errors gracefully without crashes
 
 #### Manual Verification
-- [ ] Static sites use Cheerio (faster response times)
-- [ ] Dynamic sites use Playwright (handles JavaScript)
-- [ ] All AI providers return consistent golden nugget format
-- [ ] Ensemble mode provides confidence scores and run metadata
-- [ ] Type filtering works across all providers
+- [ ] Hacker News content extracted correctly via static scraping
+- [ ] Twitter/Reddit content extracted correctly via Hero browser automation
+- [ ] Strategy engine makes correct scraping method decisions
+- [ ] Extracted content maintains proper formatting and structure
+- [ ] Error handling provides meaningful error messages for failed scraping
 
 ---
 
-## Phase 3: Production Ready & Docker
+## Phase 3: API Server Implementation
 
 ### Overview
-Add Docker containerization, proper configuration management, comprehensive error handling, and basic rate limiting for production deployment.
+Build the Express.js API server with authentication, request validation, and integration with the golden nugget extraction system.
 
 ### Changes Required:
 
-#### 1. Docker Configuration
-**File**: `golden-nuggets-api/Dockerfile`
-```dockerfile
-FROM node:18-slim
+#### 1. Express Server Setup
+**File**: `api/src/server.ts`
+**Changes**: Configure Express with middleware and error handling
 
-# Install Playwright dependencies
-RUN apt-get update && apt-get install -y \
-    chromium \
-    fonts-liberation \
-    libnss3 \
-    libatk-bridge2.0-0 \
-    libxss1 \
-    libgtk-3-0 \
-    --no-install-recommends \
-    && rm -rf /var/lib/apt/lists/*
-
-# Set up Playwright
-ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
-ENV PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium
-
-WORKDIR /app
-
-# Install dependencies
-COPY package*.json ./
-RUN npm ci --only=production
-
-# Copy application code
-COPY . .
-
-# Build TypeScript
-RUN npm run build
-
-# Create non-root user
-RUN useradd -m -u 1001 apiuser
-USER apiuser
-
-EXPOSE 3001
-
-HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
-  CMD curl -f http://localhost:3001/health || exit 1
-
-CMD ["npm", "start"]
-```
-
-**File**: `golden-nuggets-api/docker-compose.yml`
-```yaml
-version: '3.8'
-services:
-  golden-nuggets-api:
-    build: .
-    ports:
-      - "3001:3001"
-    environment:
-      - NODE_ENV=production
-      - LOG_LEVEL=info
-    volumes:
-      - ./logs:/app/logs
-    restart: unless-stopped
-    mem_limit: 1g
-    cpus: 1.0
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-```
-
-#### 2. Configuration Management
-**File**: `golden-nuggets-api/src/config/config.ts`
-```typescript
-export const config = {
-  port: parseInt(process.env.PORT || '3001', 10),
-  nodeEnv: process.env.NODE_ENV || 'development',
-  
-  rateLimiting: {
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: parseInt(process.env.RATE_LIMIT_MAX || '100', 10)
-  },
-  
-  scraping: {
-    timeout: parseInt(process.env.SCRAPING_TIMEOUT || '30000', 10),
-    retries: parseInt(process.env.SCRAPING_RETRIES || '2', 10),
-    maxContentLength: parseInt(process.env.MAX_CONTENT_LENGTH || '100000', 10)
-  },
-  
-  browser: {
-    headless: process.env.BROWSER_HEADLESS !== 'false',
-    timeout: parseInt(process.env.BROWSER_TIMEOUT || '30000', 10)
-  },
-  
-  logging: {
-    level: process.env.LOG_LEVEL || 'info'
-  }
-};
-```
-
-#### 3. Enhanced Error Handling
-**File**: `golden-nuggets-api/src/middleware/errorHandler.ts`
-```typescript
-import { Request, Response, NextFunction } from 'express';
-
-export class APIError extends Error {
-  constructor(
-    public statusCode: number,
-    message: string,
-    public code?: string
-  ) {
-    super(message);
-    this.name = 'APIError';
-  }
-}
-
-export function errorHandler(
-  error: Error, 
-  req: Request, 
-  res: Response, 
-  next: NextFunction
-) {
-  console.error(`API Error [${req.method} ${req.path}]:`, {
-    message: error.message,
-    stack: error.stack,
-    body: req.body
-  });
-
-  if (error instanceof APIError) {
-    return res.status(error.statusCode).json({
-      error: error.message,
-      code: error.code,
-      timestamp: new Date().toISOString()
-    });
-  }
-
-  // Handle specific error types
-  if (error.message.includes('timeout')) {
-    return res.status(408).json({
-      error: 'Request timeout - the website took too long to respond',
-      code: 'TIMEOUT_ERROR'
-    });
-  }
-
-  if (error.message.includes('Invalid API key')) {
-    return res.status(401).json({
-      error: 'Invalid API key for the specified provider',
-      code: 'INVALID_API_KEY'
-    });
-  }
-
-  if (error.message.includes('rate limit')) {
-    return res.status(429).json({
-      error: 'Rate limit exceeded',
-      code: 'RATE_LIMITED'
-    });
-  }
-
-  // Default server error
-  res.status(500).json({
-    error: 'Internal server error',
-    code: 'INTERNAL_ERROR',
-    timestamp: new Date().toISOString()
-  });
-}
-```
-
-#### 4. Rate Limiting & Security Middleware
-**Install**: `npm install express-rate-limit express-slow-down`
-
-**File**: `golden-nuggets-api/src/middleware/security.ts`
-```typescript
-import rateLimit from 'express-rate-limit';
-import slowDown from 'express-slow-down';
-import { config } from '../config/config';
-
-export const apiRateLimit = rateLimit({
-  windowMs: config.rateLimiting.windowMs,
-  max: config.rateLimiting.max,
-  message: {
-    error: 'Too many requests from this IP',
-    retryAfter: Math.ceil(config.rateLimiting.windowMs / 1000)
-  },
-  standardHeaders: true,
-  legacyHeaders: false
-});
-
-export const speedLimiter = slowDown({
-  windowMs: config.rateLimiting.windowMs,
-  delayAfter: Math.floor(config.rateLimiting.max / 2),
-  delayMs: 500,
-  maxDelayMs: 20000
-});
-```
-
-#### 5. Health Check Endpoint
-**File**: `golden-nuggets-api/src/api/health.ts`
-```typescript
-import { Request, Response } from 'express';
-
-export async function healthCheck(req: Request, res: Response) {
-  const health = {
-    status: 'healthy',
-    timestamp: new Date().toISOString(),
-    uptime: process.uptime(),
-    memory: process.memoryUsage(),
-    services: {
-      api: 'operational',
-      scraping: 'operational'
-    }
-  };
-
-  try {
-    // Add basic service checks if needed
-    res.status(200).json(health);
-  } catch (error) {
-    health.status = 'unhealthy';
-    health.services.api = 'degraded';
-    res.status(503).json(health);
-  }
-}
-```
-
-#### 6. Updated Main App
-**File**: `golden-nuggets-api/src/app.ts` - Production version
 ```typescript
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
-import morgan from 'morgan';
-import { config } from './config/config';
-import { apiRateLimit, speedLimiter } from './middleware/security';
-import { errorHandler } from './middleware/errorHandler';
-import { extractGoldenNuggets } from './api/extract';
-import { healthCheck } from './api/health';
 
 const app = express();
 
-// Security middleware
 app.use(helmet());
-app.use(cors({
-  origin: process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000'],
-  credentials: false
-}));
-
-// Logging
-if (config.nodeEnv !== 'test') {
-  app.use(morgan('combined'));
-}
-
-// Body parsing
+app.use(cors());
 app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Rate limiting
-app.use('/api', apiRateLimit, speedLimiter);
+// Authentication middleware
+app.use('/api', authenticationMiddleware);
 
-// Routes
-app.get('/health', healthCheck);
-app.post('/api/extract', extractGoldenNuggets);
+// API routes
+app.use('/api', apiRoutes);
 
-// Error handling
+// Error handling middleware
 app.use(errorHandler);
 
-// 404 handler
-app.use((req, res) => {
-  res.status(404).json({ 
-    error: 'Endpoint not found',
-    availableEndpoints: [
-      'GET /health',
-      'POST /api/extract'
-    ]
-  });
-});
+const PORT = process.env.PORT || 3000;
+app.listen(PORT);
+```
 
-export { app };
+#### 2. Authentication Middleware
+**File**: `api/src/middleware/auth.ts`
+**Changes**: Simple token-based authentication for hobby project
 
-// Start server if not in test mode
-if (require.main === module) {
-  app.listen(config.port, () => {
-    console.log(`Golden Nuggets API running on port ${config.port}`);
-    console.log(`Environment: ${config.nodeEnv}`);
-    console.log(`Health check: http://localhost:${config.port}/health`);
-  });
+```typescript
+function authenticationMiddleware(req: Request, res: Response, next: NextFunction) {
+  const token = req.headers.authorization?.replace('Bearer ', '');
+  const expectedToken = process.env.API_ACCESS_TOKEN;
+  
+  if (!token || token !== expectedToken) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  
+  next();
 }
 ```
 
-### Success Criteria
+#### 3. Request Validation
+**File**: `api/src/middleware/validation.ts`
+**Changes**: Comprehensive request validation using Zod or similar
+
+```typescript
+import { z } from 'zod';
+
+const AnalyzeRequestSchema = z.object({
+  url: z.string().url(),
+  provider: z.object({
+    providerId: z.enum(['gemini', 'openai', 'anthropic', 'openrouter']),
+    modelId: z.string(),
+    apiKey: z.string().min(1)
+  }),
+  ensemble: z.object({
+    mode: z.enum(['single-model', 'multi-provider']),
+    runs: z.number().min(1).max(10).optional(),
+    providers: z.array(z.object({
+      providerId: z.enum(['gemini', 'openai', 'anthropic', 'openrouter']),
+      modelId: z.string(),
+      apiKey: z.string()
+    })).optional()
+  }).optional(),
+  typeFilter: z.array(z.enum(['tool', 'media', 'aha! moments', 'analogy', 'model'])).optional()
+});
+```
+
+#### 4. API Routes
+**File**: `api/src/routes/analyze.ts`
+**Changes**: Main API endpoint implementation
+
+```typescript
+class AnalyzeController {
+  private contentExtractor = new ContentExtractor();
+  private goldenNuggetService = new GoldenNuggetService();
+
+  async analyze(req: Request, res: Response) {
+    try {
+      const request = AnalyzeRequestSchema.parse(req.body);
+      
+      // Extract content using hybrid scraping
+      const content = await this.contentExtractor.extractContent(request.url);
+      
+      // Analyze using golden nugget service
+      const result = await this.goldenNuggetService.analyze({
+        content,
+        ...request
+      });
+      
+      res.json(result);
+    } catch (error) {
+      next(error);
+    }
+  }
+}
+```
+
+#### 5. Golden Nugget Service
+**File**: `api/src/services/golden-nugget-service.ts`  
+**Changes**: Orchestrate AI analysis with ensemble support
+
+```typescript
+class GoldenNuggetService {
+  private providerFactory = new ProviderFactory();
+  private ensembleExtractor = new EnsembleExtractor();
+  private typeFilterService = new TypeFilterService();
+
+  async analyze(request: AnalyzeServiceRequest): Promise<AnalyzeResponse> {
+    // Apply type filtering to prompt
+    const basePrompt = this.getBasePrompt();
+    const filteredPrompt = request.typeFilter 
+      ? this.typeFilterService.generateFilteredPrompt(basePrompt, request.typeFilter)
+      : basePrompt;
+
+    // Convert content to text (reuse Chrome extension logic)
+    const contentText = this.convertContentToText(request.content);
+
+    // Single or ensemble analysis
+    if (request.ensemble?.mode === 'multi-provider') {
+      return await this.multiProviderAnalysis(contentText, filteredPrompt, request);
+    } else if (request.ensemble?.mode === 'single-model') {
+      return await this.singleModelEnsemble(contentText, filteredPrompt, request);
+    } else {
+      return await this.singleAnalysis(contentText, filteredPrompt, request);
+    }
+  }
+
+  private async multiProviderAnalysis(
+    content: string, 
+    prompt: string, 
+    request: AnalyzeServiceRequest
+  ): Promise<AnalyzeResponse> {
+    // Create providers from request configurations
+    const providerConfigs = request.ensemble!.providers!.map(p => ({
+      providerId: p.providerId,
+      modelId: p.modelId,
+      provider: this.providerFactory.createProvider({
+        providerId: p.providerId,
+        apiKey: p.apiKey,
+        modelName: p.modelId
+      })
+    }));
+
+    // Use ensemble extractor for multi-provider consensus
+    const result = await this.ensembleExtractor.extractWithMultiProviderEnsemble(
+      content,
+      prompt,
+      providerConfigs
+    );
+
+    return this.formatResponse(result, request);
+  }
+}
+```
+
+### Success Criteria:
 
 #### Automated Verification
-- [ ] Docker image builds successfully: `docker build -t golden-nuggets-api .`
-- [ ] Container starts and passes health check: `docker-compose up -d`
-- [ ] Health endpoint returns 200: `curl http://localhost:3001/health`
-- [ ] Rate limiting works: Test with rapid requests
-- [ ] Error handling returns proper HTTP status codes
+- [ ] Express server starts without errors: `pnpm dev`
+- [ ] Authentication middleware rejects invalid tokens
+- [ ] Request validation catches malformed requests
+- [ ] API responds with proper HTTP status codes
+- [ ] Error handling returns structured error responses
 
 #### Manual Verification
-- [ ] API handles invalid URLs gracefully with clear error messages
-- [ ] Memory usage stays within reasonable bounds during operation
-- [ ] Container restarts automatically on crashes
-- [ ] Logs are captured and accessible via `docker-compose logs`
-- [ ] Production configuration works in Docker environment
+- [ ] `/api/analyze` endpoint accepts valid requests and returns structured responses
+- [ ] Authentication properly secures the API from unauthorized access
+- [ ] Request validation provides helpful error messages for invalid input
+- [ ] API integrates successfully with content extraction and AI analysis
+- [ ] Response format matches the planned API specification
 
 ---
 
-## Phase 4: Advanced Features (Optional)
+## Phase 4: Integration and Multi-Provider Support
 
 ### Overview
-Add batch processing, enhanced anti-detection, monitoring, and performance optimizations for production scale usage.
+Complete the integration between content extraction, AI analysis, and ensemble processing. Ensure full compatibility with all AI providers and ensemble modes.
 
 ### Changes Required:
 
-#### 1. Batch Processing API
-**File**: `golden-nuggets-api/src/api/batch.ts`
+#### 1. Provider Factory Adaptation
+**File**: `api/src/services/provider-factory.ts`
+**Changes**: Adapt Chrome extension provider factory for API environment
+
 ```typescript
-import { Request, Response } from 'express';
-import { HybridScraper } from '../scrapers/hybrid-scraper';
-import { createProvider } from '../services/provider-factory';
-
-export async function batchExtract(req: Request, res: Response) {
-  const { 
-    urls, 
-    provider = 'gemini',
-    apiKey,
-    concurrency = 3,
-    ...extractConfig 
-  } = req.body;
-
-  if (!Array.isArray(urls) || urls.length === 0) {
-    return res.status(400).json({ error: 'URLs array is required' });
+class ProviderFactory {
+  createProvider(config: ProviderConfig): LLMProvider {
+    switch (config.providerId) {
+      case 'gemini':
+        return new GeminiDirectProvider(config);
+      case 'openai':
+        return new LangChainOpenAIProvider(config);
+      case 'anthropic':
+        return new LangChainAnthropicProvider(config);
+      case 'openrouter':
+        return new LangChainOpenRouterProvider(config);
+      default:
+        throw new Error(`Unsupported provider: ${config.providerId}`);
+    }
   }
 
-  if (urls.length > 10) {
-    return res.status(400).json({ error: 'Maximum 10 URLs per batch' });
+  createMultipleProviders(
+    configurations: Array<{ providerId: ProviderId; modelId: string; apiKey: string }>
+  ): Array<{ providerId: ProviderId; modelId: string; provider: LLMProvider }> {
+    // Adapted from Chrome extension bulk provider creation
+    return configurations.map(config => ({
+      providerId: config.providerId,
+      modelId: config.modelId,
+      provider: this.createProvider({
+        providerId: config.providerId,
+        apiKey: config.apiKey,
+        modelName: config.modelId
+      })
+    }));
   }
+}
+```
 
-  const scraper = new HybridScraper();
-  const aiProvider = createProvider(provider, apiKey);
-  
-  // Process URLs with controlled concurrency
-  const results = [];
-  for (let i = 0; i < urls.length; i += concurrency) {
-    const batch = urls.slice(i, i + concurrency);
+#### 2. Content Processing Adapter
+**File**: `api/src/services/content-processor.ts`
+**Changes**: Adapt Chrome extension content processing logic
+
+```typescript
+class ContentProcessor {
+  convertContentToText(content: Content): string {
+    // Reuse exact logic from Chrome extension content script
+    const items = content.items || [];
+    let result = '';
     
-    const batchPromises = batch.map(async (url: string) => {
-      try {
-        const content = await scraper.scrapeContent(url);
-        const nuggets = await aiProvider.extractGoldenNuggets(
-          content, 
-          extractConfig.prompt || getDefaultPrompt(),
-          extractConfig.temperature || 0.7,
-          extractConfig.nuggetTypes || []
-        );
-        
-        return { url, success: true, result: nuggets };
-      } catch (error) {
-        return { 
-          url, 
-          success: false, 
-          error: error instanceof Error ? error.message : 'Unknown error' 
-        };
+    if (content.title) {
+      result += `${content.title}\n\n`;
+    }
+    
+    for (const item of items) {
+      const typePrefix = this.getTypePrefix(item.type);
+      const cleanText = this.stripHtml(item.htmlContent || item.text || '');
+      result += `${typePrefix} ${cleanText}\n\n`;
+    }
+    
+    return result.trim();
+  }
+
+  private getTypePrefix(type: string): string {
+    // Same logic as Chrome extension
+    const prefixes: Record<string, string> = {
+      post: '[POST]',
+      comment: '[COMMENT]',
+      text: '[TEXT]',
+      link: '[LINK]'
+    };
+    return prefixes[type] || '[CONTENT]';
+  }
+}
+```
+
+#### 3. Ensemble Integration  
+**File**: `api/src/services/ensemble-adapter.ts`
+**Changes**: Adapt ensemble extractor for API server environment
+
+```typescript
+class EnsembleAdapter {
+  private ensembleExtractor = new EnsembleExtractor();
+
+  async executeSingleModelEnsemble(
+    content: string,
+    prompt: string,
+    provider: LLMProvider,
+    runs: number = 3
+  ): Promise<EnsembleExtractionResult> {
+    // Direct reuse of Chrome extension ensemble logic
+    return await this.ensembleExtractor.extractWithEnsemble(
+      content,
+      prompt,
+      provider,
+      { runs, temperature: 0.7, parallelExecution: true }
+    );
+  }
+
+  async executeMultiProviderEnsemble(
+    content: string,
+    prompt: string,
+    providerConfigurations: Array<{
+      providerId: ProviderId;
+      modelId: string;
+      provider: LLMProvider;
+    }>
+  ): Promise<EnsembleExtractionResult> {
+    // Direct reuse of Chrome extension multi-provider ensemble logic
+    return await this.ensembleExtractor.extractWithMultiProviderEnsemble(
+      content,
+      prompt,
+      providerConfigurations
+    );
+  }
+}
+```
+
+#### 4. Response Formatting
+**File**: `api/src/services/response-formatter.ts`
+**Changes**: Format API responses with full metadata
+
+```typescript
+class ResponseFormatter {
+  formatAnalyzeResponse(
+    result: EnsembleExtractionResult,
+    request: AnalyzeServiceRequest,
+    metadata: {
+      scrapingStrategy: 'static' | 'browser';
+      extractionTime: number;
+      contentLength: number;
+    }
+  ): AnalyzeResponse {
+    return {
+      success: true,
+      data: {
+        golden_nuggets: result.golden_nuggets.map(nugget => ({
+          type: nugget.type,
+          fullContent: nugget.fullContent,
+          confidence: nugget.confidence,
+          sourceProvider: nugget.sourceProvider,
+          sourceModel: nugget.sourceModel,
+          contributingProviders: nugget.contributingProviders,
+          runsSupportingThis: nugget.runsSupportingThis,
+          totalRuns: nugget.totalRuns,
+          similarityMethod: nugget.similarityMethod
+        })),
+        metadata: {
+          url: request.url,
+          scrapingStrategy: metadata.scrapingStrategy,
+          extractionMode: this.getExtractionMode(request),
+          ...result.metadata,
+          contentExtraction: {
+            method: metadata.scrapingStrategy,
+            contentLength: metadata.contentLength,
+            extractionTime: metadata.extractionTime
+          }
+        }
       }
-    });
-    
-    const batchResults = await Promise.allSettled(batchPromises);
-    results.push(...batchResults.map(r => 
-      r.status === 'fulfilled' ? r.value : r.reason
-    ));
-  }
-
-  await scraper.close();
-
-  const successful = results.filter(r => r.success);
-  const failed = results.filter(r => !r.success);
-
-  res.json({
-    total: urls.length,
-    successful: successful.length,
-    failed: failed.length,
-    results
-  });
-}
-```
-
-#### 2. Enhanced Anti-Detection
-**Install**: `npm install playwright-extra playwright-extra-plugin-stealth`
-
-**File**: `golden-nuggets-api/src/scrapers/stealth-playwright-scraper.ts`
-```typescript
-import { chromium } from 'playwright-extra';
-import stealth from 'playwright-extra-plugin-stealth';
-
-chromium.use(stealth());
-
-export class StealthPlaywrightScraper {
-  private browser: any = null;
-
-  async init() {
-    if (!this.browser) {
-      this.browser = await chromium.launch({
-        headless: true,
-        args: [
-          '--no-sandbox',
-          '--disable-setuid-sandbox',
-          '--disable-blink-features=AutomationControlled'
-        ]
-      });
-    }
-  }
-
-  async scrapeContent(url: string): Promise<string> {
-    await this.init();
-    
-    const context = await this.browser.newContext({
-      userAgent: this.getRandomUserAgent(),
-      viewport: this.getRandomViewport(),
-      locale: 'en-US',
-      timezoneId: 'America/New_York'
-    });
-
-    // Add random mouse movements
-    const page = await context.newPage();
-    
-    try {
-      await page.goto(url, { waitUntil: 'networkidle' });
-      
-      // Simulate human behavior
-      await page.mouse.move(
-        Math.random() * 800, 
-        Math.random() * 600
-      );
-      
-      await page.waitForTimeout(Math.random() * 3000 + 1000);
-      
-      const content = await page.evaluate(() => {
-        const elementsToRemove = document.querySelectorAll(
-          'script, style, nav, header, footer, .ad, .advertisement'
-        );
-        elementsToRemove.forEach(el => el.remove());
-        
-        return document.body.innerText;
-      });
-      
-      return content;
-    } finally {
-      await context.close();
-    }
-  }
-
-  private getRandomUserAgent(): string {
-    const agents = [
-      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-    ];
-    return agents[Math.floor(Math.random() * agents.length)];
-  }
-
-  private getRandomViewport() {
-    const viewports = [
-      { width: 1920, height: 1080 },
-      { width: 1366, height: 768 },
-      { width: 1536, height: 864 }
-    ];
-    return viewports[Math.floor(Math.random() * viewports.length)];
-  }
-
-  async close() {
-    if (this.browser) {
-      await this.browser.close();
-      this.browser = null;
-    }
+    };
   }
 }
 ```
 
-#### 3. Performance Monitoring
-**Install**: `npm install prom-client`
-
-**File**: `golden-nuggets-api/src/middleware/metrics.ts`
-```typescript
-import promClient from 'prom-client';
-
-const register = new promClient.Register();
-
-export const httpDuration = new promClient.Histogram({
-  name: 'http_request_duration_seconds',
-  help: 'Duration of HTTP requests in seconds',
-  labelNames: ['method', 'route', 'status'],
-  registers: [register]
-});
-
-export const scrapingDuration = new promClient.Histogram({
-  name: 'scraping_duration_seconds',
-  help: 'Duration of scraping operations',
-  labelNames: ['scraper_type', 'success'],
-  registers: [register]
-});
-
-export const activeRequests = new promClient.Gauge({
-  name: 'active_requests',
-  help: 'Number of active requests',
-  registers: [register]
-});
-
-register.setDefaultLabels({ service: 'golden-nuggets-api' });
-
-export { register };
-```
-
-### Success Criteria
+### Success Criteria:
 
 #### Automated Verification
-- [ ] Batch processing handles multiple URLs correctly
-- [ ] Stealth scraper passes basic anti-bot tests
-- [ ] Metrics are collected and exposed at `/metrics`
-- [ ] Performance improvements measurable
+- [ ] All AI providers work correctly in API server environment
+- [ ] Single-model ensemble mode produces consensus results
+- [ ] Multi-provider ensemble mode shows cross-provider attribution
+- [ ] Type filtering correctly filters nuggets by selected types
+- [ ] Confidence filtering applies 0.85 threshold consistently
+- [ ] Response formatting matches API specification exactly
 
 #### Manual Verification
-- [ ] Batch API processes up to 10 URLs efficiently
-- [ ] Enhanced anti-detection works on Twitter/Reddit
-- [ ] Memory usage optimized for concurrent requests
-- [ ] Response times remain reasonable under load
+- [ ] Gemini, OpenAI, Anthropic, and OpenRouter providers all work correctly
+- [ ] Single-model ensemble mode with 3 runs produces consensus with confidence scores
+- [ ] Multi-provider ensemble mode shows contributing providers for each nugget
+- [ ] Type filtering (e.g., tools only) correctly filters extraction results
+- [ ] Response includes complete metadata about providers, scraping strategy, and analysis
+- [ ] No confidence filtering bypassed - all returned nuggets have confidence ≥ 0.85
 
 ---
 
 ## Testing Strategy
 
 ### Unit Tests
-- API endpoint validation and error handling
-- Scraper functionality with mock responses
-- AI provider integration with test API keys
-- Configuration and middleware behavior
+
+**Core Components to Test**:
+- **AI Provider Integration**: Mock API calls to test each provider's response handling
+- **Ensemble Logic**: Test consensus building algorithms with known inputs
+- **Hybrid Scraping**: Test decision logic for static vs browser automation
+- **Content Processing**: Test conversion from scraped content to analysis text
+- **Type Filtering**: Test prompt generation with different type combinations
+- **Request Validation**: Test API request parsing and validation logic
+
+**Key Test Files**:
+```
+tests/
+├── providers/           # Test each AI provider with mocked responses
+├── services/           # Test ensemble and content processing logic  
+├── scraping/           # Test hybrid scraping strategy and extractors
+├── api/                # Test API routes and middleware
+└── integration/        # End-to-end API tests
+```
 
 ### Integration Tests
-- End-to-end extraction workflow
-- Multi-provider AI integration
-- Error scenarios and recovery
-- Docker container functionality
+
+**End-to-End API Testing**:
+- **Static Site Analysis**: Test full pipeline with Hacker News URL
+- **Dynamic Site Analysis**: Test full pipeline with Twitter/Reddit URL  
+- **Multi-Provider Ensemble**: Test cross-provider consensus building
+- **Error Handling**: Test API responses for invalid inputs and provider failures
+- **Authentication**: Test API security with valid/invalid tokens
 
 ### Manual Testing Steps
-1. **Basic Functionality**
+
+1. **Basic Static Site Extraction**:
    ```bash
-   # Test Hacker News extraction
-   curl -X POST http://localhost:3001/api/extract \
+   curl -X POST localhost:3000/api/analyze \
+     -H "Authorization: Bearer YOUR_TOKEN" \
      -H "Content-Type: application/json" \
-     -d '{
-       "url": "https://news.ycombinator.com/item?id=38981254",
-       "provider": "gemini",
-       "apiKey": "your-key"
-     }'
+     -d '{"url": "https://news.ycombinator.com", "provider": {"providerId": "gemini", "modelId": "gemini-1.5-flash", "apiKey": "YOUR_KEY"}}'
    ```
 
-2. **Provider Testing**
-   - Test each AI provider (Gemini, OpenAI, Anthropic, OpenRouter)
-   - Verify consistent response format
-   - Check error handling for invalid API keys
-
-3. **Ensemble Mode**
+2. **Dynamic Site with Browser Automation**:
    ```bash
-   # Test ensemble extraction
-   curl -X POST http://localhost:3001/api/extract \
-     -H "Content-Type: application/json" \
-     -d '{
-       "url": "https://news.ycombinator.com/item?id=38981254",
-       "provider": "gemini",
-       "apiKey": "your-key",
-       "ensemble": true
-     }'
+   curl -X POST localhost:3000/api/analyze \
+     -H "Authorization: Bearer YOUR_TOKEN" \
+     -H "Content-Type: application/json" \  
+     -d '{"url": "https://twitter.com/username", "provider": {"providerId": "openai", "modelId": "gpt-4o", "apiKey": "YOUR_KEY"}, "options": {"scrapingStrategy": "browser"}}'
    ```
 
-4. **Batch Processing** (Phase 4)
+3. **Multi-Provider Ensemble Analysis**:
    ```bash
-   # Test batch extraction
-   curl -X POST http://localhost:3001/api/extract/batch \
+   curl -X POST localhost:3000/api/analyze \
+     -H "Authorization: Bearer YOUR_TOKEN" \
      -H "Content-Type: application/json" \
-     -d '{
-       "urls": ["url1", "url2", "url3"],
-       "provider": "gemini",
-       "apiKey": "your-key"
-     }'
+     -d '{"url": "https://example.com", "ensemble": {"mode": "multi-provider", "providers": [{"providerId": "gemini", "modelId": "gemini-1.5-flash", "apiKey": "KEY1"}, {"providerId": "openai", "modelId": "gpt-4o", "apiKey": "KEY2"}]}}'
+   ```
+
+4. **Type Filtering Test**:
+   ```bash
+   curl -X POST localhost:3000/api/analyze \
+     -H "Authorization: Bearer YOUR_TOKEN" \
+     -H "Content-Type: application/json" \
+     -d '{"url": "https://example.com", "provider": {"providerId": "gemini", "modelId": "gemini-1.5-flash", "apiKey": "YOUR_KEY"}, "typeFilter": ["tool", "media"]}'
    ```
 
 ## Performance Considerations
 
-### Expected Performance
-- **Static Sites** (Cheerio): 1-3 seconds per extraction
-- **Dynamic Sites** (Playwright): 5-15 seconds per extraction
-- **Memory Usage**: 100-500MB depending on browser instances
-- **Concurrent Requests**: 3-5 without performance degradation
+### Hybrid Scraping Optimization
+- **Static First**: Always attempt static scraping before escalating to browser automation
+- **Caching Strategy**: Cache scraping strategy decisions for known URLs
+- **Resource Management**: Proper Hero browser instance cleanup to prevent memory leaks
+- **Timeout Handling**: Reasonable timeouts for both static requests and browser automation
 
-### Optimization Strategies
-- Browser instance reuse to reduce startup overhead
-- Content size limits to prevent memory issues
-- Request queuing to prevent system overload
-- Response caching for repeated URLs (optional)
+### AI Provider Optimization
+- **Parallel Execution**: Multi-provider ensemble calls providers simultaneously
+- **Connection Pooling**: Reuse HTTP connections for provider API calls
+- **Rate Limiting**: Respect provider-specific rate limits and implement backoff
+- **Error Recovery**: Graceful fallback when individual providers fail
+
+### Memory Management
+- **Content Size Limits**: Reasonable limits on scraped content size
+- **Browser Cleanup**: Ensure Hero browsers are properly closed after use
+- **Request Limits**: Limit concurrent analysis requests to prevent resource exhaustion
 
 ## Migration Notes
 
-### From Extension to API
-1. **Shared Code Extraction**: Move AI providers to shared package
-2. **Configuration Updates**: Externalize configuration from Chrome storage to environment variables
-3. **Error Handling**: Adapt extension error handling to HTTP status codes
-4. **Testing**: Create API-specific test suites
+### From Chrome Extension Architecture
 
-### Deployment Considerations
-- Use Docker Compose for simple self-hosting
-- Mount configuration files for easy updates
-- Set up log rotation to prevent disk space issues
-- Configure proper memory limits for containers
+**Storage Migration**:
+- Chrome extension uses encrypted storage - API server uses environment variables
+- Provider configurations passed per request instead of stored persistently  
+- No need to migrate user prompts - API uses default prompt with optional type filtering
+
+**Code Migration Path**:
+1. **Direct Copy**: AI providers, ensemble logic, type filtering (80% of codebase)
+2. **Adaptation**: Content extraction (replace threads-harvester with hybrid scraping)
+3. **Replacement**: Message passing (replace with direct function calls)
+4. **Addition**: HTTP API layer and authentication middleware
+
+**Breaking Changes**:
+- No persistent user state - all configuration passed per request
+- No progress updates - synchronous analysis with final response
+- No Chrome extension storage encryption (use environment variables instead)
 
 ## References
 
-- Original request: Proof of concept API for golden nugget extraction
-- Extension architecture: `src/background/services/`, `src/shared/providers/`
-- AI provider interfaces: `src/shared/types/providers.ts:35`
-- Ensemble implementation: `src/background/services/ensemble-extractor.ts:27`
-- Web scraping research: Comprehensive analysis of Playwright, Cheerio, anti-detection techniques
-- Container deployment: Docker best practices for Node.js applications
+- **Original Chrome Extension**: Existing codebase in project root
+- **Hero Documentation**: https://github.com/ulixee/hero for browser automation
+- **Hybrid Scraping Research**: Research findings on static vs browser automation strategies
+- **Provider Documentation**: AI provider APIs (Gemini, OpenAI, Anthropic, OpenRouter)
+- **User Requirements**: Support single-model and multi-provider ensemble modes with type filtering
