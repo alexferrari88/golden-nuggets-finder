@@ -158,20 +158,23 @@ test.describe("Golden Nuggets API Integration", () => {
 			"data:text/html,<html><body><p>Test page</p></body></html>",
 		);
 
-		// Inject validation test directly into the page
+		// Inject validation test directly into the page with new fullContent schema
 		const schemaTest = await testPage.evaluate(() => {
-			// Define interfaces for validation
+			// Define interfaces for validation with new fullContent schema
 			interface GoldenNugget {
 				type: "tool" | "media" | "aha! moments" | "analogy" | "model";
-				startContent: string;
-				endContent: string;
+				fullContent: string;
+				confidence: number;
+				extractionMethod?: string;
+				sourceProvider?: string;
+				sourceModel?: string;
 			}
 
 			interface GoldenNuggetsResponse {
 				golden_nuggets: GoldenNugget[];
 			}
 
-			// Define the validation function inline (simplified version)
+			// Define the validation function inline (updated for new schema)
 			const validateGoldenNuggets = (response: GoldenNuggetsResponse) => {
 				if (!response || !Array.isArray(response.golden_nuggets)) {
 					return false;
@@ -188,24 +191,32 @@ test.describe("Golden Nuggets API Integration", () => {
 				return response.golden_nuggets.every(
 					(nugget: GoldenNugget) =>
 						nugget &&
-						typeof nugget.startContent === "string" &&
-						typeof nugget.endContent === "string" &&
+						typeof nugget.fullContent === "string" &&
+						typeof nugget.confidence === "number" &&
+						nugget.confidence >= 0 &&
+						nugget.confidence <= 1 &&
 						validTypes.includes(nugget.type),
 				);
 			};
 
-			// Test valid response
+			// Test valid response with new schema
 			const validResponse = {
 				golden_nuggets: [
 					{
 						type: "tool",
-						startContent: "Use regex101.com for",
-						endContent: "testing regular expressions",
+						fullContent: "Use regex101.com for testing regular expressions",
+						confidence: 0.9,
+						extractionMethod: "llm",
+						sourceProvider: "gemini",
+						sourceModel: "gemini-1.5-flash",
 					},
 					{
 						type: "aha! moments",
-						startContent: "React hooks follow",
-						endContent: "composition over inheritance",
+						fullContent: "React hooks follow composition over inheritance",
+						confidence: 0.85,
+						extractionMethod: "llm",
+						sourceProvider: "openai",
+						sourceModel: "gpt-4o-mini",
 					},
 				],
 			};
@@ -215,8 +226,8 @@ test.describe("Golden Nuggets API Integration", () => {
 				golden_nuggets: [
 					{
 						type: "invalid_type",
-						startContent: "Some content",
-						endContent: "Some content",
+						fullContent: "Some content",
+						confidence: 0.8,
 					},
 				],
 			};

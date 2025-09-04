@@ -129,7 +129,7 @@ describe("GeminiClient", () => {
 			await geminiClient.analyzeContent("test content", "test prompt");
 
 			expect(global.fetch).toHaveBeenCalledWith(
-				expect.stringContaining("gemini-2.5-flash:generateContent"),
+				expect.stringContaining("gemini-2.5-flash-lite:generateContent"),
 				expect.objectContaining({
 					method: "POST",
 					headers: {

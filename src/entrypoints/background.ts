@@ -124,6 +124,9 @@ export default defineBackground(() => {
 			} else if (info.menuItemId === "select-comments") {
 				console.log("[Background] Handling select-comments click");
 				handleCommentSelectionClick(tab);
+			} else if (info.menuItemId === "ensemble_analysis") {
+				console.log("[Background] Handling ensemble_analysis click");
+				handleEnsembleAnalysisClick(tab);
 			} else if (info.menuItemId === "report-missed-nugget") {
 				console.log("[Background] Handling report-missed-nugget click");
 				handleReportMissedNugget(tab, info);
@@ -219,6 +222,14 @@ export default defineBackground(() => {
 				contexts: ["page", "selection"],
 			});
 
+			// Add "Ensemble Analysis" option
+			chrome.contextMenus.create({
+				id: "ensemble_analysis",
+				parentId: "golden-nuggets-finder",
+				title: "🎯 Ensemble Analysis (3 runs)",
+				contexts: ["page", "selection"],
+			});
+
 			// Add "Report missed golden nugget" option (only if analysis has been completed)
 			if (showReportMissedNugget) {
 				chrome.contextMenus.create({
@@ -253,17 +264,29 @@ export default defineBackground(() => {
 
 			// Check if current provider is configured before proceeding
 			const currentProvider = await getCurrentProvider();
-			const isConfigured = await isProviderConfigured(currentProvider);
+			let isConfigured = false;
+			let errorType = "missing_key"; // default assumption
+
+			try {
+				isConfigured = await isProviderConfigured(currentProvider);
+			} catch (error) {
+				// If isProviderConfigured throws, try to determine the error type
+				const errorMessage = (error as Error).message;
+				if (errorMessage.includes("Rate limit exceeded")) {
+					errorType = "rate_limited";
+				}
+			}
 
 			if (!isConfigured) {
 				console.log(
-					`[Background] Provider ${currentProvider} not configured - showing error message`,
+					`[Background] Provider ${currentProvider} not configured - showing error message (${errorType})`,
 				);
 				// Show API key error message with link to options page
 				// Add a small delay to ensure content script is ready
 				await new Promise((resolve) => setTimeout(resolve, 100));
 				await chrome.tabs.sendMessage(tab.id, {
 					type: MESSAGE_TYPES.SHOW_API_KEY_ERROR,
+					errorType: errorType,
 				});
 				return;
 			}
@@ -313,15 +336,27 @@ export default defineBackground(() => {
 
 			// Check if current provider is configured before proceeding
 			const currentProvider = await getCurrentProvider();
-			const isConfigured = await isProviderConfigured(currentProvider);
+			let isConfigured = false;
+			let errorType = "missing_key"; // default assumption
+
+			try {
+				isConfigured = await isProviderConfigured(currentProvider);
+			} catch (error) {
+				// If isProviderConfigured throws, try to determine the error type
+				const errorMessage = (error as Error).message;
+				if (errorMessage.includes("Rate limit exceeded")) {
+					errorType = "rate_limited";
+				}
+			}
 
 			if (!isConfigured) {
 				console.log(
-					`[Background] Provider ${currentProvider} not configured - showing error message`,
+					`[Background] Provider ${currentProvider} not configured - showing error message (${errorType})`,
 				);
 				await new Promise((resolve) => setTimeout(resolve, 100));
 				await chrome.tabs.sendMessage(tab.id, {
 					type: MESSAGE_TYPES.SHOW_API_KEY_ERROR,
+					errorType: errorType,
 				});
 				return;
 			}
@@ -392,6 +427,80 @@ export default defineBackground(() => {
 		} catch (error) {
 			console.error(
 				"[Background] Failed to handle missed nugget report:",
+				error,
+			);
+		}
+	}
+
+	async function handleEnsembleAnalysisClick(
+		tab?: chrome.tabs.Tab,
+	): Promise<void> {
+		if (!tab?.id) return;
+
+		try {
+			// Inject content script dynamically first
+			await injectContentScript(tab.id);
+
+			// Check if current provider is configured before proceeding
+			const currentProvider = await getCurrentProvider();
+			let isConfigured = false;
+			let errorType = "missing_key"; // default assumption
+
+			try {
+				isConfigured = await isProviderConfigured(currentProvider);
+			} catch (error) {
+				// If isProviderConfigured throws, try to determine the error type
+				const errorMessage = (error as Error).message;
+				if (errorMessage.includes("Rate limit exceeded")) {
+					errorType = "rate_limited";
+				}
+			}
+
+			if (!isConfigured) {
+				console.log(
+					`[Background] Provider ${currentProvider} not configured - showing error message (${errorType})`,
+				);
+				// Show API key error message with link to options page
+				// Add a small delay to ensure content script is ready
+				await new Promise((resolve) => setTimeout(resolve, 100));
+				await chrome.tabs.sendMessage(tab.id, {
+					type: MESSAGE_TYPES.SHOW_API_KEY_ERROR,
+					errorType: errorType,
+				});
+				return;
+			}
+
+			console.log(
+				`[Background] Provider ${currentProvider} configured - starting ensemble analysis`,
+			);
+
+			// Get ensemble settings for ensemble analysis
+			let ensembleOptions: { runs: number } = {
+				runs: 3,
+			};
+			try {
+				const ensembleSettings = await storage.getEnsembleSettings();
+				if (ensembleSettings.enabled) {
+					ensembleOptions = {
+						runs: ensembleSettings.defaultRuns,
+					};
+				}
+			} catch (error) {
+				console.warn(
+					"[Background] Failed to get ensemble settings, using defaults:",
+					error,
+				);
+			}
+
+			// Send message to content script to start ensemble analysis
+			await chrome.tabs.sendMessage(tab.id, {
+				type: MESSAGE_TYPES.ANALYZE_CONTENT_ENSEMBLE,
+				promptId: "default",
+				ensembleOptions,
+			});
+		} catch (error) {
+			console.error(
+				"[Background] Failed to handle ensemble analysis click:",
 				error,
 			);
 		}

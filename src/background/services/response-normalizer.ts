@@ -7,8 +7,10 @@ import type {
 // Types for raw API responses that need normalization
 type RawGoldenNugget = {
 	type: string;
-	startContent?: unknown;
-	endContent?: unknown;
+	fullContent?: unknown;
+	confidence?: unknown;
+	validationScore?: unknown;
+	extractionMethod?: unknown;
 	[key: string]: unknown;
 };
 
@@ -22,9 +24,35 @@ type RawApiResponse =
 const GoldenNuggetsSchema = z.object({
 	golden_nuggets: z.array(
 		z.object({
-			type: z.enum(["tool", "media", "aha! moments", "analogy", "model"]),
-			startContent: z.string(),
-			endContent: z.string(),
+			type: z.enum([
+				// Canonical types
+				"tool",
+				"media",
+				"aha! moments",
+				"analogy",
+				"model",
+				// AI model variations that this normalizer handles
+				"mental model",
+				"mental_model",
+				"aha!_moments", // Underscore variation that some models return
+				"framework",
+				"technique",
+				"method",
+				"resource",
+				"book",
+				"article",
+				"concept",
+				"comparison",
+				"metaphor",
+				// Plural variations that some models return
+				"tools",
+				"analogies",
+				"models",
+			]),
+			fullContent: z.string(),
+			confidence: z.number().optional(),
+			validationScore: z.number().optional(),
+			extractionMethod: z.string().optional(),
 		}),
 	),
 });
@@ -40,17 +68,19 @@ export function normalize(
 		// Validate response structure
 		const validated = GoldenNuggetsSchema.parse(preprocessed);
 
-		// Ensure startContent and endContent are strings and non-empty
-		const normalized = {
+		// Ensure fullContent is a string and non-empty
+		const normalized: GoldenNuggetsResponse = {
 			golden_nuggets: validated.golden_nuggets
 				.map((nugget) => ({
 					type: normalizeType(nugget.type),
-					startContent: String(nugget.startContent).trim(),
-					endContent: String(nugget.endContent).trim(),
+					fullContent: String(nugget.fullContent || "").trim(),
+					confidence: nugget.confidence || 0.0,
+					validationScore: nugget.validationScore,
+					extractionMethod: normalizeExtractionMethod(nugget.extractionMethod),
 				}))
 				.filter((nugget) => {
-					// Require startContent and endContent
-					return nugget.startContent && nugget.endContent;
+					// Strictly require non-empty fullContent
+					return nugget.fullContent && nugget.fullContent.trim().length > 0;
 				}),
 		};
 
@@ -83,21 +113,23 @@ function preprocessResponse(response: RawApiResponse): {
 		golden_nuggets: responseObj.golden_nuggets.map((nugget: unknown) => {
 			const nuggetObj = nugget as RawGoldenNugget;
 
-			// Handle both new format (startContent/endContent) and legacy format (content)
-			let startContent = String(nuggetObj?.startContent || "");
-			let endContent = String(nuggetObj?.endContent || "");
-
-			// If startContent/endContent are empty but content exists, use content as fallback
-			if ((!startContent || !endContent) && nuggetObj?.content) {
-				const contentStr = String(nuggetObj.content);
-				startContent = startContent || contentStr;
-				endContent = endContent || contentStr;
-			}
+			// Enforce fullContent-only architecture - NO legacy fallbacks
+			const fullContent = String(nuggetObj?.fullContent || "").trim();
 
 			return {
 				type: String(nuggetObj?.type || ""),
-				startContent,
-				endContent,
+				fullContent,
+				confidence:
+					typeof nuggetObj?.confidence === "number"
+						? nuggetObj.confidence
+						: 0.0,
+				validationScore:
+					typeof nuggetObj?.validationScore === "number"
+						? nuggetObj.validationScore
+						: undefined,
+				extractionMethod: nuggetObj?.extractionMethod
+					? String(nuggetObj.extractionMethod)
+					: "llm",
 			};
 		}),
 	};
@@ -113,6 +145,7 @@ function normalizeType(
 	> = {
 		"mental model": "model",
 		mental_model: "model",
+		"aha!_moments": "aha! moments", // Handle underscore variation
 		framework: "model",
 		technique: "tool",
 		method: "tool",
@@ -122,6 +155,10 @@ function normalizeType(
 		concept: "aha! moments",
 		comparison: "analogy",
 		metaphor: "analogy",
+		// Plural variations that some models return
+		tools: "tool",
+		analogies: "analogy",
+		models: "model",
 	};
 
 	const normalized = typeMap[type.toLowerCase()] || type;
@@ -131,6 +168,27 @@ function normalizeType(
 	return allowedTypes.includes(normalized)
 		? (normalized as "tool" | "media" | "aha! moments" | "analogy" | "model")
 		: "aha! moments";
+}
+
+function normalizeExtractionMethod(
+	method: unknown,
+): "validated" | "unverified" | "fuzzy" | "llm" | "ensemble" | undefined {
+	if (!method || typeof method !== "string") {
+		return undefined;
+	}
+
+	const normalized = method.toLowerCase();
+	const allowedMethods = [
+		"validated",
+		"unverified",
+		"fuzzy",
+		"llm",
+		"ensemble",
+	];
+
+	return allowedMethods.includes(normalized)
+		? (normalized as "validated" | "unverified" | "fuzzy" | "llm" | "ensemble")
+		: undefined;
 }
 
 export function validate(response: RawApiResponse): boolean {

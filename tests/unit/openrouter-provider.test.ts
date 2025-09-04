@@ -15,8 +15,8 @@ vi.mock("@langchain/openai", () => ({
 					golden_nuggets: [
 						{
 							type: "tool",
-							startContent: "Test start",
-							endContent: "Test end",
+							fullContent: "Test tool content for OpenRouter integration",
+							confidence: 0.9,
 						},
 					],
 				}),
@@ -75,8 +75,9 @@ describe("LangChainOpenRouterProvider", () => {
 			golden_nuggets: [
 				{
 					type: "tool",
-					startContent: "Test start",
-					endContent: "Test end",
+					fullContent: "Test tool content for OpenRouter integration",
+					confidence: 0.9,
+					extractionMethod: "llm",
 				},
 			],
 		});
@@ -253,8 +254,8 @@ describe("LangChainOpenRouterProvider", () => {
 				golden_nuggets: [
 					{
 						type: "tool",
-						startContent: "Test start",
-						endContent: "Test end",
+						fullContent: "Test tool content with full extraction details",
+						confidence: 0.9,
 					},
 				],
 			};
@@ -278,8 +279,9 @@ describe("LangChainOpenRouterProvider", () => {
 			golden_nuggets: [
 				{
 					type: "tool",
-					startContent: "Test start",
-					endContent: "Test end",
+					fullContent: "Test tool content with full extraction details",
+					confidence: 0.9,
+					extractionMethod: "llm",
 				},
 			],
 		});
@@ -361,13 +363,13 @@ describe("LangChainOpenRouterProvider", () => {
 		if (result.golden_nuggets.length > 0) {
 			const nugget = result.golden_nuggets[0];
 			expect(nugget).toHaveProperty("type");
-			expect(nugget).toHaveProperty("startContent");
-			expect(nugget).toHaveProperty("endContent");
+			expect(nugget).toHaveProperty("fullContent");
+			expect(nugget).toHaveProperty("confidence");
 			expect(["tool", "media", "aha! moments", "analogy", "model"]).toContain(
 				nugget.type,
 			);
-			expect(typeof nugget.startContent).toBe("string");
-			expect(typeof nugget.endContent).toBe("string");
+			expect(typeof nugget.fullContent).toBe("string");
+			expect(typeof nugget.confidence).toBe("number");
 		}
 	});
 

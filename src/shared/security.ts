@@ -16,6 +16,16 @@ const SECURITY_CONFIG = {
 	KEY_ROTATION_DAYS: 30,
 	MAX_ACCESS_ATTEMPTS: 10,
 	RATE_LIMIT_WINDOW: 60000, // 1 minute
+	// Source-specific rate limits to handle different usage patterns
+	RATE_LIMIT_BY_SOURCE: {
+		background: 50, // Background script needs more for analysis workflows
+		popup: 30, // User interaction context needs moderate limit
+		options: 30, // Configuration context needs moderate limit
+		content: 20, // Content scripts need conservative limit
+	},
+	// Fallback for unknown sources
+	RATE_LIMIT_DEFAULT: 10,
+	// Legacy property for backwards compatibility (now uses source-specific limits)
 	RATE_LIMIT_MAX_REQUESTS: 20,
 } as const;
 
@@ -226,13 +236,16 @@ export class SecurityManager {
 			const encryptedBuffer = new Uint8Array(
 				encryptedData.encrypted
 					.match(/.{1,2}/g)
-					?.map((byte) => parseInt(byte, 16)),
+					?.map((byte) => parseInt(byte, 16)) || [],
 			);
 			const iv = new Uint8Array(
-				encryptedData.iv.match(/.{1,2}/g)?.map((byte) => parseInt(byte, 16)),
+				encryptedData.iv.match(/.{1,2}/g)?.map((byte) => parseInt(byte, 16)) ||
+					[],
 			);
 			const salt = new Uint8Array(
-				encryptedData.salt.match(/.{1,2}/g)?.map((byte) => parseInt(byte, 16)),
+				encryptedData.salt
+					.match(/.{1,2}/g)
+					?.map((byte) => parseInt(byte, 16)) || [],
 			);
 
 			// Derive decryption key
@@ -254,7 +267,7 @@ export class SecurityManager {
 			performanceMonitor.logTimer("security_decrypt", "API key decryption");
 
 			this.logSecurityEvent("decryption", true, {
-				keyFingerprint: this.keyFingerprint,
+				keyFingerprint: this.keyFingerprint || "unknown",
 				encryptedDataVersion: encryptedData.version,
 				encryptedDataAge: Date.now() - encryptedData.timestamp,
 			});
@@ -313,7 +326,11 @@ export class SecurityManager {
 					);
 				}
 				// Fallback to original error if enhancement fails
-				enhancedError = error;
+				enhancedError = error as Error & {
+					code?: string;
+					originalError?: Error;
+					canRecover?: boolean;
+				};
 			}
 
 			throw enhancedError;
@@ -336,7 +353,12 @@ export class SecurityManager {
 		try {
 			// Check rate limiting
 			if (!this.checkRateLimit(context.source)) {
-				const errorMsg = `Rate limit exceeded for source '${context.source}' (max ${SECURITY_CONFIG.RATE_LIMIT_MAX_REQUESTS} requests per ${SECURITY_CONFIG.RATE_LIMIT_WINDOW / 1000}s)`;
+				// Get source-specific rate limit for error message
+				const sourceLimit =
+					SECURITY_CONFIG.RATE_LIMIT_BY_SOURCE[
+						context.source as keyof typeof SECURITY_CONFIG.RATE_LIMIT_BY_SOURCE
+					] || SECURITY_CONFIG.RATE_LIMIT_DEFAULT;
+				const errorMsg = `Rate limit exceeded for source '${context.source}' (max ${sourceLimit} requests per ${SECURITY_CONFIG.RATE_LIMIT_WINDOW / 1000}s)`;
 				this.logAccess(context, false, errorMsg);
 				if (isDevMode()) {
 					console.warn(`[Security] ${errorMsg}`);
@@ -398,7 +420,13 @@ export class SecurityManager {
 			return true;
 		}
 
-		if (entry.count >= SECURITY_CONFIG.RATE_LIMIT_MAX_REQUESTS) {
+		// Get source-specific rate limit with fallback for unknown sources
+		const sourceLimit =
+			SECURITY_CONFIG.RATE_LIMIT_BY_SOURCE[
+				source as keyof typeof SECURITY_CONFIG.RATE_LIMIT_BY_SOURCE
+			] || SECURITY_CONFIG.RATE_LIMIT_DEFAULT;
+
+		if (entry.count >= sourceLimit) {
 			return false;
 		}
 
@@ -413,7 +441,7 @@ export class SecurityManager {
 		const now = Date.now();
 		const cutoff = now - SECURITY_CONFIG.RATE_LIMIT_WINDOW * 2;
 
-		for (const [key, entry] of this.rateLimitMap) {
+		for (const [key, entry] of Array.from(this.rateLimitMap.entries())) {
 			if (entry.timestamp < cutoff) {
 				this.rateLimitMap.delete(key);
 			}
@@ -423,7 +451,7 @@ export class SecurityManager {
 	/**
 	 * Log access attempts for audit trail
 	 */
-	private logAccess(
+	public logAccess(
 		context: AccessContext,
 		success: boolean,
 		error?: string,
@@ -486,7 +514,9 @@ export class SecurityManager {
 					timestamp: logEntry.timestamp,
 				},
 				success,
-				error: success ? undefined : details?.errorMessage || `${event} failed`,
+				error: success
+					? undefined
+					: String(details?.errorMessage || `${event} failed`),
 				keyFingerprint: this.keyFingerprint || undefined,
 			});
 

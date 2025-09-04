@@ -2,7 +2,7 @@
 
 /* Highlight styles - ultra subtle and minimal */
 .nugget-highlight {
-	background-color: var(--color-highlight-bg) !important;
+	background-color: var(--color-highlight-bg);
 	padding: 1px 2px;
 	border-radius: 3px;
 	transition: all 0.2s ease;
@@ -11,7 +11,7 @@
 }
 
 .nugget-highlight:hover {
-	background-color: var(--color-highlight-hover) !important;
+	background-color: var(--color-highlight-hover);
 	border-bottom-color: var(--color-highlight-border);
 	box-shadow: 0 0 0 1px var(--color-highlight-border);
 }
@@ -239,86 +239,86 @@ body.nugget-sidebar-open {
 
 /* Toggle Button Styles - Minimalistic */
 .nugget-toggle-button {
-	position: fixed !important;
-	right: 0 !important;
-	top: 50% !important;
-	transform: translateY(-50%) translateX(100%) !important;
-	width: 40px !important;
-	height: 80px !important;
-	background: var(--color-white) !important;
-	color: var(--color-text-secondary) !important;
-	border: 1px solid var(--color-border-light) !important;
-	border-right: none !important;
-	border-radius: 8px 0 0 8px !important;
-	cursor: pointer !important;
-	display: flex !important;
-	align-items: center !important;
-	justify-content: center !important;
-	flex-direction: column !important;
-	box-shadow: var(--shadow-md) !important;
-	transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
-	backdrop-filter: blur(8px) !important;
+	position: fixed;
+	right: 0;
+	top: 50%;
+	transform: translateY(-50%) translateX(100%);
+	width: 40px;
+	height: 80px;
+	background: var(--color-white);
+	color: var(--color-text-secondary);
+	border: 1px solid var(--color-border-light);
+	border-right: none;
+	border-radius: 8px 0 0 8px;
+	cursor: pointer;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex-direction: column;
+	box-shadow: var(--shadow-md);
+	transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+	backdrop-filter: blur(8px);
 	font-family:
-		-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
-	font-size: 11px !important;
-	font-weight: 500 !important;
-	letter-spacing: 0.5px !important;
-	text-transform: uppercase !important;
-	opacity: 0.8 !important;
-	z-index: 10001 !important;
-	user-select: none !important;
+		-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+	font-size: 11px;
+	font-weight: 500;
+	letter-spacing: 0.5px;
+	text-transform: uppercase;
+	opacity: 0.8;
+	z-index: 10001;
+	user-select: none;
 }
 
 /* Toggle button state classes */
 .nugget-toggle-button.hidden {
-	display: none !important;
+	display: none;
 }
 
 .nugget-toggle-button.visible {
-	display: flex !important;
-	transform: translateY(-50%) translateX(85%) !important;
+	display: flex;
+	transform: translateY(-50%) translateX(85%);
 }
 
 .nugget-toggle-button.far-hidden {
-	transform: translateY(-50%) translateX(120%) !important;
+	transform: translateY(-50%) translateX(120%);
 }
 
 .nugget-toggle-button:hover {
-	transform: translateY(-50%) translateX(0) !important;
-	background: var(--color-white) !important;
-	color: var(--color-text-primary) !important;
-	box-shadow: var(--shadow-lg) !important;
-	opacity: 1 !important;
-	border-color: var(--color-border-default) !important;
+	transform: translateY(-50%) translateX(0);
+	background: var(--color-white);
+	color: var(--color-text-primary);
+	box-shadow: var(--shadow-lg);
+	opacity: 1;
+	border-color: var(--color-border-default);
 }
 
 .nugget-toggle-button.visible:hover {
-	transform: translateY(-50%) translateX(0) !important;
+	transform: translateY(-50%) translateX(0);
 }
 
 .nugget-toggle-button:focus {
-	outline: 2px solid var(--color-text-accent) !important;
-	outline-offset: 2px !important;
+	outline: 2px solid var(--color-text-accent);
+	outline-offset: 2px;
 }
 
 .nugget-toggle-button svg {
-	width: 16px !important;
-	height: 16px !important;
-	flex-shrink: 0 !important;
+	width: 16px;
+	height: 16px;
+	flex-shrink: 0;
 }
 
 .nugget-toggle-button span {
-	font-size: 10px !important;
-	font-weight: 600 !important;
-	color: var(--color-text-secondary) !important;
-	margin-top: 4px !important;
-	writing-mode: vertical-lr !important;
-	text-orientation: mixed !important;
-	letter-spacing: 0.5px !important;
+	font-size: 10px;
+	font-weight: 600;
+	color: var(--color-text-secondary);
+	margin-top: 4px;
+	writing-mode: vertical-lr;
+	text-orientation: mixed;
+	letter-spacing: 0.5px;
 }
 
 .nugget-toggle-button:hover span {
-	color: var(--color-text-primary) !important;
+	color: var(--color-text-primary);
 }
 
 /* Subtle pulse animation for discoverability */
@@ -374,23 +374,23 @@ body.nugget-sidebar-open {
 	}
 
 	.nugget-toggle-button {
-		width: 48px !important;
-		height: 48px !important;
-		border-radius: 50% !important;
-		top: 24px !important;
-		right: 24px !important;
-		transform: translateX(0) !important;
-		flex-direction: row !important;
-		font-size: 14px !important;
-		box-shadow: var(--shadow-md) !important;
+		width: 48px;
+		height: 48px;
+		border-radius: 50%;
+		top: 24px;
+		right: 24px;
+		transform: translateX(0);
+		flex-direction: row;
+		font-size: 14px;
+		box-shadow: var(--shadow-md);
 	}
 
 	.nugget-toggle-button span {
-		display: none !important;
+		display: none;
 	}
 
 	.nugget-toggle-button:hover {
-		transform: translateX(0) scale(1.05) !important;
+		transform: translateX(0) scale(1.05);
 	}
 }
 
@@ -402,26 +402,26 @@ body.nugget-sidebar-open {
 .nugget-notification-banner {
 	all: initial;
 	font-family:
-		-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+		-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
 /* Reapply our styles after reset */
 .nugget-highlight {
-	background-color: var(--color-highlight-bg) !important;
-	padding: 1px 2px !important;
-	border-radius: 3px !important;
-	display: inline !important;
-	border-bottom: 1px solid var(--color-highlight-border) !important;
-	box-shadow: 0 0 0 1px var(--color-highlight-border) !important;
+	background-color: var(--color-highlight-bg);
+	padding: 1px 2px;
+	border-radius: 3px;
+	display: inline;
+	border-bottom: 1px solid var(--color-highlight-border);
+	box-shadow: 0 0 0 1px var(--color-highlight-border);
 }
 
 .nugget-indicator {
-	cursor: pointer !important;
-	margin-left: 6px !important;
-	font-size: 11px !important;
-	opacity: 0.6 !important;
-	user-select: none !important;
-	display: inline !important;
-	color: var(--color-text-secondary) !important;
-	font-weight: 500 !important;
+	cursor: pointer;
+	margin-left: 6px;
+	font-size: 11px;
+	opacity: 0.6;
+	user-select: none;
+	display: inline;
+	color: var(--color-text-secondary);
+	font-weight: 500;
 }

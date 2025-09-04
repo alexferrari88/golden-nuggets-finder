@@ -27,8 +27,8 @@ describe("GOLDEN_NUGGET_SCHEMA", () => {
 			expect(itemsSchema.properties).toBeDefined();
 			expect(itemsSchema.required).toEqual([
 				"type",
-				"startContent",
-				"endContent",
+				"fullContent",
+				"confidence",
 			]);
 		});
 
@@ -38,8 +38,8 @@ describe("GOLDEN_NUGGET_SCHEMA", () => {
 			const itemsSchema = GOLDEN_NUGGET_SCHEMA.properties.golden_nuggets.items;
 			expect(itemsSchema.propertyOrdering).toEqual([
 				"type",
-				"startContent",
-				"endContent",
+				"fullContent",
+				"confidence",
 			]);
 		});
 	});
@@ -76,24 +76,26 @@ describe("GOLDEN_NUGGET_SCHEMA", () => {
 	});
 
 	describe("Content Properties", () => {
-		it("should have correct startContent property structure", () => {
+		it("should have correct fullContent property structure", () => {
 			const itemsSchema = GOLDEN_NUGGET_SCHEMA.properties.golden_nuggets.items;
-			const startContentProperty = itemsSchema.properties.startContent;
+			const fullContentProperty = itemsSchema.properties.fullContent;
 
-			expect(startContentProperty.type).toBe("string");
-			expect(startContentProperty.description).toBe(
-				"The first few words (max 5) of the original content verbatim, without any changes to wording or symbols.",
+			expect(fullContentProperty.type).toBe("string");
+			expect(fullContentProperty.description).toBe(
+				"Complete verbatim text of the golden nugget from the original content",
 			);
 		});
 
-		it("should have correct endContent property structure", () => {
+		it("should have correct confidence property structure", () => {
 			const itemsSchema = GOLDEN_NUGGET_SCHEMA.properties.golden_nuggets.items;
-			const endContentProperty = itemsSchema.properties.endContent;
+			const confidenceProperty = itemsSchema.properties.confidence;
 
-			expect(endContentProperty.type).toBe("string");
-			expect(endContentProperty.description).toBe(
-				"The last few words (max 5) of the original content verbatim, without any changes to wording or symbols.",
+			expect(confidenceProperty.type).toBe("number");
+			expect(confidenceProperty.description).toBe(
+				"Confidence score from 0.0 to 1.0 for this extraction",
 			);
+			expect(confidenceProperty.minimum).toBe(0.0);
+			expect(confidenceProperty.maximum).toBe(1.0);
 		});
 	});
 
@@ -101,8 +103,8 @@ describe("GOLDEN_NUGGET_SCHEMA", () => {
 		it("should validate a correct golden nugget structure", () => {
 			const validNugget = {
 				type: "tool",
-				startContent: "Use this amazing tool",
-				endContent: "for productivity",
+				fullContent: "Use this amazing tool for productivity",
+				confidence: 0.9,
 			};
 
 			const _validResponse = {
@@ -116,12 +118,12 @@ describe("GOLDEN_NUGGET_SCHEMA", () => {
 			).toContain(validNugget.type);
 			expect(
 				GOLDEN_NUGGET_SCHEMA.properties.golden_nuggets.items.properties
-					.startContent.type,
+					.fullContent.type,
 			).toBe("string");
 			expect(
 				GOLDEN_NUGGET_SCHEMA.properties.golden_nuggets.items.properties
-					.endContent.type,
-			).toBe("string");
+					.confidence.type,
+			).toBe("number");
 		});
 
 		it("should support empty golden nuggets array", () => {
@@ -137,18 +139,18 @@ describe("GOLDEN_NUGGET_SCHEMA", () => {
 				golden_nuggets: [
 					{
 						type: "tool",
-						startContent: "Tool",
-						endContent: "content",
+						fullContent: "Tool content",
+						confidence: 0.9,
 					},
 					{
 						type: "aha! moments",
-						startContent: "Explanation",
-						endContent: "content",
+						fullContent: "Explanation content",
+						confidence: 0.8,
 					},
 					{
 						type: "analogy",
-						startContent: "Analogy",
-						endContent: "content",
+						fullContent: "Analogy content",
+						confidence: 0.7,
 					},
 				],
 			};
@@ -163,9 +165,9 @@ describe("GOLDEN_NUGGET_SCHEMA", () => {
 			const itemsSchema = GOLDEN_NUGGET_SCHEMA.properties.golden_nuggets.items;
 
 			expect(itemsSchema.required).toContain("type");
-			expect(itemsSchema.required).toContain("startContent");
-			expect(itemsSchema.required).toContain("endContent");
-			// synthesis field has been removed completely
+			expect(itemsSchema.required).toContain("fullContent");
+			expect(itemsSchema.required).toContain("confidence");
+			// old boundary fields have been replaced with fullContent
 		});
 	});
 
@@ -223,9 +225,9 @@ describe("GOLDEN_NUGGET_SCHEMA", () => {
 
 			// Property level
 			expect(itemsSchema.properties).toHaveProperty("type");
-			expect(itemsSchema.properties).toHaveProperty("startContent");
-			expect(itemsSchema.properties).toHaveProperty("endContent");
-			// synthesis property no longer exists
+			expect(itemsSchema.properties).toHaveProperty("fullContent");
+			expect(itemsSchema.properties).toHaveProperty("confidence");
+			// old boundary properties no longer exist
 		});
 
 		it("should have meaningful descriptions for all properties", () => {
@@ -235,9 +237,9 @@ describe("GOLDEN_NUGGET_SCHEMA", () => {
 
 			const itemsSchema = goldenNuggetsProperty.items;
 			expect(itemsSchema.properties.type.description).toBeTruthy();
-			expect(itemsSchema.properties.startContent.description).toBeTruthy();
-			expect(itemsSchema.properties.endContent.description).toBeTruthy();
-			// synthesis property no longer exists
+			expect(itemsSchema.properties.fullContent.description).toBeTruthy();
+			expect(itemsSchema.properties.confidence.description).toBeTruthy();
+			// old boundary properties no longer exist
 		});
 	});
 });

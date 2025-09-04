@@ -5,6 +5,14 @@ import {
 	ui,
 	zIndex,
 } from "../../shared/design-system";
+import { MESSAGE_TYPES } from "../../shared/types";
+
+// Add ensemble-specific progress messages
+const ENSEMBLE_PROGRESS_MESSAGES = {
+	1: (runs: number) => `🎯 Starting ensemble extraction (${runs} runs)`,
+	2: (runs: number) => `🧮 Building consensus across ${runs} runs`,
+	3: (consensus: number) => `✨ Processed ${consensus} consensus nuggets`,
+};
 
 /**
  * Truncates long error messages for better UX while preserving important information
@@ -80,9 +88,11 @@ export class NotificationManager {
 		}, ui.notificationTimeout);
 	}
 
-	showApiKeyError(): void {
+	showApiKeyError(
+		errorType: "missing_key" | "rate_limited" = "missing_key",
+	): void {
 		this.hideBanner();
-		this.currentBanner = this.createApiKeyErrorBanner();
+		this.currentBanner = this.createApiKeyErrorBanner(errorType);
 		document.body.appendChild(this.currentBanner);
 
 		// Auto-hide error after timeout
@@ -146,6 +156,38 @@ export class NotificationManager {
 
 	hide(): void {
 		this.hideBanner();
+	}
+
+	// Update existing progress handler to support ensemble messages
+	updateEnsembleProgress(message: {
+		type: string;
+		step: number;
+		ensembleRuns?: number;
+		consensusNuggets?: number;
+	}): void {
+		if (message.type === MESSAGE_TYPES.ENSEMBLE_EXTRACTION_PROGRESS) {
+			let progressText = "";
+			switch (message.step) {
+				case 1:
+					progressText = ENSEMBLE_PROGRESS_MESSAGES[1](
+						message.ensembleRuns || 3,
+					);
+					break;
+				case 2:
+					progressText = ENSEMBLE_PROGRESS_MESSAGES[2](
+						message.ensembleRuns || 3,
+					);
+					break;
+				case 3:
+					progressText = ENSEMBLE_PROGRESS_MESSAGES[3](
+						message.consensusNuggets || 0,
+					);
+					break;
+				default:
+					progressText = `🎯 Ensemble analysis in progress...`;
+			}
+			this.showProgress(progressText);
+		}
 	}
 
 	private createBanner(
@@ -412,9 +454,15 @@ export class NotificationManager {
 		return banner;
 	}
 
-	private createApiKeyErrorBanner(): HTMLElement {
+	private createApiKeyErrorBanner(
+		errorType: "missing_key" | "rate_limited" = "missing_key",
+	): HTMLElement {
 		const banner = document.createElement("div");
 		banner.className = "nugget-notification-banner nugget-banner-api-key-error";
+
+		// Use different colors based on error type
+		const backgroundColor =
+			errorType === "rate_limited" ? colors.warning : colors.error;
 
 		const baseStyles = `
       position: fixed;
@@ -431,7 +479,7 @@ export class NotificationManager {
       font-size: 14px;
       font-weight: 500;
       text-align: left;
-      background: ${colors.error};
+      background: ${backgroundColor};
       color: white;
       word-wrap: break-word;
       overflow-wrap: break-word;
@@ -443,10 +491,14 @@ export class NotificationManager {
 
 		banner.style.cssText = baseStyles;
 
-		// Create text content with link
+		// Create appropriate message based on error type
 		const textSpan = document.createElement("span");
-		textSpan.textContent =
-			"Gemini API key not configured. Please set it in the ";
+		if (errorType === "rate_limited") {
+			textSpan.textContent =
+				"Extension is busy processing. Please wait a moment and try again, or check the ";
+		} else {
+			textSpan.textContent = "API key not configured. Please set it in the ";
+		}
 
 		const link = document.createElement("a");
 		link.textContent = "options page";
@@ -463,7 +515,11 @@ export class NotificationManager {
 		});
 
 		const endSpan = document.createElement("span");
-		endSpan.textContent = ".";
+		if (errorType === "rate_limited") {
+			endSpan.textContent = " for configuration.";
+		} else {
+			endSpan.textContent = ".";
+		}
 
 		banner.appendChild(textSpan);
 		banner.appendChild(link);

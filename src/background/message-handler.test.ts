@@ -78,16 +78,16 @@ global.fetch = mockFetch;
 
 describe("MessageHandler", () => {
 	let messageHandler: MessageHandler;
-	let mockGeminiClient: MockGeminiClient;
+	let _mockGeminiClient: MockGeminiClient;
 	let mockSendResponse: ReturnType<typeof vi.fn>;
 	let mockProvider: MockProvider;
 
 	beforeEach(() => {
-		mockGeminiClient = {
+		_mockGeminiClient = {
 			analyzeContent: vi.fn().mockResolvedValue({ golden_nuggets: [] }),
 		};
 		mockSendResponse = vi.fn();
-		messageHandler = new MessageHandler(mockGeminiClient);
+		messageHandler = new MessageHandler();
 
 		// Mock fetch to reject (simulating no optimized prompt available)
 		mockFetch.mockRejectedValue(new Error("No optimized prompt available"));
@@ -187,6 +187,11 @@ describe("MessageHandler", () => {
 			"test-api-key",
 		);
 
+		// Mock storage.getPersona
+		(storage.getPersona as ReturnType<typeof vi.fn>).mockResolvedValue(
+			"test-persona",
+		);
+
 		// getSynthesisEnabled removed with synthesis functionality
 	});
 
@@ -228,6 +233,8 @@ describe("MessageHandler", () => {
 			expect(mockProvider.extractGoldenNuggets).toHaveBeenCalledWith(
 				"Test content",
 				"Analyze this HackerNews thread for insights.",
+				0.7, // temperature
+				undefined, // selectedTypes
 			);
 		});
 
@@ -249,6 +256,8 @@ describe("MessageHandler", () => {
 			expect(mockProvider.extractGoldenNuggets).toHaveBeenCalledWith(
 				"Test content",
 				"Analyze this Reddit thread for insights.",
+				0.7, // temperature
+				undefined, // selectedTypes
 			);
 		});
 
@@ -270,6 +279,8 @@ describe("MessageHandler", () => {
 			expect(mockProvider.extractGoldenNuggets).toHaveBeenCalledWith(
 				"Test content",
 				"Analyze this Twitter thread for insights.",
+				0.7, // temperature
+				undefined, // selectedTypes
 			);
 		});
 
@@ -291,6 +302,8 @@ describe("MessageHandler", () => {
 			expect(mockProvider.extractGoldenNuggets).toHaveBeenCalledWith(
 				"Test content",
 				"Analyze this Twitter thread for insights.",
+				0.7, // temperature
+				undefined, // selectedTypes
 			);
 		});
 
@@ -312,6 +325,8 @@ describe("MessageHandler", () => {
 			expect(mockProvider.extractGoldenNuggets).toHaveBeenCalledWith(
 				"Test content",
 				"Analyze this text for insights.",
+				0.7, // temperature
+				undefined, // selectedTypes
 			);
 		});
 
@@ -343,6 +358,8 @@ describe("MessageHandler", () => {
 			expect(mockProvider.extractGoldenNuggets).toHaveBeenCalledWith(
 				"Test content",
 				"First analyze this HackerNews thread and then review the HackerNews thread again.",
+				0.7, // temperature
+				undefined, // selectedTypes
 			);
 		});
 
@@ -373,6 +390,8 @@ describe("MessageHandler", () => {
 			expect(mockProvider.extractGoldenNuggets).toHaveBeenCalledWith(
 				"Test content",
 				"Analyze this content for insights.",
+				0.7, // temperature
+				undefined, // selectedTypes
 			);
 		});
 
@@ -404,7 +423,356 @@ describe("MessageHandler", () => {
 			expect(mockProvider.extractGoldenNuggets).toHaveBeenCalledWith(
 				"Test content",
 				"Analyze this Reddit thread and this Reddit thread for insights.",
+				0.7, // temperature
+				undefined, // selectedTypes
 			);
+		});
+	});
+
+	describe("Persona placeholder replacement", () => {
+		describe("replacePersonaPlaceholder method", () => {
+			it("should replace {{ persona }} with user persona", async () => {
+				// Mock persona in storage
+				(storage.getConfig as ReturnType<typeof vi.fn>).mockResolvedValue({
+					userPersona: "data scientist specializing in machine learning",
+				});
+
+				// Access private method for testing
+				const result = await (messageHandler as any).replacePersonaPlaceholder(
+					"You are a {{ persona }}. Analyze this content.",
+				);
+
+				expect(result).toBe(
+					"You are a data scientist specializing in machine learning. Analyze this content.",
+				);
+			});
+
+			it("should replace multiple {{ persona }} placeholders in the same prompt", async () => {
+				// Mock persona in storage
+				(storage.getConfig as ReturnType<typeof vi.fn>).mockResolvedValue({
+					userPersona: "senior software engineer",
+				});
+
+				// Access private method for testing
+				const result = await (messageHandler as any).replacePersonaPlaceholder(
+					"As a {{ persona }}, analyze this code. Remember you are a {{ persona }}.",
+				);
+
+				expect(result).toBe(
+					"As a senior software engineer, analyze this code. Remember you are a senior software engineer.",
+				);
+			});
+
+			it("should handle {{ persona }} with different spacing", async () => {
+				// Mock persona in storage
+				(storage.getConfig as ReturnType<typeof vi.fn>).mockResolvedValue({
+					userPersona: "UX designer",
+				});
+
+				// Access private method for testing
+				const result = await (messageHandler as any).replacePersonaPlaceholder(
+					"You are a {{persona}} and also a {{  persona  }}.",
+				);
+
+				expect(result).toBe("You are a UX designer and also a UX designer.");
+			});
+
+			it("should replace with empty string when persona is not configured", async () => {
+				// Mock empty persona in storage
+				(storage.getConfig as ReturnType<typeof vi.fn>).mockResolvedValue({
+					userPersona: "",
+				});
+
+				// Access private method for testing
+				const result = await (messageHandler as any).replacePersonaPlaceholder(
+					"You are a {{ persona }}. Analyze this content.",
+				);
+
+				expect(result).toBe("You are a . Analyze this content.");
+			});
+
+			it("should replace with empty string when persona is undefined", async () => {
+				// Mock undefined persona in storage
+				(storage.getConfig as ReturnType<typeof vi.fn>).mockResolvedValue({});
+
+				// Access private method for testing
+				const result = await (messageHandler as any).replacePersonaPlaceholder(
+					"You are a {{ persona }}. Analyze this content.",
+				);
+
+				expect(result).toBe("You are a . Analyze this content.");
+			});
+
+			it("should handle storage errors gracefully", async () => {
+				// Mock storage error
+				(storage.getConfig as ReturnType<typeof vi.fn>).mockRejectedValue(
+					new Error("Storage access failed"),
+				);
+
+				// Access private method for testing
+				const result = await (messageHandler as any).replacePersonaPlaceholder(
+					"You are a {{ persona }}. Analyze this content.",
+				);
+
+				expect(result).toBe("You are a . Analyze this content.");
+			});
+
+			it("should handle prompts without {{ persona }} placeholder", async () => {
+				// Mock persona in storage
+				(storage.getConfig as ReturnType<typeof vi.fn>).mockResolvedValue({
+					userPersona: "product manager",
+				});
+
+				// Access private method for testing
+				const result = await (messageHandler as any).replacePersonaPlaceholder(
+					"Analyze this content for insights.",
+				);
+
+				expect(result).toBe("Analyze this content for insights.");
+			});
+		});
+
+		describe("Persona validation in analysis", () => {
+			beforeEach(() => {
+				(storage.getPrompts as ReturnType<typeof vi.fn>).mockResolvedValue([
+					{
+						id: "test-prompt",
+						name: "Test Prompt",
+						prompt:
+							"As a {{ persona }}, analyze this {{ source }} for insights.",
+						isDefault: true,
+					},
+				]);
+			});
+
+			it("should fail analysis when persona is empty", async () => {
+				// Mock empty persona
+				(storage.getPersona as ReturnType<typeof vi.fn>).mockResolvedValue("");
+
+				const request = {
+					type: MESSAGE_TYPES.ANALYZE_CONTENT,
+					content: "Test content",
+					promptId: "test-prompt",
+					url: "https://example.com/test-article",
+				};
+
+				await messageHandler.handleMessage(
+					request,
+					{} as chrome.runtime.MessageSender,
+					mockSendResponse,
+				);
+
+				expect(mockSendResponse).toHaveBeenCalledWith({
+					success: false,
+					error:
+						"Please set a persona in extension options before analyzing content",
+				});
+
+				// Ensure AI provider was not called
+				expect(mockProvider.extractGoldenNuggets).not.toHaveBeenCalled();
+			});
+
+			it("should fail analysis when persona is only whitespace", async () => {
+				// Mock whitespace-only persona
+				(storage.getPersona as ReturnType<typeof vi.fn>).mockResolvedValue(
+					"   \n\t  ",
+				);
+
+				const request = {
+					type: MESSAGE_TYPES.ANALYZE_CONTENT,
+					content: "Test content",
+					promptId: "test-prompt",
+					url: "https://example.com/test-article",
+				};
+
+				await messageHandler.handleMessage(
+					request,
+					{} as chrome.runtime.MessageSender,
+					mockSendResponse,
+				);
+
+				expect(mockSendResponse).toHaveBeenCalledWith({
+					success: false,
+					error:
+						"Please set a persona in extension options before analyzing content",
+				});
+
+				// Ensure AI provider was not called
+				expect(mockProvider.extractGoldenNuggets).not.toHaveBeenCalled();
+			});
+
+			it("should succeed analysis when persona is properly configured", async () => {
+				// Mock valid persona
+				(storage.getPersona as ReturnType<typeof vi.fn>).mockResolvedValue(
+					"experienced software architect",
+				);
+
+				// Mock config for replacePersonaPlaceholder method
+				(storage.getConfig as ReturnType<typeof vi.fn>).mockResolvedValue({
+					userPersona: "experienced software architect",
+				});
+
+				const request = {
+					type: MESSAGE_TYPES.ANALYZE_CONTENT,
+					content: "Test content",
+					promptId: "test-prompt",
+					url: "https://example.com/test-article",
+				};
+
+				await messageHandler.handleMessage(
+					request,
+					{} as chrome.runtime.MessageSender,
+					mockSendResponse,
+				);
+
+				// Verify that the provider system was called with both placeholders replaced
+				expect(mockProvider.extractGoldenNuggets).toHaveBeenCalledWith(
+					"Test content",
+					"As a experienced software architect, analyze this text for insights.",
+					0.7, // temperature
+					undefined, // selectedTypes
+				);
+			});
+
+			it("should handle selected content analysis with persona validation", async () => {
+				// Mock empty persona
+				(storage.getPersona as ReturnType<typeof vi.fn>).mockResolvedValue(
+					null,
+				);
+
+				const request = {
+					type: MESSAGE_TYPES.ANALYZE_SELECTED_CONTENT,
+					content: "Selected test content",
+					promptId: "test-prompt",
+					url: "https://reddit.com/r/programming/test",
+				};
+
+				await messageHandler.handleMessage(
+					request,
+					{} as chrome.runtime.MessageSender,
+					mockSendResponse,
+				);
+
+				expect(mockSendResponse).toHaveBeenCalledWith({
+					success: false,
+					error:
+						"Please set a persona in extension options before analyzing content",
+				});
+
+				// Ensure AI provider was not called
+				expect(mockProvider.extractGoldenNuggets).not.toHaveBeenCalled();
+			});
+		});
+
+		describe("Combined placeholder replacement", () => {
+			beforeEach(() => {
+				(storage.getPrompts as ReturnType<typeof vi.fn>).mockResolvedValue([
+					{
+						id: "combined-prompt",
+						name: "Combined Prompt",
+						prompt:
+							"You are a {{ persona }}. Analyze this {{ source }} and find {{ persona }}-relevant insights.",
+						isDefault: true,
+					},
+				]);
+
+				// Mock valid persona
+				(storage.getPersona as ReturnType<typeof vi.fn>).mockResolvedValue(
+					"data analyst",
+				);
+
+				// Mock config for replacePersonaPlaceholder method
+				(storage.getConfig as ReturnType<typeof vi.fn>).mockResolvedValue({
+					userPersona: "data analyst",
+				});
+			});
+
+			it("should replace both {{ source }} and {{ persona }} placeholders", async () => {
+				const request = {
+					type: MESSAGE_TYPES.ANALYZE_CONTENT,
+					content: "Test content",
+					promptId: "combined-prompt",
+					url: "https://news.ycombinator.com/item?id=12345",
+				};
+
+				await messageHandler.handleMessage(
+					request,
+					{} as chrome.runtime.MessageSender,
+					mockSendResponse,
+				);
+
+				// Verify that both placeholders were replaced correctly
+				expect(mockProvider.extractGoldenNuggets).toHaveBeenCalledWith(
+					"Test content",
+					"You are a data analyst. Analyze this HackerNews thread and find data analyst-relevant insights.",
+					0.7, // temperature
+					undefined, // selectedTypes
+				);
+			});
+
+			it("should handle prompts with only {{ source }} placeholder (no persona)", async () => {
+				(storage.getPrompts as ReturnType<typeof vi.fn>).mockResolvedValue([
+					{
+						id: "source-only-prompt",
+						name: "Source Only Prompt",
+						prompt: "Analyze this {{ source }} for insights.",
+						isDefault: true,
+					},
+				]);
+
+				const request = {
+					type: MESSAGE_TYPES.ANALYZE_CONTENT,
+					content: "Test content",
+					promptId: "source-only-prompt",
+					url: "https://twitter.com/user/status/123",
+				};
+
+				await messageHandler.handleMessage(
+					request,
+					{} as chrome.runtime.MessageSender,
+					mockSendResponse,
+				);
+
+				// Verify that only source placeholder was replaced
+				expect(mockProvider.extractGoldenNuggets).toHaveBeenCalledWith(
+					"Test content",
+					"Analyze this Twitter thread for insights.",
+					0.7, // temperature
+					undefined, // selectedTypes
+				);
+			});
+
+			it("should handle prompts with only {{ persona }} placeholder (no source)", async () => {
+				(storage.getPrompts as ReturnType<typeof vi.fn>).mockResolvedValue([
+					{
+						id: "persona-only-prompt",
+						name: "Persona Only Prompt",
+						prompt: "As a {{ persona }}, analyze this content.",
+						isDefault: true,
+					},
+				]);
+
+				const request = {
+					type: MESSAGE_TYPES.ANALYZE_CONTENT,
+					content: "Test content",
+					promptId: "persona-only-prompt",
+					url: "https://example.com/article",
+				};
+
+				await messageHandler.handleMessage(
+					request,
+					{} as chrome.runtime.MessageSender,
+					mockSendResponse,
+				);
+
+				// Verify that only persona placeholder was replaced
+				expect(mockProvider.extractGoldenNuggets).toHaveBeenCalledWith(
+					"Test content",
+					"As a data analyst, analyze this content.",
+					0.7, // temperature
+					undefined, // selectedTypes
+				);
+			});
 		});
 	});
 
@@ -415,6 +783,11 @@ describe("MessageHandler", () => {
 		});
 
 		it("should request provider-specific optimization when provider and model are available", async () => {
+			// Mock persona for validation
+			(storage.getPersona as ReturnType<typeof vi.fn>).mockResolvedValue(
+				"test persona",
+			);
+
 			// Mock provider and model detection
 			(
 				ProviderSwitcher.getCurrentProvider as ReturnType<typeof vi.fn>
@@ -461,7 +834,7 @@ describe("MessageHandler", () => {
 
 			// Verify the correct URL was requested with query parameters
 			expect(mockFetch).toHaveBeenCalledWith(
-				"http://localhost:7532/optimize/current?provider=openai&model=gpt-4o-mini",
+				"http://localhost:7532/optimize/current?promptId=test-prompt&provider=openai&model=gpt-4o-mini",
 				{
 					method: "GET",
 					headers: { "Content-Type": "application/json" },
@@ -473,10 +846,17 @@ describe("MessageHandler", () => {
 			expect(mockProvider.extractGoldenNuggets).toHaveBeenCalledWith(
 				"Test content",
 				"Provider-specific optimized prompt",
+				0.7, // temperature
+				undefined, // selectedTypes
 			);
 		});
 
 		it("should fallback to generic optimization when no model is selected", async () => {
+			// Mock persona for validation
+			(storage.getPersona as ReturnType<typeof vi.fn>).mockResolvedValue(
+				"test persona",
+			);
+
 			// Mock provider without model
 			(
 				ProviderSwitcher.getCurrentProvider as ReturnType<typeof vi.fn>
@@ -519,9 +899,9 @@ describe("MessageHandler", () => {
 				mockSendResponse,
 			);
 
-			// Verify generic URL was requested (no query parameters)
+			// Verify URL was requested with prompt ID and provider (but no model)
 			expect(mockFetch).toHaveBeenCalledWith(
-				"http://localhost:7532/optimize/current",
+				"http://localhost:7532/optimize/current?promptId=test-prompt&provider=anthropic",
 				{
 					method: "GET",
 					headers: { "Content-Type": "application/json" },
@@ -533,10 +913,17 @@ describe("MessageHandler", () => {
 			expect(mockProvider.extractGoldenNuggets).toHaveBeenCalledWith(
 				"Test content",
 				"Generic optimized prompt",
+				0.7, // temperature
+				undefined, // selectedTypes
 			);
 		});
 
 		it("should fallback to generic optimization when no provider is configured", async () => {
+			// Mock persona for validation
+			(storage.getPersona as ReturnType<typeof vi.fn>).mockResolvedValue(
+				"test persona",
+			);
+
 			// Mock no provider configured
 			(
 				ProviderSwitcher.getCurrentProvider as ReturnType<typeof vi.fn>
@@ -576,9 +963,9 @@ describe("MessageHandler", () => {
 				mockSendResponse,
 			);
 
-			// Verify generic URL was requested
+			// Verify URL was requested with prompt ID only (no provider)
 			expect(mockFetch).toHaveBeenCalledWith(
-				"http://localhost:7532/optimize/current",
+				"http://localhost:7532/optimize/current?promptId=test-prompt",
 				{
 					method: "GET",
 					headers: { "Content-Type": "application/json" },
@@ -590,10 +977,17 @@ describe("MessageHandler", () => {
 			expect(mockProvider.extractGoldenNuggets).toHaveBeenCalledWith(
 				"Test content",
 				"Generic fallback prompt",
+				0.7, // temperature
+				undefined, // selectedTypes
 			);
 		});
 
 		it("should use original prompt when optimization fails", async () => {
+			// Mock persona for validation
+			(storage.getPersona as ReturnType<typeof vi.fn>).mockResolvedValue(
+				"test persona",
+			);
+
 			// Mock provider and model detection
 			(
 				ProviderSwitcher.getCurrentProvider as ReturnType<typeof vi.fn>
@@ -631,10 +1025,17 @@ describe("MessageHandler", () => {
 			expect(mockProvider.extractGoldenNuggets).toHaveBeenCalledWith(
 				"Test content",
 				"Original prompt text",
+				0.7, // temperature
+				undefined, // selectedTypes
 			);
 		});
 
 		it("should handle HTTP errors from optimization endpoint", async () => {
+			// Mock persona for validation
+			(storage.getPersona as ReturnType<typeof vi.fn>).mockResolvedValue(
+				"test persona",
+			);
+
 			// Mock provider and model detection
 			(
 				ProviderSwitcher.getCurrentProvider as ReturnType<typeof vi.fn>
@@ -676,10 +1077,17 @@ describe("MessageHandler", () => {
 			expect(mockProvider.extractGoldenNuggets).toHaveBeenCalledWith(
 				"Test content",
 				"Original prompt text",
+				0.7, // temperature
+				undefined, // selectedTypes
 			);
 		});
 
 		it("should handle timeout during optimization request", async () => {
+			// Mock persona for validation
+			(storage.getPersona as ReturnType<typeof vi.fn>).mockResolvedValue(
+				"test persona",
+			);
+
 			// Mock provider and model detection
 			(
 				ProviderSwitcher.getCurrentProvider as ReturnType<typeof vi.fn>
@@ -719,10 +1127,17 @@ describe("MessageHandler", () => {
 			expect(mockProvider.extractGoldenNuggets).toHaveBeenCalledWith(
 				"Test content",
 				"Original prompt text",
+				0.7, // temperature
+				undefined, // selectedTypes
 			);
 		});
 
 		it("should reject optimization with invalid version", async () => {
+			// Mock persona for validation
+			(storage.getPersona as ReturnType<typeof vi.fn>).mockResolvedValue(
+				"test persona",
+			);
+
 			// Mock provider and model detection
 			(
 				ProviderSwitcher.getCurrentProvider as ReturnType<typeof vi.fn>
@@ -770,10 +1185,17 @@ describe("MessageHandler", () => {
 			expect(mockProvider.extractGoldenNuggets).toHaveBeenCalledWith(
 				"Test content",
 				"Original prompt text",
+				0.7, // temperature
+				undefined, // selectedTypes
 			);
 		});
 
 		it("should reject optimization with missing prompt", async () => {
+			// Mock persona for validation
+			(storage.getPersona as ReturnType<typeof vi.fn>).mockResolvedValue(
+				"test persona",
+			);
+
 			// Mock provider and model detection
 			(
 				ProviderSwitcher.getCurrentProvider as ReturnType<typeof vi.fn>
@@ -821,6 +1243,8 @@ describe("MessageHandler", () => {
 			expect(mockProvider.extractGoldenNuggets).toHaveBeenCalledWith(
 				"Test content",
 				"Original prompt text",
+				0.7, // temperature
+				undefined, // selectedTypes
 			);
 		});
 	});

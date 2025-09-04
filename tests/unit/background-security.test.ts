@@ -34,7 +34,7 @@ describe("Background Script Security - Core Logic Tests", () => {
 			getApiKey: vi.fn(),
 		};
 
-		global.chrome = mockChrome;
+		global.chrome = mockChrome as any;
 	});
 
 	describe("Dynamic Content Script Injection Security", () => {

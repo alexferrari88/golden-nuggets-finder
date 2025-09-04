@@ -6,11 +6,13 @@ This document covers the background script architecture, AI integration, multi-p
 
 The background script (`entrypoints/background.ts`) operates as a service worker that handles:
 - Multi-provider AI integration (Gemini, OpenAI, Anthropic, OpenRouter)
+- High recall extraction with confidence filtering (0.85 threshold)
 - Context menu creation and interactions with type filtering
 - Dynamic content script injection to prevent auto-loading on all pages
 - Communication with content scripts via message passing
 - Tab state tracking for analysis completion and missed nugget reporting
 - Provider switching and API key management
+- Simplified architecture with direct provider calls and natural validation
 
 ## Multi-Provider AI Integration
 
@@ -20,13 +22,86 @@ The extension supports multiple AI providers through a unified interface:
 - **LangChain Providers**: OpenAI, Anthropic, and OpenRouter via LangChain
 - **Provider Factory**: Creates appropriate provider instances based on configuration
 - **Provider Switching**: Automatic fallback and manual provider switching
+- **FullContent Support**: All providers implement unified fullContent extraction with confidence scoring
 
 ### Provider Factory (`services/provider-factory.ts`)
-Central factory for creating provider instances:
+Central factory for creating provider instances with multi-provider ensemble support:
 - **Provider Creation**: `createProvider(config)` creates appropriate provider based on ID
+- **Bulk Provider Creation**: `createMultipleProviders(configurations)` creates multiple providers for ensemble mode
 - **Model Selection**: `getSelectedModel(providerId)` retrieves user-selected models
 - **Default Models**: Fallback to provider-specific defaults
 - **Convenience Methods**: `createProviderWithSelectedModel()` for common usage
+- **Configuration Validation**: Validates provider configurations before creation
+- **Error Handling**: Graceful handling of individual provider failures during bulk creation
+- **Provider Metadata**: Returns provider instances with configuration metadata
+
+## Multi-Provider Ensemble Architecture
+
+### Core Components
+
+#### Provider Configuration Validation
+The system includes comprehensive validation for multi-provider ensemble configurations:
+- **validateProviderConfigurations()**: Validates array of provider configurations before ensemble execution
+- **Configuration Requirements**: Ensures providerId and modelId are specified for each configuration
+- **Provider Availability**: Checks that all specified providers have valid API keys configured
+- **Error Aggregation**: Collects and reports all validation errors for user feedback
+
+#### Bulk Provider Management
+Enhanced provider creation system for ensemble coordination:
+- **Parallel Provider Creation**: Creates multiple provider instances simultaneously using Promise.allSettled
+- **Individual Error Handling**: Continues with partial results if some providers fail during creation
+- **API Key Management**: Handles provider-specific API key retrieval (special handling for Gemini via SecurityManager)
+- **Provider Instance Metadata**: Returns provider instances with full configuration metadata
+
+#### Cross-Provider Consensus Building
+Advanced consensus algorithms for multi-provider results:
+- **Hybrid Similarity Matching**: Combines text-based and embedding-based similarity for cross-provider consensus
+- **Provider Attribution**: Maintains sourceProvider and sourceModel metadata throughout consensus process
+- **Contributing Providers Collection**: Tracks unique provider/model combinations supporting each consensus nugget
+- **Weighted Confidence Scoring**: Confidence scores reflect agreement across different AI models
+
+### Multi-Provider Message Flow
+
+#### Request Processing
+1. **Request Validation**: MessageHandler validates multi-provider ensemble request structure
+2. **Provider Configuration**: Loads and validates provider configurations from storage
+3. **Progress Tracking**: Sends provider-specific progress messages during coordination
+4. **Error Aggregation**: Collects and reports provider-specific errors with fallback handling
+
+#### Parallel Execution Coordination
+1. **Provider Instance Creation**: Creates all required providers using `createMultipleProviders()`
+2. **Parallel API Calls**: Executes extraction calls across all providers simultaneously
+3. **Result Aggregation**: Collects successful results and handles individual provider failures
+4. **Metadata Collection**: Tracks response times, success rates, and provider-specific metadata
+
+#### Enhanced Error Handling
+- **Partial Success Handling**: Continues analysis with successful providers when others fail
+- **Provider-Specific Error Messages**: Converts provider errors to actionable user guidance
+- **Graceful Degradation**: Returns best available results even with provider failures
+- **Retry Logic**: Provider-specific retry strategies with exponential backoff
+
+### Storage Schema Enhancements
+
+#### Enhanced EnsembleSettings Interface
+```typescript
+interface EnsembleSettings {
+  enabled: boolean;
+  defaultRuns: number; // For single-model mode
+  mode: "single-model" | "multi-provider";
+  providerConfigurations: Array<{
+    providerId: ProviderId;
+    modelId: string;
+    enabled: boolean;
+  }>;
+  defaultProviderSet: string; // Named provider configuration
+}
+```
+
+#### Provider Configuration Storage
+- **Named Provider Sets**: Save and load specific provider combinations
+- **Individual Provider Toggles**: Enable/disable specific providers within a set
+- **Migration Support**: Automatic migration from legacy single-model settings
+- **Validation on Load**: Ensures stored configurations are still valid on retrieval
 
 ### Model Service (`services/model-service.ts`)
 Handles model discovery and management across providers:
@@ -50,41 +125,202 @@ Manages provider availability and switching:
 - **Default Model**: `gemini-2.5-flash`
 - **Features**: Structured JSON output, thinking budget configuration
 - **Caching**: 5-minute response caching
+- **FullContent Method**:
+  - `extractGoldenNuggets()`: Direct fullContent extraction with confidence scoring
 
 ### OpenAI (LangChain Integration)
 - **Implementation**: `shared/providers/langchain-openai-provider.ts`
 - **API**: LangChain OpenAI integration
 - **Default Model**: `gpt-4.1-mini`
 - **Features**: Chat completion models, structured output via tool calling
+- **FullContent Method**:
+  - `extractGoldenNuggets()`: Returns standardized response with fullContent and confidence
 
 ### Anthropic Claude (LangChain Integration)
 - **Implementation**: `shared/providers/langchain-anthropic-provider.ts`
 - **API**: LangChain Anthropic integration
 - **Default Model**: `claude-sonnet-4-20250514`
 - **Features**: Advanced reasoning capabilities, structured output
+- **FullContent Method**:
+  - `extractGoldenNuggets()`: Advanced reasoning-based fullContent extraction
 
 ### OpenRouter (LangChain Integration)
 - **Implementation**: `shared/providers/langchain-openrouter-provider.ts`
 - **API**: LangChain OpenRouter integration providing access to multiple models
 - **Default Model**: `openai/gpt-3.5-turbo`
 - **Features**: Access to multiple providers through single API
+- **FullContent Method**:
+  - `extractGoldenNuggets()`: Multi-model fullContent extraction with consistent formatting
+
+## Ensemble Mode Integration
+
+### EnsembleExtractor Service (`services/ensemble-extractor.ts`)
+Advanced multi-run analysis service that provides improved accuracy through consensus-based extraction with support for both single-model and multi-provider ensemble modes:
+
+#### Core Functionality
+- **Single-Model Ensemble**: Multiple runs with the same provider/model for consensus
+- **Multi-Provider Ensemble**: Single runs across different providers/models for cross-provider consensus
+- **Hybrid Similarity Matching**: Advanced text matching algorithms for consensus building across providers
+- **Embedding Analysis**: Semantic similarity analysis for duplicate detection and cross-provider matching
+- **Confidence Scoring**: Assigns confidence metrics based on run/provider agreement
+- **Result Consolidation**: Merges multiple runs/providers into consensus results with metadata
+- **Provider Attribution**: Tracks which providers contributed to each consensus nugget
+- **FullContent Integration**: Uses fullContent extraction for consensus building with hybrid similarity matching
+
+#### Key Methods
+- `extractWithEnsemble(content, provider, prompt, options)`: Single-model ensemble extraction method
+- `extractWithMultiProviderEnsemble(content, prompt, providerConfigurations, options)`: Multi-provider ensemble extraction
+- `extractWithMultiProvider(content, prompt, providerConfigurations, options)`: Core multi-provider extraction logic
+- `buildConsensus(extractions, metadata, options)`: Combines multiple results using hybrid similarity matching
+- `calculateConfidenceScores(nuggets, totalRuns)`: Assigns confidence based on agreement across runs/providers
+
+#### Multi-Provider Ensemble Features
+- **Provider Tagging**: Each nugget tagged with `sourceProvider` and `sourceModel` metadata at extraction time
+- **Parallel Execution**: Multiple providers called simultaneously for optimal performance
+- **Contributing Providers Collection**: Tracks unique provider/model combinations that contributed to consensus
+- **Provider Failure Handling**: Graceful degradation when individual providers fail
+- **Cross-Provider Consensus**: Hybrid similarity matching identifies consensus across different AI models
+
+#### Configuration Options
+- **Mode Selection**: "single-model" or "multi-provider" ensemble modes
+- **Run Count**: Number of analysis passes for single-model mode (default: 3, configurable 1-10)
+- **Provider Configurations**: Array of {providerId, modelId, enabled} for multi-provider mode
+- **Similarity Threshold**: Consensus threshold for nugget inclusion (default: 0.7)
+- **Temperature**: AI provider temperature setting for diversity (default: 0.7)
+- **Provider Sets**: Named configurations of provider combinations
+
+#### Performance Characteristics
+- **Single-Model Latency**: ~3x longer than single-run (runs are sequential)
+- **Multi-Provider Latency**: Similar to single-run (providers called in parallel)
+- **API Cost**: Linear scaling with run count or provider count
+- **Memory Usage**: Minimal - processes results incrementally
+- **Error Resilience**: Continues with partial results if some runs/providers fail
+
+### Ensemble Message Types
+Extended message passing system with ensemble-specific types:
+- **ANALYZE_CONTENT_ENSEMBLE**: Trigger single-model or multi-provider ensemble analysis
+- **ENSEMBLE_EXTRACTION_PROGRESS**: Progress updates during ensemble runs or multi-provider coordination
+- **ENSEMBLE_CONSENSUS_COMPLETE**: Ensemble analysis finished with consensus results
+- **MULTI_PROVIDER_ENSEMBLE_REQUEST**: Specific message type for multi-provider ensemble requests
+- **MULTI_PROVIDER_EXTRACTION_PROGRESS**: Progress updates during multi-provider analysis
+
+### Context Menu Integration
+Enhanced context menu with ensemble support:
+- **"Analyze Content"**: Standard single-run analysis
+- **"Ensemble Analysis"**: Multi-run ensemble analysis (shows cost indication)
+
+### Storage Integration
+Ensemble preferences stored securely using the same encryption system with enhanced multi-provider support:
+- **enabled**: Master toggle for ensemble functionality
+- **defaultRuns**: Default number of analysis runs for single-model mode (3)
+- **mode**: "single-model" or "multi-provider" ensemble mode selection
+- **providerConfigurations**: Array of provider/model configurations with enable/disable toggles
+- **defaultProviderSet**: Named configuration for quick provider set switching
+- **Migration Support**: Automatic migration from legacy single-model settings
+
+### Background Script Ensemble Flow
+
+#### Single-Model Ensemble Flow
+1. **Request Handling**: MessageHandler receives ensemble analysis request
+2. **Configuration**: Loads ensemble settings from secure storage
+3. **Provider Setup**: Creates single AI provider instance
+4. **Ensemble Execution**: EnsembleExtractor performs multi-run analysis with same provider
+5. **Result Processing**: Hybrid similarity matching builds consensus across runs
+6. **Confidence Filtering**: Apply 0.85 confidence threshold to filter high-quality nuggets
+7. **Response**: Enhanced response with confidence scores and filtering metadata
+
+#### Multi-Provider Ensemble Flow
+1. **Request Handling**: MessageHandler receives multi-provider ensemble request via `handleMultiProviderEnsemble()`
+2. **Provider Validation**: Validates provider configurations using `validateProviderConfigurations()`
+3. **Bulk Provider Creation**: Creates multiple provider instances via `createMultipleProviders()`
+4. **Parallel Execution**: EnsembleExtractor performs single run per provider in parallel
+5. **Provider Attribution**: Tags nuggets with sourceProvider and sourceModel metadata
+6. **Cross-Provider Consensus**: Hybrid similarity matching identifies consensus across different AI models
+7. **Contributing Providers**: Collects unique provider/model combinations that contributed to each consensus nugget
+8. **Enhanced Metadata**: Response includes provider metadata, response times, and success rates
+9. **Confidence Filtering**: Apply 0.85 confidence threshold with provider consensus weighting
 
 ## Golden Nugget Response Schema
 
-All AI providers are normalized to return responses in this standardized format:
+### FullContent Response Format
+All AI providers are normalized to return responses in this standardized fullContent format:
 ```json
 {
   "golden_nuggets": [
     {
       "type": "tool|media|aha! moments|analogy|model",
-      "startContent": "Original text verbatim (start)",
-      "endContent": "Original text verbatim (end)"
+      "fullContent": "Complete text of the golden nugget",
+      "confidence": 0.85
     }
   ]
 }
 ```
 
+**Response Features**:
+- **fullContent**: Complete verbatim text of the golden nugget
+- **confidence**: AI-assigned quality score (0.0-1.0) with 0.85 threshold filtering
+- **type**: Categorization for filtering and organization
+- **Provider Agnostic**: Consistent format across all AI providers
+
+**High Recall Approach**:
+- AI providers use generous extraction with confidence scoring
+- Background script applies 0.85 confidence threshold filtering
+- Natural validation through highlighter success/failure
+- Simplified architecture eliminates expensive validation layer
+- ~50% performance improvement over previous precision-focused approach
+
 **Note**: Response normalization is handled by `services/response-normalizer.ts` to ensure consistent data structure across all providers.
+
+## High Recall Extraction with Confidence Filtering
+
+### Overview
+The system uses a high recall extraction approach that maximizes nugget capture by encouraging AI providers to be generous in their extraction, then applies post-processing confidence filtering to ensure quality.
+
+### Architecture Change (Breaking)
+**Before (Precision-Focused)**:
+```
+AI extracts → ContentValidator validates → Highlighter highlights
+```
+
+**After (High Recall + Filtering)**:
+```
+AI extracts → Confidence filtering (≥0.85) → Highlighter highlights
+```
+
+### Implementation Details
+
+#### Confidence Filtering (`filterByConfidence()`)
+- **Threshold**: Fixed 0.85 confidence threshold for quality assurance
+- **Location**: `MessageHandler.filterByConfidence()` method
+- **Application**: Applied to both standard and ensemble analysis results
+- **Purpose**: Filter out low-confidence extractions while maintaining high recall
+
+#### Benefits
+- **Performance**: ~50% improvement with elimination of ContentValidator
+- **Simplicity**: Reduced architecture complexity with direct provider calls
+- **Quality**: Natural validation through highlighter success/failure
+- **Consistency**: Same 0.85 threshold applied across all analysis modes
+
+#### Filtering Metadata
+Analysis responses include filtering statistics:
+```typescript
+{
+  golden_nuggets: [...],
+  metadata: {
+    preFilterCount: 12,    // Nuggets before confidence filtering
+    postFilterCount: 8,    // Nuggets after confidence filtering  
+    confidenceThreshold: 0.85,
+    filteringApplied: true
+  }
+}
+```
+
+### Provider Integration
+All providers support the high recall approach:
+- **Gemini**: Uses structured output with confidence scoring
+- **OpenAI**: LangChain integration with tool-based confidence assignment
+- **Anthropic**: Advanced reasoning with confidence assessment
+- **OpenRouter**: Multi-model access with consistent confidence formatting
 
 ## Message Passing System
 
@@ -95,6 +331,7 @@ Uses typed message system with `MESSAGE_TYPES` constants for communication betwe
 - **Analysis Flow**: 
   - `ANALYZE_CONTENT`: Trigger content analysis
   - `ANALYZE_SELECTED_CONTENT`: Analyze user-selected content
+  - `ANALYZE_CONTENT_ENSEMBLE`: Trigger ensemble analysis with multiple runs
   - `ANALYSIS_COMPLETE`: Analysis finished successfully
   - `ANALYSIS_ERROR`: Analysis failed with error
 - **Progress Tracking**: 
@@ -103,6 +340,8 @@ Uses typed message system with `MESSAGE_TYPES` constants for communication betwe
   - `ANALYSIS_API_REQUEST_START`: Step 3 start
   - `ANALYSIS_API_RESPONSE_RECEIVED`: Step 3 complete
   - `ANALYSIS_PROCESSING_RESULTS`: Step 4 complete
+  - `ENSEMBLE_EXTRACTION_PROGRESS`: Progress updates during ensemble runs
+  - `ENSEMBLE_CONSENSUS_COMPLETE`: Ensemble consensus building finished
 - **User Interface**:
   - `SHOW_ERROR`: Display error message to user
   - `SHOW_INFO`: Display informational message
@@ -121,12 +360,18 @@ Uses typed message system with `MESSAGE_TYPES` constants for communication betwe
 
 ### Message Handler (`message-handler.ts`)
 Centralized message processing with:
-- Multi-provider analysis orchestration
+- Multi-provider analysis orchestration via `handleMultiProviderEnsemble()` method
+- Single-model ensemble support via existing `handleEnsembleAnalysis()` method
+- High recall extraction with 0.85 confidence threshold filtering
 - Comprehensive error handling with provider-specific error recovery
-- Progress tracking with 4-step analysis workflow
-- Type filtering support for nugget extraction
-- Provider switching and fallback mechanisms
-- API key management and validation across providers
+- Progress tracking with enhanced 4-step analysis workflow for ensemble modes
+- Type filtering support for nugget extraction across all providers
+- Provider switching and fallback mechanisms with graceful degradation
+- API key management and validation across multiple providers simultaneously
+- Bulk provider creation and configuration validation
+- Direct provider calls with simplified architecture (no validation layer)
+- Enhanced progress messages for multi-provider coordination
+- Provider metadata collection and response time tracking
 
 ## Content Script Injection
 
@@ -157,7 +402,7 @@ await chrome.scripting.executeScript({
 
 ### TypeFilterService (`type-filter-service.ts`)
 Manages nugget type filtering and customization:
-- **Type Definitions**: Maintains definitions for all 5 nugget types (tool, media, aha! moments, analogy, model)
+- **Type Definitions**: Maintains definitions for all nugget types (tool, media, aha! moments, analogy, model)
 - **Context Menu Integration**: Provides type-specific menu options with emojis
 - **Dynamic Prompt Generation**: Filters base prompts to focus on selected types
 - **Schema Generation**: Creates dynamic response schemas for filtered analyses
@@ -239,6 +484,13 @@ Ensures consistent data structure across providers:
 - **Retry Logic**: Intelligent retry with exponential backoff and provider-specific limits
 - **User-Friendly Messages**: Technical errors converted to actionable guidance
 
+### FullContent Error Handling
+- **Simplified Architecture**: Direct provider calls with natural filtering through highlighting
+- **Confidence Filtering**: High recall extraction with 0.85 confidence threshold filtering
+- **Provider Fallback**: Automatic switching to alternative providers on failures
+- **Graceful Degradation**: Returns best available results when possible
+- **Performance Improvement**: ~50% faster response times with elimination of validation layer
+
 ### Network and Connectivity
 - **Timeout Handling**: Provider-specific timeout configurations
 - **Rate Limiting**: Handles rate limits across different provider APIs
@@ -261,11 +513,22 @@ Ensures consistent data structure across providers:
 
 ### Testing Background Scripts
 - **Multi-Provider Testing**: Test all providers (Gemini, OpenAI, Anthropic, OpenRouter) with mock services
+- **Multi-Provider Ensemble Testing**: Test cross-provider consensus building and provider coordination
+- **Confidence Filtering**: Test 0.85 threshold filtering across all providers and analysis modes
+- **High Recall Validation**: Verify generous extraction with quality filtering
 - **Provider Switching**: Verify automatic fallback and manual provider switching
-- **Message Passing**: Test message handling between scripts including provider-specific messages
+- **Bulk Provider Creation**: Test `createMultipleProviders()` with various configuration scenarios
+- **Provider Configuration Validation**: Test `validateProviderConfigurations()` with invalid configurations
+- **Cross-Provider Consensus**: Test hybrid similarity matching across different AI models
+- **Provider Attribution**: Verify sourceProvider and sourceModel metadata preservation
+- **Parallel Execution**: Test simultaneous provider calls and result aggregation
+- **Partial Failure Handling**: Test ensemble behavior when some providers fail
+- **Message Passing**: Test message handling for both single-model and multi-provider ensemble modes
 - **Context Menu**: Test context menu functionality with type filtering across providers
 - **Model Management**: Test model fetching and selection for all providers
-- **Error Scenarios**: Test provider failures, API key issues, and network problems
+- **Enhanced Progress Tracking**: Test progress messages for multi-provider coordination
+- **Error Scenarios**: Test provider failures, API key issues, and network problems in ensemble modes
+- **Performance**: Verify performance characteristics for both single-model and multi-provider modes
 
 ### API Key Management
 - **Multi-Provider Storage**: Secure storage for all provider API keys using SecurityManager
@@ -275,25 +538,40 @@ Ensures consistent data structure across providers:
 
 ### Adding New AI Providers
 1. **Create Provider Implementation**: Add new provider class in `shared/providers/`
-2. **Update Provider Factory**: Add provider to factory and default model configuration
-3. **Update Provider Types**: Extend `ProviderId` union and related types
-4. **Add Model Service**: Implement model fetching for the new provider
-5. **Update Error Handling**: Add provider-specific error patterns
-6. **Test Integration**: Comprehensive testing across all provider scenarios
+2. **Implement FullContent Method**: Ensure `extractGoldenNuggets()` returns fullContent format with confidence scores
+3. **Update Provider Factory**: Add provider to factory and default model configuration
+4. **Update Provider Types**: Extend `ProviderId` union and related types
+5. **Add Model Service**: Implement model fetching for the new provider
+6. **Update Error Handling**: Add provider-specific error patterns
+7. **High Recall Integration**: Configure provider for generous extraction with confidence scoring
+8. **Multi-Provider Ensemble Integration**: Ensure provider works in multi-provider ensemble mode
+9. **Provider Tagging Support**: Implement sourceProvider and sourceModel metadata support
+10. **Bulk Creation Support**: Ensure provider works with `createMultipleProviders()` method
+11. **Configuration Validation**: Add provider to `validateProviderConfigurations()` logic
+12. **Cross-Provider Consensus**: Verify provider results work with hybrid similarity matching
+13. **Test Integration**: Comprehensive testing including confidence filtering, response validation, and ensemble modes
 
 ### Service Development
 1. **Service Modularity**: Keep services focused and testable
 2. **Provider Agnostic**: Ensure services work across all providers
-3. **Error Recovery**: Implement graceful degradation and fallback mechanisms
-4. **Testing Coverage**: Unit tests for all service methods and error cases
-5. **Documentation**: Update service documentation for API changes
+3. **Simplified Architecture**: Direct provider calls without intermediate validation layers
+4. **Confidence Integration**: Implement confidence scoring and filtering where applicable
+5. **Error Recovery**: Implement graceful degradation and fallback mechanisms
+6. **Testing Coverage**: Unit tests for all service methods and error cases
+7. **Documentation**: Update service documentation for API changes
 
 ### Multi-Provider Considerations
 - **Provider Parity**: Ensure feature parity across all supported providers
-- **Performance Monitoring**: Track response times and success rates per provider
-- **Cost Optimization**: Monitor token usage and costs across providers
-- **Model Updates**: Handle new model releases and deprecations
-- **Rate Limiting**: Implement provider-specific rate limiting strategies
+- **Ensemble Mode Compatibility**: Ensure all providers work in both single-model and multi-provider ensemble modes
+- **Cross-Provider Consensus**: Implement consistent confidence scoring and similarity matching across providers
+- **Provider Attribution**: Maintain sourceProvider and sourceModel metadata throughout the analysis pipeline
+- **Performance Monitoring**: Track response times and success rates per provider in ensemble modes
+- **Cost Optimization**: Monitor token usage and costs across providers, especially in multi-provider ensemble
+- **Parallel Execution**: Optimize simultaneous provider calls for multi-provider ensemble performance
+- **Graceful Degradation**: Handle partial failures gracefully when some providers fail in ensemble mode
+- **Model Updates**: Handle new model releases and deprecations across all ensemble-enabled providers
+- **Rate Limiting**: Implement provider-specific rate limiting strategies that work with parallel execution
+- **Configuration Management**: Support complex provider configurations with named sets and individual toggles
 
 ### Service Worker Considerations
 - **State Management**: Handle provider state across service worker restarts

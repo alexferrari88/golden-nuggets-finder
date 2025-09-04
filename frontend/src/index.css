@@ -1,43 +1,45 @@
 @import "tailwindcss";
 
 @theme {
-  --color-background: oklch(100% 0 0);
-  --color-foreground: oklch(9% 0.02 237);
-  --color-card: oklch(100% 0 0);
-  --color-card-foreground: oklch(9% 0.02 237);
-  --color-popover: oklch(100% 0 0);
-  --color-popover-foreground: oklch(9% 0.02 237);
-  --color-primary: oklch(25% 0.02 237);
-  --color-primary-foreground: oklch(98% 0 0);
-  --color-secondary: oklch(96% 0.006 237);
-  --color-secondary-foreground: oklch(25% 0.02 237);
-  --color-muted: oklch(96% 0.006 237);
-  --color-muted-foreground: oklch(50% 0.01 237);
-  --color-accent: oklch(96% 0.006 237);
-  --color-accent-foreground: oklch(25% 0.02 237);
-  --color-destructive: oklch(62.8% 0.2 25);
-  --color-destructive-foreground: oklch(98% 0 0);
-  --color-border: oklch(91% 0.02 237);
-  --color-input: oklch(91% 0.02 237);
-  --color-ring: oklch(9% 0.02 237);
-  --border-radius: 0.5rem;
+	--color-background: oklch(100% 0 0);
+	--color-foreground: oklch(9% 0.02 237);
+	--color-card: oklch(100% 0 0);
+	--color-card-foreground: oklch(9% 0.02 237);
+	--color-popover: oklch(100% 0 0);
+	--color-popover-foreground: oklch(9% 0.02 237);
+	--color-primary: oklch(25% 0.02 237);
+	--color-primary-foreground: oklch(98% 0 0);
+	--color-secondary: oklch(96% 0.006 237);
+	--color-secondary-foreground: oklch(25% 0.02 237);
+	--color-muted: oklch(96% 0.006 237);
+	--color-muted-foreground: oklch(50% 0.01 237);
+	--color-accent: oklch(96% 0.006 237);
+	--color-accent-foreground: oklch(25% 0.02 237);
+	--color-destructive: oklch(62.8% 0.2 25);
+	--color-destructive-foreground: oklch(98% 0 0);
+	--color-border: oklch(91% 0.02 237);
+	--color-input: oklch(91% 0.02 237);
+	--color-ring: oklch(9% 0.02 237);
+	--border-radius: 0.5rem;
 }
 
 * {
-  box-sizing: border-box;
+	box-sizing: border-box;
 }
 
-html, body {
-  margin: 0;
-  padding: 0;
-  min-height: 100vh;
+html,
+body {
+	margin: 0;
+	padding: 0;
+	min-height: 100vh;
 }
 
 body {
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  line-height: 1.5;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  background-color: hsl(var(--background));
-  color: hsl(var(--foreground));
+	font-family:
+		system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+	line-height: 1.5;
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
+	background-color: hsl(var(--background));
+	color: hsl(var(--foreground));
 }

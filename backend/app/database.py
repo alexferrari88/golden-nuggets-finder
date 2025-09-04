@@ -160,6 +160,9 @@ async def execute_insert(table: str, data: dict):
         "feedback_usage",
         "cost_tracking",
         "optimization_progress",
+        # NEW: Chrome extension prompt integration tables
+        "chrome_extension_prompts",
+        "prompt_optimization_mappings",
     }
     if table not in allowed_tables:
         raise ValueError(f"Table '{table}' not allowed")

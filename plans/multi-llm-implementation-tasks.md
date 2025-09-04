@@ -386,7 +386,7 @@ export class LangChainOpenAIProvider implements LLMProvider {
     this.model = new ChatOpenAI({
       apiKey: config.apiKey,
       model: this.modelName,
-      temperature: 0, // Consistent output
+      temperature: 0.2, // Consistent output
     });
   }
 
@@ -477,7 +477,7 @@ export class LangChainAnthropicProvider implements LLMProvider {
     this.model = new ChatAnthropic({
       apiKey: config.apiKey,
       model: this.modelName,
-      temperature: 0,
+      temperature: 0.2,
     });
   }
 
@@ -565,7 +565,7 @@ export class LangChainOpenRouterProvider implements LLMProvider {
     this.model = new ChatOpenAI({
       apiKey: config.apiKey,
       model: this.modelName,
-      temperature: 0,
+      temperature: 0.2,
       configuration: {
         baseURL: 'https://openrouter.ai/api/v1',
         defaultHeaders: {

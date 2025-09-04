@@ -1,10 +1,14 @@
 /**
- * Highlighter for Golden Nuggets - CSS Custom Highlight API Implementation
- * Uses modern CSS Custom Highlight API with DOM fallback for cross-browser compatibility
+ * Simplified Highlighter for Golden Nuggets - FullContent Direct Highlighting
+ * Uses CSS Custom Highlight API with mark.js fallback
+ * Eliminates complex boundary reconstruction by using fullContent directly
  */
 
-import { colors, generateInlineStyles } from "../../shared/design-system";
+import Mark from "mark.js";
+import { colors } from "../../shared/design-system";
 import type { GoldenNugget } from "../../shared/types";
+import { AnchorTextMatcher } from "./anchor-text-matcher";
+import { filterValidRanges } from "./range-validation";
 
 // Type declarations for CSS Custom Highlight API
 declare global {
@@ -16,19 +20,7 @@ declare global {
 		add(range: Range): void;
 		clear(): void;
 		delete(range: Range): boolean;
-		forEach(
-			callbackfn: (value: Range, value2: Range, set: BrowserHighlight) => void,
-			thisArg?: unknown,
-		): void;
-		has(range: Range): boolean;
 		readonly size: number;
-		readonly priority: number;
-		readonly type: string;
-		readonly [Symbol.toStringTag]: string;
-		[Symbol.iterator](): IterableIterator<Range>;
-		entries(): IterableIterator<[Range, Range]>;
-		keys(): IterableIterator<Range>;
-		values(): IterableIterator<Range>;
 	}
 	interface CSS {
 		highlights: Map<string, BrowserHighlight>;
@@ -37,601 +29,577 @@ declare global {
 
 export class Highlighter {
 	private highlightedElements: HTMLElement[] = [];
-	private cssHighlights: Map<string, { range: Range; nugget: GoldenNugget }> =
-		new Map();
-	private globalHighlight: BrowserHighlight | null = null;
-	private highlightClassName = "golden-nugget-highlight";
+	private cssHighlights: Map<string, Range[]> = new Map();
 	private cssHighlightSupported: boolean;
+	private markInstance: Mark | null = null;
+	private highlightClassName = "golden-nugget-highlight";
+	private anchorTextMatcher: AnchorTextMatcher;
+	private static readonly HIGHLIGHT_ID = "golden-nugget";
 
 	constructor() {
+		this.cssHighlightSupported = this.checkCSSHighlightSupport();
+		this.setupCSSHighlightStyles();
+		this.anchorTextMatcher = new AnchorTextMatcher(); // Add anchor-based matching
+
+		// Initialize mark.js for fallback
+		if (!this.cssHighlightSupported) {
+			this.markInstance = new Mark(document.body);
+		}
+	}
+
+	/**
+	 * Highlight a golden nugget using progressive matching strategy
+	 * 1. Try anchor-based matching with context
+	 * 2. Fallback to fuzzy matching
+	 * 3. Fallback to exact matching
+	 * Returns ranges for scrolling functionality
+	 */
+	async highlightNugget(
+		nugget: GoldenNugget,
+	): Promise<{ success: boolean; ranges: Range[] }> {
 		try {
-			this.cssHighlightSupported = this.checkCSSHighlightSupport();
-			console.log(
-				"Highlighter constructor - CSS support:",
-				this.cssHighlightSupported,
+			// Direct text search using fullContent - no boundary reconstruction needed
+			const fullContent = nugget.fullContent?.trim();
+			console.log("fullContent:", JSON.stringify(fullContent));
+			console.log("cssHighlightSupported:", this.cssHighlightSupported);
+
+			if (!fullContent) {
+				console.warn("No fullContent available for nugget:", nugget);
+				return { success: false, ranges: [] };
+			}
+
+			if (this.cssHighlightSupported) {
+				console.log("Using CSS Highlight API with progressive matching");
+				return await this.highlightWithCSSAPI(fullContent, nugget);
+			} else {
+				console.log("Using Mark.js fallback with progressive matching");
+				return await this.highlightWithMarkJS(fullContent, nugget);
+			}
+		} catch (error) {
+			console.error("Failed to highlight nugget:", error);
+			return { success: false, ranges: [] };
+		}
+	}
+
+	/**
+	 * Highlight using CSS Custom Highlight API (modern browsers) with progressive matching
+	 */
+	private async highlightWithCSSAPI(
+		fullContent: string,
+		_nugget: GoldenNugget,
+	): Promise<{ success: boolean; ranges: Range[] }> {
+		try {
+			const ranges = await this.findTextRangesProgressive(fullContent);
+			if (ranges.length > 0) {
+				try {
+					// Check CSS Highlight API capacity before creating new highlights
+					const capacityStatus = this.checkCSSHighlightCapacity(ranges.length);
+					if (!capacityStatus.canHighlight) {
+						console.warn(
+							"[Highlighter] CSS Highlight capacity exceeded:",
+							capacityStatus,
+						);
+						// Return failure to trigger mark.js fallback
+						return { success: false, ranges: [] };
+					}
+
+					// Create highlight object - this can throw if ranges are invalid
+					const highlight = new window.Highlight(...ranges);
+
+					if (CSS?.highlights) {
+						try {
+							// Clear previous highlights to prevent conflicts
+							CSS.highlights.delete(Highlighter.HIGHLIGHT_ID);
+
+							// Use static highlight ID to match CSS selector
+							CSS.highlights.set(Highlighter.HIGHLIGHT_ID, highlight as any);
+
+							// Store ranges for cleanup and scrolling
+							this.cssHighlights.set(Highlighter.HIGHLIGHT_ID, ranges);
+
+							console.log(
+								`CSS Highlighted "${fullContent.substring(0, 50)}..." with ${ranges.length} ranges (capacity: ${capacityStatus.currentHighlights + ranges.length}/${capacityStatus.maxHighlights})`,
+							);
+							return { success: true, ranges };
+						} catch (cssError) {
+							console.error(
+								"[Highlighter] CSS Highlights API operation failed:",
+								cssError,
+							);
+							// Don't rethrow - return failure gracefully
+						}
+					} else {
+						console.warn("[Highlighter] CSS.highlights not available");
+					}
+				} catch (highlightError) {
+					console.error(
+						"[Highlighter] Failed to create window.Highlight object:",
+						highlightError,
+					);
+					// Don't rethrow - return failure gracefully
+				}
+			} else {
+				console.log(
+					"[Highlighter] No ranges found for CSS highlighting:",
+					fullContent.substring(0, 50),
+				);
+			}
+		} catch (progressiveError) {
+			console.error(
+				"[Highlighter] Progressive matching failed in CSS API path:",
+				progressiveError,
 			);
-			this.setupCSSHighlightStyles();
-		} catch (error) {
-			console.error("Error in Highlighter constructor:", error);
-			this.cssHighlightSupported = false;
+			// Don't rethrow - return failure gracefully
 		}
+		return { success: false, ranges: [] };
 	}
 
 	/**
-	 * Highlight a golden nugget on the page
-	 * @param nugget The golden nugget to highlight
-	 * @param pageContent Optional page content for context
-	 * @returns true if highlighting was successful, false otherwise
+	 * Highlight using mark.js (fallback support) with progressive matching strategy
 	 */
-	highlightNugget(nugget: GoldenNugget, _pageContent?: string): boolean {
-		try {
-			console.log("highlightNugget called for:", nugget.startContent);
+	private async highlightWithMarkJS(
+		fullContent: string,
+		_nugget: GoldenNugget,
+	): Promise<{ success: boolean; ranges: Range[] }> {
+		console.log(
+			"[Highlighter] Mark.js searching for:",
+			JSON.stringify(fullContent.substring(0, 100)),
+		);
+		console.log(
+			"[Highlighter] DOM text content:",
+			JSON.stringify(document.body.textContent?.substring(0, 200) || ""),
+		);
 
-			// Check if this nugget is already highlighted
-			if (this.isAlreadyHighlighted(nugget)) {
-				console.log("Already highlighted");
-				return true;
-			}
-
-			// Find the range for this nugget
-			const range = this.findTextInDOM(nugget.startContent, nugget.endContent);
-			if (!range) {
-				console.warn("Could not find text range for nugget:", nugget);
-				return false;
-			}
-
-			// Use CSS Custom Highlight API if supported, otherwise fallback to DOM manipulation
-			const success = this.cssHighlightSupported
-				? this.highlightWithCSS(range, nugget)
-				: this.highlightWithDOM(range, nugget);
-
-			if (!success) {
-				console.warn("Could not create highlight for nugget:", nugget);
-				return false;
-			}
-
-			console.log("Successfully highlighted nugget:", nugget.startContent);
-			return true;
-		} catch (error) {
-			console.error("Error highlighting nugget:", error, nugget);
-			return false;
-		}
-	}
-
-	/**
-	 * Scroll to a highlighted nugget
-	 * @param nugget The nugget to scroll to
-	 */
-	scrollToHighlight(nugget: GoldenNugget): void {
-		// For CSS highlights, find the range and scroll to it
-		const cssHighlightKey = this.getNuggetKey(nugget);
-		const cssHighlightInfo = this.cssHighlights.get(cssHighlightKey);
-
-		if (cssHighlightInfo) {
-			// Create a temporary element at the range position for scrolling
-			const range = cssHighlightInfo.range.cloneRange();
-			const tempElement = document.createElement("span");
-			tempElement.style.position = "absolute";
-			tempElement.style.visibility = "hidden";
-			tempElement.style.pointerEvents = "none";
-
+		if (this.markInstance) {
 			try {
-				range.insertNode(tempElement);
-				tempElement.scrollIntoView({
-					behavior: "smooth",
-					block: "center",
-					inline: "nearest",
+				// Use progressive matching strategy
+				const matchResult =
+					await this.anchorTextMatcher.findTextWithContext(fullContent);
+
+				if (!this.anchorTextMatcher.isValidMatch(matchResult)) {
+					console.log(
+						"[Highlighter] No valid match found with progressive strategy for Mark.js:",
+						fullContent.substring(0, 50),
+					);
+					return { success: false, ranges: [] };
+				}
+
+				console.log("[Highlighter] Progressive match found for Mark.js:", {
+					matchType: matchResult.matchType,
+					confidence: matchResult.confidence,
+					matchedText: matchResult.matchedText?.substring(0, 50),
+					rangeCount: matchResult.ranges.length,
 				});
-				tempElement.remove();
+
+				// Use the actual matched text for mark.js highlighting
+				const textToHighlight = matchResult.matchedText || fullContent;
+
+				console.log(
+					"[Highlighter] Initial highlightedElements count:",
+					this.highlightedElements.length,
+				);
+				const initialElementCount = this.highlightedElements.length;
+
+				// Highlight the fuzzy-matched text instead of the original fullContent
+				this.markInstance.mark(textToHighlight, {
+					className: this.highlightClassName,
+					element: "span",
+					acrossElements: true, // Enable cross-node highlighting
+					separateWordSearch: false, // Exact phrase matching
+					accuracy: "complementary", // More flexible matching than "exactly"
+					caseSensitive: false, // Enable case-insensitive matching
+					each: (element) => {
+						console.log("Mark.js each callback called for element:", element);
+						// Apply design system styling - Extract variables to avoid bundler template literal bug
+						const highlightBg = colors.highlight.background;
+						const primaryText = colors.text.primary;
+						(element as HTMLElement).style.cssText = `
+							background: ${highlightBg};
+							color: ${primaryText};
+							border-radius: 2px;
+							padding: 0 2px;
+						`;
+
+						// Add to tracked elements for cleanup
+						this.highlightedElements.push(element as HTMLElement);
+						console.log(
+							"Added element to tracking, new total:",
+							this.highlightedElements.length,
+							"Array contents:",
+							this.highlightedElements.map((el) => el.tagName).join(", "),
+						);
+					},
+					done: (totalMarks) => {
+						console.log(
+							"[Highlighter] Mark.js completed with",
+							totalMarks,
+							"marks",
+						);
+						console.log(
+							"[Highlighter] Final highlightedElements count after mark:",
+							this.highlightedElements.length,
+						);
+						if (totalMarks === 0) {
+							console.log(
+								"[Highlighter] Mark.js found no matches for:",
+								textToHighlight,
+							);
+						}
+					},
+				});
+
+				console.log(
+					"[Highlighter] Immediately after mark call, highlightedElements count:",
+					this.highlightedElements.length,
+				);
+				const newElementsAdded =
+					this.highlightedElements.length - initialElementCount;
+				console.log(
+					`[Highlighter] Mark.js highlighted "${textToHighlight.substring(0, 50)}..." with ${newElementsAdded} new elements`,
+				);
+
+				// Also check by querying the DOM
+				const domElements = document.querySelectorAll(
+					`.${this.highlightClassName}`,
+				);
+				console.log(
+					"[Highlighter] DOM elements with highlight class:",
+					domElements.length,
+				);
+
+				// Return success and ranges from the match result
+				const success = newElementsAdded > 0;
+				return { success, ranges: success ? matchResult.ranges : [] };
 			} catch (error) {
-				console.warn("Could not scroll to CSS highlight:", error);
-				tempElement.remove();
+				console.error("[Highlighter] Mark.js highlighting failed:", error);
+				console.error("[Highlighter] Error details:", error);
+				return { success: false, ranges: [] };
 			}
+		}
+		return { success: false, ranges: [] };
+	}
+
+	/**
+	 * Find text ranges using progressive matching strategy:
+	 * 1. Try anchor-based matching with context (dom-anchor-text-quote)
+	 * 2. Fallback to fuzzy matching (TextMatcher + DOMPositionMapper)
+	 * 3. Fallback to exact matching (legacy)
+	 */
+	private async findTextRangesProgressive(
+		searchText: string,
+	): Promise<Range[]> {
+		console.log(
+			"[Highlighter] Finding ranges with progressive matching for:",
+			JSON.stringify(searchText.substring(0, 100)),
+		);
+
+		try {
+			// Use progressive matching strategy from AnchorTextMatcher
+			const matchResult =
+				await this.anchorTextMatcher.findTextWithContext(searchText);
+
+			if (!this.anchorTextMatcher.isValidMatch(matchResult)) {
+				console.log(
+					"[Highlighter] No valid match found with progressive strategy:",
+					searchText.substring(0, 50),
+				);
+				return [];
+			}
+
+			console.log("[Highlighter] Progressive match found:", {
+				matchType: matchResult.matchType,
+				confidence: matchResult.confidence,
+				matchedText: matchResult.matchedText?.substring(0, 50),
+				rangeCount: matchResult.ranges.length,
+			});
+
+			// First filter for basic range validity
+			const basicValidRanges = matchResult.ranges.filter((range) => {
+				try {
+					// Test if range is valid by checking its properties
+					return (
+						range?.startContainer &&
+						range.endContainer &&
+						range.startOffset >= 0 &&
+						range.endOffset >= 0
+					);
+				} catch (rangeError) {
+					console.warn(
+						"[Highlighter] Invalid range detected and filtered:",
+						rangeError,
+					);
+					return false;
+				}
+			});
+
+			// Then filter for exclusion-based validation (as additional safety net)
+			const validRanges = filterValidRanges(basicValidRanges);
+
+			if (validRanges.length !== matchResult.ranges.length) {
+				console.warn(
+					`[Highlighter] Filtered ${matchResult.ranges.length - validRanges.length} invalid ranges`,
+					{
+						originalCount: matchResult.ranges.length,
+						basicValidCount: basicValidRanges.length,
+						finalValidCount: validRanges.length,
+					},
+				);
+			}
+
+			return validRanges;
+		} catch (progressiveMatchError) {
+			console.error(
+				"[Highlighter] Progressive matching threw exception:",
+				progressiveMatchError,
+			);
+			// Return empty array instead of throwing
+			return [];
+		}
+	}
+
+	/**
+	 * Scroll to highlighted ranges
+	 */
+	scrollToRanges(ranges: Range[]): void {
+		if (ranges.length === 0) {
+			console.warn("No ranges provided for scrolling");
 			return;
 		}
 
-		// Fallback to DOM element-based scrolling
-		const highlightElement = this.highlightedElements.find((element) => {
-			const elementText = (element.textContent || "").toLowerCase();
-			return (
-				elementText.includes(nugget.startContent.toLowerCase()) &&
-				elementText.includes(nugget.endContent.toLowerCase())
-			);
-		});
+		try {
+			// Use the first range for scrolling
+			const firstRange = ranges[0];
+			const rect = firstRange.getBoundingClientRect();
 
-		if (highlightElement) {
-			highlightElement.scrollIntoView({
-				behavior: "smooth",
-				block: "center",
-				inline: "nearest",
-			});
-		} else {
-			console.warn("No highlight found for nugget:", nugget);
+			if (rect.height === 0 && rect.width === 0) {
+				console.warn(
+					"Range has no dimensions, trying alternative scrolling method",
+				);
+				// Try to get a container element
+				const container = firstRange.commonAncestorContainer;
+				if (container.nodeType === Node.TEXT_NODE && container.parentElement) {
+					container.parentElement.scrollIntoView({
+						behavior: "smooth",
+						block: "center",
+					});
+				}
+			} else {
+				// Scroll to the range position with some offset for better visibility
+				const scrollY = window.scrollY + rect.top - window.innerHeight / 3;
+				window.scrollTo({
+					top: scrollY,
+					behavior: "smooth",
+				});
+			}
+
+			console.log(`Scrolled to highlight at position: ${rect.top}`);
+		} catch (error) {
+			console.error("Failed to scroll to highlight:", error);
 		}
 	}
 
 	/**
-	 * Clear all highlights from the page
+	 * Clear all highlights
 	 */
 	clearHighlights(): void {
-		try {
-			// Clear CSS highlights
-			if (
-				this.cssHighlightSupported &&
-				typeof CSS !== "undefined" &&
-				CSS.highlights
-			) {
-				if (this.globalHighlight) {
-					this.globalHighlight.clear();
-					CSS.highlights.delete("golden-nugget");
-					this.globalHighlight = null;
-				}
-				this.cssHighlights.clear();
-			}
+		// Clear CSS Custom Highlights
+		if (this.cssHighlightSupported && CSS && CSS.highlights) {
+			CSS.highlights.delete(Highlighter.HIGHLIGHT_ID);
+		}
+		this.cssHighlights.clear();
 
-			// Clear DOM-based highlights (fallback)
-			this.highlightedElements.forEach((element) => {
-				try {
-					if (element.parentNode) {
-						// Unwrap the highlighted element, preserving the text content
-						const parent = element.parentNode;
-						while (element.firstChild) {
-							parent.insertBefore(element.firstChild, element);
-						}
-						parent.removeChild(element);
-					}
-				} catch (error) {
-					console.warn("Error removing highlight element:", error);
-				}
+		// Clear mark.js highlights
+		if (this.markInstance) {
+			this.markInstance.unmark({
+				className: this.highlightClassName,
 			});
-
-			this.highlightedElements = [];
-		} catch (error) {
-			console.error("Error clearing highlights:", error);
-		}
-	}
-
-	/**
-	 * Get the number of currently highlighted elements
-	 */
-	getHighlightCount(): number {
-		return this.cssHighlights.size + this.highlightedElements.length;
-	}
-
-	/**
-	 * Check if a nugget is already highlighted
-	 * Uses a more robust approach to prevent duplicates
-	 */
-	private isAlreadyHighlighted(nugget: GoldenNugget): boolean {
-		const nuggetKey = this.getNuggetKey(nugget);
-
-		// Check CSS highlights first
-		if (this.cssHighlights.has(nuggetKey)) {
-			return true;
 		}
 
-		// Check DOM-based highlights (fallback)
-		return this.highlightedElements.some((element) => {
-			const elementText = (element.textContent || "").toLowerCase();
-			return (
-				elementText.includes(nugget.startContent.toLowerCase()) &&
-				elementText.includes(nugget.endContent.toLowerCase()) &&
-				element.hasAttribute("data-nugget-key") &&
-				element.getAttribute("data-nugget-key") === nuggetKey
-			);
+		// Clear tracked DOM elements (only for mark.js)
+		this.highlightedElements.forEach((element) => {
+			try {
+				element.remove();
+			} catch (error) {
+				console.warn("Failed to remove highlighted element:", error);
+			}
 		});
-	}
+		this.highlightedElements = [];
 
-	/**
-	 * Create a highlight element with proper styling (for DOM fallback)
-	 */
-	private createHighlightElement(nugget: GoldenNugget): HTMLSpanElement {
-		const span = document.createElement("span");
-		span.className = this.highlightClassName;
-		span.setAttribute("data-golden-nugget-highlight", "true");
-
-		// Add unique nugget key to prevent duplicates
-		const nuggetKey = this.getNuggetKey(nugget);
-		span.setAttribute("data-nugget-key", nuggetKey);
-
-		// Apply highlighting styles from design system
-		span.style.cssText = generateInlineStyles.highlightStyle();
-
-		return span;
-	}
-
-	/**
-	 * Normalize text for flexible matching by removing common punctuation
-	 * that might be stripped during display processing
-	 */
-	private normalizeTextForMatching(text: string): string {
-		return text
-			.replace(/[.!?;,:'"()[\]{}]+$/g, "") // Remove trailing punctuation
-			.replace(/\s+/g, " ") // Normalize whitespace
-			.trim();
-	}
-
-	/**
-	 * Try to find text using multiple matching strategies
-	 */
-	private findTextWithStrategies(
-		fullTextLower: string,
-		startContentLower: string,
-		endContentLower: string,
-		strategyName: string,
-	): Array<{ start: number; end: number }> {
-		let startIndex = -1;
-		let searchFrom = 0;
-		const possibleRanges: Array<{ start: number; end: number }> = [];
-
-		// Look for all combinations of startContent -> endContent
-		startIndex = fullTextLower.indexOf(startContentLower, searchFrom);
-		while (startIndex !== -1) {
-			const endContentIndex = fullTextLower.indexOf(
-				endContentLower,
-				startIndex + startContentLower.length,
-			);
-			if (endContentIndex !== -1) {
-				const endIndex = endContentIndex + endContentLower.length;
-				possibleRanges.push({ start: startIndex, end: endIndex });
-			}
-			searchFrom = startIndex + 1;
-			startIndex = fullTextLower.indexOf(startContentLower, searchFrom);
-		}
-
-		if (possibleRanges.length > 0) {
-			console.log(`Found text range using ${strategyName} strategy`);
-		}
-
-		return possibleRanges;
-	}
-
-	/**
-	 * Find text content in the DOM tree
-	 * Creates a Range that spans from startContent to endContent
-	 * Uses more intelligent matching to avoid duplicates and handle punctuation mismatches
-	 */
-	private findTextInDOM(
-		startContent: string,
-		endContent: string,
-	): Range | null {
-		try {
-			// Get all text content and create a mapping to DOM nodes
-			const walker = document.createTreeWalker(
-				document.body,
-				NodeFilter.SHOW_TEXT,
-				{
-					acceptNode: (node) => {
-						// Skip script and style elements
-						const parent = node.parentElement;
-						if (
-							parent &&
-							(parent.tagName === "SCRIPT" ||
-								parent.tagName === "STYLE" ||
-								parent.tagName === "NOSCRIPT")
-						) {
-							return NodeFilter.FILTER_REJECT;
-						}
-						// Only accept text nodes with meaningful content
-						return node.textContent?.trim()
-							? NodeFilter.FILTER_ACCEPT
-							: NodeFilter.FILTER_REJECT;
-					},
-				},
-			);
-
-			// Build a map of text positions to DOM nodes
-			let fullText = "";
-			const textNodeMap: Array<{
-				node: Text;
-				startIndex: number;
-				endIndex: number;
-			}> = [];
-
-			let currentNode = walker.nextNode() as Text;
-			while (currentNode) {
-				const nodeText = currentNode.textContent || "";
-				const startIndex = fullText.length;
-				const endIndex = startIndex + nodeText.length;
-
-				textNodeMap.push({
-					node: currentNode,
-					startIndex,
-					endIndex,
-				});
-
-				fullText += nodeText;
-				currentNode = walker.nextNode() as Text;
-			}
-
-			const fullTextLower = fullText.toLowerCase();
-			let possibleRanges: Array<{ start: number; end: number }> = [];
-
-			// Debug logging to help understand what content is available
-			console.log("DOM text analysis:", {
-				searchingFor: { start: startContent, end: endContent },
-				domTextLength: fullText.length,
-				domTextSample: fullText.substring(0, 200),
-				containsStart: fullTextLower.includes(startContent.toLowerCase()),
-				containsEnd: fullTextLower.includes(endContent.toLowerCase()),
-			});
-
-			// Strategy 1: Exact match (case-insensitive)
-			const startContentLower = startContent.toLowerCase();
-			const endContentLower = endContent.toLowerCase();
-			possibleRanges = this.findTextWithStrategies(
-				fullTextLower,
-				startContentLower,
-				endContentLower,
-				"exact match",
-			);
-
-			// Strategy 2: Try with normalized punctuation if exact match fails
-			if (possibleRanges.length === 0) {
-				const normalizedStartContent =
-					this.normalizeTextForMatching(startContent).toLowerCase();
-				const normalizedEndContent =
-					this.normalizeTextForMatching(endContent).toLowerCase();
-
-				console.log("Trying normalized matching:", {
-					originalStart: startContent,
-					normalizedStart: normalizedStartContent,
-					originalEnd: endContent,
-					normalizedEnd: normalizedEndContent,
-				});
-
-				// Only try normalized matching if it's actually different from the original
-				if (
-					normalizedStartContent !== startContentLower ||
-					normalizedEndContent !== endContentLower
-				) {
-					possibleRanges = this.findTextWithStrategies(
-						fullTextLower,
-						normalizedStartContent,
-						normalizedEndContent,
-						"normalized punctuation",
-					);
-				} else {
-					console.log(
-						"Skipping normalized matching - no difference from original",
-					);
-				}
-			}
-
-			// Strategy 3: Try with only end content normalized (common case where endContent has punctuation)
-			if (possibleRanges.length === 0) {
-				const normalizedEndContentOnly =
-					this.normalizeTextForMatching(endContent).toLowerCase();
-
-				if (normalizedEndContentOnly !== endContentLower) {
-					possibleRanges = this.findTextWithStrategies(
-						fullTextLower,
-						startContentLower,
-						normalizedEndContentOnly,
-						"end content normalized",
-					);
-				}
-			}
-
-			// Strategy 4: Try with normalized DOM text (for cases where search text has more punctuation than DOM)
-			if (possibleRanges.length === 0) {
-				// Create a normalized version of the DOM text for comparison
-				const normalizedFullText =
-					this.normalizeTextForMatching(fullText).toLowerCase();
-
-				// If the normalized version is different from original, try matching against it
-				if (normalizedFullText !== fullTextLower) {
-					const normalizedStartContent =
-						this.normalizeTextForMatching(startContent).toLowerCase();
-					const normalizedEndContent =
-						this.normalizeTextForMatching(endContent).toLowerCase();
-
-					possibleRanges = this.findTextWithStrategies(
-						normalizedFullText,
-						normalizedStartContent,
-						normalizedEndContent,
-						"both DOM and search text normalized",
-					);
-				}
-			}
-
-			if (possibleRanges.length === 0) {
-				console.warn(
-					"No valid range found for:",
-					startContent,
-					"→",
-					endContent,
-					"(tried exact, normalized, and end-normalized matching)",
-				);
-				return null;
-			}
-
-			// If multiple ranges found, prefer the shortest one (most specific)
-			const bestRange = possibleRanges.reduce((shortest, current) => {
-				const currentLength = current.end - current.start;
-				const shortestLength = shortest.end - shortest.start;
-				return currentLength < shortestLength ? current : shortest;
-			});
-
-			// Find the DOM nodes that contain the start and end positions
-			const startNodeInfo = textNodeMap.find(
-				(info) =>
-					bestRange.start >= info.startIndex && bestRange.start < info.endIndex,
-			);
-			const endNodeInfo = textNodeMap.find(
-				(info) =>
-					bestRange.end > info.startIndex && bestRange.end <= info.endIndex,
-			);
-
-			if (!startNodeInfo || !endNodeInfo) {
-				console.warn("Could not find DOM nodes for text positions");
-				return null;
-			}
-
-			// Create a range
-			const range = document.createRange();
-
-			// Set start position
-			const startOffset = bestRange.start - startNodeInfo.startIndex;
-			range.setStart(startNodeInfo.node, startOffset);
-
-			// Set end position
-			const endOffset = bestRange.end - endNodeInfo.startIndex;
-			range.setEnd(endNodeInfo.node, endOffset);
-
-			console.log("Found text range:", startContent, "→", endContent);
-			return range;
-		} catch (error) {
-			console.error("Error finding text in DOM:", error);
-			return null;
-		}
+		console.log("All highlights cleared");
 	}
 
 	/**
 	 * Check if CSS Custom Highlight API is supported
 	 */
 	private checkCSSHighlightSupport(): boolean {
-		// Ensure CSS object exists first
-		if (typeof CSS === "undefined") {
-			// CSS object doesn't exist, polyfill not available
-			return false;
-		}
-
 		return (
-			CSS.highlights !== undefined && typeof window.Highlight !== "undefined"
+			typeof window !== "undefined" &&
+			"CSS" in window &&
+			"highlights" in CSS &&
+			"Highlight" in window
 		);
 	}
 
 	/**
-	 * Setup CSS styles for highlights
+	 * Setup CSS styles for Custom Highlight API
 	 */
 	private setupCSSHighlightStyles(): void {
-		console.log(
-			"setupCSSHighlightStyles called, supported:",
-			this.cssHighlightSupported,
-		);
 		if (!this.cssHighlightSupported) return;
 
-		// Check if styles are already added
-		if (document.querySelector("#golden-nugget-highlight-styles")) {
-			console.log("Styles already exist");
-			return;
+		// Create or update the style element for custom highlights
+		const styleId = "golden-nugget-highlight-styles";
+		let styleElement = document.getElementById(styleId);
+
+		if (!styleElement) {
+			styleElement = document.createElement("style");
+			styleElement.id = styleId;
+			document.head.appendChild(styleElement);
 		}
 
+		// Use design system colors for consistent styling - Extract variables to avoid bundler template literal bug
+		const highlightBg = colors.highlight.background;
+		const primaryText = colors.text.primary;
+		styleElement.textContent = `
+			::highlight(golden-nugget) {
+				background-color: ${highlightBg};
+				color: ${primaryText};
+			}
+		`;
+	}
+
+	/**
+	 * Get highlight statistics
+	 */
+	getHighlightStats(): {
+		cssHighlights: number;
+		domHighlights: number;
+		supported: boolean;
+	} {
+		console.log("Highlight stats:", {
+			cssHighlights: this.cssHighlights.size,
+			domHighlights: this.highlightedElements.length,
+			supported: this.cssHighlightSupported,
+		});
+		return {
+			cssHighlights: this.cssHighlights.size,
+			domHighlights: this.highlightedElements.length,
+			supported: this.cssHighlightSupported,
+		};
+	}
+
+	/**
+	 * Check CSS Highlight API capacity to prevent browser limits
+	 * @param additionalRanges Number of additional ranges we want to add
+	 * @returns Capacity status with ability to highlight
+	 */
+	private checkCSSHighlightCapacity(additionalRanges: number): {
+		canHighlight: boolean;
+		currentHighlights: number;
+		maxHighlights: number;
+		additionalRequested: number;
+		wouldExceed: boolean;
+	} {
+		// Browser-specific limits (conservative estimates)
+		const MAX_CSS_HIGHLIGHTS = 1000; // Conservative limit to prevent performance issues
+		const MAX_RANGES_PER_HIGHLIGHT = 500; // Conservative limit per highlight object
+
+		let currentHighlights = 0;
+		let totalRanges = 0;
+
 		try {
-			const styleSheet = document.createElement("style");
-			styleSheet.id = "golden-nugget-highlight-styles";
-			styleSheet.textContent = `
-				::highlight(golden-nugget) {
-					background-color: ${colors.highlight.background} !important;
-					border-radius: 3px !important;
-					box-shadow: 0 0 0 1px ${colors.highlight.border} !important;
-					color: inherit !important;
+			// Count current highlights and their ranges
+			if (CSS?.highlights) {
+				currentHighlights = CSS.highlights.size;
+
+				// Count total ranges across all highlights
+				for (const [id, highlight] of CSS.highlights) {
+					try {
+						totalRanges += highlight.size || 0;
+					} catch (error) {
+						console.warn(
+							`[Highlighter] Error counting ranges for highlight ${id}:`,
+							error,
+						);
+						// Assume worst case for unknown highlights
+						totalRanges += MAX_RANGES_PER_HIGHLIGHT;
+					}
 				}
-			`;
-			document.head.appendChild(styleSheet);
-			console.log("Added CSS highlight styles");
+			}
 		} catch (error) {
-			console.error("Error setting up CSS styles:", error);
+			console.warn(
+				"[Highlighter] Error checking CSS highlight capacity:",
+				error,
+			);
+			// Be conservative - assume we're at capacity if we can't check
+			return {
+				canHighlight: false,
+				currentHighlights: MAX_CSS_HIGHLIGHTS,
+				maxHighlights: MAX_CSS_HIGHLIGHTS,
+				additionalRequested: additionalRanges,
+				wouldExceed: true,
+			};
 		}
+
+		// Check multiple capacity constraints
+		const wouldExceedHighlights = currentHighlights + 1 > MAX_CSS_HIGHLIGHTS;
+		const wouldExceedRanges =
+			totalRanges + additionalRanges > MAX_CSS_HIGHLIGHTS * 10; // 10 ranges per highlight on average
+		const tooManyRangesInSingleHighlight =
+			additionalRanges > MAX_RANGES_PER_HIGHLIGHT;
+
+		const wouldExceed =
+			wouldExceedHighlights ||
+			wouldExceedRanges ||
+			tooManyRangesInSingleHighlight;
+		const canHighlight = !wouldExceed;
+
+		// Log capacity warnings
+		if (wouldExceed) {
+			if (wouldExceedHighlights) {
+				console.warn(
+					`[Highlighter] Would exceed max highlights: ${currentHighlights + 1} > ${MAX_CSS_HIGHLIGHTS}`,
+				);
+			}
+			if (wouldExceedRanges) {
+				console.warn(
+					`[Highlighter] Would exceed max ranges: ${totalRanges + additionalRanges} > ${MAX_CSS_HIGHLIGHTS * 10}`,
+				);
+			}
+			if (tooManyRangesInSingleHighlight) {
+				console.warn(
+					`[Highlighter] Too many ranges in single highlight: ${additionalRanges} > ${MAX_RANGES_PER_HIGHLIGHT}`,
+				);
+			}
+		}
+
+		return {
+			canHighlight,
+			currentHighlights: totalRanges, // Return total ranges as more meaningful metric
+			maxHighlights: MAX_CSS_HIGHLIGHTS * 10,
+			additionalRequested: additionalRanges,
+			wouldExceed,
+		};
 	}
 
 	/**
-	 * Generate a unique key for a nugget (case-insensitive)
+	 * Cleanup resources
 	 */
-	private getNuggetKey(nugget: GoldenNugget): string {
-		return `nugget-${nugget.startContent.toLowerCase()}-${nugget.endContent.toLowerCase()}`.replace(
-			/[^a-zA-Z0-9-_]/g,
-			"_",
+	destroy(): void {
+		this.clearHighlights();
+
+		// Cleanup mark.js instance
+		if (this.markInstance) {
+			this.markInstance = null;
+		}
+
+		// Remove CSS highlight styles
+		const styleElement = document.getElementById(
+			"golden-nugget-highlight-styles",
 		);
-	}
-
-	/**
-	 * Highlight using CSS Custom Highlight API (preferred method)
-	 */
-	private highlightWithCSS(range: Range, nugget: GoldenNugget): boolean {
-		try {
-			console.log("highlightWithCSS called");
-			if (range.collapsed) {
-				console.warn("Cannot highlight collapsed range");
-				return false;
-			}
-
-			// Create global highlight object if it doesn't exist
-			if (!this.globalHighlight) {
-				console.log("Creating global highlight object");
-				this.globalHighlight = new window.Highlight();
-				CSS.highlights.set("golden-nugget", this.globalHighlight as any);
-				console.log("Registered global highlight with name 'golden-nugget'");
-			}
-
-			// Add this range to the global highlight
-			const clonedRange = range.cloneRange();
-			this.globalHighlight.add(clonedRange);
-
-			// Store the range info for management
-			const highlightKey = this.getNuggetKey(nugget);
-			this.cssHighlights.set(highlightKey, {
-				range: clonedRange,
-				nugget,
-			});
-
-			console.log("Successfully added CSS highlight:", highlightKey);
-			console.log("CSS.highlights size:", CSS.highlights.size);
-			return true;
-		} catch (error) {
-			console.error("Error creating CSS highlight:", error);
-			console.error("Error details:", error.message);
-			console.error("Falling back to DOM highlighting");
-			return this.highlightWithDOM(range, nugget);
+		if (styleElement) {
+			styleElement.remove();
 		}
-	}
 
-	/**
-	 * Highlight using DOM manipulation (fallback method)
-	 * Uses cloneContents instead of extractContents to avoid data loss
-	 */
-	private highlightWithDOM(range: Range, nugget: GoldenNugget): boolean {
-		try {
-			console.log("highlightWithDOM called");
-			if (range.collapsed) {
-				console.warn("Cannot highlight collapsed range");
-				return false;
-			}
-
-			// Use cloneContents instead of extractContents to preserve original content
-			const contents = range.cloneContents();
-
-			if (!contents || contents.childNodes.length === 0) {
-				console.warn("No contents cloned from range");
-				return false;
-			}
-
-			// Create a highlight element
-			const highlightElement = this.createHighlightElement(nugget);
-			highlightElement.appendChild(contents);
-
-			// Now safely extract and replace with highlighted version
-			try {
-				range.deleteContents();
-				range.insertNode(highlightElement);
-			} catch (insertError) {
-				console.error("DOM insertion failed:", insertError);
-				return false;
-			}
-
-			// Verify the highlight element is in the DOM
-			if (!highlightElement.parentNode) {
-				console.error("Highlight element was not properly inserted into DOM");
-				return false;
-			}
-
-			this.highlightedElements.push(highlightElement);
-			console.log("Successfully created DOM highlight");
-			return true;
-		} catch (error) {
-			console.error("Error highlighting with DOM:", error);
-			return false;
-		}
+		console.log("Highlighter destroyed and cleaned up");
 	}
 }

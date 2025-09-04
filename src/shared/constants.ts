@@ -1,70 +1,106 @@
 export const STORAGE_KEYS = {
 	API_KEY: "geminiApiKey",
 	PROMPTS: "userPrompts",
+	USER_PERSONA: "userPersona",
 	ANALYSIS_STATE: "analysisState", // Analysis progress state
+	ENSEMBLE_SETTINGS: "ensembleSettings", // Ensemble configuration settings
 } as const;
 
 export const GEMINI_CONFIG = {
-	MODEL: "gemini-2.5-flash",
+	MODEL: "gemini-2.5-flash-lite",
 	THINKING_BUDGET: -1,
+} as const;
+
+export const EMBEDDING_CONFIG = {
+	/** Default embedding model for Gemini */
+	MODEL: "gemini-embedding-001",
+	/** Default task type for ensemble nugget similarity */
+	TASK_TYPE: "SEMANTIC_SIMILARITY" as const,
+	/** Default embedding dimensionality (768 is optimal for short technical text) */
+	OUTPUT_DIMENSIONALITY: 768,
+	/** Default similarity threshold for embedding-based grouping */
+	EMBEDDING_THRESHOLD: 0.8,
+	/** Default word overlap threshold for fallback grouping */
+	WORD_OVERLAP_THRESHOLD: 0.8,
+	/** Default cache duration in milliseconds (30 minutes) */
+	CACHE_DURATION: 30 * 60 * 1000,
+	/** Default maximum cache size (number of entries) */
+	MAX_CACHE_SIZE: 1000,
+	/** Default maximum batch size for API calls */
+	MAX_BATCH_SIZE: 25,
+	/** Default maximum retries for API calls */
+	MAX_RETRIES: 3,
+	/** Default retry delay in milliseconds */
+	RETRY_DELAY: 1000,
+} as const;
+
+export const SIMILARITY_DEFAULTS = {
+	/** Default configuration for hybrid similarity matching */
+	EMBEDDING_OPTIONS: {
+		taskType: EMBEDDING_CONFIG.TASK_TYPE,
+		outputDimensionality: EMBEDDING_CONFIG.OUTPUT_DIMENSIONALITY,
+	},
+	/** Default similarity options for ensemble processing */
+	SIMILARITY_OPTIONS: {
+		embeddingThreshold: EMBEDDING_CONFIG.EMBEDDING_THRESHOLD,
+		wordOverlapThreshold: EMBEDDING_CONFIG.WORD_OVERLAP_THRESHOLD,
+		useEmbeddings: true,
+		embeddingOptions: {
+			taskType: EMBEDDING_CONFIG.TASK_TYPE,
+			outputDimensionality: EMBEDDING_CONFIG.OUTPUT_DIMENSIONALITY,
+		},
+	},
 } as const;
 
 export const DEFAULT_PROMPTS = [
 	{
 		id: "default-insights",
 		name: "Find Key Insights",
-		prompt: `## ROLE & GOAL:
-You are an extremely discerning AI information filter. Your goal is to analyze the provided {{ source }} and extract only the most insightful, non-obvious, and high-signal content for a "Pragmatic Processor" persona with ADHD. Your primary directive is **precision over recall**. It is vastly preferable to return zero nuggets than to include a single mediocre one.
+		prompt: `
+You are an expert at analyzing content and extracting valuable insights, which we call "golden nuggets."
+These golden nuggets should be tailored to a specific persona and categorized into five types.
+Your goal is to analyze the provided content and extract only the most insightful, non-obvious, and high-signal content for someone with this persona: {{ persona }}.
 
-**Crucially, do not force or invent extractions. If no content meets the strict criteria below, the \`golden_nuggets\` array MUST be empty ([]).**
+**IMPORTANT: This is the HIGH RECALL phase. Your primary directive is recall over precision. Be generous with extractions while maintaining reasonable quality standards.**
 
-## PERSONA PROFILE:
-*   **Cognitive Model:** INTP (logical systems), ADHD (novelty, structure), 5w6 (competence, reliable knowledge).
-*   **Core Interests:** How things work (science/tech), how people think (cognition/philosophy), how we got here (history/evolution), meta-learning, and elegant principles.
-*   **Intellectual Flavor:** Prioritize First Principles and their practical, Applied Understanding.
-*   **Heroes for Vibe Check:** Does this sound like something Tyler Cowen, Charlie Munger, or Nassim Taleb would find genuinely interesting and not just noise?
+Be inclusive in your extraction approach. If content could potentially be valuable, include it with an appropriate confidence score rather than excluding it entirely. The precision refinement will happen through confidence filtering.
 
-## EXTRACTION FOCUS:
-Extract only the raw, high-quality content without aha! moments. Focus purely on identifying and preserving the most valuable insights in their original form. The content itself should be so obviously valuable that no additional context is needed.
+Golden nugget types and their characteristics:
 
-## CRITICAL HEURISTICS & ANTI-PATTERNS (APPLY BEFORE ALL OTHER RULES):
+1. Mental Models & Frameworks: Conceptual structures or approaches for understanding complex systems or making decisions.
+2. Powerful Analogies: Comparisons that effectively explain or illustrate a concept by relating it to something more familiar.
+3. Media: Recommendations for books, articles, podcasts, magazines, or YouTube videos/playlists that provide valuable information or insights.
+4. Tools: Specific software, techniques, or methodologies that can be applied to improve productivity, solve problems, or enhance understanding.
+5. "Aha!" Moments: Key insights or realizations that provide a new perspective or understanding of a topic.
 
-1.  **The Diamond Miner Principle (Your Core Heuristic):** Think of yourself as a diamond miner sifting through tons of rock. Your job is to find the rare, flawless diamonds, not just interesting-looking rocks. **Most of the time, you will find nothing. This is the correct outcome.** Do not lower your standards to find something.
+Instructions for extracting and formatting golden nuggets:
 
-2.  **Anti-Pattern: Meta-Summaries & Feature Lists:** Your most critical task is to distinguish between the *content* and the *container*.
-    *   **WRONG:** If the source is an article *about* a productivity app, do NOT extract the app's features (e.g., "The app has a results sidebar"). This is describing the container.
-    *   **RIGHT:** If that same article *quotes* a user who discovered a brilliant, non-obvious way to use the app to manage their ADHD, *that specific technique* is a potential nugget. You are looking for insights *within* the source, not a summary *of* the source.
+1. Carefully read and analyze the provided content.
+2. Identify potential golden nuggets that align with the categories above and are relevant to the specified persona.
+3. Extract multiple nuggets per category when valuable content exists.
+4. For each golden nugget, provide the complete verbatim content and assign a confidence score. Extract verbatim spans only: do not paraphrase or synthesize.
 
-3.  **The Final Sanity Check:** Before outputting a nugget, perform one last check: "If I presented *only this extracted text* to the user, would they feel like they received a rare insight, or just a generic point from the source?" If it's not a standalone gem, discard it.
+Extraction limits per category:
+- **Tools and Media**: Extract as many as you find valuable (no limit)
+- **Aha! Moments, Analogies, and Mental Models**: Extract up to 5 of the best per category
 
-## QUALITY CONTROL (APPLY RIGOROUSLY):
-1.  **Strict Filtering:** For each potential nugget, ask: "Is this genuinely insightful, non-obvious, and high-signal for the persona?" If there is *any* doubt, discard it.
-2.  **No Common Knowledge:** Avoid repackaged common knowledge. A mention of 'VS Code' is not a nugget. A mention of a specific, lesser-known VS Code extension with a clear, clever use case *is*.
-3.  **No Vague Praise:** "This article was great" is not a nugget. "This article's aha! moment about confirmation bias using the Wason selection task was eye-opening" *could be* a nugget if the core of that insight is included.
-4.  **High Signal-to-Noise Ratio:** The content must be dense with value. No fluff.
+Additional instructions and constraints:
 
-## EXTRACTION TARGETS ("Golden Nuggets"):
-Your primary task is to find content matching one or more of the following categories. Each example provides a "Bad" (what to avoid) and "Good" (what to look for) case.
+1. For each nugget, provide the complete verbatim content in the fullContent field - do not paraphrase or modify.
+2. Assign a confidence score from 0.0 to 1.0 for each nugget based on:
+   - Relevance to the persona (0.3 weight)
+   - Uniqueness and non-obviousness (0.4 weight)
+   - Actionability and practical value (0.3 weight)
+3. Be generous in this high-recall phase, but maintain minimum quality standards.
+4. If no golden nuggets are found for any category, return an empty array for the golden_nuggets field.
+5. For Tools and Media golden nuggets, NEVER extract just a bare URL without surrounding context. Always include relevant descriptive text, explanations, or context that makes the tool/media recommendation valuable. Only extract a URL alone if it is literally the only content available for that recommendation.
+6. When extracting golden nuggets that contain URLs, NEVER add spaces inside the URLs. URLs must remain intact and functional (e.g., use "http://www.example.com" not "http://www. example. com").
+7. Do not include any explanations or additional commentary outside of the JSON structure.
+8. Each golden nugget must include: type, fullContent, and confidence (0.0-1.0).
 
-1.  **Actionable Tools:** A specific, tool/software/technique. Must include its specific, valuable application.
-    *   **Bad:** "You should use a calendar."
-    *   **Good:** "I use Trello's calendar power-up to visualize my content pipeline, which helps me manage deadlines when my ADHD makes time-planning difficult."
-
-2.  **High-Signal Media:** A high-quality book, article, video, or podcast. Must include *why* it's valuable.
-    *   **Bad:** "Check out the NFL podcast."
-    *   **Good:** "The episode of the Tim Ferriss podcast with guest Derek Sivers has a brilliant segment on the idea of 'hell yeah or no' for decision-making."
-
-3.  **Deep Aha! Moments:** A concise, insightful explanation of a complex concept that goes beyond a surface-level definition. It should feel like a mini-lesson.
-    *   **Bad:** "The mitochondria is the powerhouse of the cell."
-    *   **Good:** "The reason async/await in Javascript is so powerful is that it's syntactic sugar over Promises, allowing you to write asynchronous code that reads like synchronous code, avoiding 'callback hell'."
-
-4.  **Powerful Analogies:** An analogy that makes a complex topic surprisingly simple and clear.
-    *   **Bad:** "It's like learning to ride a bike."
-    *   **Good:** "Thinking about technical debt as being like a financial debt is useful. You can take it on purposefully to ship faster, but you have to pay interest (slower development) until you pay it down (refactor)."
-
-5.  **Mental Models:** A named cognitive framework, productivity technique, or principle for thinking. The simple mention of a specific model is valuable as a hook for further research.
-    *   **Bad:** "You should think about the problem differently." (Too generic)
-    *   **Good:** "I apply the 'Inversion' mental model by asking 'What would guarantee failure?' before starting a new project. This helps me identify and mitigate risks proactively instead of just planning for success."`,
+Your task is to analyze the given content, extract multiple relevant golden nuggets per category with confidence scores, and present them in the required JSON format with fullContent for each nugget.
+Creative exploration is encouraged.
+`.trim(),
 		isDefault: true,
 	},
 ] as const;

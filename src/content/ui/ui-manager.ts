@@ -1,5 +1,4 @@
 import type { Content, ContentScraper } from "threads-harvester";
-import { getDisplayContent } from "../../shared/content-reconstruction";
 import {
 	borderRadius,
 	colors,
@@ -17,7 +16,7 @@ import { ALL_NUGGET_TYPES, type GoldenNuggetType } from "../../shared/schemas";
 import { storage } from "../../shared/storage";
 import {
 	type AnalysisProgressMessage,
-	type GoldenNugget,
+	type EnhancedGoldenNugget,
 	MESSAGE_TYPES,
 	type MissingContentFeedback,
 	type ProviderId,
@@ -85,8 +84,10 @@ export class UIManager {
 		this.notifications.showInfo(message);
 	}
 
-	showApiKeyErrorBanner(): void {
-		this.notifications.showApiKeyError();
+	showApiKeyErrorBanner(
+		errorType: "missing_key" | "rate_limited" = "missing_key",
+	): void {
+		this.notifications.showApiKeyError(errorType);
 	}
 
 	showNoResultsBanner(): void {
@@ -120,12 +121,27 @@ export class UIManager {
 	}
 
 	async displayResults(
-		nuggets: GoldenNugget[],
+		nuggets: EnhancedGoldenNugget[],
 		pageContent?: string,
 		providerMetadata?: {
 			providerId: ProviderId;
 			modelName: string;
 			responseTime: number;
+			providersUsed?: Array<{
+				providerId: ProviderId;
+				modelId: string;
+				responseTime: number;
+				successful: boolean;
+			}>;
+		},
+		extractionMetadata?: {
+			extractionMode?:
+				| "standard"
+				| "two-phase"
+				| "ensemble"
+				| "multi-provider-ensemble";
+			totalProcessingTime?: number;
+			[key: string]: any; // Allow for additional extraction-specific metadata
 		},
 	): Promise<void> {
 		console.log("[UIManager] displayResults called with:", {
@@ -139,82 +155,122 @@ export class UIManager {
 		// Clear any existing highlights and sidebar
 		measureDOMOperation("clear_results", () => this.clearResults());
 
-		// Enhance nuggets with reconstructed full content if page content is available
-		const enhancedNuggets = nuggets.map((nugget) => {
-			if (pageContent) {
-				const fullContent = getDisplayContent(nugget, pageContent);
-				// Create an enhanced nugget with full content for display
-				return {
-					...nugget,
-					_fullContent: fullContent,
-					_hasReconstructedContent:
-						fullContent.length >
-						nugget.startContent.length + nugget.endContent.length + 10,
-				};
-			}
-			return nugget;
-		});
+		// With fullContent migration, nuggets already contain complete content
+		// No need for reconstruction - fullContent is directly available
+		const enhancedNuggets = nuggets.map((nugget) => ({
+			...nugget,
+			// For backward compatibility, add _fullContent alias
+			_fullContent: nugget.fullContent,
+			_hasReconstructedContent: true, // Always true with fullContent migration
+		}));
 
 		console.log("[UIManager] Enhanced nuggets:", {
 			enhancedNuggetsLength: enhancedNuggets.length,
 			firstEnhancedNugget: enhancedNuggets[0] || "none",
 		});
 
-		// Highlight nuggets on the page (pass page content for reconstruction)
-		const sidebarItems: SidebarNuggetItem[] = [];
+		// Extract context for each nugget for anchor matching and batch highlight
+		const nuggetsWithContext = enhancedNuggets.map((nugget, index) => ({
+			nugget,
+			originalNugget: nuggets[index],
+			prefix: this.extractPrefix(nugget.fullContent, pageContent, index),
+			suffix: this.extractSuffix(nugget.fullContent, pageContent, index),
+		}));
 
-		performanceMonitor.startTimer("highlight_nuggets");
-		try {
-			for (let i = 0; i < enhancedNuggets.length; i++) {
-				const nugget = enhancedNuggets[i];
-				const originalNugget = nuggets[i];
-
-				console.log(
-					`[UIManager] Processing nugget ${i + 1}/${enhancedNuggets.length}:`,
-					{
-						type: nugget.type,
-						startContent: `${nugget.startContent?.substring(0, 50)}...`,
-						endContent: `${nugget.endContent?.substring(0, 50)}...`,
-					},
-				);
-
-				const highlighted = await measureHighlighting("nugget_highlight", () =>
-					this.highlighter.highlightNugget(originalNugget, pageContent),
-				);
-				sidebarItems.push({
-					nugget: nugget, // Enhanced nugget already matches GoldenNugget type
-					status: highlighted ? "highlighted" : "not-found",
-					selected: false,
-				});
-			}
-		} catch (error) {
-			console.error("[UIManager] Error during nugget highlighting:", error);
-		}
-
-		console.log("[UIManager] Created sidebar items:", {
-			sidebarItemsLength: sidebarItems.length,
-			firstSidebarItem: sidebarItems[0] || "none",
+		console.log("[UIManager] Nuggets with context prepared:", {
+			nuggetsLength: nuggetsWithContext.length,
+			firstNuggetContext: nuggetsWithContext[0]
+				? {
+						prefix: nuggetsWithContext[0].prefix?.substring(0, 20),
+						suffix: nuggetsWithContext[0].suffix?.substring(0, 20),
+					}
+				: "none",
 		});
 
-		performanceMonitor.logTimer(
-			"highlight_nuggets",
-			`Highlighted ${nuggets.length} nuggets`,
-		);
+		// Batch highlight with context-aware processing - with fallback to ensure sidebar always shows
+		let sidebarItems: SidebarNuggetItem[] = [];
+		try {
+			sidebarItems = await this.batchHighlightNuggets(nuggetsWithContext);
 
-		// Show sidebar with all nuggets (pass page content for reconstruction)
-		console.log(
-			"[UIManager] Calling sidebar.show with",
-			sidebarItems.length,
-			"items",
-		);
-		measureDOMOperation("show_sidebar", () =>
-			this.sidebar.show(
-				sidebarItems,
-				this.highlighter,
-				pageContent,
-				providerMetadata,
-			),
-		);
+			console.log("[UIManager] Batch highlighting completed:", {
+				sidebarItemsLength: sidebarItems.length,
+				highlightedCount: sidebarItems.filter(
+					(item) => item.status === "highlighted",
+				).length,
+				notFoundCount: sidebarItems.filter(
+					(item) => item.status === "not-found",
+				).length,
+			});
+
+			performanceMonitor.logTimer(
+				"highlight_nuggets",
+				`Batch highlighted ${nuggets.length} nuggets with progressive matching`,
+			);
+		} catch (highlightingError) {
+			console.error(
+				"[UIManager] Unexpected error in batchHighlightNuggets:",
+				highlightingError,
+			);
+
+			// Create fallback sidebar items - show all nuggets as "not-found" but still display them
+			sidebarItems = nuggetsWithContext.map(({ nugget }) => ({
+				nugget,
+				status: "not-found" as const,
+				selected: false,
+			}));
+
+			console.log("[UIManager] Created fallback sidebar items:", {
+				fallbackItemsLength: sidebarItems.length,
+			});
+
+			// Send error message to popup (backup in case batchHighlightNuggets didn't send one)
+			try {
+				chrome.runtime.sendMessage({
+					type: MESSAGE_TYPES.ANALYSIS_ERROR,
+					error: `Display failed: ${highlightingError instanceof Error ? highlightingError.message : String(highlightingError)}`,
+					fromContentScript: true,
+				});
+			} catch (messageError) {
+				console.error(
+					"[UIManager] Failed to send fallback error message:",
+					messageError,
+				);
+			}
+		}
+
+		// Always show sidebar with whatever results we have (even if empty or failed)
+		try {
+			console.log(
+				"[UIManager] Calling sidebar.show with",
+				sidebarItems.length,
+				"items",
+			);
+			measureDOMOperation("show_sidebar", () =>
+				this.sidebar.show(
+					sidebarItems,
+					this.highlighter,
+					pageContent,
+					providerMetadata,
+					extractionMetadata,
+				),
+			);
+		} catch (sidebarError) {
+			console.error(
+				"[UIManager] Critical error showing sidebar:",
+				sidebarError,
+			);
+
+			// Last resort - try to show minimal sidebar without advanced features
+			try {
+				this.sidebar.show(sidebarItems, this.highlighter);
+				console.log("[UIManager] Fallback sidebar display succeeded");
+			} catch (fallbackError) {
+				console.error(
+					"[UIManager] Even fallback sidebar display failed:",
+					fallbackError,
+				);
+			}
+		}
 
 		performanceMonitor.logTimer("display_results", "Complete results display");
 	}
@@ -1020,10 +1076,10 @@ export class UIManager {
 		// Hide simple notification if it's showing
 		this.notifications.hideProgress();
 
-		// Store original content
-		this.originalPanelContent = this.controlPanel.cloneNode(
-			true,
-		) as HTMLElement;
+		// Store original content (currently unused)
+		// this.originalPanelContent = this.controlPanel.cloneNode(
+		//	true,
+		// ) as HTMLElement;
 
 		// Find the current prompt name
 		const currentPrompt = this.prompts.find(
@@ -1144,6 +1200,198 @@ export class UIManager {
 	private startFallbackAnimation(): void {
 		// Use the original fake timing as fallback
 		this.startStepProgression();
+	}
+
+	/**
+	 * Extract prefix context for anchor-based text matching
+	 * @param fullContent The nugget's full content
+	 * @param pageContent The complete page content (optional)
+	 * @param nuggetIndex Index of the nugget for position-based context
+	 * @returns Prefix context string (up to 32 characters)
+	 */
+	private extractPrefix(
+		fullContent?: string,
+		pageContent?: string,
+		_nuggetIndex?: number,
+	): string | undefined {
+		if (!fullContent) return undefined;
+
+		// If we have pageContent, try to find the nugget within it and extract context
+		if (pageContent) {
+			const nuggetStart = pageContent.indexOf(fullContent);
+			if (nuggetStart > 0) {
+				const contextStart = Math.max(0, nuggetStart - 32);
+				return pageContent.substring(contextStart, nuggetStart);
+			}
+		}
+
+		// Fallback: try to extract context from the current page's text content
+		const bodyText = document.body.textContent || "";
+		if (bodyText) {
+			const nuggetStart = bodyText.indexOf(fullContent);
+			if (nuggetStart > 0) {
+				const contextStart = Math.max(0, nuggetStart - 32);
+				return bodyText.substring(contextStart, nuggetStart);
+			}
+		}
+
+		// No reliable context found
+		return undefined;
+	}
+
+	/**
+	 * Extract suffix context for anchor-based text matching
+	 * @param fullContent The nugget's full content
+	 * @param pageContent The complete page content (optional)
+	 * @param nuggetIndex Index of the nugget for position-based context
+	 * @returns Suffix context string (up to 32 characters)
+	 */
+	private extractSuffix(
+		fullContent?: string,
+		pageContent?: string,
+		_nuggetIndex?: number,
+	): string | undefined {
+		if (!fullContent) return undefined;
+
+		// If we have pageContent, try to find the nugget within it and extract context
+		if (pageContent) {
+			const nuggetStart = pageContent.indexOf(fullContent);
+			if (nuggetStart !== -1) {
+				const nuggetEnd = nuggetStart + fullContent.length;
+				const contextEnd = Math.min(pageContent.length, nuggetEnd + 32);
+				return pageContent.substring(nuggetEnd, contextEnd);
+			}
+		}
+
+		// Fallback: try to extract context from the current page's text content
+		const bodyText = document.body.textContent || "";
+		if (bodyText) {
+			const nuggetStart = bodyText.indexOf(fullContent);
+			if (nuggetStart !== -1) {
+				const nuggetEnd = nuggetStart + fullContent.length;
+				const contextEnd = Math.min(bodyText.length, nuggetEnd + 32);
+				return bodyText.substring(nuggetEnd, contextEnd);
+			}
+		}
+
+		// No reliable context found
+		return undefined;
+	}
+
+	/**
+	 * Batch process nuggets with context-aware highlighting using progressive matching
+	 * @param nuggetsWithContext Array of nuggets with extracted context
+	 * @returns Promise resolving to sidebar items with highlighting status
+	 */
+	private async batchHighlightNuggets(
+		nuggetsWithContext: Array<{
+			nugget: EnhancedGoldenNugget;
+			originalNugget: EnhancedGoldenNugget;
+			prefix?: string;
+			suffix?: string;
+		}>,
+	): Promise<SidebarNuggetItem[]> {
+		const sidebarItems: SidebarNuggetItem[] = [];
+		let hadCriticalError = false;
+		let errorContext = "";
+
+		performanceMonitor.startTimer("highlight_nuggets");
+		try {
+			for (let i = 0; i < nuggetsWithContext.length; i++) {
+				const { nugget, originalNugget, prefix, suffix } =
+					nuggetsWithContext[i];
+
+				console.log(
+					`[UIManager] Processing nugget ${i + 1}/${nuggetsWithContext.length} with context:`,
+					{
+						type: nugget.type,
+						fullContent: `${nugget.fullContent?.substring(0, 50)}...`,
+						contentLength: nugget.fullContent?.length || 0,
+						hasPrefix: !!prefix,
+						hasSuffix: !!suffix,
+						prefix: prefix?.substring(0, 20),
+						suffix: suffix?.substring(0, 20),
+					},
+				);
+
+				try {
+					// Create a context-aware nugget for the highlighter
+					const contextAwareNugget = {
+						...originalNugget,
+						_context: { prefix, suffix },
+					};
+
+					// Use progressive matching with context
+					const highlightResult = await measureHighlighting(
+						"nugget_highlight_with_context",
+						() => this.highlighter.highlightNugget(contextAwareNugget),
+					);
+
+					// Extract success from the result object
+					const highlighted = highlightResult?.success;
+
+					sidebarItems.push({
+						nugget: nugget, // Enhanced nugget already matches GoldenNugget type
+						status: highlighted ? "highlighted" : "not-found",
+						selected: false,
+					});
+				} catch (nuggetError) {
+					console.error(
+						`[UIManager] Error highlighting nugget ${i + 1}/${nuggetsWithContext.length}:`,
+						nuggetError,
+					);
+					// Add nugget as "not-found" but continue processing
+					sidebarItems.push({
+						nugget: nugget,
+						status: "not-found",
+						selected: false,
+					});
+					errorContext = `Failed at nugget ${i + 1}: ${nuggetError instanceof Error ? nuggetError.message : String(nuggetError)}`;
+				}
+			}
+		} catch (error) {
+			hadCriticalError = true;
+			errorContext = error instanceof Error ? error.message : String(error);
+			console.error(
+				"[UIManager] Critical error during batch nugget highlighting:",
+				error,
+			);
+			// Ensure we return partial results even if some highlighting fails
+			for (let i = sidebarItems.length; i < nuggetsWithContext.length; i++) {
+				sidebarItems.push({
+					nugget: nuggetsWithContext[i].nugget,
+					status: "not-found",
+					selected: false,
+				});
+			}
+		} finally {
+			// Always send completion message to popup to prevent stuck loading state
+			try {
+				if (hadCriticalError || errorContext) {
+					console.log("[UIManager] Sending error completion message to popup");
+					chrome.runtime.sendMessage({
+						type: MESSAGE_TYPES.ANALYSIS_ERROR,
+						error: `Highlighting ${hadCriticalError ? "critically failed" : "partially failed"}: ${errorContext}`,
+						fromContentScript: true,
+					});
+				} else {
+					console.log(
+						"[UIManager] Sending success completion message to popup",
+					);
+					chrome.runtime.sendMessage({
+						type: MESSAGE_TYPES.ANALYSIS_COMPLETE,
+						fromContentScript: true,
+					});
+				}
+			} catch (messageError) {
+				console.error(
+					"[UIManager] Failed to send completion message:",
+					messageError,
+				);
+			}
+		}
+
+		return sidebarItems;
 	}
 
 	cleanup(): void {
@@ -1736,9 +1984,12 @@ export class UIManager {
 			const content = item.textContent || item.htmlContent || "";
 
 			if (content.trim()) {
+				// Use fullContent directly - no need for boundary generation with fullContent migration
+				const trimmedContent = content.trim();
+
 				missingContentFeedback.push({
 					id: feedbackId,
-					content: content.substring(0, 1000), // Limit content length
+					fullContent: trimmedContent,
 					suggestedType: selectedType,
 					timestamp: Date.now(),
 					url: window.location.href,
@@ -1746,6 +1997,13 @@ export class UIManager {
 					// Add provider/model data from the analysis that generated the original results
 					modelProvider: lastUsedProvider?.providerId || "gemini",
 					modelName: lastUsedProvider?.modelName || "gemini-2.5-flash",
+					// TODO: Prompt metadata should come from the analysis that generated the original results
+					prompt: {
+						id: "unknown",
+						content: "",
+						type: "default",
+						name: "Unknown Prompt",
+					},
 				});
 			}
 		});

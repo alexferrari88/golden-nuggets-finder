@@ -1,14 +1,46 @@
 {
-  "extends": "./.wxt/tsconfig.json",
   "compilerOptions": {
-    "target": "ES2020",
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
     "jsx": "react-jsx",
+    "noEmit": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "strict": true,
     "allowSyntheticDefaultImports": true,
     "downlevelIteration": true,
-    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "skipLibCheck": true,
-    "moduleResolution": "node",
-    "types": ["vitest/globals", "node", "@types/chrome"]
+    "types": ["vitest/globals", "node", "@types/chrome"],
+    "paths": {
+      "@": ["./src"],
+      "@/*": ["./src/*"],
+      "~": ["./src"],
+      "~/*": ["./src/*"],
+      "@@": ["."],
+      "@@/*": ["./*"],
+      "~~": ["."],
+      "~~/*": ["./*"]
+    }
   },
-  "exclude": ["node_modules", "dist", "frontend", "backend"]
+  "include": [
+    "src/**/*",
+    "tests/unit/**/*",
+    "tests/integration/**/*",
+    "scripts/**/*",
+    "wxt.config.ts",
+    ".wxt/wxt.d.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist", 
+    "frontend", 
+    "backend",
+    "tests/e2e/**/*",
+    "playwright.config.ts",
+    "**/node_modules/**",
+    "**/.pnpm/**"
+  ]
 }

@@ -1,6 +1,5 @@
 import {
 	type AnalysisProgressMessage,
-	type AnalysisRequest,
 	type DebugLogMessage,
 	type GoldenNugget,
 	MESSAGE_TYPES,
@@ -52,6 +51,16 @@ interface AnalysisResults {
 		providerId: ProviderId;
 		modelName: string;
 		responseTime: number;
+	};
+	metadata?: {
+		phase1Count: number;
+		phase1FilteredCount: number;
+		phase2FuzzyCount: number;
+		phase2LlmCount: number;
+		totalProcessingTime: number;
+		confidenceThreshold: number;
+		abortedDueToLowConfidence?: boolean;
+		noNuggetsPassed?: boolean;
 	};
 }
 
@@ -225,27 +234,35 @@ export default defineContentScript({
 			switch (debugLog.type) {
 				case "llm-request":
 					if (debugLog.data) {
+						const requestData = debugLog.data as {
+							endpoint?: string;
+							requestBody?: unknown;
+						};
 						console.log(
 							"[LLM Request] Gemini API - Endpoint:",
-							debugLog.data.endpoint,
+							requestData.endpoint,
 						);
 						console.log(
 							"[LLM Request] Request Body:",
-							JSON.stringify(debugLog.data.requestBody, null, 2),
+							JSON.stringify(requestData.requestBody, null, 2),
 						);
 					}
 					break;
 
 				case "llm-response":
 					if (debugLog.data) {
+						const responseData = debugLog.data as {
+							responseData?: unknown;
+							parsedResponse?: unknown;
+						};
 						console.log(
 							"[LLM Response] Raw Response:",
-							JSON.stringify(debugLog.data.responseData, null, 2),
+							JSON.stringify(responseData.responseData, null, 2),
 						);
-						if (debugLog.data.parsedResponse) {
+						if (responseData.parsedResponse) {
 							console.log(
 								"[LLM Response] Parsed Response:",
-								JSON.stringify(debugLog.data.parsedResponse, null, 2),
+								JSON.stringify(responseData.parsedResponse, null, 2),
 							);
 						}
 					}
@@ -253,33 +270,49 @@ export default defineContentScript({
 
 				case "llm-validation":
 					if (debugLog.data) {
+						const validationData = debugLog.data as {
+							endpoint?: string;
+							requestBody?: unknown;
+							status?: number;
+							statusText?: string;
+							valid?: boolean;
+						};
 						console.log(
 							"[LLM Request] API Key Validation - Endpoint:",
-							debugLog.data.endpoint,
+							validationData.endpoint,
 						);
 						console.log(
 							"[LLM Request] Test Request Body:",
-							JSON.stringify(debugLog.data.requestBody, null, 2),
+							JSON.stringify(validationData.requestBody, null, 2),
 						);
 						console.log(
 							"[LLM Response] API Key Validation - Status:",
-							debugLog.data.status,
-							debugLog.data.statusText,
+							validationData.status,
+							validationData.statusText,
 						);
-						console.log("[LLM Response] API Key Valid:", debugLog.data.valid);
+						console.log("[LLM Response] API Key Valid:", validationData.valid);
 					}
 					break;
 
 				case "log":
-					console.log(debugLog.message, ...(debugLog.data || []));
+					console.log(
+						debugLog.message,
+						...(Array.isArray(debugLog.data) ? debugLog.data : []),
+					);
 					break;
 
 				case "error":
-					console.error(debugLog.message, ...(debugLog.data || []));
+					console.error(
+						debugLog.message,
+						...(Array.isArray(debugLog.data) ? debugLog.data : []),
+					);
 					break;
 
 				case "warn":
-					console.warn(debugLog.message, ...(debugLog.data || []));
+					console.warn(
+						debugLog.message,
+						...(Array.isArray(debugLog.data) ? debugLog.data : []),
+					);
 					break;
 
 				default:
@@ -331,7 +364,9 @@ export default defineContentScript({
 				request.type === MESSAGE_TYPES.ANALYSIS_CONTENT_OPTIMIZED ||
 				request.type === MESSAGE_TYPES.ANALYSIS_API_REQUEST_START ||
 				request.type === MESSAGE_TYPES.ANALYSIS_API_RESPONSE_RECEIVED ||
-				request.type === MESSAGE_TYPES.ANALYSIS_PROCESSING_RESULTS
+				request.type === MESSAGE_TYPES.ANALYSIS_PROCESSING_RESULTS ||
+				request.type === MESSAGE_TYPES.ENSEMBLE_EXTRACTION_PROGRESS ||
+				request.type === MESSAGE_TYPES.ENSEMBLE_CONSENSUS_COMPLETE
 			) {
 				handleProgressMessage(request as AnalysisProgressMessage);
 				sendResponse({ success: true });
@@ -368,10 +403,22 @@ export default defineContentScript({
 					case MESSAGE_TYPES.ANALYZE_CONTENT:
 						initialize(); // Initialize when needed
 						await analyzeContent(
-							request.promptId,
+							request.promptId || "",
 							request.source,
-							request.analysisId,
+							request.analysisId || "",
 							request.typeFilter,
+						);
+						sendResponse({ success: true });
+						break;
+
+					case MESSAGE_TYPES.ANALYZE_CONTENT_ENSEMBLE:
+						initialize(); // Initialize when needed
+						await analyzeContentEnsemble(
+							request.promptId || "",
+							request.source,
+							request.analysisId || "",
+							request.typeFilter,
+							(request as any).ensembleOptions,
 						);
 						sendResponse({ success: true });
 						break;
@@ -437,11 +484,13 @@ export default defineContentScript({
 						sendResponse({ success: true });
 						break;
 
-					case MESSAGE_TYPES.SHOW_API_KEY_ERROR:
+					case MESSAGE_TYPES.SHOW_API_KEY_ERROR: {
 						// No need to initialize for error display
-						uiManager.showApiKeyErrorBanner();
+						const errorType = (request as any).errorType || "missing_key";
+						uiManager.showApiKeyErrorBanner(errorType);
 						sendResponse({ success: true });
 						break;
+					}
 
 					case MESSAGE_TYPES.DEBUG_LOG:
 						// Handle debug log forwarding to page console (development mode only)
@@ -511,7 +560,7 @@ export default defineContentScript({
 				}
 
 				// Send analysis request to background script with progress tracking info
-				const analysisRequest: AnalysisRequest = {
+				const analysisRequest = {
 					content: content,
 					promptId: promptId,
 					url: window.location.href,
@@ -523,7 +572,7 @@ export default defineContentScript({
 				performanceMonitor.startTimer("api_request");
 				const response = await sendMessageToBackground(
 					MESSAGE_TYPES.ANALYZE_CONTENT,
-					analysisRequest,
+					analysisRequest as any,
 				);
 				performanceMonitor.logTimer("api_request", "Background API call");
 
@@ -586,6 +635,145 @@ export default defineContentScript({
 				performanceMonitor.logTimer(
 					"total_analysis",
 					"Complete analysis workflow",
+				);
+				performanceMonitor.measureMemory();
+			}
+		}
+
+		async function analyzeContentEnsemble(
+			promptId: string,
+			source?: string,
+			providedAnalysisId?: string,
+			typeFilter?: TypeFilterOptions,
+			ensembleOptions?: { runs: number },
+		): Promise<void> {
+			try {
+				performanceMonitor.startTimer("total_ensemble_analysis");
+
+				// Use provided analysis ID or generate new one
+				const analysisId = providedAnalysisId || generateAnalysisId();
+
+				// Start real-time progress tracking in UI manager
+				uiManager.startRealTimeProgress(analysisId, source);
+
+				// Show ensemble-specific progress banner
+				if (source !== "popup") {
+					uiManager.showProgressBanner();
+				}
+
+				// Extract content from the page using the same logic as regular analysis
+				const structuredContent = await measureContentExtraction(
+					"ensemble_page_content",
+					async () => {
+						await contentScraper.run();
+						return contentScraper.getContent();
+					},
+				);
+
+				// Convert structured content to text for AI analysis
+				const content = convertContentToText(structuredContent);
+
+				// Store the extracted content for reconstruction purposes
+				extractedPageContent = content;
+
+				if (!content || content.trim().length === 0) {
+					if (source !== "popup") {
+						uiManager.hideProgressBanner();
+					}
+					uiManager.showErrorBanner("No content found on this page.");
+					return;
+				}
+
+				// Get ensemble options if not provided
+				let finalEnsembleOptions = ensembleOptions;
+				if (!finalEnsembleOptions) {
+					// Use hardcoded defaults since content scripts should receive options from callers
+					finalEnsembleOptions = { runs: 3 };
+				}
+
+				// Send ensemble analysis request to background script
+				const ensembleRequest = {
+					content: content,
+					promptId: promptId,
+					url: window.location.href,
+					analysisId: analysisId,
+					source: source as "popup" | "context-menu",
+					typeFilter: typeFilter,
+					ensembleOptions: finalEnsembleOptions,
+				};
+
+				performanceMonitor.startTimer("ensemble_api_request");
+				const response = await sendMessageToBackground(
+					MESSAGE_TYPES.ANALYZE_CONTENT_ENSEMBLE,
+					ensembleRequest as any,
+				);
+				performanceMonitor.logTimer(
+					"ensemble_api_request",
+					"Ensemble Background API call",
+				);
+
+				if (response.success && response.data) {
+					await measureDOMOperation("display_ensemble_results", () =>
+						handleAnalysisResults(response.data as AnalysisResults, source),
+					);
+					// Notify popup and background script of successful completion
+					chrome.runtime.sendMessage({
+						type: MESSAGE_TYPES.ANALYSIS_COMPLETE,
+						fromContentScript: true,
+					});
+				} else {
+					if (source !== "popup") {
+						uiManager.hideProgressBanner();
+					}
+
+					// Enhanced error message for ensemble failures
+					const errorMessage =
+						response.error || "Ensemble analysis failed. Please try again.";
+					const isProviderError =
+						errorMessage.toLowerCase().includes("provider") ||
+						errorMessage.toLowerCase().includes("openrouter") ||
+						errorMessage.toLowerCase().includes("gemini") ||
+						errorMessage.toLowerCase().includes("anthropic");
+
+					const displayMessage = isProviderError
+						? `🔥 LLM Provider Error: ${errorMessage}`
+						: `🎯 Ensemble Error: ${errorMessage}`;
+
+					console.error(
+						"Ensemble analysis failed with provider error:",
+						errorMessage,
+					);
+					uiManager.showErrorBanner(displayMessage);
+
+					// Notify popup of error
+					chrome.runtime.sendMessage({
+						type: MESSAGE_TYPES.ANALYSIS_ERROR,
+						error: errorMessage,
+					});
+				}
+			} catch (error) {
+				console.error("Ensemble analysis failed with exception:", error);
+				if (source !== "popup") {
+					uiManager.hideProgressBanner();
+				}
+
+				const errorMessage =
+					error instanceof Error
+						? error.message
+						: "Ensemble analysis failed with an unexpected error.";
+				uiManager.showErrorBanner(
+					`🎯 Ensemble Analysis Error: ${errorMessage} Please try again.`,
+				);
+
+				// Notify popup of error
+				chrome.runtime.sendMessage({
+					type: MESSAGE_TYPES.ANALYSIS_ERROR,
+					error: errorMessage,
+				});
+			} finally {
+				performanceMonitor.logTimer(
+					"total_ensemble_analysis",
+					"Complete ensemble analysis workflow",
 				);
 				performanceMonitor.measureMemory();
 			}
@@ -685,18 +873,40 @@ export default defineContentScript({
 				return;
 			}
 
-			// Try multiple possible data structures
+			// Extract nuggets from standardized response format
 			let nuggets: GoldenNugget[] = [];
 			if (Array.isArray(results.golden_nuggets)) {
 				nuggets = results.golden_nuggets;
-			} else if (Array.isArray(results.data?.golden_nuggets)) {
-				nuggets = results.data.golden_nuggets;
-			} else if (Array.isArray(results.nuggets)) {
-				nuggets = results.nuggets;
+			} else {
+				// Fallback for legacy response formats (should be rare after pipeline fixes)
+				console.warn(
+					"[Content Script] Non-standard response format detected, attempting fallback extraction:",
+					{
+						hasDataField: "data" in results,
+						hasNuggetsField: "nuggets" in results,
+						responseStructure: Object.keys(results),
+					},
+				);
+
+				if (Array.isArray(results.data?.golden_nuggets)) {
+					nuggets = results.data.golden_nuggets;
+					console.warn(
+						"[Content Script] Used fallback: results.data.golden_nuggets",
+					);
+				} else if (Array.isArray(results.nuggets)) {
+					nuggets = results.nuggets;
+					console.warn("[Content Script] Used fallback: results.nuggets");
+				} else {
+					console.error(
+						"[Content Script] Could not extract nuggets from response:",
+						results,
+					);
+				}
 			}
 
-			// Extract provider metadata
+			// Extract provider metadata and extraction metadata
 			const providerMetadata = results.providerMetadata || null;
+			const extractionMetadata = results.metadata || null;
 
 			console.log("[Content Script] Nuggets extraction attempt:", {
 				foundStructure: nuggets.length > 0 ? "success" : "failed",
@@ -723,6 +933,7 @@ export default defineContentScript({
 					[],
 					extractedPageContent || undefined,
 					providerMetadata || undefined,
+					extractionMetadata || undefined,
 				);
 				return;
 			}
@@ -737,6 +948,7 @@ export default defineContentScript({
 				nuggets,
 				extractedPageContent || undefined,
 				providerMetadata || undefined,
+				extractionMetadata || undefined,
 			);
 		}
 

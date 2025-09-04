@@ -158,8 +158,8 @@ Continue with analysis...`;
 			expect(result.properties.golden_nuggets.type).toBe("array");
 			expect(result.properties.golden_nuggets.items.required).toEqual([
 				"type",
-				"startContent",
-				"endContent",
+				"fullContent",
+				"confidence",
 			]);
 		});
 	});

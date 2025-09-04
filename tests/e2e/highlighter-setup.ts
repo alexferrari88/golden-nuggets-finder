@@ -121,19 +121,24 @@ class Highlighter {
   }
   
   getNuggetKey(nugget) {
-    return \`nugget-\${nugget.startContent.toLowerCase()}-\${nugget.endContent.toLowerCase()}\`.replace(/[^a-zA-Z0-9-_]/g, '_');
+    const contentKey = nugget.fullContent ? nugget.fullContent.toLowerCase() : 
+                      \`\${nugget.startContent?.toLowerCase() || ''}-\${nugget.endContent?.toLowerCase() || ''}\`;
+    return \`nugget-\${contentKey}\`.replace(/[^a-zA-Z0-9-_]/g, '_');
   }
 
   highlightNugget(nugget, pageContent) {
     try {
-      console.log('highlightNugget called for:', nugget.startContent);
+      const content = nugget.fullContent || \`\${nugget.startContent || ''} \${nugget.endContent || ''}\`.trim();
+      console.log('highlightNugget called for:', content);
       
       if (this.isAlreadyHighlighted(nugget)) {
         console.log('Already highlighted');
         return true;
       }
 
-      const range = this.findTextInDOM(nugget.startContent, nugget.endContent);
+      const range = nugget.fullContent ? 
+        this.findTextInDOMFullContent(nugget.fullContent) : 
+        this.findTextInDOM(nugget.startContent, nugget.endContent);
       if (!range) {
         console.warn('Could not find text range for nugget:', nugget);
         return false;
@@ -252,10 +257,16 @@ class Highlighter {
       // Check DOM-based highlights (fallback)
       return this.highlightedElements.some(element => {
         const elementText = (element.textContent || '').toLowerCase();
-        return elementText.includes(nugget.startContent.toLowerCase()) && 
-               elementText.includes(nugget.endContent.toLowerCase()) &&
-               element.hasAttribute('data-nugget-key') &&
-               element.getAttribute('data-nugget-key') === nuggetKey;
+        if (nugget.fullContent) {
+          return elementText.includes(nugget.fullContent.toLowerCase()) &&
+                 element.hasAttribute('data-nugget-key') &&
+                 element.getAttribute('data-nugget-key') === nuggetKey;
+        } else {
+          return elementText.includes(nugget.startContent.toLowerCase()) && 
+                 elementText.includes(nugget.endContent.toLowerCase()) &&
+                 element.hasAttribute('data-nugget-key') &&
+                 element.getAttribute('data-nugget-key') === nuggetKey;
+        }
       });
     } catch (error) {
       console.error('Error checking if already highlighted:', error);
@@ -531,6 +542,88 @@ class Highlighter {
       return range;
     } catch (error) {
       console.error('Error finding text in DOM:', error);
+      return null;
+    }
+  }
+
+  // New method to handle fullContent highlighting
+  findTextInDOMFullContent(fullContent) {
+    try {
+      const walker = document.createTreeWalker(
+        document.body,
+        NodeFilter.SHOW_TEXT,
+        {
+          acceptNode: (node) => {
+            const parent = node.parentElement;
+            if (parent && (
+              parent.tagName === 'SCRIPT' || 
+              parent.tagName === 'STYLE' ||
+              parent.tagName === 'NOSCRIPT'
+            )) {
+              return NodeFilter.FILTER_REJECT;
+            }
+            return NodeFilter.FILTER_ACCEPT;
+          }
+        }
+      );
+
+      let textNodes = [];
+      let node;
+      while ((node = walker.nextNode())) {
+        textNodes.push(node);
+      }
+
+      const fullText = textNodes.map(node => node.textContent).join('');
+      const fullTextLower = fullText.toLowerCase();
+      const contentLower = fullContent.toLowerCase();
+
+      // Simple search for the full content
+      const startIndex = fullTextLower.indexOf(contentLower);
+      if (startIndex === -1) {
+        console.warn('Could not find fullContent in DOM:', fullContent);
+        return null;
+      }
+
+      // Find the corresponding DOM position
+      let currentPos = 0;
+      let startNodeInfo = null;
+      let endNodeInfo = null;
+
+      for (const node of textNodes) {
+        const nodeLength = node.textContent.length;
+        
+        if (!startNodeInfo && currentPos + nodeLength > startIndex) {
+          startNodeInfo = {
+            node: node,
+            offset: startIndex - currentPos
+          };
+        }
+        
+        const endIndex = startIndex + contentLower.length;
+        if (!endNodeInfo && currentPos + nodeLength >= endIndex) {
+          endNodeInfo = {
+            node: node,
+            offset: endIndex - currentPos
+          };
+          break;
+        }
+        
+        currentPos += nodeLength;
+      }
+
+      if (!startNodeInfo || !endNodeInfo) {
+        console.warn('Could not find DOM positions for fullContent:', fullContent);
+        return null;
+      }
+
+      const range = document.createRange();
+      range.setStart(startNodeInfo.node, startNodeInfo.offset);
+      range.setEnd(endNodeInfo.node, endNodeInfo.offset);
+
+      console.log('Found fullContent range:', fullContent.substring(0, 50) + '...');
+      return range;
+    } catch (error) {
+      console.error('Error finding fullContent in DOM:', error);
       return null;
     }
   }

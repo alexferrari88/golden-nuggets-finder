@@ -183,6 +183,18 @@ const usePhaseProgression = (
 				// Step 4: Finalize phase (instant)
 				phaseIndex = 2;
 				shouldComplete = true;
+			} else if (
+				progressMessage.type === MESSAGE_TYPES.ENSEMBLE_EXTRACTION_PROGRESS
+			) {
+				// Ensemble extraction progress - map to AI thinking phase
+				phaseIndex = 1;
+				shouldComplete = false; // Ensemble is still in progress
+			} else if (
+				progressMessage.type === MESSAGE_TYPES.ENSEMBLE_CONSENSUS_COMPLETE
+			) {
+				// Ensemble consensus complete - finalize phase
+				phaseIndex = 2;
+				shouldComplete = true;
 			}
 
 			if (phaseIndex >= 0) {
@@ -202,7 +214,11 @@ const usePhaseProgression = (
 					setCurrentPhase(phaseIndex);
 					// Update persistent state
 					if (onStateUpdate) {
-						onStateUpdate(phaseIndex, completedPhases, aiStartTime);
+						onStateUpdate(
+							phaseIndex,
+							completedPhases,
+							aiStartTime || undefined,
+						);
 					}
 				}
 
@@ -216,7 +232,11 @@ const usePhaseProgression = (
 						// Update persistent state with new completed phases
 						if (onStateUpdate && newCompleted !== prev) {
 							const newCurrentPhase = phaseIndex < 2 ? -1 : phaseIndex;
-							onStateUpdate(newCurrentPhase, newCompleted, aiStartTime);
+							onStateUpdate(
+								newCurrentPhase,
+								newCompleted,
+								aiStartTime || undefined,
+							);
 						}
 
 						return newCompleted;
@@ -316,6 +336,26 @@ function IndexPopup() {
 		"analogy",
 		"model",
 	]);
+	const [ensembleMode, setEnsembleMode] = useState<boolean>(false);
+	const [ensembleSettings, setEnsembleSettings] = useState<{
+		enabled: boolean;
+		defaultRuns: number;
+		mode: "single-model" | "multi-provider";
+		providerConfigurations: Array<{
+			providerId: ProviderId;
+			modelId: string;
+			enabled: boolean;
+		}>;
+		defaultProviderSet: string;
+	} | null>(null);
+	const [_showProviderSelection, setShowProviderSelection] =
+		useState<boolean>(false);
+	const [selectedEnsembleProviders, setSelectedEnsembleProviders] = useState<
+		Array<{
+			providerId: ProviderId;
+			modelId: string;
+		}>
+	>([]);
 
 	// Analysis phases data - reflects real workflow timing
 	const analysisPhases = [
@@ -333,10 +373,16 @@ function IndexPopup() {
 			isQuick: false, // Step 3 is the long wait
 			timeEstimate: "Usually takes 15-30 seconds",
 			tips: [
-				"💎 Looking for 5 types: Tools, Media, Aha! Moments, Analogies, Mental Models",
+				"💎 Looking for types: Tools, Media, Aha! Moments, Analogies, Mental Models",
 				"🔍 Analyzing context and relevance to your interests",
 				"⚡ Processing hundreds of words per second",
 				"🎯 Filtering for the most valuable insights",
+			],
+			ensembleTips: [
+				"🎯 Running 3 parallel analyses for higher confidence",
+				"🤖 Multiple AI runs analyzing the same content independently",
+				"🔄 Building consensus from multiple perspectives",
+				"✨ Filtering duplicates and ranking by confidence",
 			],
 		},
 		{
@@ -349,7 +395,11 @@ function IndexPopup() {
 
 	// Use custom hooks for loading animation
 	const { displayText, isComplete, showCursor } = useTypingEffect(
-		analyzing ? "Analyzing your content..." : "",
+		analyzing
+			? ensembleMode
+				? "Running ensemble analysis..."
+				: "Analyzing your content..."
+			: "",
 		80,
 	);
 
@@ -423,15 +473,20 @@ function IndexPopup() {
 	useEffect(() => {
 		if (currentPhase === 1) {
 			const aiPhase = analysisPhases[1];
-			if (aiPhase.tips && aiPhase.tips.length > 1) {
+			// Use ensemble tips if ensemble mode is active, otherwise use regular tips
+			const tips =
+				ensembleMode && aiPhase.ensembleTips
+					? aiPhase.ensembleTips
+					: aiPhase.tips;
+			if (tips && tips.length > 1) {
 				const interval = setInterval(() => {
-					setCurrentTipIndex((prev) => (prev + 1) % aiPhase.tips?.length);
+					setCurrentTipIndex((prev) => (prev + 1) % tips.length);
 				}, 3000); // Change tip every 3 seconds
 
 				return () => clearInterval(interval);
 			}
 		}
-	}, [currentPhase]);
+	}, [currentPhase, ensembleMode]);
 
 	// Check backend availability
 	const checkBackendStatus = useCallback(async () => {
@@ -552,10 +607,77 @@ function IndexPopup() {
 		}
 	}, [processRealTimePhase]);
 
+	// Load ensemble settings on component mount
+	useEffect(() => {
+		const loadEnsembleSettings = async () => {
+			try {
+				const settings = await storage.getEnsembleSettings();
+				setEnsembleSettings(settings);
+
+				// Load default provider configuration for multi-provider mode
+				if (
+					settings.mode === "multi-provider" &&
+					settings.providerConfigurations.length > 0
+				) {
+					setSelectedEnsembleProviders(
+						settings.providerConfigurations
+							.filter((config) => config.enabled)
+							.map((config) => ({
+								providerId: config.providerId,
+								modelId: config.modelId,
+							})),
+					);
+				}
+			} catch (error) {
+				console.error("Failed to load ensemble settings:", error);
+			}
+		};
+
+		loadEnsembleSettings();
+	}, []);
+
 	useEffect(() => {
 		loadPrompts();
 		checkBackendStatus();
 		restoreAnalysisState();
+
+		// Defensive cleanup: Double-check for zombie analysis states after restoration
+		// This provides an additional safety net against persistent loading screens
+		const defensiveCleanupTimeout = setTimeout(async () => {
+			try {
+				const currentState = await storage.getActiveAnalysisState();
+				if (currentState) {
+					const ageInMinutes =
+						(Date.now() - currentState.startTime) / (1000 * 60);
+
+					// If state was restored but is clearly stale, force clear it
+					// This catches edge cases where validation didn't catch zombie states
+					if (
+						ageInMinutes > 2 ||
+						(currentState.currentPhase === 2 && ageInMinutes > 0.5) ||
+						(currentState.completedPhases.includes(2) && ageInMinutes > 0.25)
+					) {
+						console.warn(
+							"[Popup] Defensive cleanup: Clearing zombie analysis state",
+							{
+								analysisId: currentState.analysisId,
+								ageMinutes: ageInMinutes.toFixed(2),
+								currentPhase: currentState.currentPhase,
+								completedPhases: currentState.completedPhases,
+							},
+						);
+
+						// Clear both UI and persistent state
+						setAnalyzing(null);
+						setCurrentAnalysisId(null);
+						currentAnalysisIdRef.current = null;
+						await storage.clearAnalysisState();
+					}
+				}
+			} catch (error) {
+				console.warn("[Popup] Defensive cleanup failed:", error);
+			}
+		}, 500); // Run after 500ms to allow restoration to complete
 
 		// Helper function to clear analysis state reliably
 		const clearAnalysisStateImmediately = async (reason: string) => {
@@ -608,12 +730,15 @@ function IndexPopup() {
 			// Handle real-time progress messages (only for current analysis)
 			if (
 				currentAnalysisIdRef.current &&
+				"analysisId" in message &&
 				message.analysisId === currentAnalysisIdRef.current &&
 				(message.type === MESSAGE_TYPES.ANALYSIS_CONTENT_EXTRACTED ||
 					message.type === MESSAGE_TYPES.ANALYSIS_CONTENT_OPTIMIZED ||
 					message.type === MESSAGE_TYPES.ANALYSIS_API_REQUEST_START ||
 					message.type === MESSAGE_TYPES.ANALYSIS_API_RESPONSE_RECEIVED ||
-					message.type === MESSAGE_TYPES.ANALYSIS_PROCESSING_RESULTS)
+					message.type === MESSAGE_TYPES.ANALYSIS_PROCESSING_RESULTS ||
+					message.type === MESSAGE_TYPES.ENSEMBLE_EXTRACTION_PROGRESS ||
+					message.type === MESSAGE_TYPES.ENSEMBLE_CONSENSUS_COMPLETE)
 			) {
 				processRealTimePhase(message as AnalysisProgressMessage);
 			}
@@ -623,6 +748,12 @@ function IndexPopup() {
 
 		return () => {
 			chrome.runtime.onMessage.removeListener(messageListener);
+
+			// Clear defensive cleanup timeout
+			if (defensiveCleanupTimeout) {
+				clearTimeout(defensiveCleanupTimeout);
+			}
+
 			if (cleanupTimeoutRef.current) {
 				clearTimeout(cleanupTimeoutRef.current);
 				cleanupTimeoutRef.current = null;
@@ -644,6 +775,74 @@ function IndexPopup() {
 		processRealTimePhase,
 		restoreAnalysisState,
 	]); // Remove dependencies to prevent infinite re-renders
+
+	// Check if analysis should be disabled
+	const isAnalysisDisabled = (prompt?: SavedPrompt) => {
+		if (!prompt || analyzing) return true;
+
+		return (
+			ensembleMode &&
+			ensembleSettings?.mode === "multi-provider" &&
+			selectedEnsembleProviders.length === 0
+		);
+	};
+
+	// Get analyze button title text
+	const getAnalyzeButtonTitle = (prompt?: SavedPrompt) => {
+		if (analyzing) return "Analysis in progress...";
+		if (!prompt) return "Select a prompt first";
+		if (
+			ensembleMode &&
+			ensembleSettings?.mode === "multi-provider" &&
+			selectedEnsembleProviders.length === 0
+		) {
+			return "Select at least one provider for ensemble analysis";
+		}
+		if (ensembleMode && ensembleSettings?.mode === "multi-provider") {
+			return `Run ensemble analysis with ${selectedEnsembleProviders.length} providers (${selectedEnsembleProviders.length}x cost)`;
+		}
+		if (ensembleMode && ensembleSettings?.mode === "single-model") {
+			return `Run ensemble analysis with ${ensembleSettings.defaultRuns} runs (${ensembleSettings.defaultRuns}x cost)`;
+		}
+		return "Analyze this page for golden nuggets";
+	};
+
+	// Enhanced ensemble toggle handler
+	const handleEnsembleToggle = () => {
+		if (!ensembleSettings) return;
+
+		const newEnsembleMode = !ensembleMode;
+		setEnsembleMode(newEnsembleMode);
+
+		// If enabling multi-provider mode, show provider selection
+		if (newEnsembleMode && ensembleSettings.mode === "multi-provider") {
+			setShowProviderSelection(true);
+		} else {
+			setShowProviderSelection(false);
+		}
+	};
+
+	// Provider configuration selection
+	const handleProviderConfigurationChange = (
+		providerId: ProviderId,
+		modelId: string,
+		selected: boolean,
+	) => {
+		if (selected) {
+			setSelectedEnsembleProviders((prev) => [
+				...prev.filter(
+					(p) => !(p.providerId === providerId && p.modelId === modelId),
+				),
+				{ providerId, modelId },
+			]);
+		} else {
+			setSelectedEnsembleProviders((prev) =>
+				prev.filter(
+					(p) => !(p.providerId === providerId && p.modelId === modelId),
+				),
+			);
+		}
+	};
 
 	const analyzeWithPrompt = async (promptId: string) => {
 		try {
@@ -700,14 +899,50 @@ function IndexPopup() {
 			const typeFilter: TypeFilterOptions =
 				createCombinationTypeFilter(selectedTypes);
 
-			// Send message to content script with analysis ID and type filter
-			await chrome.tabs.sendMessage(tab.id, {
-				type: MESSAGE_TYPES.ANALYZE_CONTENT,
-				promptId: promptId,
-				source: "popup",
-				analysisId: analysisId,
-				typeFilter: typeFilter,
-			});
+			// Send message to content script - route based on extraction mode
+			if (ensembleMode) {
+				if (
+					ensembleSettings?.mode === "multi-provider" &&
+					selectedEnsembleProviders.length > 0
+				) {
+					// Multi-provider ensemble analysis
+					await chrome.tabs.sendMessage(tab.id, {
+						type: MESSAGE_TYPES.ANALYZE_CONTENT_ENSEMBLE,
+						promptId: promptId,
+						source: "popup",
+						analysisId: analysisId,
+						typeFilter: typeFilter,
+						ensembleOptions: {
+							mode: "multi-provider" as const,
+							providerConfigurations: selectedEnsembleProviders,
+						},
+					});
+				} else {
+					// Single-model ensemble analysis (existing logic)
+					const ensembleOptions: { runs: number; mode: "single-model" } = {
+						runs: ensembleSettings?.defaultRuns || 3,
+						mode: "single-model" as const,
+					};
+
+					await chrome.tabs.sendMessage(tab.id, {
+						type: MESSAGE_TYPES.ANALYZE_CONTENT_ENSEMBLE,
+						promptId: promptId,
+						source: "popup",
+						analysisId: analysisId,
+						typeFilter: typeFilter,
+						ensembleOptions,
+					});
+				}
+			} else {
+				// Send regular analysis message
+				await chrome.tabs.sendMessage(tab.id, {
+					type: MESSAGE_TYPES.ANALYZE_CONTENT,
+					promptId: promptId,
+					source: "popup",
+					analysisId: analysisId,
+					typeFilter: typeFilter,
+				});
+			}
 
 			// Listen for analysis completion - don't close popup immediately
 			const listener = (message: { type: string; error?: string }) => {
@@ -1030,7 +1265,7 @@ function IndexPopup() {
 
 						if (!isVisible) return null;
 
-						let indicator = "○";
+						let indicator: string | React.ReactElement = "○";
 						let indicatorColor = colors.text.tertiary;
 						let textColor = colors.text.tertiary;
 						let indicatorAnimation = "none";
@@ -1125,9 +1360,15 @@ function IndexPopup() {
 													transition: "opacity 0.3s ease",
 												}}
 											>
-												{phase.tips && phase.tips.length > 0
-													? phase.tips[currentTipIndex]
-													: phase.description}
+												{(() => {
+													const tips =
+														ensembleMode && phase.ensembleTips
+															? phase.ensembleTips
+															: phase.tips;
+													return tips && tips.length > 0
+														? tips[currentTipIndex]
+														: phase.description;
+												})()}
 											</div>
 
 											{/* Time estimate and elapsed time */}
@@ -1360,6 +1601,212 @@ function IndexPopup() {
 					</button>
 				</div>
 
+				{/* Enhanced Ensemble Mode Section */}
+				<div
+					style={{
+						display: "flex",
+						flexDirection: "column",
+						gap: spacing.sm,
+						marginBottom: spacing.md,
+						padding: spacing.sm,
+						backgroundColor: ensembleMode
+							? colors.background.secondary
+							: "transparent",
+						borderRadius: borderRadius.md,
+						border: `1px solid ${
+							ensembleMode ? `${colors.text.accent}33` : colors.border.light
+						}`,
+						transition: "all 0.2s ease",
+					}}
+				>
+					{/* Existing ensemble toggle */}
+					<div
+						style={{
+							display: "flex",
+							alignItems: "center",
+							justifyContent: "space-between",
+						}}
+					>
+						<span
+							style={{
+								fontSize: typography.fontSize.sm,
+								fontWeight: typography.fontWeight.medium,
+								color: ensembleMode
+									? colors.text.accent
+									: colors.text.secondary,
+							}}
+						>
+							🎯 Ensemble Mode
+							{ensembleSettings?.mode === "multi-provider" && ensembleMode
+								? ` (${selectedEnsembleProviders.length} providers)`
+								: ensembleSettings?.mode === "single-model" && ensembleMode
+									? ` (${ensembleSettings.defaultRuns} runs)`
+									: ""}
+						</span>
+
+						{/* Existing toggle button - keep unchanged */}
+						<button
+							type="button"
+							onClick={handleEnsembleToggle}
+							style={{
+								width: "44px",
+								height: "24px",
+								backgroundColor: ensembleMode
+									? colors.text.accent
+									: colors.background.primary,
+								border: `2px solid ${
+									ensembleMode ? colors.text.accent : colors.border.default
+								}`,
+								borderRadius: "12px",
+								cursor: "pointer",
+								transition: "all 0.2s ease",
+								position: "relative",
+							}}
+							title="Toggle ensemble mode for higher confidence results"
+						>
+							<div
+								style={{
+									width: "16px",
+									height: "16px",
+									backgroundColor: ensembleMode
+										? colors.background.primary
+										: colors.text.tertiary,
+									borderRadius: "50%",
+									transition: "all 0.2s ease",
+									transform: ensembleMode
+										? "translateX(20px)"
+										: "translateX(0px)",
+									position: "absolute",
+									top: "2px",
+									left: "2px",
+								}}
+							/>
+						</button>
+					</div>
+
+					{/* Multi-Provider Selection (new) */}
+					{ensembleMode && ensembleSettings?.mode === "multi-provider" && (
+						<div
+							style={{
+								marginTop: spacing.sm,
+								padding: spacing.sm,
+								backgroundColor: colors.background.primary,
+								borderRadius: borderRadius.sm,
+								border: `1px solid ${colors.border.light}`,
+							}}
+						>
+							<div
+								style={{
+									fontSize: typography.fontSize.xs,
+									color: colors.text.secondary,
+									marginBottom: spacing.sm,
+								}}
+							>
+								Select providers for ensemble analysis:
+							</div>
+
+							<div
+								style={{
+									display: "flex",
+									flexDirection: "column",
+									gap: spacing.xs,
+									maxHeight: "120px",
+									overflowY: "auto",
+								}}
+							>
+								{ensembleSettings.providerConfigurations
+									.filter((config) => config.enabled)
+									.map((config, index) => {
+										const isSelected = selectedEnsembleProviders.some(
+											(selected) =>
+												selected.providerId === config.providerId &&
+												selected.modelId === config.modelId,
+										);
+
+										return (
+											<label
+												key={`${config.providerId}-${config.modelId}-${index}`}
+												style={{
+													display: "flex",
+													alignItems: "center",
+													gap: spacing.xs,
+													fontSize: typography.fontSize.xs,
+													cursor: "pointer",
+													padding: spacing.xs,
+													borderRadius: borderRadius.sm,
+													backgroundColor: isSelected
+														? `${colors.text.accent}15`
+														: "transparent",
+													transition: "background-color 0.2s",
+												}}
+											>
+												<input
+													type="checkbox"
+													checked={isSelected}
+													onChange={(e) =>
+														handleProviderConfigurationChange(
+															config.providerId,
+															config.modelId,
+															e.target.checked,
+														)
+													}
+													style={{ margin: 0 }}
+												/>
+												<span style={{ flex: 1 }}>
+													{config.providerId.charAt(0).toUpperCase() +
+														config.providerId.slice(1)}{" "}
+													• {config.modelId}
+												</span>
+											</label>
+										);
+									})}
+							</div>
+
+							{selectedEnsembleProviders.length === 0 && (
+								<div
+									style={{
+										fontSize: typography.fontSize.xs,
+										color: colors.text.secondary,
+										fontStyle: "italic",
+										textAlign: "center",
+										padding: spacing.sm,
+									}}
+								>
+									Select at least one provider to enable analysis
+								</div>
+							)}
+
+							{ensembleSettings.providerConfigurations.filter((c) => c.enabled)
+								.length === 0 && (
+								<div
+									style={{
+										fontSize: typography.fontSize.xs,
+										color: colors.text.secondary,
+										textAlign: "center",
+										padding: spacing.sm,
+									}}
+								>
+									Configure providers in{" "}
+									<button
+										onClick={() => chrome.runtime.openOptionsPage()}
+										style={{
+											background: "none",
+											border: "none",
+											color: colors.text.accent,
+											textDecoration: "underline",
+											cursor: "pointer",
+											padding: 0,
+											fontSize: "inherit",
+										}}
+									>
+										Options
+									</button>
+								</div>
+							)}
+						</div>
+					)}
+				</div>
+
 				{/* Mode Toggle */}
 				<div
 					style={{
@@ -1536,10 +1983,12 @@ function IndexPopup() {
 							type="button"
 							key={prompt.id}
 							data-testid="prompt-item"
+							disabled={isAnalysisDisabled(prompt)}
 							onClick={() =>
-								selectionMode === "quick"
+								!isAnalysisDisabled(prompt) &&
+								(selectionMode === "quick"
 									? analyzeWithPrompt(prompt.id)
-									: enterSelectionMode(prompt.id)
+									: enterSelectionMode(prompt.id))
 							}
 							style={{
 								padding: spacing.lg,
@@ -1548,7 +1997,7 @@ function IndexPopup() {
 									: colors.background.secondary,
 								border: `1px solid ${prompt.isDefault ? `${colors.text.accent}33` : colors.border.light}`,
 								borderRadius: borderRadius.md,
-								cursor: "pointer",
+								cursor: isAnalysisDisabled(prompt) ? "not-allowed" : "pointer",
 								transition: "all 0.2s ease",
 								display: "flex",
 								alignItems: "center",
@@ -1556,22 +2005,28 @@ function IndexPopup() {
 								fontSize: typography.fontSize.sm,
 								fontWeight: typography.fontWeight.medium,
 								color: colors.text.primary,
+								opacity: isAnalysisDisabled(prompt) ? 0.6 : 1,
 							}}
+							title={getAnalyzeButtonTitle(prompt)}
 							onMouseEnter={(e) => {
-								e.currentTarget.style.backgroundColor = prompt.isDefault
-									? colors.background.secondary
-									: colors.background.secondary;
-								e.currentTarget.style.borderColor = colors.border.default;
-								e.currentTarget.style.boxShadow = shadows.sm;
+								if (!isAnalysisDisabled(prompt)) {
+									e.currentTarget.style.backgroundColor = prompt.isDefault
+										? colors.background.secondary
+										: colors.background.secondary;
+									e.currentTarget.style.borderColor = colors.border.default;
+									e.currentTarget.style.boxShadow = shadows.sm;
+								}
 							}}
 							onMouseLeave={(e) => {
-								e.currentTarget.style.backgroundColor = prompt.isDefault
-									? colors.background.secondary
-									: colors.background.secondary;
-								e.currentTarget.style.borderColor = prompt.isDefault
-									? `${colors.text.accent}33`
-									: colors.border.light;
-								e.currentTarget.style.boxShadow = "none";
+								if (!isAnalysisDisabled(prompt)) {
+									e.currentTarget.style.backgroundColor = prompt.isDefault
+										? colors.background.secondary
+										: colors.background.secondary;
+									e.currentTarget.style.borderColor = prompt.isDefault
+										? `${colors.text.accent}33`
+										: colors.border.light;
+									e.currentTarget.style.boxShadow = "none";
+								}
 							}}
 						>
 							<div

@@ -14,8 +14,8 @@ vi.mock("@langchain/openai", () => ({
 				golden_nuggets: [
 					{
 						type: "tool",
-						startContent: "Test content",
-						endContent: "Test content",
+						fullContent: "Test content for golden nugget extraction",
+						confidence: 0.9,
 					},
 				],
 			}),
@@ -50,7 +50,7 @@ describe("LangChainOpenAIProvider", () => {
 
 		const provider = new LangChainOpenAIProvider(configWithoutModel);
 
-		expect(provider.modelName).toBe("gpt-4.1-mini");
+		expect(provider.modelName).toBe("gpt-4o-mini");
 	});
 
 	it("should extract golden nuggets successfully", async () => {
@@ -65,8 +65,9 @@ describe("LangChainOpenAIProvider", () => {
 			golden_nuggets: [
 				{
 					type: "tool",
-					startContent: "Test content",
-					endContent: "Test content",
+					fullContent: "Test content for golden nugget extraction",
+					confidence: 0.9,
+					extractionMethod: "llm",
 				},
 			],
 		});

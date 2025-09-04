@@ -15,6 +15,7 @@ import type {
 	FeedbackStats,
 	MESSAGE_TYPES,
 	OptimizedPrompt,
+	PromptMetadata,
 	SavedPrompt,
 	TypeFilterOptions,
 } from "./types";
@@ -45,12 +46,16 @@ export interface AnalyzeContentMessage extends BaseMessage {
 	analysisId?: string;
 	source?: "popup" | "context-menu";
 	typeFilter?: TypeFilterOptions;
+	// NEW: Prompt metadata for feedback context
+	promptMetadata?: PromptMetadata;
 }
 
 export interface EnterSelectionModeMessage extends BaseMessage {
 	type: typeof MESSAGE_TYPES.ENTER_SELECTION_MODE;
 	promptId: string;
 	typeFilter?: TypeFilterOptions;
+	// NEW: Prompt metadata for feedback context
+	promptMetadata?: PromptMetadata;
 }
 
 export interface AnalyzeSelectedContentMessage extends BaseMessage {
@@ -60,6 +65,8 @@ export interface AnalyzeSelectedContentMessage extends BaseMessage {
 	url: string;
 	selectedComments: string[];
 	typeFilter?: TypeFilterOptions;
+	// NEW: Prompt metadata for feedback context
+	promptMetadata?: PromptMetadata;
 }
 
 export interface GetPromptsMessage extends BaseMessage {
@@ -155,6 +162,55 @@ export async function sendWithInjection<
 			message.type,
 		);
 	}
+}
+
+/**
+ * Converts a SavedPrompt to PromptMetadata for backend communication
+ * Maintains backward compatibility while adding prompt context
+ *
+ * @param savedPrompt - The SavedPrompt to convert
+ * @returns PromptMetadata with all necessary context for backend optimization
+ */
+export function convertSavedPromptToMetadata(
+	savedPrompt: SavedPrompt,
+): PromptMetadata {
+	return {
+		id: savedPrompt.id,
+		version: savedPrompt.isOptimized ? savedPrompt.optimizationDate : "v1.0",
+		content: savedPrompt.prompt,
+		type: savedPrompt.isOptimized
+			? "optimized"
+			: savedPrompt.isDefault
+				? "default"
+				: "custom",
+		name: savedPrompt.name,
+		isOptimized: savedPrompt.isOptimized,
+		optimizationDate: savedPrompt.optimizationDate,
+		performance: savedPrompt.performance,
+	};
+}
+
+/**
+ * Creates PromptMetadata from DEFAULT_PROMPTS structure
+ * Used for documenting the current default prompt structure for backend integration
+ *
+ * @param defaultPrompt - Default prompt from constants
+ * @returns PromptMetadata for the default prompt
+ */
+export function createDefaultPromptMetadata(defaultPrompt: {
+	id: string;
+	name: string;
+	prompt: string;
+	isDefault: boolean;
+}): PromptMetadata {
+	return {
+		id: defaultPrompt.id,
+		version: "v1.0",
+		content: defaultPrompt.prompt,
+		type: "default",
+		name: defaultPrompt.name,
+		isOptimized: false,
+	};
 }
 
 /**

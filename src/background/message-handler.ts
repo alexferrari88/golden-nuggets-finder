@@ -6,28 +6,38 @@ import {
 	type AnalysisProgressMessage,
 	type AnalysisRequest,
 	type AnalysisResponse,
+	type EnsembleAnalysisRequest,
+	type EnsembleAnalysisResponse,
 	type ExtensionConfig,
 	type FeedbackStats,
 	type FeedbackSubmission,
+	type GoldenNugget,
 	MESSAGE_TYPES,
 	type MissingContentFeedback,
 	type NuggetFeedback,
 	type OptimizedPrompt,
 	type SavedPrompt,
+	type SelectedContentAnalysisRequest,
 	type TypeFilterOptions,
 } from "../shared/types";
 import type {
-	GoldenNuggetsResponse,
+	EnhancedGoldenNuggetsResponse,
 	ProviderConfig,
 	ProviderId,
 } from "../shared/types/providers";
+import { EnsembleExtractor } from "./services/ensemble-extractor";
 import {
 	getUserFriendlyMessage,
 	handleProviderError,
 	handleSwitchError,
 	resetRetryCount,
 } from "./services/error-handler";
-import { createProvider, getSelectedModel } from "./services/provider-factory";
+import {
+	createMultipleProviders,
+	createProvider,
+	getSelectedModel,
+	validateProviderConfigurations,
+} from "./services/provider-factory";
 import {
 	getAvailableProviders,
 	getCurrentProvider,
@@ -35,7 +45,6 @@ import {
 	switchProvider,
 	switchToFallbackProvider,
 } from "./services/provider-switcher";
-import { normalize as normalizeResponse } from "./services/response-normalizer";
 import {
 	generateFilteredPrompt,
 	validateSelectedTypes,
@@ -232,6 +241,7 @@ interface DebugTestResponse extends BaseResponse {
 type MessageRequest =
 	| AbortAnalysisRequest
 	| AnalysisRequest
+	| EnsembleAnalysisRequest
 	| AnalyzeSelectedContentRequest
 	| GetPromptsRequest
 	| SavePromptRequest
@@ -255,6 +265,7 @@ type MessageRequest =
 type MessageResponse =
 	| AbortAnalysisResponse
 	| AnalysisResponse
+	| EnsembleAnalysisResponse
 	| GetPromptsResponse
 	| BaseResponse
 	| GetConfigResponse
@@ -275,6 +286,10 @@ interface BackendFeedbackResponse {
 	deduplication?: {
 		user_message?: string;
 	};
+	id_mappings?: {
+		nugget_feedback?: Record<string, string>;
+		missing_content_feedback?: Record<string, string>;
+	};
 }
 
 interface BackendErrorInfo {
@@ -291,6 +306,7 @@ function generateAnalysisId(): string {
 export class MessageHandler {
 	// Track ongoing analyses and their abort controllers
 	private static ongoingAnalyses = new Map<string, AbortController>();
+	private ensembleExtractor = new EnsembleExtractor();
 
 	// Helper to classify and enhance backend error messages for users
 	private enhanceBackendError(error: Error | unknown): BackendErrorInfo {
@@ -473,47 +489,73 @@ export class MessageHandler {
 
 	// Helper to get the selected provider configuration from storage with fallback support
 	private static async getSelectedProvider(): Promise<ProviderConfig> {
+		debugLogger.log("[MessageHandler] Getting selected provider configuration");
+
 		// Get selected provider from storage
 		const result = await chrome.storage.local.get(["selectedProvider"]);
 		let providerId = result.selectedProvider;
 
+		debugLogger.log(
+			`[MessageHandler] Stored selectedProvider: ${providerId || "null"}`,
+		);
+
 		// If no provider is explicitly selected, find the first configured provider
 		if (!providerId) {
+			debugLogger.log(
+				"[MessageHandler] No provider selected, finding first available",
+			);
 			const availableProviders = await getAvailableProviders();
 			if (availableProviders.length > 0) {
 				providerId = availableProviders[0];
-				console.log(
-					`No provider selected, using first available: ${providerId}`,
+				debugLogger.log(
+					`[MessageHandler] Using first available provider: ${providerId}`,
 				);
 				// Automatically set this as the selected provider
 				await chrome.storage.local.set({ selectedProvider: providerId });
+				debugLogger.log(
+					`[MessageHandler] Automatically saved provider: ${providerId}`,
+				);
 			} else {
+				debugLogger.error("[MessageHandler] No configured providers available");
 				throw new Error(
 					`No configured providers available. Please configure an API key in the options page.`,
 				);
 			}
 		} else {
 			// Check if selected provider is still configured
+			debugLogger.log(
+				`[MessageHandler] Validating provider configuration for: ${providerId}`,
+			);
 			const isConfigured = await isProviderConfigured(providerId);
 			if (!isConfigured) {
-				console.warn(
-					`Selected provider ${providerId} is not configured, trying fallback...`,
+				debugLogger.warn(
+					`[MessageHandler] Selected provider ${providerId} is not configured, trying fallback`,
 				);
 
 				// Try to switch to a fallback provider
 				const fallbackProviderId = await switchToFallbackProvider();
 				if (fallbackProviderId) {
 					providerId = fallbackProviderId;
-					console.log(`Switched to fallback provider: ${providerId}`);
+					debugLogger.log(
+						`[MessageHandler] Switched to fallback provider: ${providerId}`,
+					);
 				} else {
+					debugLogger.error("[MessageHandler] No fallback providers available");
 					throw new Error(
 						`No configured providers available. Please configure an API key in the options page.`,
 					);
 				}
+			} else {
+				debugLogger.log(
+					`[MessageHandler] Provider ${providerId} is configured and ready`,
+				);
 			}
 		}
 
 		// Get API key for provider
+		debugLogger.log(
+			`[MessageHandler] Retrieving API key for provider: ${providerId}`,
+		);
 		let apiKey: string;
 		if (providerId === "gemini") {
 			try {
@@ -522,23 +564,67 @@ export class MessageHandler {
 					action: "read",
 					timestamp: Date.now(),
 				});
-			} catch (_error) {
+				debugLogger.log(
+					"[MessageHandler] Successfully retrieved Gemini API key",
+				);
+			} catch (error) {
+				debugLogger.error(
+					"[MessageHandler] Failed to retrieve Gemini API key:",
+					error,
+				);
 				// If there's an error accessing the API key, treat as not configured
 				apiKey = "";
 			}
 		} else {
-			apiKey = await getApiKey(providerId);
+			apiKey = (await getApiKey(providerId)) || "";
+			debugLogger.log(
+				`[MessageHandler] Retrieved API key for ${providerId}: ${apiKey ? "present" : "missing"}`,
+			);
 		}
 
 		if (!apiKey) {
+			debugLogger.error(
+				`[MessageHandler] No API key found for provider: ${providerId}`,
+			);
 			throw new Error(`No API key found for provider: ${providerId}`);
 		}
+
+		// Get selected model for this provider (THIS IS CRITICAL FOR THE BUG)
+		debugLogger.log(
+			`[MessageHandler] Getting selected model for provider: ${providerId}`,
+		);
+		const modelName = await getSelectedModel(providerId);
+
+		const finalConfig = {
+			providerId,
+			apiKey: "[REDACTED]", // Don't log the actual API key
+			modelName,
+		};
+
+		debugLogger.log(
+			`[MessageHandler] Final provider configuration: ${JSON.stringify({
+				providerId: finalConfig.providerId,
+				modelName: finalConfig.modelName,
+				apiKey: "[REDACTED]",
+			})}`,
+		);
 
 		return {
 			providerId,
 			apiKey,
-			modelName: await getSelectedModel(providerId),
+			modelName,
 		};
+	}
+
+	// Helper function to filter nuggets by confidence threshold
+	private static filterByConfidence(
+		nuggets: any[],
+		threshold: number = 0.85,
+	): any[] {
+		return nuggets.filter(
+			(nugget) =>
+				nugget.confidence !== undefined && nugget.confidence >= threshold,
+		);
 	}
 
 	// Helper to handle golden nuggets extraction using provider routing with error handling and fallback
@@ -547,10 +633,25 @@ export class MessageHandler {
 		prompt: string,
 		analysisId?: string,
 		tabId?: number,
-	): Promise<GoldenNuggetsResponse> {
+		useEnsemble = false,
+		ensembleRuns?: number,
+		typeFilter?: TypeFilterOptions,
+	): Promise<EnhancedGoldenNuggetsResponse> {
 		let currentProviderId: ProviderId | null = null;
 		let attempts = 0;
 		const maxAttempts = 2; // Limit to 2 attempts to prevent infinite loops
+
+		// Get ensemble settings if not provided
+		let finalEnsembleRuns = ensembleRuns;
+		if (useEnsemble && finalEnsembleRuns === undefined) {
+			try {
+				const ensembleSettings = await storage.getEnsembleSettings();
+				finalEnsembleRuns = ensembleSettings.defaultRuns;
+			} catch (error) {
+				console.warn("Failed to get ensemble settings, using default:", error);
+				finalEnsembleRuns = 3; // Fallback to original default
+			}
+		}
 
 		// Create abort controller for this analysis
 		const abortController = new AbortController();
@@ -581,17 +682,146 @@ export class MessageHandler {
 
 					// Extract golden nuggets
 					const startTime = performance.now();
-					const rawResponse = await provider.extractGoldenNuggets(
-						content,
-						prompt,
-					);
-					const responseTime = performance.now() - startTime;
+					let normalizedResponse: EnhancedGoldenNuggetsResponse;
 
-					// Normalize response
-					const normalizedResponse = normalizeResponse(
-						rawResponse,
-						providerConfig.providerId,
-					);
+					if (useEnsemble) {
+						// Use ensemble extraction with EnsembleExtractor
+						const ensembleExtractor = new EnsembleExtractor();
+						const ensembleResult = await ensembleExtractor.extractWithEnsemble(
+							content,
+							prompt,
+							provider,
+							{
+								runs: finalEnsembleRuns!,
+								temperature: 0.2,
+								parallelExecution: true,
+							},
+						);
+
+						// Convert ensemble result to enhanced response format (preserving metadata)
+						const ensembleNuggets = ensembleResult.golden_nuggets.map(
+							(nugget: any) => ({
+								type: nugget.type as
+									| "tool"
+									| "media"
+									| "aha! moments"
+									| "analogy"
+									| "model",
+								fullContent: nugget.fullContent,
+								confidence: nugget.confidence,
+								validationScore: nugget.validationScore,
+								extractionMethod: "ensemble" as const,
+								runsSupportingThis: nugget.runsSupportingThis,
+								totalRuns: nugget.totalRuns,
+								similarityMethod: nugget.similarityMethod,
+								// ✅ PRESERVE: Attribution metadata
+								sourceProvider: nugget.sourceProvider,
+								sourceModel: nugget.sourceModel,
+								contributingProviders: nugget.contributingProviders,
+							}),
+						);
+
+						normalizedResponse = {
+							golden_nuggets: ensembleNuggets,
+							metadata: {
+								...ensembleResult.metadata,
+								extractionMode: "ensemble",
+								preFilterCount: ensembleResult.metadata.consensusReached,
+								postFilterCount: ensembleNuggets.length,
+								confidenceThreshold: 0.85, // Applied at individual provider level
+								filteringApplied: true,
+							},
+						};
+
+						console.log(
+							`Ensemble extraction completed: ${ensembleResult.metadata.consensusReached} consensus groups with ${ensembleResult.metadata.duplicatesRemoved} duplicates removed. Individual confidence filtering (≥0.85) applied at provider level.`,
+						);
+					} else {
+						// Direct provider extraction without validation layer
+						const response = await provider.extractGoldenNuggets(
+							content,
+							prompt,
+							0.7, // temperature
+							typeFilter?.selectedTypes,
+						);
+
+						debugLogger.log(
+							`[MessageHandler] 🤖 Direct LLM extraction complete`,
+							{
+								nuggetCount: response.golden_nuggets.length,
+								nuggets: response.golden_nuggets.map((n) => ({
+									type: n.type,
+									confidence: n.confidence,
+									fullContentLength: n.fullContent?.length || 0,
+									fullContentPreview: `${n.fullContent?.substring(0, 100)}...`,
+									fullContentExists: !!n.fullContent,
+								})),
+							},
+						);
+
+						// Convert direct provider response to enhanced response format
+						const directNuggets = response.golden_nuggets.map(
+							(nugget: GoldenNugget) => {
+								// Defensive check for fullContent preservation
+								if (!nugget.fullContent) {
+									debugLogger.log(
+										`[MessageHandler] ⚠️ Missing fullContent in direct response for nugget:`,
+										{
+											type: nugget.type,
+											nugget: nugget,
+										},
+									);
+								}
+
+								return {
+									type: nugget.type,
+									// Explicitly preserve fullContent with fallback
+									fullContent: nugget.fullContent || "",
+									confidence: nugget.confidence || 0,
+									// No validation score - highlighter will do natural filtering
+									validationScore: undefined,
+									extractionMethod: "llm" as const,
+									// Add provider information for tooltips
+									sourceProvider: providerConfig.providerId,
+									sourceModel: providerConfig.modelName,
+								};
+							},
+						);
+
+						// Apply confidence filtering (≥0.85 threshold)
+						const filteredDirectNuggets =
+							MessageHandler.filterByConfidence(directNuggets);
+
+						normalizedResponse = {
+							golden_nuggets: filteredDirectNuggets,
+							metadata: {
+								totalProcessingTime: performance.now() - startTime,
+								extractionMode: "standard",
+								preFilterCount: directNuggets.length,
+								postFilterCount: filteredDirectNuggets.length,
+								confidenceThreshold: 0.85,
+							},
+						};
+
+						debugLogger.log(`[MessageHandler] Final direct response:`, {
+							golden_nuggets_count: normalizedResponse.golden_nuggets.length,
+							all_nuggets: normalizedResponse.golden_nuggets,
+							// Additional fullContent debugging
+							fullContent_debug: normalizedResponse.golden_nuggets.map((n) => ({
+								type: n.type,
+								hasFullContent: !!n.fullContent,
+								fullContentLength: n.fullContent?.length || 0,
+								fullContentPreview:
+									n.fullContent?.substring(0, 100) || "MISSING",
+							})),
+						});
+
+						console.log(
+							`Direct extraction completed: ${response.golden_nuggets.length} nuggets. Confidence filtering: ${directNuggets.length} → ${filteredDirectNuggets.length} nuggets (≥0.85 confidence)`,
+						);
+					}
+
+					const responseTime = performance.now() - startTime;
 
 					// Store provider metadata for feedback
 					await chrome.storage.local.set({
@@ -599,6 +829,17 @@ export class MessageHandler {
 							providerId: providerConfig.providerId,
 							modelName: providerConfig.modelName,
 							responseTime,
+						},
+						lastAnalysisSession: {
+							timestamp: Date.now(),
+							providersUsed: [
+								{
+									providerId: providerConfig.providerId,
+									modelName: providerConfig.modelName,
+								},
+							],
+							analysisType: useEnsemble ? "ensemble" : "single",
+							nuggetCount: normalizedResponse.golden_nuggets.length,
 						},
 					});
 
@@ -703,15 +944,30 @@ export class MessageHandler {
 		try {
 			switch (request.type) {
 				case MESSAGE_TYPES.ABORT_ANALYSIS:
-					await this.handleAbortAnalysis(request, sendResponse);
+					await this.handleAbortAnalysis(
+						request as AbortAnalysisRequest,
+						sendResponse,
+					);
 					break;
 				case MESSAGE_TYPES.ANALYZE_CONTENT:
-					await this.handleAnalyzeContent(request, sender, sendResponse);
+					await this.handleAnalyzeContent(
+						request as AnalysisRequest,
+						sender,
+						sendResponse,
+					);
+					break;
+
+				case MESSAGE_TYPES.ANALYZE_CONTENT_ENSEMBLE:
+					await this.handleAnalyzeContentEnsemble(
+						request as EnsembleAnalysisRequest,
+						sender,
+						sendResponse,
+					);
 					break;
 
 				case MESSAGE_TYPES.ANALYZE_SELECTED_CONTENT:
 					await this.handleAnalyzeSelectedContent(
-						request,
+						request as SelectedContentAnalysisRequest,
 						sender,
 						sendResponse,
 					);
@@ -722,15 +978,24 @@ export class MessageHandler {
 					break;
 
 				case MESSAGE_TYPES.SAVE_PROMPT:
-					await this.handleSavePrompt(request, sendResponse);
+					await this.handleSavePrompt(
+						request as SavePromptRequest,
+						sendResponse,
+					);
 					break;
 
 				case MESSAGE_TYPES.DELETE_PROMPT:
-					await this.handleDeletePrompt(request, sendResponse);
+					await this.handleDeletePrompt(
+						request as DeletePromptRequest,
+						sendResponse,
+					);
 					break;
 
 				case MESSAGE_TYPES.SET_DEFAULT_PROMPT:
-					await this.handleSetDefaultPrompt(request, sendResponse);
+					await this.handleSetDefaultPrompt(
+						request as SetDefaultPromptRequest,
+						sendResponse,
+					);
 					break;
 
 				case MESSAGE_TYPES.GET_CONFIG:
@@ -738,7 +1003,10 @@ export class MessageHandler {
 					break;
 
 				case MESSAGE_TYPES.SAVE_CONFIG:
-					await this.handleSaveConfig(request, sendResponse);
+					await this.handleSaveConfig(
+						request as SaveConfigRequest,
+						sendResponse,
+					);
 					break;
 
 				case MESSAGE_TYPES.OPEN_OPTIONS_PAGE:
@@ -746,16 +1014,24 @@ export class MessageHandler {
 					break;
 
 				case MESSAGE_TYPES.SUBMIT_NUGGET_FEEDBACK:
-					await this.handleSubmitNuggetFeedback(request, sender, sendResponse);
+					await this.handleSubmitNuggetFeedback(
+						request as SubmitNuggetFeedbackRequest,
+						sender,
+						sendResponse,
+					);
 					break;
 
 				case MESSAGE_TYPES.DELETE_NUGGET_FEEDBACK:
-					await this.handleDeleteNuggetFeedback(request, sender, sendResponse);
+					await this.handleDeleteNuggetFeedback(
+						request as DeleteNuggetFeedbackRequest,
+						sender,
+						sendResponse,
+					);
 					break;
 
 				case MESSAGE_TYPES.SUBMIT_MISSING_CONTENT_FEEDBACK:
 					await this.handleSubmitMissingContentFeedback(
-						request,
+						request as SubmitMissingContentFeedbackRequest,
 						sender,
 						sendResponse,
 					);
@@ -766,7 +1042,10 @@ export class MessageHandler {
 					break;
 
 				case MESSAGE_TYPES.TRIGGER_OPTIMIZATION:
-					await this.handleTriggerOptimization(request, sendResponse);
+					await this.handleTriggerOptimization(
+						request as TriggerOptimizationRequest,
+						sendResponse,
+					);
 					break;
 
 				case MESSAGE_TYPES.GET_CURRENT_OPTIMIZED_PROMPT:
@@ -774,7 +1053,10 @@ export class MessageHandler {
 					break;
 
 				case MESSAGE_TYPES.SWITCH_PROVIDER:
-					await this.handleSwitchProvider(request, sendResponse);
+					await this.handleSwitchProvider(
+						request as SwitchProviderRequest,
+						sendResponse,
+					);
 					break;
 
 				case MESSAGE_TYPES.GET_AVAILABLE_PROVIDERS:
@@ -786,7 +1068,10 @@ export class MessageHandler {
 					break;
 
 				case MESSAGE_TYPES.VALIDATE_PROVIDER:
-					await this.handleValidateProvider(request, sendResponse);
+					await this.handleValidateProvider(
+						request as ValidateProviderRequest,
+						sendResponse,
+					);
 					break;
 
 				case "DEBUG_TEST":
@@ -857,10 +1142,27 @@ export class MessageHandler {
 			const source = request.source || "context-menu";
 
 			const prompts = await storage.getPrompts();
-			const prompt = prompts.find((p) => p.id === request.promptId);
+			let prompt: SavedPrompt | undefined;
+
+			if (request.promptId === "default") {
+				prompt = (await storage.getDefaultPrompt()) || undefined;
+			} else {
+				prompt = prompts.find((p) => p.id === request.promptId);
+			}
 
 			if (!prompt) {
 				sendResponse({ success: false, error: "Prompt not found" });
+				return;
+			}
+
+			// Validate persona is configured
+			const persona = await storage.getPersona();
+			if (!persona || persona.trim().length === 0) {
+				sendResponse({
+					success: false,
+					error:
+						"Please set a persona in extension options before analyzing content",
+				});
 				return;
 			}
 
@@ -880,20 +1182,28 @@ export class MessageHandler {
 				request.url,
 			);
 
+			// Replace {{ persona }} placeholder with user persona
+			processedPrompt = await this.replacePersonaPlaceholder(processedPrompt);
+
 			// Check if we should use optimized prompt from backend
 			try {
 				const optimizedPromptResponse =
-					await this.getOptimizedPromptIfAvailable();
+					await this.getOptimizedPromptIfAvailable(prompt.id);
 				if (optimizedPromptResponse?.prompt) {
-					console.log("Using optimized prompt from backend DSPy system");
+					console.log(
+						`Using optimized prompt for ${prompt.id} from backend DSPy system`,
+					);
 					processedPrompt = this.replaceSourcePlaceholder(
 						optimizedPromptResponse.prompt,
 						request.url,
 					);
+					// Also replace persona placeholder for optimized prompt
+					processedPrompt =
+						await this.replacePersonaPlaceholder(processedPrompt);
 				}
 			} catch (error) {
 				console.log(
-					"No optimized prompt available, using default:",
+					`No optimized prompt available for ${prompt.id}, using default:`,
 					(error as Error).message,
 				);
 				// Continue with default prompt
@@ -940,11 +1250,33 @@ export class MessageHandler {
 				sender.tab?.id,
 			);
 
+			// Store prompt metadata for feedback tracking
+			const promptMetadata = {
+				id: prompt.id,
+				version: prompt.isOptimized ? "optimized" : "original",
+				content: processedPrompt,
+				type: (prompt.isOptimized ? "optimized" : "default") as
+					| "default"
+					| "optimized"
+					| "custom",
+				name: prompt.name,
+				isOptimized: prompt.isOptimized || false,
+				optimizationDate: prompt.optimizationDate,
+				performance: prompt.performance,
+			};
+
+			await chrome.storage.local.set({
+				lastUsedPrompt: promptMetadata,
+			});
+
 			const result = await MessageHandler.handleExtractGoldenNuggets(
 				request.content,
 				processedPrompt,
 				analysisId,
 				sender.tab?.id,
+				false, // useEnsemble - not used for regular content analysis
+				undefined, // ensembleRuns - not used for regular content analysis
+				request.typeFilter, // typeFilter - pass through from request
 			);
 
 			// Send step 4 progress: processing results
@@ -973,6 +1305,19 @@ export class MessageHandler {
 					data: resultWithProvider,
 				});
 			}
+
+			// Also notify popup of completion
+			chrome.runtime
+				.sendMessage({
+					type: MESSAGE_TYPES.ANALYSIS_COMPLETE,
+					data: resultWithProvider,
+				})
+				.catch(() => {
+					// Ignore errors - popup might not be open
+				});
+
+			// Note: Analysis state cleanup is handled by popup after receiving completion message
+			// This prevents race condition where state is cleared before popup can process completion
 
 			sendResponse({ success: true, data: resultWithProvider });
 		} catch (error) {
@@ -992,12 +1337,413 @@ export class MessageHandler {
 					});
 			}
 
+			// Also notify popup of error
+			chrome.runtime
+				.sendMessage({
+					type: MESSAGE_TYPES.ANALYSIS_ERROR,
+					error: (error as Error).message,
+					analysisId: request.analysisId || generateAnalysisId(),
+				})
+				.catch(() => {
+					// Ignore errors - popup might not be open
+				});
+
 			sendResponse({ success: false, error: (error as Error).message });
+
+			// Note: Analysis state cleanup is handled by popup after receiving error message
+			// This prevents race condition where state is cleared before popup can process error
 		}
 	}
 
+	private async handleAnalyzeContentEnsemble(
+		request: EnsembleAnalysisRequest,
+		sender: chrome.runtime.MessageSender,
+		sendResponse: (response: EnsembleAnalysisResponse) => void,
+	): Promise<void> {
+		try {
+			// Get ensemble settings to determine mode
+			const ensembleSettings = await storage.getEnsembleSettings();
+			const ensembleOptions = request.ensembleOptions || {
+				runs: ensembleSettings.defaultRuns,
+				mode: ensembleSettings.mode || "single-model",
+			};
+
+			// Determine extraction approach based on mode
+			if (
+				ensembleOptions.mode === "multi-provider" &&
+				ensembleOptions.providerConfigurations
+			) {
+				await this.handleMultiProviderEnsemble(
+					request,
+					ensembleOptions as {
+						mode: "multi-provider";
+						providerConfigurations: Array<{
+							providerId: ProviderId;
+							modelId: string;
+						}>;
+					},
+					sender,
+					sendResponse,
+				);
+			} else {
+				await this.handleSingleModelEnsemble(
+					request,
+					ensembleOptions as { runs: number; mode: "single-model" },
+					sender,
+					sendResponse,
+				);
+			}
+		} catch (error) {
+			console.error("Ensemble analysis failed:", error);
+			sendResponse({
+				success: false,
+				error: `Ensemble analysis failed: ${(error as Error).message}`,
+			});
+		}
+	}
+
+	private async handleMultiProviderEnsemble(
+		request: EnsembleAnalysisRequest,
+		ensembleOptions: {
+			mode: "multi-provider";
+			providerConfigurations: Array<{
+				providerId: ProviderId;
+				modelId: string;
+			}>;
+		},
+		sender: chrome.runtime.MessageSender,
+		sendResponse: (response: EnsembleAnalysisResponse) => void,
+	): Promise<void> {
+		const analysisId = request.analysisId || generateAnalysisId();
+
+		// Validate provider configurations
+		const validation = validateProviderConfigurations(
+			ensembleOptions.providerConfigurations,
+		);
+		if (!validation.valid) {
+			throw new Error(
+				`Invalid provider configurations: ${validation.errors.join(", ")}`,
+			);
+		}
+
+		// Send progress message
+		this.sendProgressMessage(
+			MESSAGE_TYPES.ENSEMBLE_EXTRACTION_PROGRESS,
+			1,
+			`Creating ${ensembleOptions.providerConfigurations.length} provider instances...`,
+			analysisId,
+			request.source || "context-menu",
+			sender.tab?.id,
+		);
+
+		// Create all required providers
+		const providerInstances = await createMultipleProviders(
+			ensembleOptions.providerConfigurations,
+		);
+
+		if (providerInstances.length === 0) {
+			throw new Error(
+				"No valid providers could be created for ensemble analysis",
+			);
+		}
+
+		// Send progress message
+		this.sendProgressMessage(
+			MESSAGE_TYPES.ENSEMBLE_EXTRACTION_PROGRESS,
+			2,
+			`Running analysis across ${providerInstances.length} providers...`,
+			analysisId,
+			request.source || "context-menu",
+			sender.tab?.id,
+		);
+
+		// Get prompt and validate persona (same as existing)
+		const prompts = await storage.getPrompts();
+		let savedPrompt: SavedPrompt | undefined;
+
+		if (request.promptId === "default") {
+			savedPrompt = (await storage.getDefaultPrompt()) || undefined;
+		} else {
+			savedPrompt = prompts.find((p) => p.id === request.promptId);
+		}
+
+		if (!savedPrompt) {
+			sendResponse({ success: false, error: "Prompt not found" });
+			return;
+		}
+
+		// Validate persona is configured
+		const persona = await storage.getPersona();
+		if (!persona || persona.trim().length === 0) {
+			sendResponse({
+				success: false,
+				error:
+					"Please set a persona in extension options before analyzing content",
+			});
+			return;
+		}
+
+		// Process prompt (same as existing system)
+		let processedPrompt = this.replaceSourcePlaceholder(
+			savedPrompt.prompt,
+			request.url,
+		);
+		processedPrompt = await this.replacePersonaPlaceholder(processedPrompt);
+
+		// Check if we should use optimized prompt from backend
+		try {
+			const optimizedPromptResponse = await this.getOptimizedPromptIfAvailable(
+				savedPrompt.id,
+			);
+			if (optimizedPromptResponse?.prompt) {
+				console.log(
+					`Using optimized prompt for ${savedPrompt.id} from backend DSPy system for multi-provider ensemble`,
+				);
+				processedPrompt = this.replaceSourcePlaceholder(
+					optimizedPromptResponse.prompt,
+					request.url,
+				);
+				processedPrompt = await this.replacePersonaPlaceholder(processedPrompt);
+			}
+		} catch (error) {
+			console.log(
+				`No optimized prompt available for ${savedPrompt.id} for multi-provider ensemble, using default:`,
+				(error as Error).message,
+			);
+		}
+
+		// Apply type filtering if specified
+		if (request.typeFilter && request.typeFilter.selectedTypes.length > 0) {
+			processedPrompt = generateFilteredPrompt(
+				processedPrompt,
+				request.typeFilter.selectedTypes,
+			);
+		}
+
+		// Execute multi-provider ensemble
+		const result = await this.ensembleExtractor.extractWithMultiProvider(
+			request.content,
+			processedPrompt,
+			providerInstances,
+			{}, // Similarity options - using defaults
+		);
+
+		// Individual confidence filtering already applied at provider level
+		const finalResult = result;
+
+		// Send consensus complete message
+		this.sendProgressMessage(
+			MESSAGE_TYPES.ENSEMBLE_CONSENSUS_COMPLETE,
+			3,
+			`Consensus reached from ${providerInstances.length} providers`,
+			analysisId,
+			request.source || "context-menu",
+			sender.tab?.id,
+		);
+
+		// Send final results
+		const responseData = {
+			type: MESSAGE_TYPES.ANALYSIS_COMPLETE,
+			golden_nuggets: finalResult.golden_nuggets,
+			metadata: {
+				...finalResult.metadata,
+				extractionMode: "multi-provider-ensemble",
+				providersUsed: result.metadata.providersUsed,
+				confidenceThreshold: 0.85, // Applied at individual provider level
+				filteringApplied: true,
+			},
+			providerMetadata: {
+				providerId: "multi-provider" as ProviderId, // Special case for display
+				modelName: providerInstances
+					.map((p) => `${p.providerId}:${p.modelId}`)
+					.join(", "),
+				responseTime: result.metadata.averageResponseTime,
+				ensembleRuns: providerInstances.length,
+				consensusMethod: "hybrid-similarity-v1",
+			},
+		};
+
+		// Send results to content script
+		if (sender.tab?.id) {
+			await chrome.tabs.sendMessage(sender.tab.id, responseData);
+		}
+
+		// Also notify popup of completion
+		chrome.runtime
+			.sendMessage({
+				type: MESSAGE_TYPES.ANALYSIS_COMPLETE,
+				data: responseData,
+			})
+			.catch(() => {
+				// Ignore errors - popup might not be open
+			});
+
+		// Note: Analysis state cleanup is handled by popup after receiving completion message
+		// This prevents race condition where state is cleared before popup can process completion
+
+		sendResponse({ success: true, data: responseData });
+	}
+
+	private async handleSingleModelEnsemble(
+		request: EnsembleAnalysisRequest,
+		ensembleOptions: { runs: number; mode: "single-model" },
+		sender: chrome.runtime.MessageSender,
+		sendResponse: (response: EnsembleAnalysisResponse) => void,
+	): Promise<void> {
+		const analysisId = request.analysisId || generateAnalysisId();
+
+		// Get provider
+		const provider = await getCurrentProvider();
+		if (!provider) {
+			throw new Error("No provider available for single-model ensemble");
+		}
+
+		// Send progress message
+		this.sendProgressMessage(
+			MESSAGE_TYPES.ENSEMBLE_EXTRACTION_PROGRESS,
+			1,
+			`Starting ensemble analysis with ${ensembleOptions.runs} runs...`,
+			analysisId,
+			request.source || "context-menu",
+			sender.tab?.id,
+		);
+
+		// Get prompt and validate persona (same as existing)
+		const prompts = await storage.getPrompts();
+		let savedPrompt: SavedPrompt | undefined;
+
+		if (request.promptId === "default") {
+			savedPrompt = (await storage.getDefaultPrompt()) || undefined;
+		} else {
+			savedPrompt = prompts.find((p) => p.id === request.promptId);
+		}
+
+		if (!savedPrompt) {
+			sendResponse({ success: false, error: "Prompt not found" });
+			return;
+		}
+
+		// Validate persona is configured
+		const persona = await storage.getPersona();
+		if (!persona || persona.trim().length === 0) {
+			sendResponse({
+				success: false,
+				error:
+					"Please set a persona in extension options before analyzing content",
+			});
+			return;
+		}
+
+		// Process prompt (same as existing system)
+		let processedPrompt = this.replaceSourcePlaceholder(
+			savedPrompt.prompt,
+			request.url,
+		);
+		processedPrompt = await this.replacePersonaPlaceholder(processedPrompt);
+
+		// Check if we should use optimized prompt from backend
+		try {
+			const optimizedPromptResponse = await this.getOptimizedPromptIfAvailable(
+				savedPrompt.id,
+			);
+			if (optimizedPromptResponse?.prompt) {
+				console.log(
+					`Using optimized prompt for ${savedPrompt.id} from backend DSPy system for single-model ensemble`,
+				);
+				processedPrompt = this.replaceSourcePlaceholder(
+					optimizedPromptResponse.prompt,
+					request.url,
+				);
+				processedPrompt = await this.replacePersonaPlaceholder(processedPrompt);
+			}
+		} catch (error) {
+			console.log(
+				`No optimized prompt available for ${savedPrompt.id} for single-model ensemble, using default:`,
+				(error as Error).message,
+			);
+		}
+
+		// Apply type filtering if specified
+		if (request.typeFilter && request.typeFilter.selectedTypes.length > 0) {
+			processedPrompt = generateFilteredPrompt(
+				processedPrompt,
+				request.typeFilter.selectedTypes,
+			);
+		}
+
+		// Create provider instance
+		const providerConfig = await MessageHandler.getSelectedProvider();
+		const providerInstance = await createProvider(providerConfig);
+
+		const result = await this.ensembleExtractor.extractWithEnsemble(
+			request.content,
+			processedPrompt,
+			providerInstance,
+			{
+				runs: ensembleOptions.runs,
+				temperature: 0.7,
+				parallelExecution: true,
+				selectedTypes: request.typeFilter?.selectedTypes,
+			},
+		);
+
+		// Apply confidence filtering
+		const filteredResult = MessageHandler.filterByConfidence(
+			result.golden_nuggets,
+		);
+		const finalResult = {
+			...result,
+			golden_nuggets: filteredResult,
+		};
+
+		this.sendProgressMessage(
+			MESSAGE_TYPES.ENSEMBLE_CONSENSUS_COMPLETE,
+			2,
+			`Consensus reached from ${ensembleOptions.runs} runs`,
+			analysisId,
+			request.source || "context-menu",
+			sender.tab?.id,
+		);
+
+		const responseData = {
+			type: MESSAGE_TYPES.ANALYSIS_COMPLETE,
+			golden_nuggets: finalResult.golden_nuggets,
+			metadata: {
+				...finalResult.metadata,
+				extractionMode: "single-model-ensemble",
+			},
+			providerMetadata: {
+				providerId: provider,
+				modelName: await getSelectedModel(provider),
+				responseTime: result.metadata.averageResponseTime,
+				ensembleRuns: ensembleOptions.runs,
+				consensusMethod: "hybrid-similarity-v1",
+			},
+		};
+
+		// Send results to content script
+		if (sender.tab?.id) {
+			await chrome.tabs.sendMessage(sender.tab.id, responseData);
+		}
+
+		// Also notify popup of completion
+		chrome.runtime
+			.sendMessage({
+				type: MESSAGE_TYPES.ANALYSIS_COMPLETE,
+				data: responseData,
+			})
+			.catch(() => {
+				// Ignore errors - popup might not be open
+			});
+
+		// Note: Analysis state cleanup is handled by popup after receiving completion message
+		// This prevents race condition where state is cleared before popup can process completion
+
+		sendResponse({ success: true, data: responseData });
+	}
+
 	private async handleAnalyzeSelectedContent(
-		request: AnalyzeSelectedContentRequest,
+		request: SelectedContentAnalysisRequest,
 		sender: chrome.runtime.MessageSender,
 		sendResponse: (response: AnalysisResponse) => void,
 	): Promise<void> {
@@ -1007,10 +1753,27 @@ export class MessageHandler {
 			const source = "context-menu"; // Selected content is always from context menu
 
 			const prompts = await storage.getPrompts();
-			const prompt = prompts.find((p) => p.id === request.promptId);
+			let prompt: SavedPrompt | undefined;
+
+			if (request.promptId === "default") {
+				prompt = (await storage.getDefaultPrompt()) || undefined;
+			} else {
+				prompt = prompts.find((p) => p.id === request.promptId);
+			}
 
 			if (!prompt) {
 				sendResponse({ success: false, error: "Prompt not found" });
+				return;
+			}
+
+			// Validate persona is configured
+			const persona = await storage.getPersona();
+			if (!persona || persona.trim().length === 0) {
+				sendResponse({
+					success: false,
+					error:
+						"Please set a persona in extension options before analyzing content",
+				});
 				return;
 			}
 
@@ -1030,22 +1793,28 @@ export class MessageHandler {
 				request.url,
 			);
 
+			// Replace {{ persona }} placeholder with user persona
+			processedPrompt = await this.replacePersonaPlaceholder(processedPrompt);
+
 			// Check if we should use optimized prompt from backend
 			try {
 				const optimizedPromptResponse =
-					await this.getOptimizedPromptIfAvailable();
+					await this.getOptimizedPromptIfAvailable(prompt.id);
 				if (optimizedPromptResponse?.prompt) {
 					console.log(
-						"Using optimized prompt from backend DSPy system for selected content",
+						`Using optimized prompt for ${prompt.id} from backend DSPy system for selected content`,
 					);
 					processedPrompt = this.replaceSourcePlaceholder(
 						optimizedPromptResponse.prompt,
 						request.url,
 					);
+					// Also replace persona placeholder for optimized prompt
+					processedPrompt =
+						await this.replacePersonaPlaceholder(processedPrompt);
 				}
 			} catch (error) {
 				console.log(
-					"No optimized prompt available for selected content, using default:",
+					`No optimized prompt available for ${prompt.id} for selected content, using default:`,
 					(error as Error).message,
 				);
 				// Continue with default prompt
@@ -1092,11 +1861,33 @@ export class MessageHandler {
 				sender.tab?.id,
 			);
 
+			// Store prompt metadata for feedback tracking
+			const promptMetadata = {
+				id: prompt.id,
+				version: prompt.isOptimized ? "optimized" : "original",
+				content: processedPrompt,
+				type: (prompt.isOptimized ? "optimized" : "default") as
+					| "default"
+					| "optimized"
+					| "custom",
+				name: prompt.name,
+				isOptimized: prompt.isOptimized || false,
+				optimizationDate: prompt.optimizationDate,
+				performance: prompt.performance,
+			};
+
+			await chrome.storage.local.set({
+				lastUsedPrompt: promptMetadata,
+			});
+
 			const result = await MessageHandler.handleExtractGoldenNuggets(
 				request.content,
 				processedPrompt,
 				analysisId,
 				sender.tab?.id,
+				false, // useEnsemble - not used for selected content analysis
+				undefined, // ensembleRuns - not used for selected content analysis
+				request.typeFilter, // typeFilter - pass through from request
 			);
 
 			// Send step 4 progress: processing results
@@ -1126,7 +1917,20 @@ export class MessageHandler {
 				});
 			}
 
+			// Also notify popup of completion
+			chrome.runtime
+				.sendMessage({
+					type: MESSAGE_TYPES.ANALYSIS_COMPLETE,
+					data: resultWithProvider,
+				})
+				.catch(() => {
+					// Ignore errors - popup might not be open
+				});
+
 			sendResponse({ success: true, data: resultWithProvider });
+
+			// Note: Analysis state cleanup is handled by popup after receiving completion message
+			// This prevents race condition where state is cleared before popup can process completion
 		} catch (error) {
 			console.error("Selected content analysis failed:", error);
 
@@ -1138,7 +1942,20 @@ export class MessageHandler {
 				});
 			}
 
+			// Also notify popup of error
+			chrome.runtime
+				.sendMessage({
+					type: MESSAGE_TYPES.ANALYSIS_ERROR,
+					error: (error as Error).message,
+				})
+				.catch(() => {
+					// Ignore errors - popup might not be open
+				});
+
 			sendResponse({ success: false, error: (error as Error).message });
+
+			// Note: Analysis state cleanup is handled by popup after receiving error message
+			// This prevents race condition where state is cleared before popup can process error
 		}
 	}
 
@@ -1147,40 +1964,48 @@ export class MessageHandler {
 	): Promise<void> {
 		try {
 			const prompts = await storage.getPrompts();
+			const enrichedPrompts: SavedPrompt[] = [];
 
-			// Try to add current optimized prompt if available
-			try {
-				const optimizedPromptResponse =
-					await this.getOptimizedPromptIfAvailable();
-				if (
-					optimizedPromptResponse?.prompt &&
-					optimizedPromptResponse.version > 0
-				) {
-					const optimizedPromptItem = {
-						id: `optimized-v${optimizedPromptResponse.version}`,
-						name: `🚀 Optimized Prompt v${optimizedPromptResponse.version} (DSPy)`,
-						prompt: optimizedPromptResponse.prompt,
-						isDefault: false,
-						isOptimized: true,
-						optimizationDate: optimizedPromptResponse.optimizationDate,
-						performance: optimizedPromptResponse.performance,
-					};
+			// For each prompt, check if there's an optimized version available
+			for (const prompt of prompts) {
+				try {
+					const optimizedPromptResponse =
+						await this.getOptimizedPromptIfAvailable(prompt.id);
 
-					// Add optimized prompt at the beginning of the list
-					const promptsWithOptimized = [optimizedPromptItem, ...prompts];
-					console.log("Added optimized prompt to prompts list");
-					sendResponse({ success: true, data: promptsWithOptimized });
-					return;
+					if (
+						optimizedPromptResponse?.prompt &&
+						optimizedPromptResponse.version > 0
+					) {
+						// Create an optimized version of this prompt
+						const optimizedPromptItem: SavedPrompt = {
+							id: `${prompt.id}-optimized-v${optimizedPromptResponse.version}`,
+							name: `🚀 ${prompt.name} (Optimized v${optimizedPromptResponse.version})`,
+							prompt: optimizedPromptResponse.prompt,
+							isDefault: prompt.isDefault, // Preserve default status
+							isOptimized: true,
+							optimizationDate: optimizedPromptResponse.optimizationDate,
+							performance: optimizedPromptResponse.performance,
+						};
+
+						// Add both the original and optimized version
+						enrichedPrompts.push(prompt);
+						enrichedPrompts.push(optimizedPromptItem);
+						console.log(`Added optimized version for prompt: ${prompt.name}`);
+					} else {
+						// No optimized version available, just add the original
+						enrichedPrompts.push(prompt);
+					}
+				} catch (error) {
+					// If optimization check fails, just add the original prompt
+					console.log(
+						`No optimized version available for ${prompt.name}:`,
+						(error as Error).message,
+					);
+					enrichedPrompts.push(prompt);
 				}
-			} catch (error) {
-				console.log(
-					"No optimized prompt available for prompts list:",
-					(error as Error).message,
-				);
-				// Continue with regular prompts
 			}
 
-			sendResponse({ success: true, data: prompts });
+			sendResponse({ success: true, data: enrichedPrompts });
 		} catch (error) {
 			sendResponse({ success: false, error: (error as Error).message });
 		}
@@ -1269,6 +2094,25 @@ export class MessageHandler {
 		return prompt.replace(/\{\{\s*source\s*\}\}/g, sourceType);
 	}
 
+	private async replacePersonaPlaceholder(prompt: string): Promise<string> {
+		try {
+			const config = await storage.getConfig({
+				source: "background",
+				action: "read",
+				timestamp: Date.now(),
+			});
+			const persona = config.userPersona || "";
+			return prompt.replace(/\{\{\s*persona\s*\}\}/g, persona);
+		} catch (error) {
+			console.error(
+				"Failed to get user persona for placeholder replacement:",
+				error,
+			);
+			// Return empty string if persona can't be retrieved (validation handled separately)
+			return prompt.replace(/\{\{\s*persona\s*\}\}/g, "");
+		}
+	}
+
 	private detectSourceType(url: string): string {
 		if (url.includes("news.ycombinator.com")) {
 			return "HackerNews thread";
@@ -1283,64 +2127,164 @@ export class MessageHandler {
 
 	// Feedback System Handlers
 
+	// Add new utility function before MESSAGE_TYPES.SUBMIT_NUGGET_FEEDBACK handler
+	private static extractNuggetAttribution(
+		nugget: any,
+	): { modelProvider: string; modelName: string }[] | null {
+		// For consensus nuggets with multiple contributors
+		if (
+			nugget.contributingProviders &&
+			nugget.contributingProviders.length > 0
+		) {
+			return nugget.contributingProviders.map((provider: any) => ({
+				modelProvider: provider.provider,
+				modelName: provider.model,
+			}));
+		}
+
+		// For single-provider nuggets
+		if (nugget.sourceProvider && nugget.sourceModel) {
+			return [
+				{
+					modelProvider: nugget.sourceProvider,
+					modelName: nugget.sourceModel,
+				},
+			];
+		}
+
+		// Fallback to storage (legacy behavior)
+		console.warn(
+			"No nugget attribution found, falling back to lastUsedProvider",
+		);
+		return null; // Will trigger fallback logic
+	}
+
+	// Add utility method to MessageHandler class
+	private generateFeedbackSessionId(baseFeedbackId: string): string {
+		const timestamp = Date.now();
+		const random = Math.random().toString(36).substring(2, 8);
+		return `session_${baseFeedbackId}_${timestamp}_${random}`;
+	}
+
+	/**
+	 * Update local feedback storage with corrected IDs from backend response
+	 */
+	private async updateLocalFeedbackIds(
+		feedbackType: "nugget" | "missing",
+		idMappings: Record<string, string>,
+	): Promise<void> {
+		try {
+			const key =
+				feedbackType === "nugget" ? "nugget_feedback" : "missing_feedback";
+			const existingData = await chrome.storage.local.get([key]);
+			const feedbackArray = existingData[key] || [];
+
+			// Update IDs in local storage
+			let updatedCount = 0;
+			for (const feedback of feedbackArray) {
+				const originalId = feedback.id;
+				if (originalId && idMappings[originalId]) {
+					const newId = idMappings[originalId];
+					if (newId !== originalId) {
+						feedback.id = newId;
+						updatedCount++;
+						console.log(
+							`Updated ${feedbackType} feedback ID: ${originalId} -> ${newId}`,
+						);
+					}
+				}
+			}
+
+			if (updatedCount > 0) {
+				await chrome.storage.local.set({ [key]: feedbackArray });
+				console.log(
+					`Updated ${updatedCount} ${feedbackType} feedback IDs in local storage`,
+				);
+			}
+		} catch (error) {
+			console.error(
+				`Failed to update local ${feedbackType} feedback IDs:`,
+				error,
+			);
+			// Don't throw - this is not critical for user experience
+		}
+	}
+
 	private async handleSubmitNuggetFeedback(
 		request: SubmitNuggetFeedbackRequest,
-		sender: chrome.runtime.MessageSender,
+		_sender: chrome.runtime.MessageSender,
 		sendResponse: (response: SubmitNuggetFeedbackResponse) => void,
 	): Promise<void> {
 		try {
-			const feedback: NuggetFeedback = request.feedback;
-
+			const { feedback } = request;
 			if (!feedback) {
 				sendResponse({ success: false, error: "No feedback data provided" });
 				return;
 			}
 
-			// Add provider metadata from last used provider
-			const providerInfo = await chrome.storage.local.get(["lastUsedProvider"]);
-			const feedbackWithProvider = {
-				...feedback,
-				modelProvider: providerInfo.lastUsedProvider?.providerId || "gemini",
-				modelName:
-					providerInfo.lastUsedProvider?.modelName || "gemini-2.5-flash",
+			// Extract attribution from nugget metadata
+			let nuggetAttributions = MessageHandler.extractNuggetAttribution(
+				feedback.nugget,
+			);
+
+			// Fallback to storage if no attribution found
+			if (!nuggetAttributions) {
+				const providerInfo = await chrome.storage.local.get([
+					"lastUsedProvider",
+					"lastUsedPrompt",
+				]);
+				nuggetAttributions = [
+					{
+						modelProvider:
+							providerInfo.lastUsedProvider?.providerId || "gemini",
+						modelName:
+							providerInfo.lastUsedProvider?.modelName ||
+							"gemini-2.5-flash-lite",
+					},
+				];
+			}
+
+			// Get prompt info for all records
+			const promptInfo = await chrome.storage.local.get(["lastUsedPrompt"]);
+			const prompt = promptInfo.lastUsedPrompt || {
+				id: "unknown",
+				version: "original",
+				content: "",
+				type: "default" as const,
+				name: "Unknown prompt",
 			};
 
-			// Store feedback locally as backup
-			await this.storeFeedbackLocally("nugget", feedbackWithProvider);
+			// Create feedback records (one per attribution)
+			const feedbackRecords = nuggetAttributions.map((attribution, index) => ({
+				...feedback,
+				id: `${feedback.id}_${index}`, // Unique ID per record
+				modelProvider: attribution.modelProvider as ProviderId,
+				modelName: attribution.modelName,
+				prompt,
+				feedbackSessionId: this.generateFeedbackSessionId(feedback.id), // Group related records
+				attributionSource: "nugget_metadata",
+			}));
+
+			// Store all records locally as backup
+			for (const record of feedbackRecords) {
+				console.log(`Storing nugget feedback locally with ID: ${record.id}`);
+				await this.storeFeedbackLocally("nugget", record);
+			}
 
 			// Send to backend API
 			try {
+				console.log(
+					`Sending ${feedbackRecords.length} nugget feedback records to backend`,
+				);
 				const result = await this.sendFeedbackToBackend({
-					nuggetFeedback: [feedbackWithProvider],
+					nuggetFeedback: feedbackRecords,
 				});
 				console.log("Nugget feedback sent to backend:", result);
 
-				// Check for deduplication information and notify user if needed
-				if (result.deduplication?.user_message) {
-					await this.notifyUserOfDuplication(
-						sender.tab?.id,
-						result.deduplication.user_message,
-					);
-				}
-
-				sendResponse({
-					success: true,
-					message: "Feedback submitted successfully",
-					deduplication: result.deduplication,
-				});
+				sendResponse({ success: true });
 			} catch (error) {
 				console.error("Failed to send nugget feedback to backend:", error);
-
-				// Classify backend error and notify user
-				const errorInfo = this.enhanceBackendError(error);
-				await this.notifyUserOfBackendError(sender.tab?.id, errorInfo);
-
-				// Still return success since data was stored locally as fallback
-				sendResponse({
-					success: true,
-					message: "Feedback saved locally (backend unavailable)",
-					warning: errorInfo.message,
-				});
+				sendResponse({ success: false, error: (error as Error).message });
 			}
 		} catch (error) {
 			console.error("Failed to submit nugget feedback:", error);
@@ -1361,11 +2305,21 @@ export class MessageHandler {
 				return;
 			}
 
+			console.log(
+				`Attempting to delete nugget feedback with ID: ${feedbackId}`,
+			);
+
 			// Remove from local storage backup
+			console.log(
+				`Removing nugget feedback from local storage with ID: ${feedbackId}`,
+			);
 			await this.removeFeedbackLocally("nugget", feedbackId);
 
 			// Send delete request to backend API
 			try {
+				console.log(
+					`Sending DELETE request to backend for feedback ID: ${feedbackId}`,
+				);
 				const result = await this.deleteFeedbackFromBackend(feedbackId);
 				console.log("Nugget feedback deleted from backend:", result);
 
@@ -1393,6 +2347,35 @@ export class MessageHandler {
 		}
 	}
 
+	// Add utility function before missing content feedback handler
+	private static async getAnalysisSessionProviders(): Promise<
+		{ modelProvider: string; modelName: string }[]
+	> {
+		const sessionInfo = await chrome.storage.local.get([
+			"lastAnalysisSession",
+			"lastUsedProvider",
+		]);
+
+		// Use session metadata if available
+		if (sessionInfo.lastAnalysisSession?.providersUsed) {
+			return sessionInfo.lastAnalysisSession.providersUsed.map(
+				(provider: any) => ({
+					modelProvider: provider.providerId,
+					modelName: provider.modelName,
+				}),
+			);
+		}
+
+		// Fallback to last used provider
+		return [
+			{
+				modelProvider: sessionInfo.lastUsedProvider?.providerId || "gemini",
+				modelName:
+					sessionInfo.lastUsedProvider?.modelName || "gemini-2.5-flash-lite",
+			},
+		];
+	}
+
 	private async handleSubmitMissingContentFeedback(
 		request: SubmitMissingContentFeedbackRequest,
 		sender: chrome.runtime.MessageSender,
@@ -1410,28 +2393,59 @@ export class MessageHandler {
 				return;
 			}
 
-			// Add provider metadata to all missing content feedback from last used provider
-			const providerInfo = await chrome.storage.local.get(["lastUsedProvider"]);
-			const missingContentWithProvider = missingContentFeedback.map(
-				(feedback) => ({
-					...feedback,
-					modelProvider: providerInfo.lastUsedProvider?.providerId || "gemini",
-					modelName:
-						providerInfo.lastUsedProvider?.modelName || "gemini-2.5-flash",
-				}),
+			// Get all providers that participated in analysis
+			const sessionProviders =
+				await MessageHandler.getAnalysisSessionProviders();
+
+			// Get prompt info
+			const promptInfo = await chrome.storage.local.get(["lastUsedPrompt"]);
+			const prompt = promptInfo.lastUsedPrompt || {
+				id: "unknown",
+				version: "original",
+				content: "",
+				type: "default" as const,
+				name: "Unknown prompt",
+			};
+
+			// Create records for each missing nugget × each provider
+			const missingContentRecords = missingContentFeedback.flatMap(
+				(missingNugget) =>
+					sessionProviders.map((provider, providerIndex) => ({
+						...missingNugget,
+						id: `${missingNugget.id}_provider_${providerIndex}`,
+						modelProvider: provider.modelProvider as ProviderId,
+						modelName: provider.modelName,
+						prompt,
+						feedbackSessionId: this.generateFeedbackSessionId(missingNugget.id),
+						attributionSource: "analysis_session",
+					})),
 			);
 
-			// Store feedback locally as backup
-			for (const feedback of missingContentWithProvider) {
-				await this.storeFeedbackLocally("missing", feedback);
+			// Store locally as backup
+			for (const record of missingContentRecords) {
+				console.log(
+					`Storing missing content feedback locally with ID: ${record.id}`,
+				);
+				await this.storeFeedbackLocally("missing", record);
 			}
 
 			// Send to backend API
 			try {
+				console.log(
+					`Sending ${missingContentRecords.length} missing content feedback records to backend`,
+				);
 				const result = await this.sendFeedbackToBackend({
-					missingContentFeedback: missingContentWithProvider,
+					missingContentFeedback: missingContentRecords,
 				});
 				console.log("Missing content feedback sent to backend:", result);
+
+				// Log ID mappings if present
+				if (result.id_mappings?.missing_content_feedback) {
+					console.log(
+						"Backend returned missing content feedback ID mappings:",
+						result.id_mappings.missing_content_feedback,
+					);
+				}
 
 				// Check for deduplication information and notify user if needed
 				if (result.deduplication?.user_message) {
@@ -1441,9 +2455,17 @@ export class MessageHandler {
 					);
 				}
 
+				// Update local storage with corrected IDs from backend
+				if (result.id_mappings?.missing_content_feedback) {
+					await this.updateLocalFeedbackIds(
+						"missing",
+						result.id_mappings.missing_content_feedback,
+					);
+				}
+
 				sendResponse({
 					success: true,
-					message: `${missingContentFeedback.length} missing content feedback items submitted successfully`,
+					message: `${missingContentRecords.length} missing content feedback records submitted successfully`,
 					deduplication: result.deduplication,
 				});
 			} catch (error) {
@@ -1459,7 +2481,7 @@ export class MessageHandler {
 				// Still return success since data was stored locally as fallback
 				sendResponse({
 					success: true,
-					message: `${missingContentFeedback.length} feedback items saved locally (backend unavailable)`,
+					message: `${missingContentRecords.length} feedback records saved locally (backend unavailable)`,
 					warning: errorInfo.message,
 				});
 			}
@@ -1641,21 +2663,18 @@ export class MessageHandler {
 		sendResponse: (response: GetCurrentOptimizedPromptResponse) => void,
 	): Promise<void> {
 		try {
-			// Get current optimized prompt from backend
-			const response = await fetch("http://localhost:7532/optimize/current", {
-				method: "GET",
-				headers: { "Content-Type": "application/json" },
-			});
-
-			if (!response.ok) {
-				throw new Error(
-					`Get optimized prompt failed: ${response.status} ${response.statusText}`,
-				);
+			// Use the helper method which includes provider/model context and prompt-specific support
+			const optimizedPrompt = await this.getOptimizedPromptIfAvailable();
+			if (optimizedPrompt) {
+				console.log("Current optimized prompt retrieved:", optimizedPrompt);
+				sendResponse({ success: true, data: optimizedPrompt });
+			} else {
+				sendResponse({
+					success: false,
+					error: "No optimized prompt available",
+					fallback: "Using default prompt - no optimized prompt available",
+				});
 			}
-
-			const optimizedPrompt = await response.json();
-			console.log("Current optimized prompt retrieved:", optimizedPrompt);
-			sendResponse({ success: true, data: optimizedPrompt });
 		} catch (error) {
 			console.error("Failed to get current optimized prompt:", error);
 			sendResponse({
@@ -1700,7 +2719,9 @@ export class MessageHandler {
 	}
 
 	// Helper method to get optimized prompt if available (used during analysis)
-	private async getOptimizedPromptIfAvailable(): Promise<OptimizedPrompt | null> {
+	private async getOptimizedPromptIfAvailable(
+		promptId?: string,
+	): Promise<OptimizedPrompt | null> {
 		const controller = new AbortController();
 		const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout for prompt fetch
 
@@ -1709,26 +2730,36 @@ export class MessageHandler {
 			const currentProvider = await getCurrentProvider();
 			let requestUrl = "http://localhost:7532/optimize/current";
 
+			// Build query parameters
+			const params = new URLSearchParams();
+
+			// Add promptId if provided for prompt-specific optimization
+			if (promptId) {
+				params.set("promptId", promptId);
+			}
+
 			if (currentProvider) {
 				const currentModel = await getSelectedModel(currentProvider);
+				params.set("provider", currentProvider);
 				if (currentModel) {
-					// Add provider and model as query parameters
-					const params = new URLSearchParams({
-						provider: currentProvider,
-						model: currentModel,
-					});
-					requestUrl += `?${params.toString()}`;
-
+					params.set("model", currentModel);
 					console.log(
-						`Requesting optimized prompt for ${currentProvider}+${currentModel}`,
+						`Requesting optimized prompt for prompt=${promptId || "default"}, ${currentProvider}+${currentModel}`,
 					);
 				} else {
 					console.log(
-						`No model selected for ${currentProvider}, using generic optimization`,
+						`Requesting optimized prompt for prompt=${promptId || "default"}, ${currentProvider} (no model)`,
 					);
 				}
 			} else {
-				console.log("No current provider found, using generic optimization");
+				console.log(
+					`Requesting optimized prompt for prompt=${promptId || "default"} (generic)`,
+				);
+			}
+
+			// Add query parameters if any exist
+			if (params.toString()) {
+				requestUrl += `?${params.toString()}`;
 			}
 
 			const response = await fetch(requestUrl, {
@@ -1849,22 +2880,23 @@ export class MessageHandler {
 		request: ValidateProviderRequest,
 		sendResponse: (response: ValidateProviderResponse) => void,
 	): Promise<void> {
+		const providerId: ProviderId = request.providerId;
+		const apiKey: string = request.apiKey;
+
+		if (!providerId) {
+			sendResponse({ success: false, error: "Provider ID is required" });
+			return;
+		}
+
+		if (!apiKey) {
+			sendResponse({ success: false, error: "API key is required" });
+			return;
+		}
+
+		// Create provider configuration outside try block
+		let config: ProviderConfig | undefined;
 		try {
-			const providerId: ProviderId = request.providerId;
-			const apiKey: string = request.apiKey;
-
-			if (!providerId) {
-				sendResponse({ success: false, error: "Provider ID is required" });
-				return;
-			}
-
-			if (!apiKey) {
-				sendResponse({ success: false, error: "API key is required" });
-				return;
-			}
-
-			// Create provider configuration
-			const config: ProviderConfig = {
+			config = {
 				providerId,
 				apiKey,
 				modelName: await getSelectedModel(providerId),
@@ -1896,7 +2928,7 @@ export class MessageHandler {
 				data: {
 					isValid: false,
 					providerId: request.providerId,
-					modelName: config.modelName || "default",
+					modelName: config?.modelName || "default",
 					error: userFriendlyMessage,
 					originalError: (error as Error).message,
 				},

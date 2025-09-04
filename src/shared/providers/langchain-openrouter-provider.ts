@@ -1,20 +1,47 @@
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { ChatOpenAI } from "@langchain/openai";
 import { z } from "zod";
+import { normalize } from "../../background/services/response-normalizer";
 import { debugLogger } from "../debug";
+import type { GoldenNuggetType } from "../schemas";
 import type {
 	GoldenNuggetsResponse,
 	LLMProvider,
 	ProviderConfig,
 } from "../types/providers";
 
-// Schema definition for golden nuggets (synthesis removed)
+// Schema definition for golden nuggets with fullContent approach
+// Includes type variants that response-normalizer can handle to prevent validation failures
 const GoldenNuggetsSchema = z.object({
 	golden_nuggets: z.array(
 		z.object({
-			type: z.string(), // Accept any string, normalize later
-			startContent: z.string(),
-			endContent: z.string(),
+			type: z.enum([
+				// Canonical types
+				"tool",
+				"media",
+				"aha! moments",
+				"analogy",
+				"model",
+				// AI model variations that response-normalizer handles
+				"mental model",
+				"mental_model",
+				"aha!_moments", // Underscore variation that some models return
+				"framework",
+				"technique",
+				"method",
+				"resource",
+				"book",
+				"article",
+				"concept",
+				"comparison",
+				"metaphor",
+				// Plural variations that some models return
+				"tools",
+				"analogies",
+				"models",
+			]),
+			fullContent: z.string(),
+			confidence: z.number().min(0).max(1),
 		}),
 	),
 });
@@ -153,7 +180,7 @@ export class LangChainOpenRouterProvider implements LLMProvider {
 		this.model = new ChatOpenAI({
 			apiKey: config.apiKey,
 			model: this.modelName,
-			temperature: 0,
+			temperature: 0.2,
 			maxRetries: 0, // Disable ChatOpenAI's built-in retry logic - we handle retries ourselves
 			configuration: {
 				baseURL: "https://openrouter.ai/api/v1",
@@ -168,7 +195,30 @@ export class LangChainOpenRouterProvider implements LLMProvider {
 	async extractGoldenNuggets(
 		content: string,
 		prompt: string,
+		temperature?: number,
+		_selectedTypes?: GoldenNuggetType[],
 	): Promise<GoldenNuggetsResponse> {
+		// Use provided temperature or fallback to default (0.2)
+		const effectiveTemperature = temperature ?? 0.2;
+
+		// Create model with specified temperature
+		const model =
+			temperature !== undefined
+				? new ChatOpenAI({
+						apiKey: this.config.apiKey,
+						model: this.modelName,
+						temperature: effectiveTemperature,
+						maxRetries: 0, // Disable ChatOpenAI's built-in retry logic - we handle retries ourselves
+						configuration: {
+							baseURL: "https://openrouter.ai/api/v1",
+							defaultHeaders: {
+								"HTTP-Referer": "https://golden-nuggets-finder.com",
+								"X-Title": "Golden Nuggets Finder",
+							},
+						},
+					})
+				: this.model;
+
 		// Log the request
 		debugLogger.logLLMRequest(
 			`https://openrouter.ai/api/v1/chat/completions (${this.modelName})`,
@@ -179,12 +229,13 @@ export class LangChainOpenRouterProvider implements LLMProvider {
 					{ role: "user", content: `${content.substring(0, 500)}...` }, // Truncate for logging
 				],
 				provider: "openrouter",
+				temperature: effectiveTemperature,
 			},
 		);
 
 		try {
 			const response = await this.executeWithRetry(async () => {
-				const structuredModel = this.model.withStructuredOutput(
+				const structuredModel = model.withStructuredOutput(
 					GoldenNuggetsSchema,
 					{
 						name: "extract_golden_nuggets",
@@ -203,25 +254,27 @@ export class LangChainOpenRouterProvider implements LLMProvider {
 				return result;
 			});
 
-			// Normalize type values that OpenRouter models might return
-			if (response?.golden_nuggets) {
-				response.golden_nuggets = response.golden_nuggets.map((nugget) => ({
-					...nugget,
-					type: this.normalizeType(nugget.type),
-				}));
-			}
-
-			// Log the response
-			debugLogger.logLLMResponse(
+			// Normalize response using response-normalizer to handle type variants
+			const normalizedResponse = normalize(
 				{
-					provider: "openrouter",
-					model: this.modelName,
-					success: true,
-				},
-				response,
+					golden_nuggets: response.golden_nuggets.map((nugget) => ({
+						type: nugget.type,
+						fullContent: nugget.fullContent,
+						confidence: nugget.confidence,
+						extractionMethod: "llm",
+					})),
+				} as any, // Cast to allow extended types that normalizer will handle
+				this.providerId,
 			);
 
-			return response as GoldenNuggetsResponse;
+			// Log the response
+			debugLogger.logLLMResponse({
+				provider: "openrouter",
+				model: this.modelName,
+				success: true,
+			});
+
+			return normalizedResponse;
 		} catch (error) {
 			const errorMessage = this.getErrorMessage(error);
 
@@ -247,36 +300,6 @@ export class LangChainOpenRouterProvider implements LLMProvider {
 			debugLogger.log(`❌ Wrapping non-retry error with provider context`);
 			throw new Error(`OpenRouter API call failed: ${errorMessage}`);
 		}
-	}
-
-	private normalizeType(
-		type: string,
-	): "tool" | "media" | "aha! moments" | "analogy" | "model" {
-		// Handle common variations that OpenRouter models might return
-		const typeMap: Record<
-			string,
-			"tool" | "media" | "aha! moments" | "analogy" | "model"
-		> = {
-			"mental model": "model",
-			mental_model: "model",
-			framework: "model",
-			technique: "tool",
-			method: "tool",
-			resource: "media",
-			book: "media",
-			article: "media",
-			concept: "aha! moments",
-			comparison: "analogy",
-			metaphor: "analogy",
-		};
-
-		const normalized = typeMap[type.toLowerCase()] || type;
-
-		// Validate against allowed types
-		const allowedTypes = ["tool", "media", "aha! moments", "analogy", "model"];
-		return allowedTypes.includes(normalized)
-			? (normalized as "tool" | "media" | "aha! moments" | "analogy" | "model")
-			: "aha! moments";
 	}
 
 	async validateApiKey(): Promise<boolean> {

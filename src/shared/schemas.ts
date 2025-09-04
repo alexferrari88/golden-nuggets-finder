@@ -28,47 +28,49 @@ export const GOLDEN_NUGGET_SCHEMA = {
 						description: "The category of the extracted golden nugget.",
 						enum: ["tool", "media", "aha! moments", "analogy", "model"],
 					},
-					startContent: {
+					fullContent: {
 						type: "string",
 						description:
-							"The first few words (max 5) of the original content verbatim, without any changes to wording or symbols.",
+							"Complete verbatim text of the golden nugget from the original content",
 					},
-					endContent: {
-						type: "string",
-						description:
-							"The last few words (max 5) of the original content verbatim, without any changes to wording or symbols.",
+					confidence: {
+						type: "number",
+						description: "Confidence score from 0.0 to 1.0 for this extraction",
+						minimum: 0.0,
+						maximum: 1.0,
 					},
 				},
-				required: ["type", "startContent", "endContent"],
-				propertyOrdering: ["type", "startContent", "endContent"],
+				required: ["type", "fullContent", "confidence"],
+				propertyOrdering: ["type", "fullContent", "confidence"],
 			},
 		},
 	},
 	required: ["golden_nuggets"],
 	propertyOrdering: ["golden_nuggets"],
-} as const;
+};
 
-export function generateGoldenNuggetSchema(selectedTypes: GoldenNuggetType[]) {
+export function generateFullContentSchema(selectedTypes: GoldenNuggetType[]) {
 	const properties: Record<string, any> = {
 		type: {
 			type: "string",
 			description: "The category of the extracted golden nugget.",
 			enum: selectedTypes.length > 0 ? selectedTypes : ALL_NUGGET_TYPES,
 		},
-		startContent: {
+		fullContent: {
 			type: "string",
 			description:
-				"The first few words (max 5) of the original content verbatim, without any changes to wording or symbols.",
+				"Complete verbatim text of the golden nugget from the original content",
 		},
-		endContent: {
-			type: "string",
-			description:
-				"The last few words (max 5) of the original content verbatim, without any changes to wording or symbols.",
+		confidence: {
+			type: "number",
+			description: "Confidence score from 0.0 to 1.0 for this extraction",
+			minimum: 0.0,
+			maximum: 1.0,
 		},
 	};
 
-	const required = ["type", "startContent", "endContent"];
-	const propertyOrdering = ["type", "startContent", "endContent"];
+	const required = ["type", "fullContent", "confidence"];
+	const propertyOrdering = ["type", "fullContent", "confidence"];
 
 	return {
 		type: "object",
@@ -87,5 +89,10 @@ export function generateGoldenNuggetSchema(selectedTypes: GoldenNuggetType[]) {
 		},
 		required: ["golden_nuggets"],
 		propertyOrdering: ["golden_nuggets"],
-	} as const;
+	};
+}
+
+// Legacy function name for backward compatibility
+export function generateGoldenNuggetSchema(selectedTypes: GoldenNuggetType[]) {
+	return generateFullContentSchema(selectedTypes);
 }

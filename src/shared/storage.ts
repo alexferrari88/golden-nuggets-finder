@@ -10,6 +10,7 @@ import type {
 	PersistentAnalysisState,
 	SavedPrompt,
 } from "./types";
+import type { ProviderId } from "./types/providers";
 
 export class StorageManager {
 	private static instance: StorageManager;
@@ -34,21 +35,45 @@ export class StorageManager {
 			console.log(`[Storage] getApiKey called from: ${context.source}`);
 		}
 
-		// Validate access
+		// Basic security validation (without rate limiting) for all requests
+		const validSources = ["background", "popup", "options", "content"];
+		if (!validSources.includes(context.source)) {
+			throw new Error(
+				`Invalid access source '${context.source}'. Valid sources: ${validSources.join(", ")}`,
+			);
+		}
+
+		// Additional validation for sensitive operations
+		if (context.action === "write" && context.source === "content") {
+			throw new Error(
+				"Content script cannot write API keys - security policy violation",
+			);
+		}
+
+		// Check cache BEFORE rate limiting to avoid unnecessary rate limit hits
+		const cached = this.getFromCache<string>(STORAGE_KEYS.API_KEY);
+		if (cached !== null && typeof cached === "string") {
+			if (isDevMode()) {
+				console.log(
+					"[Storage] Returning cached API key (bypassing rate limit)",
+				);
+			}
+			// Log the access for audit trail (successful cache access)
+			securityManager.logAccess(
+				context,
+				true,
+				"Cache hit - bypassed rate limiting",
+			);
+			return cached;
+		}
+
+		// Only do full security validation (including rate limiting) for cache misses
 		if (!securityManager.validateAccess(context)) {
 			// Get the latest audit log entry for more specific error details
 			const auditLogs = securityManager.getAuditLogs();
 			const latestEntry = auditLogs[auditLogs.length - 1];
 			const specificError = latestEntry?.error || "Invalid access context";
 			throw new Error(`Access denied: ${specificError}`);
-		}
-
-		const cached = this.getFromCache(STORAGE_KEYS.API_KEY);
-		if (cached !== null) {
-			if (isDevMode()) {
-				console.log("[Storage] Returning cached API key");
-			}
-			return cached;
 		}
 
 		const result = await chrome.storage.sync.get(STORAGE_KEYS.API_KEY);
@@ -235,8 +260,8 @@ export class StorageManager {
 	}
 
 	async getPrompts(): Promise<SavedPrompt[]> {
-		const cached = this.getFromCache(STORAGE_KEYS.PROMPTS);
-		if (cached !== null) {
+		const cached = this.getFromCache<SavedPrompt[]>(STORAGE_KEYS.PROMPTS);
+		if (cached !== null && Array.isArray(cached)) {
 			return cached;
 		}
 
@@ -302,11 +327,141 @@ export class StorageManager {
 		return prompts.find((p) => p.isDefault) || prompts[0] || null;
 	}
 
+	async getPersona(): Promise<string> {
+		const cached = this.getFromCache<string>(STORAGE_KEYS.USER_PERSONA);
+		if (cached !== null && typeof cached === "string") {
+			return cached;
+		}
+
+		const result = await chrome.storage.sync.get(STORAGE_KEYS.USER_PERSONA);
+		const persona = result[STORAGE_KEYS.USER_PERSONA] || "";
+
+		this.setCache(STORAGE_KEYS.USER_PERSONA, persona);
+		return persona;
+	}
+
+	async savePersona(persona: string): Promise<void> {
+		this.setCache(STORAGE_KEYS.USER_PERSONA, persona);
+		await chrome.storage.sync.set({ [STORAGE_KEYS.USER_PERSONA]: persona });
+	}
+
+	async getEnsembleSettings(): Promise<{
+		enabled: boolean;
+		defaultRuns: number; // For single-model mode
+		// New multi-provider support
+		mode: "single-model" | "multi-provider";
+		providerConfigurations: Array<{
+			providerId: ProviderId;
+			modelId: string;
+			enabled: boolean; // Allow toggling individual providers
+		}>;
+		defaultProviderSet: string; // Name of saved provider set
+	}> {
+		const cached = this.getFromCache<{
+			enabled: boolean;
+			defaultRuns: number;
+			mode: "single-model" | "multi-provider";
+			providerConfigurations: Array<{
+				providerId: ProviderId;
+				modelId: string;
+				enabled: boolean;
+			}>;
+			defaultProviderSet: string;
+		}>(STORAGE_KEYS.ENSEMBLE_SETTINGS);
+		if (cached !== null && typeof cached === "object") {
+			return cached;
+		}
+
+		const result = await chrome.storage.sync.get(
+			STORAGE_KEYS.ENSEMBLE_SETTINGS,
+		);
+		const settings = result[STORAGE_KEYS.ENSEMBLE_SETTINGS] || {
+			enabled: false,
+			defaultRuns: 3,
+			mode: "single-model",
+			providerConfigurations: [],
+			defaultProviderSet: "",
+		};
+
+		// Migration: convert old format to new format
+		if (!settings.mode) {
+			settings.mode = "single-model";
+			settings.providerConfigurations = settings.providerConfigurations || [];
+			settings.defaultProviderSet = settings.defaultProviderSet || "";
+		}
+
+		this.setCache(STORAGE_KEYS.ENSEMBLE_SETTINGS, settings);
+		return settings;
+	}
+
+	async saveEnsembleSettings(settings: {
+		enabled: boolean;
+		defaultRuns: number; // For single-model mode
+		// New multi-provider support
+		mode: "single-model" | "multi-provider";
+		providerConfigurations: Array<{
+			providerId: ProviderId;
+			modelId: string;
+			enabled: boolean; // Allow toggling individual providers
+		}>;
+		defaultProviderSet: string; // Name of saved provider set
+	}): Promise<void> {
+		this.setCache(STORAGE_KEYS.ENSEMBLE_SETTINGS, settings);
+		await chrome.storage.sync.set({
+			[STORAGE_KEYS.ENSEMBLE_SETTINGS]: settings,
+		});
+	}
+
+	// Provider set management (save named combinations)
+	async saveProviderSet(
+		name: string,
+		configurations: Array<{
+			providerId: ProviderId;
+			modelId: string;
+		}>,
+	): Promise<void> {
+		const key = `ensemble_provider_set_${name}`;
+		await chrome.storage.sync.set({ [key]: configurations });
+	}
+
+	async getProviderSet(name: string): Promise<Array<{
+		providerId: ProviderId;
+		modelId: string;
+	}> | null> {
+		const key = `ensemble_provider_set_${name}`;
+		const result = await chrome.storage.sync.get([key]);
+		return result[key] || null;
+	}
+
+	async getAllProviderSets(): Promise<
+		Record<
+			string,
+			Array<{
+				providerId: ProviderId;
+				modelId: string;
+			}>
+		>
+	> {
+		const allData = await chrome.storage.sync.get();
+		const providerSets: Record<string, any> = {};
+
+		for (const [key, value] of Object.entries(allData)) {
+			if (key.startsWith("ensemble_provider_set_")) {
+				const setName = key.replace("ensemble_provider_set_", "");
+				providerSets[setName] = value;
+			}
+		}
+
+		return providerSets;
+	}
+
 	// Analysis state management for popup persistence
 	async getAnalysisState(): Promise<PersistentAnalysisState | null> {
 		try {
-			const cached = this.getFromCache(STORAGE_KEYS.ANALYSIS_STATE);
-			if (cached !== null) {
+			const cached = this.getFromCache<PersistentAnalysisState>(
+				STORAGE_KEYS.ANALYSIS_STATE,
+			);
+			if (cached !== null && typeof cached === "object") {
 				return cached;
 			}
 
@@ -355,8 +510,9 @@ export class StorageManager {
 	isAnalysisStateActive(state: PersistentAnalysisState): boolean {
 		const ageInMinutes = (Date.now() - state.startTime) / (1000 * 60);
 
-		// Check if analysis is too old (more than 10 minutes)
-		if (ageInMinutes > 10) {
+		// Check if analysis is too old (more aggressive threshold: 3 minutes instead of 10)
+		// This helps catch "zombie" states that weren't cleaned up properly
+		if (ageInMinutes > 3) {
 			console.log("[Storage] Clearing stale analysis state:", {
 				analysisId: state.analysisId,
 				promptName: state.promptName,
@@ -381,13 +537,34 @@ export class StorageManager {
 			return false;
 		}
 
-		// Be conservative about clearing analysis states
-		// Previous logic was too aggressive and cleared legitimate "between phases" states
-		// Only clear states when we're very confident they're no longer active:
-		// 1. Age > 10 minutes (handled above)
-		// 2. All phases completed (handled above)
+		// Additional heuristic: Check for patterns indicating likely completion
+		// If we're in "finalize" phase (phase 2) and state is older than 30 seconds, likely a zombie
+		if (state.currentPhase === 2 && ageInMinutes > 0.5) {
+			console.log("[Storage] Clearing likely completed analysis state:", {
+				analysisId: state.analysisId,
+				promptName: state.promptName,
+				ageMinutes: ageInMinutes.toFixed(1),
+				currentPhase: state.currentPhase,
+				completedPhases: state.completedPhases,
+				reason: "finalize_phase_stale",
+			});
+			return false;
+		}
 
-		// Analysis appears to be genuinely active or between phases
+		// Additional heuristic: Check for states that have phase 2 completed but still marked as active
+		// This can happen when cleanup messages don't reach the popup
+		if (state.completedPhases.includes(2) && ageInMinutes > 0.25) {
+			console.log("[Storage] Clearing analysis with final phase completed:", {
+				analysisId: state.analysisId,
+				promptName: state.promptName,
+				ageMinutes: ageInMinutes.toFixed(1),
+				completedPhases: state.completedPhases,
+				reason: "final_phase_completed",
+			});
+			return false;
+		}
+
+		// Analysis appears to be genuinely active
 		console.log("[Storage] Preserving active analysis state:", {
 			analysisId: state.analysisId,
 			promptName: state.promptName,
@@ -447,19 +624,23 @@ export class StorageManager {
 		},
 	): Promise<ExtensionConfig> {
 		const configKey = "full_config";
-		const cached = this.getFromCache(configKey);
-		if (cached !== null) {
+		const cached = this.getFromCache<ExtensionConfig>(configKey);
+		if (cached !== null && typeof cached === "object") {
 			return cached;
 		}
 
-		const [apiKey, prompts] = await Promise.all([
+		const [apiKey, prompts, persona, ensembleSettings] = await Promise.all([
 			this.getApiKey(context),
 			this.getPrompts(),
+			this.getPersona(),
+			this.getEnsembleSettings(),
 		]);
 
 		const config = {
 			geminiApiKey: apiKey,
 			userPrompts: prompts,
+			userPersona: persona,
+			ensembleSettings,
 		};
 
 		this.setCache(configKey, config);
@@ -483,6 +664,16 @@ export class StorageManager {
 		if (config.userPrompts !== undefined) {
 			updates[STORAGE_KEYS.PROMPTS] = config.userPrompts;
 			this.setCache(STORAGE_KEYS.PROMPTS, config.userPrompts);
+		}
+
+		if (config.userPersona !== undefined) {
+			updates[STORAGE_KEYS.USER_PERSONA] = config.userPersona;
+			this.setCache(STORAGE_KEYS.USER_PERSONA, config.userPersona);
+		}
+
+		if (config.ensembleSettings !== undefined) {
+			updates[STORAGE_KEYS.ENSEMBLE_SETTINGS] = config.ensembleSettings;
+			this.setCache(STORAGE_KEYS.ENSEMBLE_SETTINGS, config.ensembleSettings);
 		}
 
 		// Clear full config cache
@@ -517,7 +708,9 @@ export class StorageManager {
 		// Limit cache size to prevent memory issues
 		if (this.cache.size > 10) {
 			const oldestKey = this.cache.keys().next().value;
-			this.cache.delete(oldestKey);
+			if (oldestKey !== undefined) {
+				this.cache.delete(oldestKey);
+			}
 		}
 
 		this.cache.set(key, {

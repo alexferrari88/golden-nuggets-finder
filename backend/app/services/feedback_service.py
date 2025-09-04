@@ -6,12 +6,19 @@ nugget ratings/corrections and missing content submissions.
 """
 
 from datetime import datetime, timezone
+import logging
 from typing import Literal, Optional
 import uuid
 
 import aiosqlite
 
 from ..models import MissingContentFeedback, NuggetFeedback
+
+# Setup logger
+logger = logging.getLogger(__name__)
+
+
+# Removed boundary helper functions - backend now uses fullContent format exclusively
 
 
 class FeedbackService:
@@ -177,10 +184,11 @@ class FeedbackService:
                 """
                 INSERT INTO nugget_feedback (
                     id, nugget_content, original_type, corrected_type,
-                    rating, client_timestamp, url, context, created_at,
+                    rating, timestamp, url, context, created_at,
                     report_count, first_reported_at, last_reported_at,
-                    model_provider, model_name
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    model_provider, model_name, feedback_session_id, attribution_source,
+                    prompt_id, prompt_version, full_prompt_content
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
                 (
                     feedback.id,
@@ -195,8 +203,13 @@ class FeedbackService:
                     1,  # report_count
                     current_time,  # first_reported_at
                     current_time,  # last_reported_at
-                    feedback.modelProvider,  # NEW
-                    feedback.modelName,  # NEW
+                    feedback.modelProvider,
+                    feedback.modelName,
+                    feedback.feedbackSessionId,  # NEW
+                    feedback.attributionSource,  # NEW
+                    getattr(feedback, 'promptId', None),  # Optional NEW
+                    getattr(feedback, 'promptVersion', None),  # Optional NEW
+                    getattr(feedback, 'fullPromptContent', None),  # Optional NEW
                 ),
             )
             await db.commit()
@@ -213,9 +226,9 @@ class FeedbackService:
             """
             SELECT id, report_count, first_reported_at
             FROM missing_content_feedback
-            WHERE content = ? AND url = ?
+            WHERE full_content = ? AND url = ?
             """,
-            (feedback.content, feedback.url),
+            (feedback.fullContent, feedback.url),
         )
         existing = await cursor.fetchone()
 
@@ -314,14 +327,15 @@ class FeedbackService:
             await db.execute(
                 """
                 INSERT INTO missing_content_feedback (
-                    id, content, suggested_type, client_timestamp, url, context,
+                    id, full_content, suggested_type, timestamp, url, context,
                     created_at, report_count, first_reported_at, last_reported_at,
-                    model_provider, model_name
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    model_provider, model_name, feedback_session_id, attribution_source,
+                    prompt_id, prompt_version, full_prompt_content
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
                 (
                     feedback.id,
-                    feedback.content,
+                    feedback.fullContent,  # Updated field name
                     feedback.suggestedType,
                     feedback.timestamp,
                     feedback.url,
@@ -330,8 +344,13 @@ class FeedbackService:
                     1,  # report_count
                     current_time,  # first_reported_at
                     current_time,  # last_reported_at
-                    feedback.modelProvider,  # NEW
-                    feedback.modelName,  # NEW
+                    feedback.modelProvider,
+                    feedback.modelName,
+                    feedback.feedbackSessionId,  # NEW
+                    feedback.attributionSource,  # NEW
+                    getattr(feedback, 'promptId', None),  # Optional NEW
+                    getattr(feedback, 'promptVersion', None),  # Optional NEW
+                    getattr(feedback, 'fullPromptContent', None),  # Optional NEW
                 ),
             )
             await db.commit()
@@ -523,6 +542,9 @@ class FeedbackService:
         positive_examples = await cursor.fetchall()
 
         for example in positive_examples:
+            nugget_content = example[0]  # nugget_content
+            
+            # Use fullContent format directly
             training_examples.append(
                 {
                     "id": str(uuid.uuid4()),
@@ -531,7 +553,8 @@ class FeedbackService:
                         "golden_nuggets": [
                             {
                                 "type": example[5],  # final_type
-                                "content": example[0],  # nugget_content
+                                "fullContent": nugget_content,
+                                "confidence": 0.95,  # High confidence for positive examples
                             }
                         ]
                     },
@@ -573,7 +596,7 @@ class FeedbackService:
         # Get missing content examples (what should have been extracted)
         cursor = await db.execute(
             """
-            SELECT mcf.content, mcf.suggested_type, mcf.url, mcf.context, mcf.created_at
+            SELECT mcf.full_content, mcf.suggested_type, mcf.url, mcf.context, mcf.created_at
             FROM missing_content_feedback mcf
             ORDER BY mcf.created_at DESC
             LIMIT ?
@@ -584,6 +607,9 @@ class FeedbackService:
         missing_examples = await cursor.fetchall()
 
         for example in missing_examples:
+            missing_content = example[0]  # content
+            
+            # Use fullContent format directly
             training_examples.append(
                 {
                     "id": str(uuid.uuid4()),
@@ -592,7 +618,8 @@ class FeedbackService:
                         "golden_nuggets": [
                             {
                                 "type": example[1],  # suggested_type
-                                "content": example[0],  # content
+                                "fullContent": missing_content,
+                                "confidence": 0.8,  # High quality but manually identified
                             }
                         ]
                     },
@@ -601,6 +628,196 @@ class FeedbackService:
                     "timestamp": example[4],
                 }
             )
+
+        return training_examples
+
+    async def get_training_examples_for_prompt(
+        self,
+        db: aiosqlite.Connection,
+        prompt_id: str,
+        provider: Optional[str] = None,
+        model: Optional[str] = None,
+        attribution_quality_filter: str = "nugget_metadata",  # NEW: Filter by attribution quality
+        limit: int = 100,
+    ) -> list[dict]:
+        """
+        Generate training examples for DSPy optimization from feedback data specific to a Chrome extension prompt.
+
+        This method enables prompt-specific optimization by filtering feedback that was generated
+        using a specific Chrome extension prompt, provider, and model combination.
+        """
+        training_examples = []
+
+        # Build query conditions
+        prompt_conditions = ["nf.prompt_id = ?"]
+        params = [prompt_id]
+
+        if provider:
+            prompt_conditions.append("nf.model_provider = ?")
+            params.append(provider)
+
+        if model:
+            prompt_conditions.append("nf.model_name = ?")
+            params.append(model)
+            
+        # NEW: Filter by attribution quality
+        if attribution_quality_filter:
+            prompt_conditions.append("nf.attribution_source = ?")
+            params.append(attribution_quality_filter)
+
+        prompt_where_clause = " AND ".join(prompt_conditions)
+
+        # Get positive nugget examples for this specific prompt
+        cursor = await db.execute(
+            f"""
+            SELECT nf.nugget_content, nf.original_type, nf.url, nf.context, nf.created_at,
+                   CASE WHEN nf.corrected_type IS NOT NULL THEN nf.corrected_type ELSE nf.original_type END as final_type,
+                   nf.prompt_id, nf.model_provider, nf.model_name, nf.full_prompt_content,
+                   nf.feedback_session_id, nf.attribution_source
+            FROM nugget_feedback nf
+            WHERE nf.rating = 'positive' AND {prompt_where_clause}
+            ORDER BY nf.created_at DESC
+            LIMIT ?
+            """,
+            (*params, limit // 2),
+        )
+
+        positive_examples = await cursor.fetchall()
+
+        for example in positive_examples:
+            nugget_content = example[0]  # nugget_content
+            
+            # Use fullContent format directly
+            training_examples.append(
+                {
+                    "id": str(uuid.uuid4()),
+                    "input_content": example[3],  # context
+                    "expected_output": {
+                        "golden_nuggets": [
+                            {
+                                "type": example[5],  # final_type
+                                "fullContent": nugget_content,
+                                "confidence": 0.95,  # High confidence for positive examples
+                            }
+                        ]
+                    },
+                    "feedback_score": 1.0,  # Positive feedback
+                    "url": example[2],
+                    "timestamp": example[4],
+                    # Chrome extension prompt context
+                    "prompt_id": example[6],
+                    "model_provider": example[7],
+                    "model_name": example[8],
+                    "full_prompt_content": example[9],
+                    # NEW: Session tracking metadata
+                    "feedback_session_id": example[10],
+                    "attribution_source": example[11],
+                }
+            )
+
+        # Get negative nugget examples for this specific prompt (what NOT to extract)
+        cursor = await db.execute(
+            f"""
+            SELECT nf.nugget_content, nf.original_type, nf.url, nf.context, nf.created_at,
+                   CASE WHEN nf.corrected_type IS NOT NULL THEN nf.corrected_type ELSE nf.original_type END as final_type,
+                   nf.prompt_id, nf.model_provider, nf.model_name, nf.full_prompt_content,
+                   nf.feedback_session_id, nf.attribution_source
+            FROM nugget_feedback nf
+            WHERE nf.rating = 'negative' AND {prompt_where_clause}
+            ORDER BY nf.created_at DESC
+            LIMIT ?
+            """,
+            (*params, limit // 4),
+        )
+
+        negative_examples = await cursor.fetchall()
+
+        for example in negative_examples:
+            training_examples.append(
+                {
+                    "id": str(uuid.uuid4()),
+                    "input_content": example[3],  # context
+                    "expected_output": {
+                        "golden_nuggets": []
+                    },  # Empty - should not extract
+                    "feedback_score": 0.0,  # Negative feedback
+                    "url": example[2],
+                    "timestamp": example[4],
+                    # Chrome extension prompt context
+                    "prompt_id": example[6],
+                    "model_provider": example[7],
+                    "model_name": example[8],
+                    "full_prompt_content": example[9],
+                    # NEW: Session tracking metadata
+                    "feedback_session_id": example[10],
+                    "attribution_source": example[11],
+                }
+            )
+
+        # Get missing content examples for this specific prompt (what SHOULD have been extracted)
+        cursor = await db.execute(
+            f"""
+            SELECT mcf.full_content, mcf.suggested_type, mcf.url, mcf.context, mcf.created_at,
+                   mcf.prompt_id, mcf.model_provider, mcf.model_name, mcf.full_prompt_content,
+                   mcf.feedback_session_id, mcf.attribution_source
+            FROM missing_content_feedback mcf
+            WHERE {prompt_where_clause}
+            ORDER BY mcf.created_at DESC
+            LIMIT ?
+            """,
+            (*params, limit // 4),
+        )
+
+        missing_examples = await cursor.fetchall()
+
+        for example in missing_examples:
+            missing_content = example[0]  # content
+            
+            # Use fullContent format directly
+            training_examples.append(
+                {
+                    "id": str(uuid.uuid4()),
+                    "input_content": example[3],  # context
+                    "expected_output": {
+                        "golden_nuggets": [
+                            {
+                                "type": example[1],  # suggested_type
+                                "fullContent": missing_content,
+                                "confidence": 0.8,  # High quality - user identified as valuable
+                            }
+                        ]
+                    },
+                    "feedback_score": 0.8,  # High quality - user identified as valuable
+                    "url": example[2],
+                    "timestamp": example[4],
+                    # Chrome extension prompt context
+                    "prompt_id": example[5],
+                    "model_provider": example[6],
+                    "model_name": example[7],
+                    "full_prompt_content": example[8],
+                    # NEW: Session tracking metadata
+                    "feedback_session_id": example[9],
+                    "attribution_source": example[10],
+                }
+            )
+
+        # Calculate session tracking information
+        session_count = len(set(ex.get('feedback_session_id') for ex in training_examples if ex.get('feedback_session_id')))
+        
+        logger.info(
+            f"Generated {len(training_examples)} prompt-specific training examples for {prompt_id} (attribution_source={attribution_quality_filter})",
+            extra={
+                "prompt_id": prompt_id,
+                "provider": provider,
+                "model": model,
+                "attribution_quality_filter": attribution_quality_filter,
+                "positive_examples": len(positive_examples) if hasattr(positive_examples, '__len__') else 0,
+                "negative_examples": len(negative_examples) if hasattr(negative_examples, '__len__') else 0,
+                "missing_examples": len(missing_examples) if hasattr(missing_examples, '__len__') else 0,
+                "total_examples": len(training_examples),
+                "session_count": session_count,
+            },
+        )
 
         return training_examples
 
@@ -618,7 +835,9 @@ class FeedbackService:
         # Get missing content feedback
         cursor = await db.execute(
             """
-            SELECT * FROM missing_content_feedback WHERE url = ? ORDER BY created_at DESC
+            SELECT id, full_content, suggested_type, url, context, processed, last_used_at, usage_count, 
+                   timestamp, created_at, model_provider, model_name, feedback_session_id, attribution_source
+            FROM missing_content_feedback WHERE url = ? ORDER BY created_at DESC
         """,
             (url,),
         )
@@ -664,7 +883,7 @@ class FeedbackService:
                     id, nugget_content as content, rating,
                     original_type, corrected_type, url,
                     processed, last_used_at, usage_count,
-                    client_timestamp, created_at, model_provider, model_name
+                    timestamp, created_at, model_provider, model_name
                 FROM nugget_feedback
                 WHERE processed = FALSE
                 ORDER BY created_at DESC
@@ -688,7 +907,7 @@ class FeedbackService:
                         "processed": item[7],
                         "last_used_at": item[8],
                         "usage_count": item[9],
-                        "client_timestamp": item[10],
+                        "timestamp": item[10],
                         "created_at": item[11],
                         "model_provider": item[12],
                         "model_name": item[13],
@@ -705,9 +924,9 @@ class FeedbackService:
                 """
                 SELECT
                     'missing_content' as feedback_type,
-                    id, content, suggested_type, url,
+                    id, full_content, suggested_type, url,
                     processed, last_used_at, usage_count,
-                    client_timestamp, created_at, model_provider, model_name
+                    timestamp, created_at, model_provider, model_name
                 FROM missing_content_feedback
                 WHERE processed = FALSE
                 ORDER BY created_at DESC
@@ -721,18 +940,20 @@ class FeedbackService:
             for item in missing_items:
                 items.append(
                     {
-                        "type": item[0],
-                        "id": item[1],
-                        "content": item[2],
-                        "suggested_type": item[3],
-                        "url": item[4],
+                        "type": "missing",  # Hard-coded for missing content feedback
+                        "id": item[0],
+                        "content": item[1],  # full_content from DB
+                        "suggested_type": item[2],
+                        "url": item[3],
                         "processed": item[5],
                         "last_used_at": item[6],
                         "usage_count": item[7],
-                        "client_timestamp": item[8],
+                        "timestamp": item[8],
                         "created_at": item[9],
                         "model_provider": item[10],
                         "model_name": item[11],
+                        "feedback_session_id": item[12],  # NEW
+                        "attribution_source": item[13],  # NEW
                     }
                 )
 
@@ -810,7 +1031,7 @@ class FeedbackService:
                     "last_used_at": row[6],
                     "usage_count": row[7],
                     "created_at": row[8],
-                    "client_timestamp": row[9],
+                    "timestamp": row[9],
                 }
             )
 
@@ -982,7 +1203,7 @@ class FeedbackService:
                 SELECT
                     id, nugget_content, original_type, corrected_type,
                     rating, url, context, processed, last_used_at,
-                    usage_count, client_timestamp, created_at
+                    usage_count, timestamp, created_at
                 FROM nugget_feedback
                 WHERE id = ?
                 """,
@@ -992,9 +1213,9 @@ class FeedbackService:
             cursor = await db.execute(
                 """
                 SELECT
-                    id, content, suggested_type, url, context,
+                    id, full_content, suggested_type, url, context,
                     processed, last_used_at, usage_count,
-                    client_timestamp, created_at
+                    timestamp, created_at
                 FROM missing_content_feedback
                 WHERE id = ?
                 """,
@@ -1038,7 +1259,7 @@ class FeedbackService:
                 "processed": result[7],
                 "last_used_at": result[8],
                 "usage_count": result[9],
-                "client_timestamp": result[10],
+                "timestamp": result[10],
                 "created_at": result[11],
                 "usage_history": [
                     {
@@ -1062,7 +1283,7 @@ class FeedbackService:
                 "processed": result[5],
                 "last_used_at": result[6],
                 "usage_count": result[7],
-                "client_timestamp": result[8],
+                "timestamp": result[8],
                 "created_at": result[9],
                 "usage_history": [
                     {
@@ -1230,7 +1451,7 @@ class FeedbackService:
                         """
                         INSERT INTO nugget_feedback (
                             id, nugget_content, original_type, rating,
-                            url, context, client_timestamp, created_at,
+                            url, context, timestamp, created_at,
                             report_count, first_reported_at, last_reported_at
                         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                         """,
@@ -1253,8 +1474,8 @@ class FeedbackService:
                 await db.execute(
                     """
                     INSERT INTO missing_content_feedback (
-                        id, content, suggested_type, url, context,
-                        client_timestamp, created_at, report_count,
+                        id, full_content, suggested_type, url, context,
+                        timestamp, created_at, report_count,
                         first_reported_at, last_reported_at
                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,

@@ -4,7 +4,7 @@ import { checkAndRunMigration, storage } from "../../src/shared/storage";
 import { MESSAGE_TYPES } from "../../src/shared/types";
 
 // Mock WXT global functions
-global.defineBackground = vi.fn((callback) => callback());
+(global as any).defineBackground = vi.fn((callback) => callback());
 
 // Mock dependencies
 vi.mock("../../src/background/gemini-client");

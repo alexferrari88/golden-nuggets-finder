@@ -376,15 +376,96 @@ function OptionsPage() {
 	// Debug logging state
 	const [debugLoggingEnabled, setDebugLoggingEnabled] = useState(false);
 
+	// Persona configuration state
+	const [userPersona, setUserPersona] = useState("");
+	const [personaSaveStatus, setPersonaSaveStatus] = useState<{
+		type: AlertType;
+		timestamp: number;
+	} | null>(null);
+
+	// Enhanced ensemble settings state
+	const [ensembleSettings, setEnsembleSettings] = useState<{
+		enabled: boolean;
+		defaultRuns: number; // For single-model mode
+		// New multi-provider support
+		mode: "single-model" | "multi-provider";
+		providerConfigurations: Array<{
+			providerId: ProviderId;
+			modelId: string;
+			enabled: boolean; // Allow toggling individual providers
+		}>;
+		defaultProviderSet: string; // Name of saved provider set
+	}>({
+		enabled: false,
+		defaultRuns: 3,
+		mode: "single-model",
+		providerConfigurations: [],
+		defaultProviderSet: "",
+	});
+	const [ensembleSaveStatus, setEnsembleSaveStatus] = useState<{
+		type: AlertType;
+		timestamp: number;
+	} | null>(null);
+
+	// Multi-provider ensemble configuration state
+	const [ensembleProviderConfigs, setEnsembleProviderConfigs] = useState<
+		Array<{
+			id: string; // unique identifier for React keys
+			providerId: ProviderId;
+			modelId: string;
+			enabled: boolean;
+		}>
+	>([]);
+
+	const [providerSetName, setProviderSetName] = useState<string>("");
+	const [savedProviderSets, setSavedProviderSets] = useState<
+		Record<
+			string,
+			Array<{
+				providerId: ProviderId;
+				modelId: string;
+			}>
+		>
+	>({});
+
+	const [ensembleConfigStatus, setEnsembleConfigStatus] = useState<{
+		success: boolean;
+		timestamp: number;
+	} | null>(null);
+
+	// biome-ignore lint/correctness/useExhaustiveDependencies: fetchModelsForProvider is stable and doesn't need to be a dependency
 	const loadData = useCallback(async () => {
 		try {
 			setLoading(true);
-			const [savedPrompts, storageData] = await Promise.all([
+			const [
+				savedPrompts,
+				storageData,
+				savedPersona,
+				savedEnsembleSettings,
+				savedProviderSets,
+			] = await Promise.all([
 				storage.getPrompts(),
 				chrome.storage.local.get(["selectedProvider", "extensionConfig"]),
+				storage.getPersona(),
+				storage.getEnsembleSettings(),
+				storage.getAllProviderSets(),
 			]);
 			setPrompts(savedPrompts);
 			setSelectedProvider(storageData.selectedProvider || null);
+			setUserPersona(savedPersona);
+			setEnsembleSettings(savedEnsembleSettings);
+
+			// Convert stored provider configurations to UI format
+			const configsWithIds = savedEnsembleSettings.providerConfigurations.map(
+				(config, index) => ({
+					id: `config-${index}-${Date.now()}`,
+					...config,
+				}),
+			);
+			setEnsembleProviderConfigs(configsWithIds);
+
+			// Load saved provider sets
+			setSavedProviderSets(savedProviderSets);
 
 			// Load debug logging setting
 			setDebugLoggingEnabled(
@@ -418,6 +499,17 @@ function OptionsPage() {
 				keyMap[providerId] = key;
 			});
 			setApiKeys(keyMap);
+
+			// Auto-fetch models for providers with API keys
+			const modelFetchPromises = Object.entries(keyMap)
+				.filter(([_, apiKey]) => apiKey && apiKey.trim() !== "")
+				.map(([providerId, apiKey]) =>
+					fetchModelsForProvider(providerId as ProviderId, apiKey),
+				);
+
+			if (modelFetchPromises.length > 0) {
+				await Promise.allSettled(modelFetchPromises);
+			}
 
 			// Load selected models for all providers
 			const selectedModelsMap = await ModelStorage.getAllModels();
@@ -637,7 +729,7 @@ function OptionsPage() {
 			setApiKeyStatus({
 				type: "error",
 				title: "Validation Failed",
-				message: `Failed to validate ${getProviderDisplayName(providerId)} API key: ${error.message}`,
+				message: `Failed to validate ${getProviderDisplayName(providerId)} API key: ${error instanceof Error ? error.message : String(error)}`,
 			});
 		}
 	};
@@ -809,7 +901,7 @@ function OptionsPage() {
 				} catch (e) {
 					console.log(
 						"🔍 [DEBUG TEST] Background script may not be ready:",
-						e.message,
+						e instanceof Error ? e.message : String(e),
 					);
 				}
 			}
@@ -828,6 +920,217 @@ function OptionsPage() {
 				title: "Update Failed",
 				message: "Failed to update debug logging setting. Please try again.",
 			});
+		}
+	};
+
+	// Persona management functions
+	const handlePersonaUpdate = async (persona: string) => {
+		try {
+			setUserPersona(persona);
+			await storage.savePersona(persona);
+
+			// Set success feedback
+			setPersonaSaveStatus({
+				type: "success",
+				timestamp: Date.now(),
+			});
+
+			// Clear success feedback after 3 seconds
+			setTimeout(() => {
+				setPersonaSaveStatus(null);
+			}, 3000);
+		} catch (error) {
+			console.error("Failed to save persona:", error);
+
+			// Set error feedback
+			setPersonaSaveStatus({
+				type: "error",
+				timestamp: Date.now(),
+			});
+
+			// Clear error feedback after 5 seconds
+			setTimeout(() => {
+				setPersonaSaveStatus(null);
+			}, 5000);
+		}
+	};
+
+	// Ensemble settings management functions
+	const handleEnsembleSettingsUpdate = async (
+		newSettings: Partial<{
+			enabled: boolean;
+			defaultRuns: number;
+			mode: "single-model" | "multi-provider";
+			providerConfigurations: Array<{
+				providerId: ProviderId;
+				modelId: string;
+				enabled: boolean;
+			}>;
+			defaultProviderSet: string;
+		}>,
+	) => {
+		try {
+			const updatedSettings = { ...ensembleSettings, ...newSettings };
+			setEnsembleSettings(updatedSettings);
+			await storage.saveEnsembleSettings(updatedSettings);
+
+			// Set success feedback
+			setEnsembleSaveStatus({
+				type: "success",
+				timestamp: Date.now(),
+			});
+
+			// Clear success feedback after 3 seconds
+			setTimeout(() => {
+				setEnsembleSaveStatus(null);
+			}, 3000);
+		} catch (error) {
+			console.error("Failed to save ensemble settings:", error);
+
+			// Set error feedback
+			setEnsembleSaveStatus({
+				type: "error",
+				timestamp: Date.now(),
+			});
+
+			// Clear error feedback after 5 seconds
+			setTimeout(() => {
+				setEnsembleSaveStatus(null);
+			}, 5000);
+		}
+	};
+
+	// Multi-provider ensemble configuration handlers
+
+	// Ensemble mode toggle handler
+	const handleEnsembleModeChange = async (
+		mode: "single-model" | "multi-provider",
+	) => {
+		const updatedSettings = { ...ensembleSettings, mode };
+		setEnsembleSettings(updatedSettings);
+		await handleEnsembleSettingsUpdate({ mode });
+	};
+
+	// Add provider configuration
+	const handleAddProviderConfig = () => {
+		const newConfig = {
+			id: `config-${Date.now()}-${Math.random()}`,
+			providerId: "gemini" as ProviderId,
+			modelId: getDefaultModel("gemini"),
+			enabled: true,
+		};
+		setEnsembleProviderConfigs((prev) => [...prev, newConfig]);
+	};
+
+	// Remove provider configuration
+	const handleRemoveProviderConfig = (configId: string) => {
+		setEnsembleProviderConfigs((prev) =>
+			prev.filter((config) => config.id !== configId),
+		);
+	};
+
+	// Update provider configuration
+	const handleUpdateProviderConfig = (
+		configId: string,
+		field: "providerId" | "modelId" | "enabled",
+		value: any,
+	) => {
+		setEnsembleProviderConfigs((prev) =>
+			prev.map((config) =>
+				config.id === configId
+					? {
+							...config,
+							[field]: value,
+							...(field === "providerId"
+								? { modelId: getDefaultModel(value) }
+								: {}),
+						}
+					: config,
+			),
+		);
+	};
+
+	// Save ensemble configuration
+	const handleSaveEnsembleConfig = async () => {
+		try {
+			const activeConfigs = ensembleProviderConfigs.filter(
+				(config) => config.enabled,
+			);
+
+			const updatedSettings = {
+				...ensembleSettings,
+				providerConfigurations: activeConfigs.map((config) => ({
+					providerId: config.providerId,
+					modelId: config.modelId,
+					enabled: config.enabled,
+				})),
+			};
+
+			setEnsembleSettings(updatedSettings);
+			await handleEnsembleSettingsUpdate({
+				providerConfigurations: activeConfigs.map((config) => ({
+					providerId: config.providerId,
+					modelId: config.modelId,
+					enabled: config.enabled,
+				})),
+			});
+
+			// Show success message
+			setEnsembleConfigStatus({ success: true, timestamp: Date.now() });
+			setTimeout(() => setEnsembleConfigStatus(null), 3000);
+		} catch (error) {
+			console.error("Failed to save ensemble configuration:", error);
+			setEnsembleConfigStatus({ success: false, timestamp: Date.now() });
+			setTimeout(() => setEnsembleConfigStatus(null), 5000);
+		}
+	};
+
+	// Save provider set with name
+	const handleSaveProviderSet = async () => {
+		if (!providerSetName.trim()) return;
+
+		try {
+			const activeConfigs = ensembleProviderConfigs
+				.filter((config) => config.enabled)
+				.map((config) => ({
+					providerId: config.providerId,
+					modelId: config.modelId,
+				}));
+
+			await storage.saveProviderSet(providerSetName, activeConfigs);
+
+			// Update local state
+			setSavedProviderSets((prev) => ({
+				...prev,
+				[providerSetName]: activeConfigs,
+			}));
+
+			setProviderSetName("");
+
+			// Show success feedback
+			setEnsembleConfigStatus({ success: true, timestamp: Date.now() });
+			setTimeout(() => setEnsembleConfigStatus(null), 3000);
+		} catch (error) {
+			console.error("Failed to save provider set:", error);
+			setEnsembleConfigStatus({ success: false, timestamp: Date.now() });
+			setTimeout(() => setEnsembleConfigStatus(null), 5000);
+		}
+	};
+
+	// Load provider set
+	const handleLoadProviderSet = async (setName: string) => {
+		try {
+			const configs = await storage.getProviderSet(setName);
+			if (configs) {
+				const configsWithIds = configs.map((config, index) => ({
+					id: `loaded-${index}-${Date.now()}`,
+					...config,
+					enabled: true,
+				}));
+				setEnsembleProviderConfigs(configsWithIds);
+			}
+		} catch (error) {
+			console.error("Failed to load provider set:", error);
 		}
 	};
 
@@ -1953,6 +2256,786 @@ function OptionsPage() {
 							)}
 						</div>
 					)}
+				</div>
+
+				{/* Persona Configuration Section */}
+				<div
+					style={{
+						marginBottom: spacing["3xl"],
+						backgroundColor: colors.background.primary,
+						padding: spacing["3xl"],
+						borderRadius: borderRadius.xl,
+						boxShadow: shadows.md,
+						border: `1px solid ${colors.border.light}`,
+					}}
+				>
+					<div
+						style={{
+							display: "flex",
+							alignItems: "center",
+							gap: spacing.md,
+							marginBottom: spacing["2xl"],
+						}}
+					>
+						<div style={{ color: colors.text.accent }}>
+							<StickyNote size={20} />
+						</div>
+						<h2
+							style={{
+								margin: 0,
+								fontSize: typography.fontSize.xl,
+								fontWeight: typography.fontWeight.semibold,
+								color: colors.text.primary,
+							}}
+						>
+							Persona Configuration
+						</h2>
+					</div>
+
+					<div
+						style={{
+							marginBottom: spacing["2xl"],
+							padding: spacing.lg,
+							backgroundColor: colors.background.secondary,
+							borderRadius: borderRadius.lg,
+							border: `1px solid ${colors.border.light}`,
+						}}
+					>
+						<div
+							style={{
+								display: "flex",
+								alignItems: "flex-start",
+								gap: spacing.md,
+								marginBottom: spacing.md,
+							}}
+						>
+							<div style={{ color: colors.text.accent, marginTop: "2px" }}>
+								<CircleAlert size={16} />
+							</div>
+							<div>
+								<h3
+									style={{
+										margin: "0 0 4px 0",
+										fontSize: typography.fontSize.sm,
+										fontWeight: typography.fontWeight.semibold,
+										color: colors.text.primary,
+									}}
+								>
+									Personalize Your Analysis
+								</h3>
+								<p
+									style={{
+										margin: 0,
+										fontSize: typography.fontSize.sm,
+										color: colors.text.secondary,
+										lineHeight: typography.lineHeight.normal,
+									}}
+								>
+									Describe yourself to help the AI find content that's most
+									relevant to your interests, profession, and goals. This
+									persona will be used to filter and prioritize golden nuggets.
+								</p>
+							</div>
+						</div>
+					</div>
+
+					<div
+						style={{
+							padding: spacing.lg,
+							backgroundColor: colors.background.secondary,
+							borderRadius: borderRadius.lg,
+							border: `1px solid ${colors.border.light}`,
+						}}
+					>
+						<label
+							style={{
+								display: "block",
+								marginBottom: spacing.sm,
+								color: colors.text.primary,
+								fontSize: typography.fontSize.sm,
+								fontWeight: typography.fontWeight.medium,
+							}}
+						>
+							Your Persona:
+						</label>
+						<textarea
+							value={userPersona}
+							onChange={(e) => handlePersonaUpdate(e.target.value)}
+							placeholder="e.g., Pragmatic Processor with ADHD, Software Engineer, Creative Writer"
+							rows={3}
+							style={{
+								...components.input.default,
+								width: "100%",
+								resize: "vertical",
+								minHeight: "80px",
+								boxSizing: "border-box",
+								fontFamily: typography.fontFamily.sans,
+							}}
+							onFocus={(e) => {
+								e.target.style.borderColor = colors.text.accent;
+							}}
+							onBlur={(e) => {
+								e.target.style.borderColor = colors.border.default;
+							}}
+						/>
+
+						{/* Persona Save Status Feedback */}
+						{personaSaveStatus && (
+							<div
+								style={{
+									marginTop: spacing.sm,
+									padding: spacing.sm,
+									backgroundColor: colors.background.primary,
+									borderRadius: borderRadius.md,
+									fontSize: typography.fontSize.xs,
+									fontWeight: typography.fontWeight.medium,
+									color:
+										personaSaveStatus.type === "success"
+											? colors.success
+											: colors.error,
+									display: "flex",
+									alignItems: "center",
+									gap: spacing.xs,
+									border: `1px solid ${
+										personaSaveStatus.type === "success"
+											? `${colors.success}33`
+											: `${colors.error}33`
+									}`,
+								}}
+							>
+								{personaSaveStatus.type === "success" ? (
+									<>
+										<CircleCheck size={12} />
+										Persona saved automatically
+									</>
+								) : (
+									<>
+										<CircleAlert size={12} />
+										Failed to save persona
+									</>
+								)}
+							</div>
+						)}
+
+						<div
+							style={{
+								marginTop: spacing.md,
+								padding: spacing.sm,
+								backgroundColor: colors.background.primary,
+								borderRadius: borderRadius.md,
+								fontSize: typography.fontSize.xs,
+								color: colors.text.tertiary,
+							}}
+						>
+							💡 Tips: Include your profession, interests, learning style, or
+							any specific context that would help the AI understand what
+							content is most valuable to you. Changes are saved automatically.
+						</div>
+					</div>
+				</div>
+
+				{/* Enhanced Ensemble Configuration Section */}
+				<div
+					style={{
+						marginBottom: spacing["3xl"],
+						backgroundColor: colors.background.primary,
+						padding: spacing["3xl"],
+						borderRadius: borderRadius.xl,
+						boxShadow: shadows.md,
+						border: `1px solid ${colors.border.light}`,
+					}}
+				>
+					<div
+						style={{
+							display: "flex",
+							alignItems: "center",
+							gap: spacing.md,
+							marginBottom: spacing["2xl"],
+						}}
+					>
+						<div style={{ color: colors.text.accent }}>
+							<CircleCheck size={20} />
+						</div>
+						<h2
+							style={{
+								margin: 0,
+								fontSize: typography.fontSize.xl,
+								fontWeight: typography.fontWeight.semibold,
+								color: colors.text.primary,
+							}}
+						>
+							🎯 Ensemble Mode Configuration
+						</h2>
+					</div>
+
+					<div
+						style={{
+							marginBottom: spacing["2xl"],
+							padding: spacing.lg,
+							backgroundColor: colors.background.secondary,
+							borderRadius: borderRadius.lg,
+							border: `1px solid ${colors.border.light}`,
+						}}
+					>
+						<div
+							style={{
+								display: "flex",
+								alignItems: "flex-start",
+								gap: spacing.md,
+								marginBottom: spacing.md,
+							}}
+						>
+							<div style={{ color: colors.text.accent, marginTop: "2px" }}>
+								<CircleAlert size={16} />
+							</div>
+							<div>
+								<h3
+									style={{
+										margin: "0 0 4px 0",
+										fontSize: typography.fontSize.sm,
+										fontWeight: typography.fontWeight.semibold,
+										color: colors.text.primary,
+									}}
+								>
+									Configure Ensemble Analysis
+								</h3>
+								<p
+									style={{
+										margin: 0,
+										fontSize: typography.fontSize.sm,
+										color: colors.text.secondary,
+										lineHeight: typography.lineHeight.normal,
+									}}
+								>
+									Ensemble mode runs multiple analyses and finds consensus for
+									higher accuracy. Choose between same model runs or multiple
+									providers for enhanced analysis diversity.
+								</p>
+							</div>
+						</div>
+					</div>
+
+					<div
+						style={{
+							padding: spacing.lg,
+							backgroundColor: colors.background.secondary,
+							borderRadius: borderRadius.lg,
+							border: `1px solid ${colors.border.light}`,
+						}}
+					>
+						{/* Enable/Disable Toggle */}
+						<div
+							style={{
+								display: "flex",
+								alignItems: "center",
+								justifyContent: "space-between",
+								marginBottom: spacing.lg,
+								padding: spacing.md,
+								backgroundColor: colors.background.primary,
+								borderRadius: borderRadius.md,
+								border: `1px solid ${colors.border.light}`,
+							}}
+						>
+							<div>
+								<label
+									style={{
+										display: "block",
+										color: colors.text.primary,
+										fontSize: typography.fontSize.sm,
+										fontWeight: typography.fontWeight.medium,
+										marginBottom: spacing.xs,
+									}}
+								>
+									Enable Ensemble Mode
+								</label>
+								<p
+									style={{
+										margin: 0,
+										color: colors.text.secondary,
+										fontSize: typography.fontSize.xs,
+									}}
+								>
+									Allow ensemble analysis for higher confidence results
+								</p>
+							</div>
+							<label
+								style={{
+									display: "flex",
+									alignItems: "center",
+									cursor: "pointer",
+									gap: spacing.sm,
+								}}
+							>
+								<input
+									type="checkbox"
+									checked={ensembleSettings.enabled}
+									onChange={(e) =>
+										handleEnsembleSettingsUpdate({ enabled: e.target.checked })
+									}
+									style={{
+										transform: "scale(1.2)",
+										accentColor: colors.text.accent,
+									}}
+								/>
+							</label>
+						</div>
+
+						{/* Mode Selection */}
+						{ensembleSettings.enabled && (
+							<div style={{ marginBottom: spacing.lg }}>
+								<label
+									style={{
+										fontSize: typography.fontSize.sm,
+										fontWeight: typography.fontWeight.medium,
+										marginBottom: spacing.sm,
+										display: "block",
+										color: colors.text.primary,
+									}}
+								>
+									Ensemble Mode
+								</label>
+
+								<div style={{ display: "flex", gap: spacing.md }}>
+									<label
+										style={{
+											display: "flex",
+											alignItems: "center",
+											gap: spacing.xs,
+										}}
+									>
+										<input
+											type="radio"
+											name="ensembleMode"
+											value="single-model"
+											checked={ensembleSettings.mode === "single-model"}
+											onChange={(e) =>
+												handleEnsembleModeChange(e.target.value as any)
+											}
+											style={{
+												accentColor: colors.text.accent,
+											}}
+										/>
+										<span
+											style={{
+												fontSize: typography.fontSize.sm,
+												color: colors.text.primary,
+											}}
+										>
+											Same Model (Multiple Runs)
+										</span>
+									</label>
+
+									<label
+										style={{
+											display: "flex",
+											alignItems: "center",
+											gap: spacing.xs,
+										}}
+									>
+										<input
+											type="radio"
+											name="ensembleMode"
+											value="multi-provider"
+											checked={ensembleSettings.mode === "multi-provider"}
+											onChange={(e) =>
+												handleEnsembleModeChange(e.target.value as any)
+											}
+											style={{
+												accentColor: colors.text.accent,
+											}}
+										/>
+										<span
+											style={{
+												fontSize: typography.fontSize.sm,
+												color: colors.text.primary,
+											}}
+										>
+											Multiple Providers
+										</span>
+									</label>
+								</div>
+							</div>
+						)}
+
+						{/* Single Model Configuration (existing) */}
+						{ensembleSettings.enabled &&
+							ensembleSettings.mode === "single-model" && (
+								<div style={{ marginBottom: spacing.lg }}>
+									<label
+										style={{
+											fontSize: typography.fontSize.sm,
+											fontWeight: typography.fontWeight.medium,
+											marginBottom: spacing.sm,
+											display: "block",
+											color: colors.text.primary,
+										}}
+									>
+										Number of Runs: {ensembleSettings.defaultRuns}
+									</label>
+									<input
+										type="range"
+										min="1"
+										max="10"
+										value={ensembleSettings.defaultRuns}
+										onChange={(e) => {
+											const runs = parseInt(e.target.value, 10);
+											handleEnsembleSettingsUpdate({ defaultRuns: runs });
+										}}
+										style={{
+											width: "100%",
+											accentColor: colors.text.accent,
+											marginBottom: spacing.sm,
+										}}
+									/>
+									<div
+										style={{
+											display: "flex",
+											justifyContent: "space-between",
+											fontSize: typography.fontSize.xs,
+											color: colors.text.tertiary,
+										}}
+									>
+										<span>1 (Fast)</span>
+										<span>5 (Balanced)</span>
+										<span>10 (High Confidence)</span>
+									</div>
+								</div>
+							)}
+
+						{/* Multi-Provider Configuration (new) */}
+						{ensembleSettings.enabled &&
+							ensembleSettings.mode === "multi-provider" && (
+								<div style={{ marginBottom: spacing.lg }}>
+									<div
+										style={{
+											display: "flex",
+											justifyContent: "space-between",
+											alignItems: "center",
+											marginBottom: spacing.md,
+										}}
+									>
+										<h4
+											style={{
+												fontSize: typography.fontSize.lg,
+												margin: 0,
+												color: colors.text.primary,
+											}}
+										>
+											Provider Configurations
+										</h4>
+										<button
+											onClick={handleAddProviderConfig}
+											style={{
+												...components.button.primary,
+												fontSize: typography.fontSize.sm,
+												padding: `${spacing.xs} ${spacing.sm}`,
+											}}
+										>
+											Add Provider
+										</button>
+									</div>
+
+									{/* Provider Configuration List */}
+									<div
+										style={{
+											display: "flex",
+											flexDirection: "column",
+											gap: spacing.md,
+										}}
+									>
+										{ensembleProviderConfigs.map((config) => (
+											<div
+												key={config.id}
+												style={{
+													display: "flex",
+													alignItems: "center",
+													gap: spacing.md,
+													padding: spacing.sm,
+													backgroundColor: colors.background.primary,
+													borderRadius: borderRadius.md,
+													border: `1px solid ${colors.border.light}`,
+												}}
+											>
+												<input
+													type="checkbox"
+													checked={config.enabled}
+													onChange={(e) =>
+														handleUpdateProviderConfig(
+															config.id,
+															"enabled",
+															e.target.checked,
+														)
+													}
+													style={{
+														accentColor: colors.text.accent,
+													}}
+												/>
+
+												<select
+													value={config.providerId}
+													onChange={(e) =>
+														handleUpdateProviderConfig(
+															config.id,
+															"providerId",
+															e.target.value as ProviderId,
+														)
+													}
+													style={{
+														...components.input.default,
+														minWidth: "120px",
+													}}
+												>
+													{(
+														[
+															"gemini",
+															"openai",
+															"anthropic",
+															"openrouter",
+														] as ProviderId[]
+													)
+														.filter((providerId) =>
+															Boolean(apiKeys[providerId]),
+														) // Only show configured providers
+														.map((providerId) => (
+															<option key={providerId} value={providerId}>
+																{getProviderDisplayName(providerId)}
+															</option>
+														))}
+												</select>
+
+												<select
+													value={config.modelId}
+													onChange={(e) =>
+														handleUpdateProviderConfig(
+															config.id,
+															"modelId",
+															e.target.value,
+														)
+													}
+													style={{ ...components.input.default, flex: 1 }}
+												>
+													{availableModels[config.providerId]?.map((model) => (
+														<option key={model.id} value={model.id}>
+															{model.name}
+														</option>
+													))}
+												</select>
+
+												<button
+													onClick={() => handleRemoveProviderConfig(config.id)}
+													style={{
+														...components.button.secondary,
+														fontSize: typography.fontSize.sm,
+														padding: spacing.xs,
+														color: colors.error,
+													}}
+												>
+													Remove
+												</button>
+											</div>
+										))}
+									</div>
+
+									{ensembleProviderConfigs.length === 0 && (
+										<div
+											style={{
+												textAlign: "center",
+												padding: spacing.lg,
+												color: colors.text.secondary,
+												fontSize: typography.fontSize.sm,
+											}}
+										>
+											No provider configurations. Click "Add Provider" to get
+											started.
+										</div>
+									)}
+
+									{/* Save Configuration */}
+									<div
+										style={{
+											marginTop: spacing.md,
+											display: "flex",
+											gap: spacing.sm,
+										}}
+									>
+										<button
+											onClick={handleSaveEnsembleConfig}
+											disabled={
+												ensembleProviderConfigs.filter((c) => c.enabled)
+													.length === 0
+											}
+											style={{
+												...components.button.primary,
+												opacity:
+													ensembleProviderConfigs.filter((c) => c.enabled)
+														.length === 0
+														? 0.6
+														: 1,
+											}}
+										>
+											Save Configuration
+										</button>
+									</div>
+
+									{/* Provider Sets */}
+									<div style={{ marginTop: spacing.lg }}>
+										<h4
+											style={{
+												fontSize: typography.fontSize.lg,
+												marginBottom: spacing.sm,
+												color: colors.text.primary,
+											}}
+										>
+											Saved Provider Sets
+										</h4>
+
+										<div
+											style={{
+												display: "flex",
+												gap: spacing.sm,
+												marginBottom: spacing.sm,
+											}}
+										>
+											<input
+												type="text"
+												placeholder="Provider set name"
+												value={providerSetName}
+												onChange={(e) => setProviderSetName(e.target.value)}
+												style={{ ...components.input.default, flex: 1 }}
+											/>
+											<button
+												onClick={handleSaveProviderSet}
+												disabled={
+													!providerSetName.trim() ||
+													ensembleProviderConfigs.filter((c) => c.enabled)
+														.length === 0
+												}
+												style={{
+													...components.button.secondary,
+													opacity:
+														!providerSetName.trim() ||
+														ensembleProviderConfigs.filter((c) => c.enabled)
+															.length === 0
+															? 0.6
+															: 1,
+												}}
+											>
+												Save Set
+											</button>
+										</div>
+
+										<div
+											style={{
+												display: "flex",
+												flexWrap: "wrap",
+												gap: spacing.xs,
+											}}
+										>
+											{Object.keys(savedProviderSets).map((setName) => (
+												<button
+													key={setName}
+													onClick={() => handleLoadProviderSet(setName)}
+													style={{
+														...components.button.secondary,
+														fontSize: typography.fontSize.sm,
+														padding: `${spacing.xs} ${spacing.sm}`,
+													}}
+												>
+													{setName}
+												</button>
+											))}
+										</div>
+									</div>
+								</div>
+							)}
+
+						{/* Configuration Status Feedback */}
+						{ensembleConfigStatus && (
+							<div
+								style={{
+									marginTop: spacing.sm,
+									padding: spacing.sm,
+									backgroundColor: colors.background.primary,
+									borderRadius: borderRadius.md,
+									fontSize: typography.fontSize.xs,
+									fontWeight: typography.fontWeight.medium,
+									color: ensembleConfigStatus.success
+										? colors.success
+										: colors.error,
+									display: "flex",
+									alignItems: "center",
+									gap: spacing.xs,
+									border: `1px solid ${ensembleConfigStatus.success ? `${colors.success}33` : `${colors.error}33`}`,
+								}}
+							>
+								{ensembleConfigStatus.success ? (
+									<>
+										<CircleCheck size={12} />
+										Configuration saved successfully
+									</>
+								) : (
+									<>
+										<CircleAlert size={12} />
+										Failed to save configuration
+									</>
+								)}
+							</div>
+						)}
+
+						{/* Ensemble Save Status Feedback */}
+						{ensembleSaveStatus && (
+							<div
+								style={{
+									marginTop: spacing.sm,
+									padding: spacing.sm,
+									backgroundColor: colors.background.primary,
+									borderRadius: borderRadius.md,
+									fontSize: typography.fontSize.xs,
+									fontWeight: typography.fontWeight.medium,
+									color:
+										ensembleSaveStatus.type === "success"
+											? colors.success
+											: colors.error,
+									display: "flex",
+									alignItems: "center",
+									gap: spacing.xs,
+									border: `1px solid ${
+										ensembleSaveStatus.type === "success"
+											? `${colors.success}33`
+											: `${colors.error}33`
+									}`,
+								}}
+							>
+								{ensembleSaveStatus.type === "success" ? (
+									<>
+										<CircleCheck size={12} />
+										Settings saved automatically
+									</>
+								) : (
+									<>
+										<CircleAlert size={12} />
+										Failed to save settings
+									</>
+								)}
+							</div>
+						)}
+
+						<div
+							style={{
+								marginTop: spacing.md,
+								padding: spacing.sm,
+								backgroundColor: colors.background.primary,
+								borderRadius: borderRadius.md,
+								fontSize: typography.fontSize.xs,
+								color: colors.text.tertiary,
+							}}
+						>
+							💡 Tips: Multi-provider mode uses different AI providers for
+							diverse analysis perspectives. Same model mode runs multiple
+							analyses with your selected provider. Changes are saved
+							automatically.
+						</div>
+					</div>
 				</div>
 
 				{/* Debug Settings Section */}

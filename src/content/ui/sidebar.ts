@@ -1,8 +1,4 @@
 import {
-	getDisplayContent,
-	reconstructFullContent,
-} from "../../shared/content-reconstruction";
-import {
 	borderRadius,
 	colors,
 	generateInlineStyles,
@@ -21,19 +17,29 @@ import {
 	type ProviderId,
 	type SidebarNuggetItem,
 } from "../../shared/types";
+import { isUrl } from "../../shared/utils/url-detection";
 import type { Highlighter } from "./highlighter";
 
 // Extended nugget interface for UI operations
 interface EnhancedGoldenNugget extends GoldenNugget {
 	_fullContent?: string; // Enhanced content from UIManager
 	content?: string; // Legacy content field during transition
+	// Enhanced metadata from advanced extraction modes (confidence inherited from base)
+	// extractionMethod inherited from base GoldenNugget interface
+	// Ensemble properties (optional)
+	runsSupportingThis?: number;
+	totalRuns?: number;
+	similarityMethod?: "embedding" | "word_overlap" | "fallback";
+	// Multi-provider metadata
+	sourceProvider?: ProviderId; // Track which provider found this nugget (for single-provider scenarios)
+	sourceModel?: string;
+	contributingProviders?: Array<{ model: string; provider: string }>; // Track all providers that contributed to this nugget (for ensemble consensus)
 }
 
 // Export data structure
 interface ExportNuggetData {
 	type: string;
-	startContent: string;
-	endContent: string;
+	fullContent: string;
 }
 
 interface ExportData {
@@ -44,8 +50,7 @@ interface ExportData {
 // REST endpoint payload structures
 interface RestPayloadNugget {
 	type?: string;
-	startContent?: string;
-	endContent?: string;
+	fullContent?: string;
 }
 
 interface RestPayload {
@@ -67,12 +72,51 @@ export class Sidebar {
 	private actionMenuVisible: boolean = false;
 	private restEndpointPanel: HTMLElement | null = null;
 	private restEndpointExpanded: boolean = false;
-	private pageContent: string | null = null; // Store page content for reconstruction
 	private providerMetadata: {
 		providerId: ProviderId;
 		modelName: string;
 		responseTime: number;
 	} | null = null; // Store provider metadata for display
+
+	/**
+	 * Extract attribution metadata from nugget for feedback
+	 */
+	private extractNuggetAttribution(
+		nugget: EnhancedGoldenNugget,
+	): { modelProvider: ProviderId; modelName: string }[] {
+		// For consensus nuggets with multiple contributors
+		if (
+			nugget.contributingProviders &&
+			nugget.contributingProviders.length > 0
+		) {
+			return nugget.contributingProviders.map((provider: any) => ({
+				modelProvider: provider.provider as ProviderId,
+				modelName: provider.model,
+			}));
+		}
+
+		// For single-provider nuggets
+		if (nugget.sourceProvider && nugget.sourceModel) {
+			return [
+				{
+					modelProvider: nugget.sourceProvider,
+					modelName: nugget.sourceModel,
+				},
+			];
+		}
+
+		// Fallback to storage (legacy behavior)
+		console.warn(
+			"No nugget attribution found, falling back to providerMetadata",
+		);
+		return [
+			{
+				modelProvider: this.providerMetadata?.providerId || "gemini",
+				modelName: this.providerMetadata?.modelName || "gemini-2.5-flash",
+			},
+		];
+	}
+
 	private restEndpointConfig = {
 		url: "",
 		method: "POST",
@@ -93,14 +137,14 @@ export class Sidebar {
 	 * Uses the shared reconstruction utility to show full content when possible
 	 */
 	private getSidebarDisplayContent(nugget: EnhancedGoldenNugget): string {
-		// Check if we have enhanced content from UIManager
-		if (nugget._fullContent) {
-			return nugget._fullContent;
+		// With fullContent migration, nuggets have complete content available
+		if (nugget.fullContent) {
+			return nugget.fullContent;
 		}
 
-		// Try to reconstruct using shared utility if we have page content
-		if (nugget.startContent && nugget.endContent) {
-			return getDisplayContent(nugget, this.pageContent || undefined);
+		// Check if we have enhanced content from UIManager (backward compatibility)
+		if (nugget._fullContent) {
+			return nugget._fullContent;
 		}
 
 		// Fallback for legacy content field (during transition)
@@ -132,49 +176,18 @@ export class Sidebar {
 	 * Prioritizes getting the absolute best/fullest content available for feedback storage
 	 */
 	private getFeedbackContent(nugget: EnhancedGoldenNugget): string {
+		// With fullContent migration, nuggets have complete content available
+		if (nugget.fullContent) {
+			return nugget.fullContent;
+		}
+
 		// Strategy 1: Check if we have enhanced full content from UIManager
 		if (nugget._fullContent) {
 			return nugget._fullContent;
 		}
 
-		// Strategy 2: Try to reconstruct using page content with more aggressive approach
-		if (nugget.startContent && nugget.endContent && this.pageContent) {
-			const reconstructed = getDisplayContent(nugget, this.pageContent);
-			// For feedback, accept any reconstructed content that's longer than just start+end
-			if (
-				reconstructed &&
-				reconstructed !== `${nugget.startContent}...${nugget.endContent}`
-			) {
-				return reconstructed;
-			}
-
-			// Try the full reconstruction method directly with more tolerance
-			const fullReconstructed = reconstructFullContent(
-				nugget,
-				this.pageContent,
-			);
-			if (
-				fullReconstructed &&
-				fullReconstructed.length >
-					nugget.startContent.length + nugget.endContent.length
-			) {
-				return fullReconstructed;
-			}
-		}
-
-		// Strategy 3: Use legacy content field if available and longer
-		if (
-			nugget.content &&
-			nugget.content.length >
-				(nugget.startContent?.length || 0) + (nugget.endContent?.length || 0)
-		) {
-			return nugget.content;
-		}
-
-		// Strategy 4: Fallback to start...end (but this is what we want to avoid)
-		return nugget.startContent && nugget.endContent
-			? `${nugget.startContent}...${nugget.endContent}`
-			: nugget.content || "";
+		// Fallback for legacy content field (during transition)
+		return nugget.content || "";
 	}
 
 	show(
@@ -185,6 +198,21 @@ export class Sidebar {
 			providerId: ProviderId;
 			modelName: string;
 			responseTime: number;
+			providersUsed?: Array<{
+				providerId: ProviderId;
+				modelId: string;
+				responseTime: number;
+				successful: boolean;
+			}>;
+		},
+		_extractionMetadata?: {
+			extractionMode?:
+				| "standard"
+				| "two-phase"
+				| "ensemble"
+				| "multi-provider-ensemble";
+			totalProcessingTime?: number;
+			[key: string]: any; // Allow for additional extraction-specific metadata
 		},
 	): void {
 		console.log("[Sidebar] show called with:", {
@@ -196,14 +224,64 @@ export class Sidebar {
 
 		this.hide(); // Remove existing sidebar if any
 
-		// Store page content for reconstruction
-		this.pageContent = pageContent || null;
+		// Store enhanced provider metadata for display
+		if (
+			providerMetadata?.providersUsed &&
+			providerMetadata.providersUsed.length > 1
+		) {
+			// Multi-provider ensemble metadata
+			this.providerMetadata = {
+				providerId: "multi-provider" as ProviderId,
+				modelName: providerMetadata.providersUsed
+					.filter((p) => p.successful)
+					.map((p) => `${p.providerId}:${p.modelId}`)
+					.join(", "),
+				responseTime: providerMetadata.responseTime,
+			};
+		} else {
+			// Single provider metadata (existing)
+			this.providerMetadata = providerMetadata || null;
+		}
 
-		// Store provider metadata for display
-		this.providerMetadata = providerMetadata || null;
+		// Helper function to calculate consensus strength for sorting
+		const getConsensusStrength = (item: SidebarNuggetItem): number => {
+			const nugget = item.nugget as EnhancedGoldenNugget;
+
+			// Full consensus nuggets get highest priority (1.0)
+			if (nugget.confidence !== undefined) {
+				return nugget.confidence;
+			}
+
+			// For nuggets without explicit confidence, use ensemble data
+			if (
+				nugget.runsSupportingThis !== undefined &&
+				nugget.totalRuns !== undefined
+			) {
+				return nugget.runsSupportingThis / nugget.totalRuns;
+			}
+
+			// Default for nuggets without consensus data (single provider)
+			return 0.5;
+		};
+
+		// Sort nuggets by consensus strength (full consensus first)
+		const sortedNuggets = [...nuggetItems].sort((a, b) => {
+			const strengthA = getConsensusStrength(a);
+			const strengthB = getConsensusStrength(b);
+
+			// Sort in descending order (highest consensus first)
+			if (strengthA !== strengthB) {
+				return strengthB - strengthA;
+			}
+
+			// Secondary sort by nugget type to group similar types
+			const typeA = a.nugget.type || "";
+			const typeB = b.nugget.type || "";
+			return typeA.localeCompare(typeB);
+		});
 
 		// Initialize selection state for all nuggets
-		this.allItems = nuggetItems.map((item) => ({
+		this.allItems = sortedNuggets.map((item) => ({
 			...item,
 			selected: false,
 			highlightVisited: false, // Track if highlighted item was clicked
@@ -475,22 +553,34 @@ export class Sidebar {
 		titleContainer.appendChild(title);
 		titleContainer.appendChild(count);
 
-		// Add provider info if available
+		// Enhanced provider info for multi-provider support
 		if (this.providerMetadata) {
 			const providerInfo = document.createElement("div");
 			providerInfo.style.cssText = `
 				font-size: ${typography.fontSize.xs};
 				color: ${colors.text.tertiary};
-				font-weight: ${typography.fontWeight.normal};
 				margin-top: ${spacing.xs};
 			`;
 
-			// Format provider name for display (capitalize first letter)
-			const providerName =
-				this.providerMetadata.providerId.charAt(0).toUpperCase() +
-				this.providerMetadata.providerId.slice(1);
+			if (
+				this.providerMetadata.providerId === ("multi-provider" as ProviderId)
+			) {
+				// Multi-provider display - ultra-minimal single line
+				const fontSize = typography.fontSize.xs;
+				const textColor = colors.text.tertiary;
+				providerInfo.innerHTML = `
+					<span style="font-size: ${fontSize}; color: ${textColor};">
+						Multi-Provider Ensemble
+					</span>
+				`;
+			} else {
+				// Single provider display (existing)
+				const providerName =
+					this.providerMetadata.providerId.charAt(0).toUpperCase() +
+					this.providerMetadata.providerId.slice(1);
+				providerInfo.textContent = `${providerName} • ${this.providerMetadata.modelName}`;
+			}
 
-			providerInfo.textContent = `${providerName} • ${this.providerMetadata.modelName}`;
 			titleContainer.appendChild(providerInfo);
 		}
 
@@ -813,12 +903,26 @@ export class Sidebar {
 		}
 
 		// Click handler for scrolling to highlight (not selection)
-		nuggetDiv.addEventListener("click", (e) => {
+		nuggetDiv.addEventListener("click", async (e) => {
 			// Only handle highlighting if not clicking on checkbox
 			if ((e.target as Element).tagName !== "INPUT") {
 				// If highlighted, scroll to highlight and mark as visited
 				if (item.status === "highlighted" && this.highlighter) {
-					this.highlighter.scrollToHighlight(item.nugget);
+					// Highlight the nugget and get ranges for scrolling
+					const result = await this.highlighter.highlightNugget(item.nugget);
+
+					if (result.success && result.ranges.length > 0) {
+						// Scroll to the highlighted content
+						this.highlighter.scrollToRanges(result.ranges);
+						console.log(
+							`[Sidebar] Scrolled to nugget: ${item.nugget.fullContent?.substring(0, 50)}...`,
+						);
+					} else {
+						console.warn(
+							`[Sidebar] Failed to highlight and scroll to nugget: ${item.nugget.fullContent?.substring(0, 50)}...`,
+						);
+					}
+
 					// Mark this highlighted item as visited
 					this.allItems[globalIndex].highlightVisited = true;
 					// Remove the highlight indicator immediately
@@ -895,7 +999,7 @@ export class Sidebar {
 			this.toggleItemSelection(globalIndex);
 		});
 
-		// Type badge - more subtle
+		// Type badge - more subtle, no emoji
 		const typeBadge = document.createElement("span");
 		typeBadge.textContent = item.nugget.type;
 		typeBadge.style.cssText = `
@@ -911,6 +1015,29 @@ export class Sidebar {
 
 		leftContainer.appendChild(checkbox);
 		leftContainer.appendChild(typeBadge);
+
+		// Helper function to generate clean provider/model tooltip
+		const _generateProviderTooltip = (
+			providers: Array<{ model: string; provider: string }>,
+		): string => {
+			if (providers.length === 0) {
+				return "Found by: Unknown provider";
+			}
+
+			// Deduplicate identical model/provider combinations
+			const uniqueProviders = Array.from(
+				new Map(providers.map((p) => [`${p.model}:${p.provider}`, p])).values(),
+			);
+
+			// Sort alphabetically by model name for consistent display
+			uniqueProviders.sort((a, b) => a.model.localeCompare(b.model));
+
+			const providerList = uniqueProviders
+				.map((p) => `- ${p.model} (${this.getProviderDisplayName(p.provider)})`)
+				.join("\n");
+
+			return `Found by:\n${providerList}`;
+		};
 
 		// Selection indicator and status
 		const statusContainer = document.createElement("div");
@@ -932,6 +1059,55 @@ export class Sidebar {
         opacity: 0.8;
       `;
 			statusContainer.appendChild(highlightIndicator);
+		}
+
+		// URL indicator for non-highlightable URL content
+		const isUrlContent = this.isUrlNugget(item.nugget);
+		if (isUrlContent && item.status !== "highlighted") {
+			const urlIndicator = document.createElement("div");
+			urlIndicator.className = "url-indicator";
+			urlIndicator.title = "Link reference - content not highlightable on page";
+			urlIndicator.style.cssText = `
+        display: flex;
+        align-items: center;
+        gap: ${spacing.xs};
+        padding: ${spacing.xs} ${spacing.sm};
+        background: ${colors.background.tertiary};
+        border: 1px solid ${colors.border.light};
+        border-radius: ${borderRadius.sm};
+        font-size: ${typography.fontSize.xs};
+        color: ${colors.text.secondary};
+      `;
+
+			// Icon-like indicator (🔗 replacement using CSS)
+			const linkIcon = document.createElement("div");
+			linkIcon.style.cssText = `
+        width: 8px;
+        height: 8px;
+        border: 1px solid ${colors.text.secondary};
+        border-radius: 2px;
+        position: relative;
+        flex-shrink: 0;
+      `;
+
+			// Add a small connecting line to make it look like a link icon
+			const linkLine = document.createElement("div");
+			linkLine.style.cssText = `
+        position: absolute;
+        top: -2px;
+        right: -2px;
+        width: 4px;
+        height: 1px;
+        background: ${colors.text.secondary};
+      `;
+			linkIcon.appendChild(linkLine);
+
+			const linkText = document.createElement("span");
+			linkText.textContent = "Link";
+
+			urlIndicator.appendChild(linkIcon);
+			urlIndicator.appendChild(linkText);
+			statusContainer.appendChild(urlIndicator);
 		}
 
 		headerDiv.appendChild(leftContainer);
@@ -990,15 +1166,94 @@ export class Sidebar {
 		// Feedback Section
 		const feedbackSection = this.createFeedbackSection(item, globalIndex);
 
+		// Create inline provider attribution
+		const providerAttribution = this.createProviderAttribution(item);
+
 		// Assemble the content
 		contentContainer.appendChild(headerDiv);
 		contentContainer.appendChild(contentPreview);
-
+		if (providerAttribution) {
+			contentContainer.appendChild(providerAttribution);
+		}
 		contentContainer.appendChild(feedbackSection);
 
 		nuggetDiv.appendChild(contentContainer);
 
 		return nuggetDiv;
+	}
+
+	/**
+	 * Creates inline provider attribution display (Option 4 design)
+	 * Shows "via [provider]" or "via [provider1, provider2]" for multi-provider
+	 */
+	private createProviderAttribution(
+		item: SidebarNuggetItem,
+	): HTMLElement | null {
+		const enhancedNugget = item.nugget as EnhancedGoldenNugget;
+		const providers: string[] = [];
+
+		// Collect provider names from different sources
+		if (
+			enhancedNugget.contributingProviders &&
+			enhancedNugget.contributingProviders.length > 0
+		) {
+			// Multi-provider consensus nuggets
+			const uniqueProviders = new Set(
+				enhancedNugget.contributingProviders.map((p) =>
+					this.getProviderDisplayName(p.provider),
+				),
+			);
+			providers.push(...Array.from(uniqueProviders).sort());
+		} else if (enhancedNugget.sourceProvider) {
+			// Single provider nuggets
+			providers.push(
+				this.getProviderDisplayName(enhancedNugget.sourceProvider),
+			);
+		}
+
+		// Return null if no provider information
+		if (providers.length === 0) {
+			return null;
+		}
+
+		// Create the attribution element
+		const attribution = document.createElement("div");
+		const mutedTextColor = colors.text.tertiary;
+		const fontSize = typography.fontSize.xs;
+		const fontWeight = typography.fontWeight.normal;
+		const marginTop = spacing.xs;
+
+		attribution.style.cssText = `
+			color: ${mutedTextColor};
+			font-size: ${fontSize};
+			font-weight: ${fontWeight};
+			margin-top: ${marginTop};
+			font-style: italic;
+		`;
+
+		// Format provider list
+		const providerText =
+			providers.length === 1 ? providers[0] : providers.join(", ");
+
+		attribution.textContent = `via ${providerText}`;
+
+		return attribution;
+	}
+
+	/**
+	 * Helper function to map provider IDs to clean display names
+	 */
+	private getProviderDisplayName(providerId: string): string {
+		const providerNames: Record<string, string> = {
+			gemini: "Gemini",
+			openai: "GPT-4o",
+			anthropic: "Claude",
+			openrouter: "OpenRouter",
+		};
+		return (
+			providerNames[providerId] ||
+			providerId.charAt(0).toUpperCase() + providerId.slice(1)
+		);
 	}
 
 	private createFeedbackSection(
@@ -1250,9 +1505,9 @@ export class Sidebar {
 			return;
 		}
 
-		// Get the provider info that was used for the analysis
-		const result = await chrome.storage.local.get(["lastUsedProvider"]);
-		const lastUsedProvider = result.lastUsedProvider;
+		// Extract attribution from nugget metadata
+		const nuggetAttributions = this.extractNuggetAttribution(item.nugget);
+		const primaryAttribution = nuggetAttributions[0]; // Use primary attribution for single feedback record
 
 		// Create or update feedback
 		const feedbackId = `feedback_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -1268,9 +1523,19 @@ export class Sidebar {
 			timestamp: Date.now(),
 			url: window.location.href,
 			context: context.substring(0, 200),
-			// Add provider/model data from the analysis that generated this nugget
-			modelProvider: lastUsedProvider?.providerId || "gemini",
-			modelName: lastUsedProvider?.modelName || "gemini-2.5-flash",
+			// Use nugget-specific attribution instead of generic lastUsedProvider
+			modelProvider: primaryAttribution.modelProvider,
+			modelName: primaryAttribution.modelName,
+			// TODO: Prompt metadata should come from the analysis that generated this nugget
+			// For now, using placeholder values to satisfy type requirements
+			prompt: {
+				id: "unknown",
+				content: "",
+				type: "default",
+				name: "Unknown Prompt",
+			},
+			// NEW: Complete nugget object with attribution metadata for Phase 2
+			nugget: item.nugget, // Pass complete nugget with sourceProvider, sourceModel, contributingProviders
 		};
 
 		// Update the item
@@ -1306,9 +1571,9 @@ export class Sidebar {
 			return;
 		}
 
-		// Get the provider info that was used for the analysis
-		const result = await chrome.storage.local.get(["lastUsedProvider"]);
-		const lastUsedProvider = result.lastUsedProvider;
+		// Extract attribution from nugget metadata
+		const nuggetAttributions = this.extractNuggetAttribution(item.nugget);
+		const primaryAttribution = nuggetAttributions[0]; // Use primary attribution for single feedback record
 
 		// Create feedback if it doesn't exist, or update existing
 		if (!item.feedback) {
@@ -1324,9 +1589,18 @@ export class Sidebar {
 				timestamp: Date.now(),
 				url: window.location.href,
 				context: context.substring(0, 200),
-				// Add provider/model data from the analysis that generated this nugget
-				modelProvider: lastUsedProvider?.providerId || "gemini",
-				modelName: lastUsedProvider?.modelName || "gemini-2.5-flash",
+				// Use nugget-specific attribution instead of generic lastUsedProvider
+				modelProvider: primaryAttribution.modelProvider,
+				modelName: primaryAttribution.modelName,
+				// TODO: Prompt metadata should come from the analysis that generated this nugget
+				prompt: {
+					id: "unknown",
+					content: "",
+					type: "default",
+					name: "Unknown Prompt",
+				},
+				// NEW: Complete nugget object with attribution metadata for Phase 2
+				nugget: item.nugget, // Pass complete nugget with sourceProvider, sourceModel, contributingProviders
 			};
 		}
 
@@ -1721,8 +1995,7 @@ export class Sidebar {
 			nuggets: nuggets.map((item) => {
 				const nugget: ExportNuggetData = {
 					type: item.nugget.type,
-					startContent: item.nugget.startContent,
-					endContent: item.nugget.endContent,
+					fullContent: this.getSidebarDisplayContent(item.nugget),
 				};
 
 				return nugget;
@@ -1754,7 +2027,7 @@ ${data.nuggets
 ## ${nugget.type.toUpperCase()}
 
 **Content:**
-${nugget.startContent}...${nugget.endContent}
+${nugget.fullContent}
 
 ---
 `,
@@ -2312,8 +2585,7 @@ ${nugget.startContent}...${nugget.endContent}
 				}
 
 				if (this.restEndpointConfig.nuggetParts.content) {
-					nugget.startContent = item.nugget.startContent;
-					nugget.endContent = item.nugget.endContent;
+					nugget.fullContent = this.getSidebarDisplayContent(item.nugget);
 				}
 
 				return nugget;
@@ -2606,5 +2878,19 @@ ${nugget.startContent}...${nugget.endContent}
 				`Connection test failed: ${error instanceof Error ? error.message : "Unknown error"}`,
 			);
 		}
+	}
+
+	/**
+	 * Check if a nugget contains URL content
+	 * @param nugget The golden nugget to check
+	 * @returns True if the nugget appears to contain URL content
+	 */
+	private isUrlNugget(nugget: GoldenNugget): boolean {
+		// Use fullContent only - no backward compatibility
+		const fullContent = this.getSidebarDisplayContent(
+			nugget as EnhancedGoldenNugget,
+		);
+
+		return fullContent ? isUrl(fullContent) : false;
 	}
 }
