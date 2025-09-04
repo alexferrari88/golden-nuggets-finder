@@ -1,0 +1,106 @@
+export const STORAGE_KEYS = {
+	API_KEY: "geminiApiKey",
+	PROMPTS: "userPrompts",
+	USER_PERSONA: "userPersona",
+	ANALYSIS_STATE: "analysisState", // Analysis progress state
+	ENSEMBLE_SETTINGS: "ensembleSettings", // Ensemble configuration settings
+} as const;
+
+export const GEMINI_CONFIG = {
+	MODEL: "gemini-2.5-flash-lite",
+	THINKING_BUDGET: -1,
+} as const;
+
+export const EMBEDDING_CONFIG = {
+	/** Default embedding model for Gemini */
+	MODEL: "gemini-embedding-001",
+	/** Default task type for ensemble nugget similarity */
+	TASK_TYPE: "SEMANTIC_SIMILARITY" as const,
+	/** Default embedding dimensionality (768 is optimal for short technical text) */
+	OUTPUT_DIMENSIONALITY: 768,
+	/** Default similarity threshold for embedding-based grouping */
+	EMBEDDING_THRESHOLD: 0.8,
+	/** Default word overlap threshold for fallback grouping */
+	WORD_OVERLAP_THRESHOLD: 0.8,
+	/** Default cache duration in milliseconds (30 minutes) */
+	CACHE_DURATION: 30 * 60 * 1000,
+	/** Default maximum cache size (number of entries) */
+	MAX_CACHE_SIZE: 1000,
+	/** Default maximum batch size for API calls */
+	MAX_BATCH_SIZE: 25,
+	/** Default maximum retries for API calls */
+	MAX_RETRIES: 3,
+	/** Default retry delay in milliseconds */
+	RETRY_DELAY: 1000,
+} as const;
+
+export const SIMILARITY_DEFAULTS = {
+	/** Default configuration for hybrid similarity matching */
+	EMBEDDING_OPTIONS: {
+		taskType: EMBEDDING_CONFIG.TASK_TYPE,
+		outputDimensionality: EMBEDDING_CONFIG.OUTPUT_DIMENSIONALITY,
+	},
+	/** Default similarity options for ensemble processing */
+	SIMILARITY_OPTIONS: {
+		embeddingThreshold: EMBEDDING_CONFIG.EMBEDDING_THRESHOLD,
+		wordOverlapThreshold: EMBEDDING_CONFIG.WORD_OVERLAP_THRESHOLD,
+		useEmbeddings: true,
+		embeddingOptions: {
+			taskType: EMBEDDING_CONFIG.TASK_TYPE,
+			outputDimensionality: EMBEDDING_CONFIG.OUTPUT_DIMENSIONALITY,
+		},
+	},
+} as const;
+
+export const DEFAULT_PROMPTS = [
+	{
+		id: "default-insights",
+		name: "Find Key Insights",
+		prompt: `
+You are an expert at analyzing content and extracting valuable insights, which we call "golden nuggets."
+These golden nuggets should be tailored to a specific persona and categorized into five types.
+Your goal is to analyze the provided content and extract only the most insightful, non-obvious, and high-signal content for someone with this persona: {{ persona }}.
+
+**IMPORTANT: This is the HIGH RECALL phase. Your primary directive is recall over precision. Be generous with extractions while maintaining reasonable quality standards.**
+
+Be inclusive in your extraction approach. If content could potentially be valuable, include it with an appropriate confidence score rather than excluding it entirely. The precision refinement will happen through confidence filtering.
+
+Golden nugget types and their characteristics:
+
+1. Mental Models & Frameworks: Conceptual structures or approaches for understanding complex systems or making decisions.
+2. Powerful Analogies: Comparisons that effectively explain or illustrate a concept by relating it to something more familiar.
+3. Media: Recommendations for books, articles, podcasts, magazines, or YouTube videos/playlists that provide valuable information or insights.
+4. Tools: Specific software, techniques, or methodologies that can be applied to improve productivity, solve problems, or enhance understanding.
+5. "Aha!" Moments: Key insights or realizations that provide a new perspective or understanding of a topic.
+
+Instructions for extracting and formatting golden nuggets:
+
+1. Carefully read and analyze the provided content.
+2. Identify potential golden nuggets that align with the categories above and are relevant to the specified persona.
+3. Extract multiple nuggets per category when valuable content exists.
+4. For each golden nugget, provide the complete verbatim content and assign a confidence score. Extract verbatim spans only: do not paraphrase or synthesize.
+
+Extraction limits per category:
+- **Tools and Media**: Extract as many as you find valuable (no limit)
+- **Aha! Moments, Analogies, and Mental Models**: Extract up to 5 of the best per category
+
+Additional instructions and constraints:
+
+1. For each nugget, provide the complete verbatim content in the fullContent field - do not paraphrase or modify.
+2. Assign a confidence score from 0.0 to 1.0 for each nugget based on:
+   - Relevance to the persona (0.3 weight)
+   - Uniqueness and non-obviousness (0.4 weight)
+   - Actionability and practical value (0.3 weight)
+3. Be generous in this high-recall phase, but maintain minimum quality standards.
+4. If no golden nuggets are found for any category, return an empty array for the golden_nuggets field.
+5. For Tools and Media golden nuggets, NEVER extract just a bare URL without surrounding context. Always include relevant descriptive text, explanations, or context that makes the tool/media recommendation valuable. Only extract a URL alone if it is literally the only content available for that recommendation.
+6. When extracting golden nuggets that contain URLs, NEVER add spaces inside the URLs. URLs must remain intact and functional (e.g., use "http://www.example.com" not "http://www. example. com").
+7. Do not include any explanations or additional commentary outside of the JSON structure.
+8. Each golden nugget must include: type, fullContent, and confidence (0.0-1.0).
+
+Your task is to analyze the given content, extract multiple relevant golden nuggets per category with confidence scores, and present them in the required JSON format with fullContent for each nugget.
+Creative exploration is encouraged.
+`.trim(),
+		isDefault: true,
+	},
+] as const;

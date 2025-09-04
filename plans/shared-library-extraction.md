@@ -412,12 +412,12 @@ export class ProviderService {
 ### Success Criteria:
 
 #### Automated Verification
-- [ ] Core library builds with provider system: `pnpm build`
-- [ ] Provider unit tests pass in library: `pnpm test`
-- [ ] Chrome extension builds with library providers
-- [ ] Chrome storage adapter tests pass
-- [ ] Integration tests verify provider creation works correctly
-- [ ] All existing Chrome extension provider tests pass
+- [x] Core library builds with provider system: `pnpm build`
+- [x] Provider unit tests pass in library: `pnpm test` (no tests yet, but no failures)
+- [x] Chrome extension builds with library providers
+- [ ] Chrome storage adapter tests pass (test updates needed for new architecture)
+- [ ] Integration tests verify provider creation works correctly (test updates needed)
+- [ ] All existing Chrome extension provider tests pass (test updates needed for provider service)
 
 #### Manual Verification
 - [ ] Chrome extension can create providers using library + adapter
@@ -687,13 +687,13 @@ export class GoldenNuggetsCore {
 ### Success Criteria:
 
 #### Automated Verification
-- [ ] Core library builds with all services: `pnpm build`
-- [ ] All service unit tests pass in library: `pnpm test`
-- [ ] Chrome extension builds with library services
-- [ ] Ensemble analysis produces identical results to before extraction
-- [ ] Type filtering works correctly through library interface
-- [ ] Response normalization maintains compatibility
-- [ ] Integration tests pass with library services
+- [x] Core library builds with all services: `pnpm build`
+- [ ] All service unit tests pass in library: `pnpm test` (tests not yet written)
+- [x] Chrome extension builds with library services
+- [ ] Ensemble analysis produces identical results to before extraction (requires Chrome extension integration)
+- [ ] Type filtering works correctly through library interface (requires Chrome extension integration)
+- [ ] Response normalization maintains compatibility (requires Chrome extension integration)
+- [ ] Integration tests pass with library services (requires Chrome extension integration)
 
 #### Manual Verification
 - [ ] Chrome extension ensemble analysis functions identically to before

@@ -8,17 +8,11 @@
 	"files": {
 		"ignoreUnknown": false,
 		"includes": [
-			"src/background/**/*",
-			"src/content/**/*",
-			"src/entrypoints/**/*",
-			"src/shared/**/*",
-			"src/styles/**/*",
-			"frontend/src/**/*",
-			"tests/e2e/**/*.ts",
-			"tests/integration/**/*.ts",
-			"tests/unit/**/*.ts",
-			"tests/utils/**/*.ts",
-			"tests/setup.ts"
+			"packages/chrome-extension/src/**/*",
+			"packages/chrome-extension/tests/**/*.ts",
+			"packages/core/src/**/*",
+			"packages/core/tests/**/*.ts",
+			"frontend/src/**/*"
 		]
 	},
 	"formatter": {
@@ -49,7 +43,7 @@
 	},
 	"overrides": [
 		{
-			"includes": ["tests/**/*"],
+			"includes": ["packages/*/tests/**/*"],
 			"linter": {
 				"rules": {
 					"suspicious": {

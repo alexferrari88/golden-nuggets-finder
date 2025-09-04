@@ -1,0 +1,45 @@
+{
+  "name": "@golden-nuggets/core",
+  "version": "1.0.0",
+  "description": "Core library for golden nugget extraction and analysis",
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "type": "module",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest",
+    "lint": "biome check",
+    "lint:fix": "biome check --write",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@leeoniya/ufuzzy": "^1.0.19",
+    "zod": "^4.1.5"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.2.2",
+    "@types/node": "^24.3.0",
+    "@vitest/coverage-v8": "^3.2.4",
+    "happy-dom": "^18.0.1",
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4"
+  },
+  "keywords": [
+    "ai",
+    "content-analysis",
+    "web-extraction",
+    "insights",
+    "golden-nuggets"
+  ],
+  "author": "Alex Ferrari",
+  "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/alexferrari88/golden-nuggets-finder",
+    "directory": "packages/core"
+  }
+}

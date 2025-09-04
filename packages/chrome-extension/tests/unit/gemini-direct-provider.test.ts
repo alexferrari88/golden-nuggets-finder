@@ -1,0 +1,189 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { GeminiDirectProvider } from "../../src/shared/providers/gemini-direct-provider";
+
+// Mock types
+interface MockGeminiClient {
+	analyzeContent: ReturnType<typeof vi.fn>;
+	validateApiKey: ReturnType<typeof vi.fn>;
+}
+
+// Mock GeminiClient
+vi.mock("../../src/background/gemini-client", () => ({
+	GeminiClient: vi.fn().mockImplementation(() => ({
+		analyzeContent: vi.fn(),
+		validateApiKey: vi.fn(),
+	})),
+}));
+
+describe("GeminiDirectProvider", () => {
+	let provider: GeminiDirectProvider;
+	let mockGeminiClient: MockGeminiClient;
+
+	beforeEach(() => {
+		vi.clearAllMocks();
+
+		provider = new GeminiDirectProvider({
+			providerId: "gemini",
+			apiKey: "test-api-key",
+			modelName: "gemini-2.5-flash",
+		});
+
+		// Get the mocked GeminiClient instance
+		mockGeminiClient = (provider as any).geminiClient;
+	});
+
+	describe("Provider Interface", () => {
+		it("should implement LLMProvider interface correctly", () => {
+			expect(provider.providerId).toBe("gemini");
+			expect(provider.modelName).toBe("gemini-2.5-flash");
+			expect(typeof provider.extractGoldenNuggets).toBe("function");
+			expect(typeof provider.validateApiKey).toBe("function");
+		});
+
+		it("should use default model name when not provided", () => {
+			const defaultProvider = new GeminiDirectProvider({
+				providerId: "gemini",
+				apiKey: "test-api-key",
+				modelName: "",
+			});
+
+			expect(defaultProvider.modelName).toBe("gemini-2.5-flash-lite");
+		});
+	});
+
+	describe("extractGoldenNuggets", () => {
+		it("should transform GeminiResponse to GoldenNuggetsResponse format", async () => {
+			// Mock GeminiClient response (with fullContent format)
+			const mockGeminiResponse = {
+				golden_nuggets: [
+					{
+						type: "tool" as const,
+						fullContent: "This is a test tool for the system integration",
+						confidence: 0.9,
+					},
+					{
+						type: "aha! moments" as const,
+						fullContent:
+							"Complex concepts are simplified here through explanation",
+						confidence: 0.85,
+					},
+				],
+			};
+
+			mockGeminiClient.analyzeContent.mockResolvedValue(mockGeminiResponse);
+
+			const result = await provider.extractGoldenNuggets(
+				"test content",
+				"test prompt",
+			);
+
+			// Verify the transformation to GoldenNuggetsResponse format
+			expect(result).toEqual({
+				golden_nuggets: [
+					{
+						type: "tool",
+						fullContent: "This is a test tool for the system integration",
+						confidence: 0.9,
+						extractionMethod: "validated",
+						validationScore: undefined,
+					},
+					{
+						type: "aha! moments",
+						fullContent:
+							"Complex concepts are simplified here through explanation",
+						confidence: 0.85,
+						extractionMethod: "validated",
+						validationScore: undefined,
+					},
+				],
+			});
+
+			// Verify GeminiClient was called correctly
+			expect(mockGeminiClient.analyzeContent).toHaveBeenCalledWith(
+				"test content",
+				"test prompt",
+				undefined, // progressOptions
+				0.7, // default temperature
+				"gemini-2.5-flash", // model name
+			);
+		});
+
+		it("should pass temperature parameter to GeminiClient", async () => {
+			mockGeminiClient.analyzeContent.mockResolvedValue({
+				golden_nuggets: [],
+			});
+
+			await provider.extractGoldenNuggets("test content", "test prompt", 0.7);
+
+			expect(mockGeminiClient.analyzeContent).toHaveBeenCalledWith(
+				"test content",
+				"test prompt",
+				undefined, // progressOptions
+				0.7, // temperature
+				"gemini-2.5-flash", // model name
+			);
+		});
+
+		it("should handle empty response", async () => {
+			mockGeminiClient.analyzeContent.mockResolvedValue({
+				golden_nuggets: [],
+			});
+
+			const result = await provider.extractGoldenNuggets(
+				"test content",
+				"test prompt",
+			);
+
+			expect(result).toEqual({
+				golden_nuggets: [],
+			});
+		});
+
+		it("should propagate errors from GeminiClient", async () => {
+			const testError = new Error("Gemini API error");
+			mockGeminiClient.analyzeContent.mockRejectedValue(testError);
+
+			await expect(
+				provider.extractGoldenNuggets("test content", "test prompt"),
+			).rejects.toThrow("Gemini API error");
+		});
+	});
+
+	describe("validateApiKey", () => {
+		it("should delegate to GeminiClient validateApiKey method", async () => {
+			mockGeminiClient.validateApiKey.mockResolvedValue(true);
+
+			const result = await provider.validateApiKey();
+
+			expect(result).toBe(true);
+			expect(mockGeminiClient.validateApiKey).toHaveBeenCalledWith(
+				"test-api-key",
+			);
+		});
+
+		it("should return false and log warning on validation error", async () => {
+			const consoleSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+			mockGeminiClient.validateApiKey.mockRejectedValue(
+				new Error("Invalid API key"),
+			);
+
+			const result = await provider.validateApiKey();
+
+			expect(result).toBe(false);
+			expect(consoleSpy).toHaveBeenCalledWith(
+				"Gemini API key validation failed:",
+				"Invalid API key",
+			);
+
+			consoleSpy.mockRestore();
+		});
+
+		it("should return false when GeminiClient returns false", async () => {
+			mockGeminiClient.validateApiKey.mockResolvedValue(false);
+
+			const result = await provider.validateApiKey();
+
+			expect(result).toBe(false);
+		});
+	});
+});

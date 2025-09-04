@@ -9,25 +9,25 @@ default:
 # EXTENSION DEVELOPMENT
 # ============================================================================
 
-# Clean build artifacts
+# Clean build artifacts (chrome extension only)
 clean:
-    pnpm clean
+    cd packages/chrome-extension && pnpm clean
 
-# Clean and start extension development server
+# Clean and start extension development server  
 dev: clean
     pnpm dev
 
-# Clean and build extension for production
+# Clean and build extension for production (all packages)
 build: clean
     pnpm build
 
-# Build extension for Firefox
+# Build extension for Firefox (chrome extension only)
 build-firefox: clean
-    pnpm build:firefox
+    cd packages/chrome-extension && pnpm build:firefox
 
-# Package extension as zip
+# Package extension as zip (chrome extension only)
 zip: clean
-    pnpm package
+    cd packages/chrome-extension && pnpm package
 
 # ============================================================================
 # DOCKER COMPOSE - BACKEND ONLY
@@ -91,53 +91,53 @@ rebuild-all:
 # TESTING
 # ============================================================================
 
-# Run all tests (unit tests)
+# Run all tests (unit tests across all packages)
 test:
     pnpm test
 
-# Run unit tests with UI
+# Run unit tests with UI (chrome extension)
 test-ui:
-    pnpm test:ui
+    cd packages/chrome-extension && pnpm test:ui
 
-# Run unit tests once (no watch mode)
+# Run unit tests once (chrome extension)
 test-run:
-    pnpm test:run
+    cd packages/chrome-extension && pnpm test:run
 
-# Run tests with coverage
+# Run tests with coverage (chrome extension)
 test-coverage:
-    pnpm test:coverage
+    cd packages/chrome-extension && pnpm test:coverage
 
-# Run integration tests (with real API keys)
+# Run integration tests (chrome extension with real API keys)
 test-integration:
-    pnpm test:integration
+    cd packages/chrome-extension && pnpm test:integration
 
-# Run integration tests in watch mode
+# Run integration tests in watch mode (chrome extension)
 test-integration-watch:
-    pnpm test:integration:watch
+    cd packages/chrome-extension && pnpm test:integration:watch
 
-# Run integration tests with UI
+# Run integration tests with UI (chrome extension)
 test-integration-ui:
-    pnpm test:integration:ui
+    cd packages/chrome-extension && pnpm test:integration:ui
 
-# Run E2E tests
+# Run E2E tests (chrome extension)
 test-e2e:
-    pnpm test:e2e
+    cd packages/chrome-extension && pnpm test:e2e
 
-# Run E2E tests with UI
+# Run E2E tests with UI (chrome extension)
 test-e2e-ui:
-    pnpm test:e2e:ui
+    cd packages/chrome-extension && pnpm test:e2e:ui
 
-# Run E2E tests in debug mode
+# Run E2E tests in debug mode (chrome extension)
 test-e2e-debug:
-    pnpm test:e2e:debug
+    cd packages/chrome-extension && pnpm test:e2e:debug
 
-# Run E2E tests with browser UI visible
+# Run E2E tests with browser UI visible (chrome extension)
 test-e2e-headed:
-    pnpm test:e2e:headed
+    cd packages/chrome-extension && pnpm test:e2e:headed
 
-# Show E2E test report
+# Show E2E test report (chrome extension)
 test-e2e-report:
-    pnpm test:e2e:report
+    cd packages/chrome-extension && pnpm test:e2e:report
 
 # Run backend tests using Docker
 test-backend:
@@ -147,13 +147,13 @@ test-backend:
 # LINTING AND FORMATTING
 # ============================================================================
 
-# Run linter
+# Run linter (across all packages)
 lint:
     pnpm lint
 
-# Run linter and fix issues
+# Run linter and fix issues (chrome extension only, as core package may not have lint:fix)
 lint-fix:
-    pnpm lint:fix
+    cd packages/chrome-extension && pnpm lint:fix
 
 # ============================================================================
 # BACKEND DEVELOPMENT
@@ -218,9 +218,9 @@ update:
     pnpm update
     cd frontend && pnpm update
 
-# Generate extension icons
+# Generate extension icons (chrome extension)
 icons:
-    pnpm icons
+    cd packages/chrome-extension && pnpm icons
 
 # Show project status
 status:
@@ -236,8 +236,12 @@ status:
 
 # Clean all build artifacts and dependencies
 clean-all:
-    pnpm clean
+    cd packages/chrome-extension && pnpm clean
     rm -rf node_modules
+    rm -rf packages/chrome-extension/node_modules
+    rm -rf packages/core/node_modules
+    rm -rf packages/chrome-extension/dist
+    rm -rf packages/core/dist
     rm -rf frontend/node_modules
     rm -rf frontend/dist
     cd backend && docker-compose --profile dev --profile backup down -v

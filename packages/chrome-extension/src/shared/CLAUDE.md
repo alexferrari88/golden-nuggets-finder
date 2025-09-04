@@ -1,0 +1,963 @@
+# Shared Utilities Documentation
+
+This document covers the shared utilities, multi-provider system, types, storage management, security, content processing, and performance monitoring for the Golden Nugget Finder extension.
+
+## Multi-Provider System
+
+### Provider Directory (`providers/`)
+The extension supports multiple AI providers through a unified interface:
+
+#### Gemini Direct Provider (`providers/gemini-direct-provider.ts`)
+Direct REST API integration with Google Gemini with fullContent extraction:
+- **API Integration**: Direct REST calls without SDK dependencies
+- **Structured Output**: Uses Gemini's structured output capabilities with schema enforcement
+- **FullContent Method**: Native support for `extractGoldenNuggets` with fullContent response
+- **Thinking Budget**: Configurable thinking budget for complex analysis
+- **Caching**: Built-in response caching for improved performance
+- **Error Handling**: Gemini-specific error patterns and retry logic
+- **Temperature Control**: Configurable temperature settings for optimal extraction quality
+
+#### LangChain Anthropic Provider (`providers/langchain-anthropic-provider.ts`)
+Anthropic Claude integration via LangChain with fullContent extraction:
+- **LangChain Integration**: Leverages LangChain's Anthropic adapter
+- **Model Support**: Supports Claude Sonnet 4 and other Claude models
+- **Structured Output**: Tool calling for consistent response formatting
+- **FullContent Method**: Complete implementation of `extractGoldenNuggets` with fullContent response
+- **Advanced Reasoning**: Optimized for complex analytical tasks with confidence scoring
+- **Temperature Management**: Configurable temperature settings for optimal extraction quality
+
+#### LangChain OpenAI Provider (`providers/langchain-openai-provider.ts`)
+OpenAI integration via LangChain with fullContent extraction capabilities:
+- **Model Range**: Supports GPT-4o, GPT-4, and other OpenAI models
+- **Tool Calling**: Uses OpenAI's function calling for structured responses
+- **FullContent Implementation**: Complete support for `extractGoldenNuggets` with fullContent format
+- **Cost Optimization**: Efficient token usage and model selection
+- **Reliability**: Robust error handling and retry mechanisms
+- **Confidence Integration**: Built-in confidence scoring for quality assessment
+
+#### LangChain OpenRouter Provider (`providers/langchain-openrouter-provider.ts`)
+OpenRouter integration providing access to multiple models with fullContent extraction:
+- **Multi-Model Access**: Access to various models through single API
+- **FullContent Support**: Complete implementation of `extractGoldenNuggets` across all supported models
+- **Cost Comparison**: Enables cost comparison across different providers
+- **Model Variety**: Supports both open-source and proprietary models with consistent fullContent interface
+- **Fallback Option**: Serves as fallback when primary providers are unavailable
+- **Universal Compatibility**: Two-phase methods work consistently across all OpenRouter model options
+
+### Provider Interface (`types/providers.ts`)
+Unified interface for all AI providers:
+- **Common Interface**: `LLMProvider` interface ensures consistent API across providers
+- **Provider Configuration**: `ProviderConfig` for standardized provider setup
+- **Response Format**: `GoldenNuggetsResponse` standardizes output format
+- **Type Safety**: Strong typing for provider IDs and configurations
+
+## Storage Management
+
+### Storage Manager (`storage.ts`)
+Handles Chrome storage with caching and security integration:
+- Provides abstraction layer over Chrome storage APIs
+- Implements caching for frequently accessed data
+- Handles storage quota management
+- Ensures data consistency across extension components
+
+### Storage Directory (`storage/`)
+Modular storage system for different data types:
+
+#### API Key Storage (`storage/api-key-storage.ts`)
+Specialized storage for AI provider API keys:
+- **Multi-Provider Support**: Stores API keys for Gemini, OpenAI, Anthropic, and OpenRouter
+- **Encryption**: All API keys encrypted using SecurityManager with device-specific encryption
+- **Provider Management**: Get, set, and remove API keys for specific providers
+- **Validation Integration**: Works with provider validation systems
+
+#### Model Storage (`storage/model-storage.ts`)
+Manages user-selected models for each provider:
+- **Model Selection**: Stores user's preferred model for each provider
+- **Fallback Logic**: Automatic fallback to provider defaults when no selection exists
+- **Provider-Specific**: Separate model storage per provider
+- **Configuration Support**: Integrates with provider configuration system
+
+### Storage Structure
+- **Multi-Provider API Keys**: Encrypted storage for all supported AI providers (Gemini, OpenAI, Anthropic, OpenRouter)
+  - Individual encrypted keys per provider using device-specific encryption
+  - Provider-specific storage keys with automatic configuration discovery
+  - Security integration with same encryption system as main storage
+- **Model Selections**: User-selected models per provider with fallback defaults
+  - Provider-specific model storage with validation and error handling
+  - Batch model management for ensemble configuration scenarios
+  - Automatic fallback to provider defaults when no custom selection exists
+- **Enhanced Ensemble Settings**: Multi-provider ensemble configuration support
+  - `mode`: Single-model or multi-provider ensemble operation
+  - `providerConfigurations`: Array of provider/model combinations with enable/disable flags
+  - `defaultProviderSet`: Named provider set configurations for quick setup
+  - Migration support from legacy single-model ensemble settings
+- **Provider Set Management**: Named combinations of provider configurations
+  - Save and retrieve common provider combinations (e.g., "Accuracy Focused", "Speed Optimized")
+  - Complete provider set storage with model-specific configurations
+  - Quick switching between different multi-provider ensemble scenarios
+- **User Prompts**: Array of saved prompt objects with names, content, and default status
+- **Provider Configuration**: Selected provider and provider-specific settings
+- **Type Filtering**: User preferences for nugget type filtering
+- **Analysis Settings**: Configuration for extraction preferences and quality settings
+  - Stored securely using same encryption system as other extension settings
+
+### Storage Best Practices
+- Use local storage for user preferences and settings
+- Implement proper error handling for storage operations
+- Validate data integrity on read/write operations
+- Handle storage quota exceeded scenarios
+- API keys are automatically encrypted using device-specific encryption
+
+## Security System
+
+### Security Manager (`security.ts`)
+Comprehensive security system for API key protection and access control:
+- **Device-Specific Encryption**: API keys encrypted using AES-GCM with device fingerprinting
+- **Access Control**: Rate limiting and context validation for all security operations
+- **Audit Logging**: Complete audit trail of all security events and access attempts
+- **Key Rotation**: Automatic detection of key age and rotation recommendations
+- **Error Recovery**: Enhanced error handling with recovery suggestions for device changes
+
+### Security Features
+- **Encryption**: AES-GCM with PBKDF2 key derivation using device-specific salts
+- **Rate Limiting**: Configurable rate limits per context (background, popup, options, content)
+- **Integrity Verification**: Storage integrity checks with version compatibility
+- **Memory Security**: Automatic cleanup of sensitive data from memory
+- **Context Validation**: Strict access control based on extension context
+
+### Security Best Practices
+- Never store API keys in plaintext
+- Use SecurityManager for all sensitive data operations
+- Validate access context before security operations
+- Monitor audit logs for suspicious activity
+- Clear sensitive data when no longer needed
+
+## Content Processing System
+
+### Enhanced Text Matching System
+The extension uses a sophisticated multi-strategy text matching system for accurate golden nugget highlighting:
+
+#### TextMatcher Service (`content/ui/text-matcher.ts`)
+Centralized fuzzy text matching service using uFuzzy.js:
+- **Multi-Strategy Approach**: Combines exact matching, normalized matching, and fuzzy matching
+- **uFuzzy.js Integration**: Uses uFuzzy library for handling LLM text variations
+- **Unicode Normalization**: Handles common Unicode character variants via TextNormalizer
+- **Performance Optimization**: Progressive matching with exact match first for best performance
+- **Confidence Scoring**: Returns confidence scores (0.0-1.0) for match quality assessment
+- **Word-Level Fuzzy Matching**: Uses configurable tolerance for handling minor text variations
+- **Partial Matching**: Fallback to subsequence matching when full matches fail
+
+#### TextNormalizer Service (`content/ui/text-normalizer.ts`)
+Text normalization for consistent matching across character variants:
+- **Character Normalization**: Handles apostrophes, quotes, dashes, ellipses variations
+- **Whitespace Normalization**: Standardizes spacing and line breaks
+- **Unicode Handling**: Normalizes various Unicode character forms
+- **Performance Optimized**: Fast text processing for real-time matching
+
+#### AnchorTextMatcher Service (`content/ui/anchor-text-matcher.ts`)
+Wrapper for dom-anchor-text-quote with progressive matching strategy:
+- **dom-anchor-text-quote Integration**: Uses context-aware anchor matching as primary strategy
+- **Progressive Fallback**: Falls back to fuzzy matching, then exact matching
+- **DOMPositionMapper Integration**: Converts text positions to DOM ranges for highlighting
+- **Match Result Metadata**: Provides detailed match type, confidence, and error information
+- **Context Extraction**: Can extract prefix/suffix context for future anchor matching
+
+#### DOMPositionMapper Service (`content/ui/dom-position-mapper.ts`)
+Converts global text positions to DOM Ranges across multiple nodes:
+- **Cross-Node Highlighting**: Enables highlighting text that spans multiple DOM nodes
+- **Text Node Filtering**: Accepts visible text nodes while rejecting script/style content
+- **Range Optimization**: Provides optimized version that merges adjacent ranges
+- **Position Mapping**: Builds mapping of text nodes to global text offsets
+- **Debug Utilities**: Tools for troubleshooting cross-node highlighting issues
+
+### Content Reconstruction (`content-reconstruction.ts`)
+Advanced text reconstruction utilities with progressive text matching integration:
+- **Progressive Matching Integration**: Uses AnchorTextMatcher for multi-strategy text finding
+- **Unicode Normalization**: Handles all common Unicode character variants for reliable matching
+- **Text Highlighting**: Modern CSS Custom Highlight API with mark.js fallback for accurate fullContent highlighting
+- **FullContent Processing**: Direct fullContent highlighting without boundary-based complexity
+- **Display Optimization**: Smart content display based on reconstruction success
+- **Cross-Node Support**: Handles text that spans multiple DOM nodes via DOMPositionMapper
+
+### Progressive Text Matching Features
+- **Multi-Strategy Approach**: Anchor matching → fuzzy matching → exact matching progression
+- **Advanced Normalization**: Handles apostrophes, quotes, dashes, ellipses, and whitespace variants
+- **uFuzzy.js Integration**: Professional fuzzy matching library for LLM text variations
+- **Cross-Node Highlighting**: Supports text that spans multiple DOM elements
+- **Confidence Scoring**: All matches include confidence scores for quality assessment
+- **Context-Aware Matching**: Uses prefix/suffix context when available for disambiguation
+- **Performance Optimized**: Progressive fallback ensures optimal performance
+
+### Enhanced Text Matching Benefits
+- **Improved Accuracy**: Multi-strategy approach increases successful highlighting rate
+- **LLM Variation Handling**: Robust handling of AI-generated text variations
+- **Performance**: Optimized matching with exact match prioritization
+- **Cross-Node Support**: Handles complex DOM structures with text spanning nodes
+- **Maintainable Architecture**: Clear separation of concerns across matching services
+- **Debug Support**: Comprehensive logging and debug utilities for troubleshooting
+
+## Schema System
+
+### Schema Definitions (`schemas.ts`)
+Comprehensive JSON schema definitions for fullContent extraction workflows:
+
+#### Standard Schema Functions
+- **Golden Nugget Schema**: Complete schema for nugget validation and API responses
+- **Type System**: Enforced golden nugget types (tool, media, aha! moments, analogy, model)
+- **Dynamic Schema Generation**: Configurable schemas based on selected nugget types
+- **Validation Support**: Integration with JSON schema validation libraries
+
+#### Advanced Schema Functions
+- **`generateGoldenNuggetSchema(selectedTypes)`**: Schema for fullContent extraction
+  - Uses `fullContent` field for complete verbatim content capture
+  - Includes `confidence` field for scoring extracted nuggets (0.0-1.0)
+  - Optimized for direct extraction with quality assessment
+  - Properties: `type`, `fullContent`, `confidence`
+- **Simplified Schema Generation**: Unified schema generation for fullContent extraction
+  - Uses `fullContent` field for complete text capture
+  - Includes `confidence` field for extraction quality assessment (0.0-1.0)
+  - Optimized for direct content extraction and highlighting
+  - Properties: `type`, `fullContent`, `confidence`
+
+### Schema Features
+- **Strict Validation**: Enforced required fields and data types across all schema variants
+- **Property Ordering**: Consistent property ordering for API responses and UI display
+- **Type Filtering**: Dynamic schema generation based on user-selected nugget types
+- **Extensibility**: Easy addition of new nugget types and validation rules
+- **Two-Phase Support**: Specialized schemas for different extraction phases with optimized field structures
+- **Confidence Integration**: Built-in confidence scoring for quality assessment and filtering
+- **Post-Processing**: Responses undergo confidence filtering (≥0.85 threshold) after extraction
+
+## Ensemble Support
+
+### Multi-Provider Ensemble System
+The shared utilities include comprehensive support for both single-model and multi-provider ensemble analysis:
+
+#### Enhanced Ensemble Configuration Types (`types.ts`)
+```typescript
+interface EnsembleSettings {
+  enabled: boolean;
+  defaultRuns: number; // For single-model mode
+  
+  // New multi-provider support
+  mode: "single-model" | "multi-provider";
+  providerConfigurations: Array<{
+    providerId: ProviderId;
+    modelId: string;
+    enabled: boolean; // Allow toggling individual providers
+  }>;
+  defaultProviderSet: string; // Name of saved provider set
+}
+
+interface EnsembleAnalysisRequest extends AnalysisRequest {
+  ensembleOptions: {
+    runs: number; // For single-model mode
+    mode: "single-model" | "multi-provider";
+    providerConfigurations?: Array<{
+      providerId: ProviderId;
+      modelId: string;
+    }>;
+  };
+}
+```
+
+#### Enhanced Golden Nugget Types with Provider Attribution
+Extended golden nugget types with multi-provider ensemble metadata:
+```typescript
+interface EnhancedGoldenNugget extends GoldenNugget {
+  // Ensemble-specific metadata
+  runsSupportingThis?: number;
+  totalRuns?: number;
+  similarityMethod?: "embedding" | "word_overlap" | "fallback";
+  
+  // Multi-provider attribution metadata
+  sourceProvider?: ProviderId; // Track which provider found this nugget (single-provider scenarios)
+  sourceModel?: string;
+  contributingProviders?: Array<{ model: string; provider: string }>; // Track all providers that contributed (ensemble consensus)
+}
+```
+
+#### Multi-Provider Extraction Result Types (`types/providers.ts`)
+```typescript
+interface EnsembleExtractionResult {
+  golden_nuggets: Array<{
+    type: GoldenNuggetType;
+    fullContent: string;
+    confidence: number;
+    // Multi-provider metadata
+    sourceProvider?: ProviderId;
+    sourceModel?: string;
+    runsSupportingThis: number;
+    totalRuns: number;
+  }>;
+  metadata: {
+    // New multi-provider metadata
+    providersUsed?: Array<{
+      providerId: ProviderId;
+      modelId: string;
+      responseTime: number;
+      successful: boolean;
+    }>;
+  };
+}
+```
+
+### Multi-Provider Storage System
+
+#### Enhanced Storage Methods (`storage.ts`)
+The storage system supports complete multi-provider ensemble configuration:
+
+```typescript
+// Get ensemble settings with multi-provider support
+async getEnsembleSettings(): Promise<{
+  enabled: boolean;
+  defaultRuns: number;
+  mode: "single-model" | "multi-provider";
+  providerConfigurations: Array<{
+    providerId: ProviderId;
+    modelId: string;
+    enabled: boolean;
+  }>;
+  defaultProviderSet: string;
+}>
+
+// Save ensemble settings with provider configurations
+async saveEnsembleSettings(settings: EnsembleSettings): Promise<void>
+
+// Provider set management (save named combinations)
+async saveProviderSet(name: string, configurations: Array<{
+  providerId: ProviderId;
+  modelId: string;
+}>): Promise<void>
+
+async getProviderSet(name: string): Promise<Array<{
+  providerId: ProviderId;
+  modelId: string;
+}> | null>
+
+async getAllProviderSets(): Promise<Record<string, Array<{
+  providerId: ProviderId;
+  modelId: string;
+}>>>
+```
+
+#### Migration Support for Multi-Provider Ensemble
+The storage system includes automatic migration from legacy ensemble settings:
+- **Backward Compatibility**: Converts old single-model settings to new multi-provider format
+- **Default Provider Sets**: Automatically creates default provider combinations
+- **Configuration Preservation**: Maintains existing ensemble preferences during migration
+- **Version Management**: Tracks migration state with version identifiers
+
+### Multi-Provider API Key Storage (`storage/api-key-storage.ts`)
+Specialized storage system for individual provider API keys:
+- **Provider-Specific Keys**: Separate encrypted storage for each provider (Gemini, OpenAI, Anthropic, OpenRouter)
+- **Security Integration**: Uses same encryption system as main storage with device-specific fingerprinting
+- **Provider Management**: Get, set, and remove API keys for specific providers
+- **Configuration Discovery**: Automatically discover configured providers for ensemble setup
+
+```typescript
+// Store API key for specific provider
+async storeApiKey(providerId: ProviderId, apiKey: string): Promise<void>
+
+// Retrieve API key for provider (returns null if not configured)
+async getApiKey(providerId: ProviderId): Promise<string | null>
+
+// List all configured providers
+async listConfiguredProviders(): Promise<ProviderId[]>
+```
+
+### Model Selection Storage (`storage/model-storage.ts`)
+Manages user-selected models for each provider in multi-provider ensemble scenarios:
+- **Provider-Specific Models**: Store preferred model for each provider independently
+- **Fallback Logic**: Automatic fallback to provider defaults when no selection exists
+- **Batch Operations**: Set models for multiple providers simultaneously for ensemble configuration
+- **Validation**: Input validation and storage verification with comprehensive error handling
+
+```typescript
+// Store selected model for provider
+async storeModel(providerId: ProviderId, modelName: string): Promise<void>
+
+// Get selected model (null if using default)
+async getModel(providerId: ProviderId): Promise<string | null>
+
+// Batch model management for ensemble setup
+async setAllModels(models: Partial<Record<ProviderId, string>>): Promise<void>
+async getAllModels(): Promise<Record<ProviderId, string | null>>
+```
+
+### Enhanced Message System Integration
+Multi-provider ensemble support is integrated throughout the messaging system:
+
+#### Ensemble Analysis Messages (`types.ts`)
+```typescript
+// Enhanced message types for multi-provider ensemble
+ANALYZE_CONTENT_ENSEMBLE: "analyze_content_ensemble";
+ENSEMBLE_EXTRACTION_PROGRESS: "ensemble_extraction_progress";
+ENSEMBLE_CONSENSUS_COMPLETE: "ensemble_consensus_complete";
+
+// Enhanced progress tracking with provider attribution
+interface AnalysisProgressMessage {
+  type: "ensemble_extraction_progress" | "ensemble_consensus_complete";
+  analysisId: string;
+  // Provider-specific progress information
+  providersUsed?: Array<{
+    providerId: ProviderId;
+    modelId: string;
+    status: "pending" | "running" | "complete" | "error";
+  }>;
+}
+```
+
+#### Multi-Provider Response Types
+```typescript
+interface EnsembleAnalysisResponse {
+  success: boolean;
+  error?: string;
+  data?: EnsembleExtractionResult & {
+    providerMetadata: {
+      providerId: ProviderId;
+      modelName: string;
+      ensembleRuns: number;
+      consensusMethod: string;
+      // Multi-provider specific metadata
+      providersUsed?: Array<{
+        providerId: ProviderId;
+        modelId: string;
+        responseTime: number;
+        successful: boolean;
+      }>;
+    };
+  };
+}
+```
+
+### Provider Configuration Validation
+Enhanced provider validation system supports multi-provider ensemble requirements:
+- **Multi-Provider Validation**: Validate multiple provider configurations simultaneously
+- **Model Compatibility**: Ensure selected models are available for each provider
+- **Configuration Completeness**: Verify all required providers have valid API keys
+- **Ensemble Readiness**: Validate provider set configurations for ensemble analysis
+
+### Ensemble Constants and Configuration (`constants.ts`)
+Enhanced constants for multi-provider ensemble support:
+- **ENSEMBLE_SETTINGS**: Storage key for ensemble configuration with provider attribution
+- **DEFAULT_PROVIDER_SETS**: Pre-configured provider combinations for common use cases
+- **PROVIDER_SET_PREFIX**: Storage key prefix for named provider set configurations
+- **MAX_PROVIDERS_PER_ENSEMBLE**: Limit for number of providers in single ensemble run
+- **PROVIDER_TIMEOUT_LIMITS**: Per-provider timeout configurations for ensemble reliability
+
+### Multi-Provider Benefits
+The enhanced ensemble system provides significant advantages:
+
+#### Accuracy and Coverage
+- **Cross-Provider Validation**: Multiple AI models validate each other's extractions
+- **Complementary Strengths**: Different providers excel at different content types
+- **Reduced False Positives**: Consensus-based filtering improves precision
+- **Enhanced Recall**: Multiple models catch nuggets others might miss
+
+#### Reliability and Robustness
+- **Provider Redundancy**: Graceful degradation when individual providers fail
+- **Model Diversity**: Reduces bias from single AI model perspectives
+- **Configurable Fallbacks**: Automatic fallback to single-provider mode when needed
+- **Performance Monitoring**: Track provider response times and success rates
+
+#### User Control and Flexibility
+- **Provider Selection**: Users choose which providers to include in ensemble
+- **Model Configuration**: Select specific models for each provider
+- **Named Provider Sets**: Save and reuse common provider combinations
+- **Cost Management**: Clear cost implications with provider-specific pricing
+
+### Technical Implementation Details
+
+#### Provider Attribution Chain
+1. **Individual Extraction**: Each provider performs independent analysis with source attribution
+2. **Consensus Building**: Hybrid similarity matching identifies common nuggets across providers
+3. **Metadata Preservation**: Final results maintain complete attribution chain showing which providers contributed
+4. **UI Integration**: Enhanced results display shows provider consensus and confidence metrics
+
+#### Storage Architecture
+1. **Hierarchical Configuration**: Ensemble settings → Provider configurations → Individual API keys/models
+2. **Atomic Updates**: All related configuration changes applied atomically
+3. **Migration Safety**: Robust migration system preserves existing configurations
+4. **Performance Optimization**: Caching and batch operations minimize storage overhead
+
+#### Error Handling and Recovery
+1. **Provider Isolation**: Failures in one provider don't affect others in ensemble
+2. **Partial Results**: Return results from successful providers even if some fail
+3. **Timeout Management**: Per-provider timeouts prevent hanging on slow responses
+4. **Graceful Degradation**: Automatic fallback to single-provider when ensemble fails
+
+## Development System
+
+### Debug Logger (`debug.ts`)
+Development and production logging system:
+- **Environment Detection**: Automatic development mode detection
+- **Multi-Context Logging**: Logs to both service worker and page console
+- **LLM Integration**: Specialized logging for API requests/responses
+- **Message Forwarding**: Debug messages forwarded to active content scripts
+
+### Debug Features
+- **Development Only**: Automatically disabled in production builds
+- **API Validation Logging**: Detailed logging of API key validation attempts
+- **Error Context**: Enhanced error logging with stack traces and context
+- **Performance Integration**: Integrated with performance monitoring system
+
+## Type System
+
+### Core Types (`types.ts`)
+Comprehensive TypeScript interfaces for all extension data structures with fullContent extraction and multi-provider ensemble support:
+- **Core Data Models**: GoldenNugget, SavedPrompt, ExtensionConfig with complete multi-provider support
+- **Enhanced Golden Nuggets**: Multi-provider attribution with `sourceProvider`, `sourceModel`, and `contributingProviders` metadata
+- **UI State Management**: NuggetDisplayState, SidebarNuggetItem, TypeFilterOptions with provider attribution display
+- **Analysis System**: AnalysisRequest, AnalysisResponse, AnalysisProgressMessage with comprehensive provider metadata
+- **Enhanced Ensemble System**: 
+  - `EnsembleSettings` with `mode`, `providerConfigurations`, and `defaultProviderSet` support
+  - `EnsembleAnalysisRequest` with multi-provider configuration options
+  - `EnhancedGoldenNugget` with complete provider attribution chain
+- **Feedback System**: NuggetFeedback, MissingContentFeedback, FeedbackStats with provider-specific context
+- **Export System**: ExportData, ExportOptions with multiple format support and provider attribution
+- **Enhanced Message System**: Complete MessageTypes enum including multi-provider ensemble messages
+- **Debug System**: DebugLogMessage for development logging with provider context
+- **Provider Integration**: Comprehensive provider metadata types for UI display, analytics, and attribution
+
+### Provider Types Directory (`types/`)
+Specialized type definitions for the multi-provider system:
+
+#### Provider Types (`types/providers.ts`)
+Core provider system types with fullContent extraction and multi-provider ensemble support:
+- **Provider IDs**: `ProviderId` union type for all supported providers (gemini, openai, anthropic, openrouter)
+- **Provider Configuration**: `ProviderConfig` interface for provider setup with API keys and model selection
+- **Enhanced LLM Interface**: `LLMProvider` interface ensuring consistent provider API
+  - `extractGoldenNuggets()`: FullContent extraction with confidence scoring and type filtering
+  - `extractGoldenNuggetsEnsemble()`: Optional ensemble support for single-model multi-run analysis
+  - `validateApiKey()`: Provider-specific API key validation
+- **Multi-Provider Response Formats**: 
+  - `GoldenNuggetsResponse` for standard fullContent extraction with confidence scores
+  - `EnsembleExtractionResult` for ensemble analysis with provider attribution and consensus metadata
+  - `EnhancedGoldenNuggetsResponse` preserving metadata from advanced extraction modes
+- **Ensemble Integration**: 
+  - Complete provider attribution tracking with `sourceProvider`, `sourceModel` metadata
+  - Provider performance tracking with response times and success rates
+  - Multi-provider consensus building with similarity method attribution
+- **Storage Schema**: `ProviderStorageSchema` for multi-provider data persistence and configuration management
+- **Provider Attribution**: Specialized interfaces tracking which providers contributed to each nugget in ensemble scenarios
+
+### Advanced Type Features
+- **Feedback Integration**: Complete feedback system types for prompt optimization
+- **Progress Tracking**: Real-time analysis progress with unique ID tracking
+- **Export Flexibility**: Multiple export formats (JSON, Markdown) with scope control
+- **Message Safety**: Strongly typed message system prevents runtime errors
+- **Performance Monitoring**: Types for optimization requests and performance metrics
+
+### Type Safety Guidelines  
+- Use strict TypeScript configuration
+- Define interfaces for all data structures
+- Implement proper type guards for runtime validation
+- Use discriminated unions for complex type hierarchies
+- Leverage const assertions for immutable data structures
+
+## Design System
+
+### Design System (`design-system.ts`)
+Comprehensive Notion-inspired design system with consistent styling:
+- **Color Palette**: Ultra-minimal monochromatic gray palette (no colors, only neutral tones)
+- **Typography**: System font stack with defined sizes and weights
+- **Spacing**: Consistent spacing scale from 4px to 64px
+- **Components**: Pre-built styles for buttons, cards, inputs, badges
+- **Utilities**: Helper functions for hover, focus, and animation states
+
+### Design Tokens
+- **Colors**: 
+  - Ultra-minimal gray scale (25-900) for all elements
+  - No color accents - only neutral grays for sophisticated aesthetic
+  - Semantic colors using different gray shades for hierarchy
+  - Incredibly subtle highlight colors using minimal opacity overlays
+- **Typography**: System font stack with 7 size variants (xs to 3xl)
+- **Spacing**: 8-step scale for consistent layouts
+- **Shadows**: 4 shadow variants for depth and hierarchy
+- **Border Radius**: 5 variants from subtle to full rounded
+
+### Component Styles
+- **Buttons**: Primary, secondary, and ghost variants
+- **Cards**: Hover states and consistent padding
+- **Inputs**: Focus states with blue accent borders
+- **Badges**: Default and accent variants for status indicators
+
+### Design Philosophy
+- Minimalistic approach inspired by Notion's clean interface
+- Subtle visual feedback over bright, attention-grabbing elements
+- Consistent spacing and typography for professional appearance
+- Accessibility-focused with proper contrast ratios
+
+### ⚠️ CRITICAL: Design System Usage Rules
+
+**NEVER use hardcoded design values anywhere in the codebase. ALWAYS reference the design system.**
+
+**Forbidden patterns:**
+```typescript
+// ❌ NEVER DO THIS
+style.color = '#1A1A1A'
+style.backgroundColor = 'rgba(0, 0, 0, 0.5)'
+style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.1)'
+style.fontSize = '14px'
+style.padding = '12px'
+```
+
+**Required patterns:**
+```typescript
+// ✅ ALWAYS DO THIS
+import { colors, shadows, typography, spacing } from '../design-system'
+
+style.color = colors.text.accent
+style.backgroundColor = colors.background.modalOverlay
+style.boxShadow = shadows.md
+style.fontSize = typography.fontSize.sm
+style.padding = spacing.md
+```
+
+**For content scripts and dynamic styling:**
+```typescript
+import { generateInlineStyles } from '../design-system'
+
+element.style.cssText = `
+  color: ${colors.text.primary};
+  box-shadow: ${generateInlineStyles.cardShadow()};
+`
+```
+
+**Why this rule exists:**
+- Maintains visual consistency across the entire extension
+- Enables easy design updates by changing values in one place
+- Preserves the carefully crafted Notion-inspired aesthetic
+- Prevents design drift and inconsistencies
+- Makes the codebase maintainable and scalable
+
+**The design system is the single source of truth for all visual design decisions.**
+
+## Constants and Configuration
+
+### Constants (`constants.ts`)
+Core configuration values and defaults for fullContent extraction system:
+- **Storage Keys**: Centralized key definitions for Chrome storage (`STORAGE_KEYS`)
+- **Gemini Configuration**: API model selection and thinking budget settings (`GEMINI_CONFIG`)
+- **Embedding Configuration**: Complete embedding settings for ensemble similarity (`EMBEDDING_CONFIG`)
+- **Similarity Defaults**: Default configuration for hybrid similarity matching (`SIMILARITY_DEFAULTS`)
+- **Default Prompts**: Complete default prompt system with sophisticated persona-based analysis
+- **High Recall Strategy**: Optimized prompts for direct fullContent extraction with confidence scoring
+  - **Confidence Threshold**: 0.85 threshold used for post-extraction quality filtering (hardcoded in `background/message-handler.ts`)
+  - **Template Processing**: Dynamic prompt variables like `{{ persona }}` for personalization
+  - **Quality Control**: Multi-layer validation with confidence scoring and content filtering
+
+### High Recall Extraction Strategy
+The extension implements a two-phase quality control approach:
+- **Phase 1: High Recall Extraction**: AI providers use generous extraction with confidence scoring
+- **Phase 2: Confidence Filtering**: Post-processing applies 0.85 threshold for quality control
+- **Persona Integration**: Dynamic prompt personalization via template variables
+- **Category-Based Extraction**: Supports filtering by nugget types (tools, media, aha moments, analogies, models)
+- **Quality Assurance**: Multi-layer validation combining AI confidence scores with threshold filtering
+- **Content Validation**: Ensures extracted nuggets meet minimum quality and relevance standards
+
+### Configuration Features
+- **Immutable Constants**: Using `as const` assertions for type safety
+- **Centralized Storage**: All storage keys defined in single location
+- **Model Configuration**: Easy switching between Gemini model versions
+- **Prompt Templating**: Support for dynamic prompt variables like `{{ source }}`
+
+### Configuration Management
+- Centralize all configuration values
+- Use environment-specific overrides where needed
+- Implement validation for critical constants
+- Document all configuration options
+- Leverage TypeScript for compile-time validation
+
+## Performance Monitoring
+
+### Performance Monitor (`performance.ts`)
+Tracks timing and memory usage:
+- Measures content extraction performance
+- Monitors API call latency and success rates
+- Tracks DOM operations and rendering performance
+- Provides insights for optimization
+
+### Performance Metrics
+- **Content Extraction**: Time to extract content from different site types
+- **API Calls**: Request/response times and error rates
+- **DOM Operations**: Time for highlighting and UI rendering
+- **Memory Usage**: Tracked during analysis phases
+
+### Performance Best Practices
+- Batch DOM operations where possible
+- Implement lazy loading for non-critical components
+- Use efficient data structures for large datasets
+- Monitor and optimize memory usage patterns
+
+## Chrome Extension Utils
+
+### Chrome Extension Utilities (`chrome-extension-utils.ts`)
+Core utilities for Chrome extension operations including content script management and analysis tracking:
+
+#### ContentScriptError Class
+Custom error class for content script injection failures:
+- **Properties**: `tabId`, `cause` for detailed error tracking
+- **Usage**: Thrown when content script injection or verification fails
+- **Error Context**: Provides specific tab and error information for debugging
+
+#### injectContentScript() Function
+Robust content script injection with verification and retry logic:
+- **Verification Check**: Tests if content script already exists before injection
+- **Retry Mechanism**: 10 attempts with 100ms intervals to ensure script readiness
+- **Error Handling**: Throws ContentScriptError with detailed failure information
+- **Deduplication**: Prevents duplicate injections by checking for existing scripts
+
+```typescript
+await injectContentScript(tabId); // Injects and verifies content script
+```
+
+#### generateAnalysisId() Function
+Unique identifier generation for analysis session tracking:
+- **Format**: `analysis_${timestamp}_${random}` for guaranteed uniqueness
+- **Usage**: Tracking analysis requests across background and content scripts
+- **Performance**: Enables analysis progress monitoring and debugging
+
+## Messaging Utils
+
+### Messaging Utilities (`messaging-utils.ts`)
+Type-safe messaging system combining injection and communication patterns:
+
+#### Type-Safe Message Interface
+Comprehensive message type definitions for extension communication:
+- **BaseMessage/BaseResponse**: Foundation interfaces for all messaging
+- **Specific Message Types**: `AnalyzeContentMessage`, `EnterSelectionModeMessage`, etc.
+- **Union Types**: `MessagingRequest`/`MessagingResponse` for complete type safety
+- **Provider Integration**: Messages include provider-specific data types
+
+#### MessagingError Class
+Specialized error handling for communication failures:
+- **Properties**: `tabId`, `messageType`, `cause` for detailed debugging
+- **Context Awareness**: Tracks which tab and message type failed
+- **Error Chaining**: Preserves original error cause for root cause analysis
+
+#### sendWithInjection() Function
+Combined injection and messaging operation:
+- **Automatic Injection**: Ensures content script exists before sending messages
+- **Type Safety**: Generic return type based on expected response
+- **Error Handling**: Comprehensive error reporting with context
+- **Deduplication**: Leverages injectContentScript's deduplication logic
+
+```typescript
+const response = await sendWithInjection<AnalysisResponse>(tabId, message);
+```
+
+#### getActiveTab() Function
+Reliable active tab retrieval with validation:
+- **Tab Validation**: Ensures tab exists and has valid ID
+- **Error Handling**: Throws MessagingError for missing or invalid tabs
+- **Type Safety**: Returns properly typed chrome.tabs.Tab object
+
+#### sendToActiveTab() Function
+Convenience function combining tab retrieval and messaging:
+- **One-Step Operation**: Handles tab lookup, injection, and messaging
+- **Error Propagation**: Maintains error context through the entire chain
+- **Type Safety**: Preserves response type through generic parameters
+
+```typescript
+const response = await sendToActiveTab<AnalysisResponse>(message);
+```
+
+## Provider Validation Utils
+
+### Provider Validation Utilities (`provider-validation-utils.ts`)
+Centralized provider configuration validation system:
+
+#### ProviderValidationResult Interface
+Complete provider validation state information:
+- **isConfigured**: Boolean indicating if provider has valid API key
+- **provider**: Current ProviderId (gemini, anthropic, openai, openrouter)
+- **model**: Selected model name for the provider
+- **error**: Optional error message if validation failed
+
+#### ProviderConfigurationError Class
+Specialized error for provider configuration issues:
+- **Provider Context**: Includes which provider failed configuration
+- **Usage**: Thrown when operations require configured provider but none exists
+- **Error Propagation**: Preserves original error context
+
+#### validateCurrentProvider() Function
+Comprehensive provider validation with parallel checks:
+- **Parallel Validation**: Simultaneously checks provider, model, and configuration
+- **Fallback Handling**: Returns default provider on failure with error details
+- **Performance Optimized**: Uses Promise.all for efficient validation
+- **Error Recovery**: Never throws, always returns validation result
+
+```typescript
+const validation = await validateCurrentProvider();
+if (!validation.isConfigured) {
+  // Handle unconfigured provider
+}
+```
+
+#### requireConfiguredProvider() Function
+Validation with mandatory configuration requirement:
+- **Strict Validation**: Throws error if provider not configured
+- **Operation Gating**: Use before operations requiring valid provider
+- **Clear Error Messages**: Provides actionable error messages for users
+- **Type Safety**: Returns validated provider info on success
+
+```typescript
+const provider = await requireConfiguredProvider(); // Throws if not configured
+```
+
+## Type Filtering System
+
+### Type Filter Integration
+User-configurable nugget type filtering with persistent storage:
+
+#### Provider Interface Integration (`types/providers.ts`)
+Type filtering parameter in provider analysis calls:
+- **Optional Parameter**: `typeFilter?: TypeFilterOptions` in analysis requests
+- **Backwards Compatibility**: Defaults to all types when not specified
+- **Provider Agnostic**: Supported across all AI providers (Gemini, Claude, OpenAI, OpenRouter)
+
+### Type Filter Benefits
+- **User Control**: Users can focus on specific nugget types of interest
+- **Backward Compatibility**: Existing prompts work without modification
+- **Provider Independence**: Works consistently across all AI providers
+- **Performance Optimization**: More focused analysis when types are filtered
+
+## Utility Functions
+
+### Common Utilities
+- String manipulation and validation helpers
+- DOM utility functions
+- Async operation helpers
+- Error handling utilities
+
+### Helper Function Guidelines
+- Keep functions pure and side-effect free where possible
+- Implement proper error handling
+- Use TypeScript generics for reusable functions
+- Document function parameters and return types
+
+## Error Handling
+
+### Error Utilities
+- Standardized error types and messages
+- Error logging and reporting functions
+- User-friendly error message formatting
+- Debug information collection
+
+### Error Handling Strategy
+- Use typed error objects for better error handling
+- Implement proper error boundaries in UI components
+- Log errors with sufficient context for debugging
+- Provide graceful degradation for non-critical failures
+
+## Testing Infrastructure
+
+### Unit Tests
+The shared utilities include comprehensive unit tests:
+- **Schema Validation Tests** (`schemas.test.ts`): Tests for JSON schema generation and validation
+- **Security System Tests** (`security.test.ts`): Tests for encryption, decryption, and access control  
+- **Storage System Tests** (`storage.test.ts`): Tests for storage operations and error handling
+- **Chrome Extension Utils Tests** (`chrome-extension-utils.test.ts`): Tests for content script injection and analysis ID generation
+- **Provider Validation Tests** (`provider-validation-utils.test.ts`): Tests for provider configuration validation and error handling
+- **Text Highlighting Tests**: Tests for modern CSS Custom Highlight API and mark.js fallback
+- **Progressive Text Matching Tests**: Tests for TextMatcher, AnchorTextMatcher, and DOMPositionMapper services
+- **Text Normalization Tests** (`content/ui/text-normalizer.test.ts`): Tests for Unicode and character variant handling
+- **Cross-Node Highlighting Tests** (`content/ui/dom-position-mapper.test.ts`): Tests for text spanning multiple DOM nodes
+- **Model Storage Tests** (`storage/model-storage.test.ts`): Tests for provider model selection and storage
+
+### Test Coverage Areas
+- **Security**: Encryption/decryption cycles, device fingerprinting, error recovery
+- **Schema**: Dynamic schema generation, type validation, property ordering
+- **Storage**: CRUD operations, error handling, data integrity validation
+- **Chrome Extension Operations**: Content script injection, deduplication, retry logic
+- **Provider Validation**: Configuration checks, error scenarios, fallback handling
+- **Content Processing**: FullContent extraction, text highlighting, progressive matching
+- **Enhanced Text Matching**: TextMatcher with uFuzzy.js, confidence scoring, fallback strategies
+- **Cross-Node Highlighting**: DOMPositionMapper for text spanning multiple elements
+- **Text Normalization**: Unicode handling, character variant normalization
+- **Progressive Matching**: Anchor → fuzzy → exact matching strategy validation
+- **Performance**: Timing validation, memory usage monitoring, match confidence assessment
+- **Error Handling**: Edge cases, malformed data, security failures, matching failures
+
+### Testing Best Practices
+- Focus on unit testing for utility functions
+- Test error conditions and edge cases thoroughly
+- Verify type safety and validation logic
+- Test performance under various conditions
+- Use descriptive test names and organize by feature area
+
+## Development Notes
+
+### Adding New Utilities
+1. **Naming Conventions**: Follow existing naming conventions and file structure
+2. **TypeScript Integration**: Implement proper TypeScript typing with strict mode
+3. **Provider Compatibility**: Ensure utilities work across all supported providers
+4. **Testing Coverage**: Add comprehensive unit tests in corresponding `.test.ts` file
+5. **Security Considerations**: Consider security implications for sensitive operations
+6. **Documentation**: Update this CLAUDE.md file with new utility documentation
+
+#### Utility File Organization
+The shared utilities are organized into specialized modules for maintainability:
+
+- **`chrome-extension-utils.ts`**: Core Chrome extension operations (injection, analysis IDs)
+- **`messaging-utils.ts`**: Type-safe messaging patterns with injection integration
+- **`provider-validation-utils.ts`**: Provider configuration validation and error handling
+- **`storage.ts`**: Chrome storage abstraction with caching and security
+- **`security.ts`**: Encryption, access control, and audit logging
+- **`content-reconstruction.ts`**: Text matching and content reconstruction with progressive matching
+- **`constants.ts`**: Configuration values including confidence thresholds and embedding settings
+
+#### Utility Integration Patterns
+When creating new utilities, follow these established patterns:
+
+1. **Error Classes**: Create specialized error classes (e.g., `ContentScriptError`, `MessagingError`)
+2. **Type Safety**: Use generics and strict typing (e.g., `sendWithInjection<T>()`)
+3. **Parallel Operations**: Use `Promise.all()` for independent async operations
+4. **Error Recovery**: Provide fallback values and graceful degradation
+5. **Function Composition**: Combine smaller utilities into higher-level operations
+6. **Context Preservation**: Maintain error context through the call stack
+
+### Adding New Providers
+1. **Provider Implementation**: Create new provider class in `providers/` directory
+2. **Interface Compliance**: Implement `LLMProvider` interface from `types/providers.ts`
+3. **Type Updates**: Extend `ProviderId` union type and related interfaces
+4. **Model Service**: Add model fetching logic to model service
+5. **Error Handling**: Implement provider-specific error patterns
+6. **Storage Integration**: Update storage systems for new provider
+7. **Testing**: Comprehensive testing including API integration and error scenarios
+
+### Security Considerations
+- All new utilities handling sensitive data must use SecurityManager
+- Implement proper access control validation
+- Add audit logging capability for security-sensitive operations
+- Consider rate limiting for operations that could be abused
+- Test error handling to prevent information leakage
+
+### Performance Optimization
+- Profile utility functions for performance bottlenecks
+- Implement memoization where appropriate (see content reconstruction)
+- Use efficient algorithms and data structures (see fuzzy matching)
+- Monitor memory usage and implement cleanup (see security manager)
+- Consider lazy loading for heavy operations
+
+### Code Quality Enforcement
+- **ALWAYS** use the `code-quality-enforcer` agent at the end of any shared utility development task
+- When working with todo lists, add "Run code quality enforcement" as the **last** todo item
+- This ensures all shared utility code passes formatting, linting, type checking, and testing
+- Critical for shared utilities since they're used across all extension components
+
+## Migration Notes
+
+### Storage Migration
+- Implement version-based storage migration
+- Handle legacy data format conversion
+- Provide fallback values for missing data
+- Test migration scenarios thoroughly
+
+### API Changes
+- Version API interfaces appropriately
+- Maintain backward compatibility where possible
+- Document breaking changes clearly
+- Provide migration guides for major updates
